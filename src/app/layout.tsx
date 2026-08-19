@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   },
   description:
     "A Brisbane creative growth partner combining strategy, video, photography and campaigns to build attention, trust and momentum.",
+  alternates: { canonical: "/" },
   keywords: [
     "Brisbane videographer",
     "Brisbane content creation",
