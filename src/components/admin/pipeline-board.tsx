@@ -4,15 +4,15 @@ import { useMemo, useState } from "react";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { CalendarDays, Clock3, GripVertical } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { movePipelineTask } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { PipelineTask, TaskStatus } from "@/lib/types";
 
-function TaskCard({ task }: { task: PipelineTask }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
+function TaskCard({ task, isSaving }: { task: PipelineTask; isSaving: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving });
   return (
-    <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className="pipeline-task">
-      <button className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`}><GripVertical size={15} /></button>
+    <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className={`pipeline-task ${isSaving ? "is-saving" : ""}`} aria-busy={isSaving}>
+      <button className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`} disabled={isSaving}><GripVertical size={15} /></button>
       <div className="task-client">{task.job?.client?.name ?? "No client"}</div>
       <h3>{task.title}</h3>
       <p>{task.job?.title ?? "Unlinked job"}</p>
@@ -24,13 +24,13 @@ function TaskCard({ task }: { task: PipelineTask }) {
   );
 }
 
-function Column({ status, tasks }: { status: TaskStatus; tasks: PipelineTask[] }) {
+function Column({ status, tasks, savingId }: { status: TaskStatus; tasks: PipelineTask[]; savingId: string | null }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column ${isOver ? "is-over" : ""}`}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b></header>
       <div className="pipeline-stack">
-        {tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        {tasks.map((task) => <TaskCard key={task.id} task={task} isSaving={savingId === task.id} />)}
         {!tasks.length && <div className="pipeline-empty">Drop an asset here</div>}
       </div>
     </section>
@@ -40,6 +40,7 @@ function Column({ status, tasks }: { status: TaskStatus; tasks: PipelineTask[] }
 export function PipelineBoard({ initialStatuses, initialTasks }: { initialStatuses: TaskStatus[]; initialTasks: PipelineTask[] }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [message, setMessage] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 7 } }));
   const byStatus = useMemo(() => new Map(initialStatuses.map((status) => [status.id, tasks.filter((task) => task.status_id === status.id)])), [initialStatuses, tasks]);
 
@@ -53,13 +54,17 @@ export function PipelineBoard({ initialStatuses, initialTasks }: { initialStatus
     const current = tasks.find((task) => task.id === taskId);
     if (!destination || !current || current.status_id === destination) return;
 
+    setMessage("");
+    setSavingId(taskId);
     setTasks((all) => all.map((task) => task.id === taskId ? { ...task, status_id: destination, position: Date.now() } : task));
-    const { error } = await createClient().from("website-job-tasks").update({ status_id: destination, position: Date.now() }).eq("id", taskId);
-    if (error) {
-      setTasks((all) => all.map((task) => task.id === taskId ? current : task));
-      setMessage("That move could not be saved. The card was restored.");
-    } else {
+    try {
+      await movePipelineTask(taskId, destination);
       setMessage(`${current.title} moved successfully.`);
+    } catch {
+      setTasks((all) => all.map((task) => task.id === taskId ? current : task));
+      setMessage("The move was not saved. Your card has been restored—refresh your session and try again.");
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -68,7 +73,7 @@ export function PipelineBoard({ initialStatuses, initialTasks }: { initialStatus
       <div className="pipeline-toolbar"><p>Drag assets between stages. Changes save immediately.</p>{message && <span role="status">{message}</span>}</div>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="pipeline-board">
-          {initialStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} />)}
+          {initialStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} savingId={savingId} />)}
         </div>
       </DndContext>
     </>

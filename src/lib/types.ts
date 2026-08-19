@@ -61,6 +61,7 @@ export type PipelineTask = {
   hours: number | null;
   due_date: string | null;
   priority: string;
+  description: string | null;
   position: number;
   job?: { title: string; client?: { name: string } | null } | null;
 };

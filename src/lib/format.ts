@@ -16,6 +16,15 @@ export function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+export function todayDateInput() {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Australia/Brisbane",
+  }).format(new Date());
+}
+
 export function initials(value: string) {
   return value
     .split(/\s+/)

@@ -57,12 +57,12 @@ export default async function OverviewPage() {
       </section>
 
       <section className="admin-card table-card">
-        <div className="card-heading"><div><p>Operations</p><h2>Jobs at a glance</h2></div><Link href="/admin/jobs">View all</Link></div>
+        <div className="card-heading"><div><p>Outstanding operations</p><h2>Jobs at a glance</h2></div><Link href="/admin/jobs">View all</Link></div>
         {data.recentJobs.length ? (
           <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Job</th><th>Due</th><th>Hours</th><th>Assets</th><th>Open</th><th>Value</th></tr></thead><tbody>
             {data.recentJobs.map((job: Record<string, unknown>) => <tr key={job.id as string}><td><strong>{job.title as string}</strong><small>{(job.job_number as string) || "No job number"}</small></td><td>{formatDate(job.due_date as string)}</td><td>{Number(job.hours ?? 0).toFixed(2)}</td><td>{String(job.created_assets ?? 0)}</td><td><span className="count-pill">{String(job.open_tasks ?? 0)}</span></td><td><strong>{formatCurrency(Number(job.value_cents ?? 0))}</strong></td></tr>)}
           </tbody></table></div>
-        ) : <EmptyState title="No jobs yet" description="Create a job or import the existing CSV records to start the operational view." />}
+        ) : <EmptyState title="All caught up" description="There are no jobs with outstanding tasks right now." />}
       </section>
     </>
   );

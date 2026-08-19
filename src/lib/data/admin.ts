@@ -1,7 +1,8 @@
+import { cache } from "react";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 
-export async function getAdminContext() {
+export const getAdminContext = cache(async () => {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims?.sub) return null;
@@ -15,7 +16,7 @@ export async function getAdminContext() {
 
   if (!membership) return null;
   return { supabase, claims: claims.claims, membership };
-}
+});
 
 export async function getOverviewData() {
   const context = await getAdminContext();
@@ -29,7 +30,7 @@ export async function getOverviewData() {
     supabase.from("website-enquiries").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("website-invoices").select("id,total_cents,status,due_date"),
     supabase.from("website-finance-overview").select("*").maybeSingle(),
-    supabase.from("website-job-metrics").select("id,title,job_number,hours,created_assets,open_tasks,value_cents,due_date").order("due_date", { ascending: true, nullsFirst: false }).limit(6),
+    supabase.from("website-job-metrics").select("id,title,job_number,hours,created_assets,open_tasks,value_cents,due_date").gt("open_tasks", 0).order("due_date", { ascending: true, nullsFirst: false }).limit(6),
   ]);
 
   return {
@@ -45,7 +46,7 @@ export async function getClients() {
   if (!context) return [];
   const { data: clients } = await context.supabase
     .from("website-clients")
-    .select("id,name,slug,status,industry,priority,is_retainer,monthly_budget_cents,updated_at")
+    .select("id,name,slug,status,industry,website_url,priority,is_retainer,monthly_budget_cents,notes,updated_at")
     .is("archived_at", null)
     .order("name");
   if (!clients?.length) return [];
@@ -59,13 +60,15 @@ export async function getClients() {
 export async function getJobs() {
   const context = await getAdminContext();
   if (!context) return [];
-  const [{ data: jobs }, { data: clients }, { data: statuses }] = await Promise.all([
+  const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
+    context.supabase.from("website-jobs").select("id,location,description,notes").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-job-statuses").select("id,label,color,position").order("position"),
   ]);
-  return (jobs ?? []).map((job) => ({
+  return (metrics ?? []).map((job) => ({
     ...job,
+    ...(baseJobs ?? []).find((entry) => entry.id === job.id),
     client: (clients ?? []).find((client) => client.id === job.client_id) ?? null,
     status: (statuses ?? []).find((status) => status.id === job.status_id) ?? null,
   }));
@@ -76,7 +79,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [] };
   const [statuses, tasks, jobs, clients] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,priority,position").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
