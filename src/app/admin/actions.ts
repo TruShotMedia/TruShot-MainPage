@@ -255,3 +255,88 @@ export async function updateSettings(formData: FormData) {
   revalidatePath("/admin/settings");
   revalidatePath("/");
 }
+
+const editableWebsiteKeys = [
+  "service-content",
+  "service-brand",
+  "service-campaigns",
+  "about-growth-partner",
+] as const;
+
+export async function updateWebsiteElement(formData: FormData) {
+  const input = z.object({
+    id: z.string().uuid(),
+    element_key: z.enum(editableWebsiteKeys),
+    eyebrow: z.string().trim().max(100),
+    title: z.string().trim().min(2).max(120),
+    body: z.string().trim().min(10).max(700),
+    media_kind: z.enum(["none", "video", "image"]),
+    media_url: z.string().trim().max(2_000),
+    media_path: z.string().trim().max(500),
+    media_alt: z.string().trim().max(180),
+  }).parse(Object.fromEntries(formData));
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: existing, error: readError } = await context.supabase
+    .from("website-site-elements")
+    .select("element_key,element_type")
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .maybeSingle();
+  if (readError || !existing || existing.element_key !== input.element_key) {
+    throw new Error("Website element could not be found.");
+  }
+
+  const expectedMediaKind = existing.element_type === "service" ? "video" : "image";
+  if (input.media_kind !== "none" && input.media_kind !== expectedMediaKind) {
+    throw new Error(`This element only accepts ${expectedMediaKind} media.`);
+  }
+
+  let mediaUrl: string | null = null;
+  let mediaPath: string | null = null;
+  if (input.media_kind !== "none") {
+    if (input.media_alt.length < 3) throw new Error("Add useful alternative text for this media.");
+    const allowedExtension = input.media_kind === "video"
+      ? /\.(mp4|webm)$/i
+      : /\.(jpe?g|png|webp|avif)$/i;
+    const expectedPrefix = `${TRUSHOT_WORKSPACE_ID}/${input.element_key}/`;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl || !input.media_path.startsWith(expectedPrefix) || !allowedExtension.test(input.media_path)) {
+      throw new Error("The uploaded media path is not valid.");
+    }
+
+    const parsedMediaUrl = new URL(input.media_url);
+    const parsedSupabaseUrl = new URL(supabaseUrl);
+    const expectedUrlPath = `/storage/v1/object/public/website-media/${input.media_path}`;
+    if (
+      parsedMediaUrl.protocol !== "https:"
+      || parsedMediaUrl.hostname !== parsedSupabaseUrl.hostname
+      || parsedMediaUrl.pathname !== expectedUrlPath
+    ) {
+      throw new Error("The uploaded media URL is not valid.");
+    }
+    mediaUrl = parsedMediaUrl.toString();
+    mediaPath = input.media_path;
+  }
+
+  const { error } = await context.supabase
+    .from("website-site-elements")
+    .update({
+      eyebrow: input.eyebrow || null,
+      title: input.title,
+      body: input.body,
+      media_kind: input.media_kind,
+      media_url: mediaUrl,
+      media_path: mediaPath,
+      media_alt: input.media_alt || null,
+    })
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/admin/website");
+  return { ok: true };
+}

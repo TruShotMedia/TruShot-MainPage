@@ -149,6 +149,17 @@ export async function getPricingAdmin() {
   return packages.map((item) => ({ ...item, items: (items ?? []).filter((entry) => entry.package_id === item.id) }));
 }
 
+export async function getWebsiteElementsAdmin() {
+  const context = await getAdminContext();
+  if (!context) return [];
+  const { data } = await context.supabase
+    .from("website-site-elements")
+    .select("id,element_key,element_type,eyebrow,title,body,media_kind,media_url,media_path,media_alt,position,is_published")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("position");
+  return data ?? [];
+}
+
 export async function getAnalyticsData() {
   const context = await getAdminContext();
   if (!context) return null;

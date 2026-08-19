@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   PackageOpen,
+  PanelsTopLeft,
   ReceiptText,
   Search,
   Settings,
@@ -37,12 +38,18 @@ const groups = [
     ],
   },
   {
+    label: "Website",
+    links: [
+      ["/admin/website", "Website Elements", PanelsTopLeft],
+      ["/admin/pricing", "Pricing", PackageOpen],
+      ["/admin/analytics", "Analytics", BarChart3],
+    ],
+  },
+  {
     label: "Business",
     links: [
       ["/admin/invoices", "Invoices", ReceiptText],
       ["/admin/finance", "Finance & Tax", CircleDollarSign],
-      ["/admin/pricing", "Pricing", PackageOpen],
-      ["/admin/analytics", "Analytics", BarChart3],
     ],
   },
 ];

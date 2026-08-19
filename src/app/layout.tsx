@@ -7,16 +7,17 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "TruShot Media | Video & Content Production Brisbane",
+    default: "TruShot Media | Creative Growth Partner Brisbane",
     template: "%s | TruShot Media",
   },
   description:
-    "Bold, strategic video and social content for Brisbane businesses ready to be seen, remembered and chosen.",
+    "A Brisbane creative growth partner combining strategy, video, photography and campaigns to build attention, trust and momentum.",
   keywords: [
     "Brisbane videographer",
     "Brisbane content creation",
     "social media video production",
     "commercial videography Queensland",
+    "creative growth partner Brisbane",
     "TruShot Media",
   ],
   openGraph: {
@@ -24,14 +25,14 @@ export const metadata: Metadata = {
     locale: "en_AU",
     url: SITE_URL,
     siteName: "TruShot Media",
-    title: "TruShot Media — Content that earns attention",
-    description: "Strategy-led video, photography and social content made in Brisbane.",
+    title: "TruShot Media — Creative that builds momentum",
+    description: "Strategy, content and campaigns working together to grow ambitious Brisbane businesses.",
     images: [{ url: "/brand/wallpaper.png", width: 1600, height: 1125 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TruShot Media — Content that earns attention",
-    description: "Strategy-led video, photography and social content made in Brisbane.",
+    title: "TruShot Media — Creative that builds momentum",
+    description: "Strategy, content and campaigns working together to grow ambitious Brisbane businesses.",
     images: ["/brand/wallpaper.png"],
   },
   robots: { index: true, follow: true },

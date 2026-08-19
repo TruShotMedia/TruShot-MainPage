@@ -1,5 +1,64 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import type { PricingPackage, PricingItem } from "@/lib/types";
+import type { PricingPackage, PricingItem, WebsiteElement } from "@/lib/types";
+
+export const fallbackWebsiteElements: WebsiteElement[] = [
+  {
+    id: "service-content",
+    element_key: "service-content",
+    element_type: "service",
+    eyebrow: "Always-on attention",
+    title: "Content systems",
+    body: "Strategic short-form video and photography built into a consistent engine for attention, trust and demand.",
+    media_kind: "none",
+    media_url: null,
+    media_path: null,
+    media_alt: "TruShot Media content production in action",
+    position: 10,
+    is_published: true,
+  },
+  {
+    id: "service-brand",
+    element_key: "service-brand",
+    element_type: "service",
+    eyebrow: "Be known for something",
+    title: "Brand growth",
+    body: "Positioning and stories that make the right audience understand your value, remember your name and choose you.",
+    media_kind: "none",
+    media_url: null,
+    media_path: null,
+    media_alt: "A TruShot Media brand story production",
+    position: 20,
+    is_published: true,
+  },
+  {
+    id: "service-campaigns",
+    element_key: "service-campaigns",
+    element_type: "service",
+    eyebrow: "Turn attention into action",
+    title: "Campaign momentum",
+    body: "Connected creative, distribution and iteration designed around a business goal—not a pile of disconnected assets.",
+    media_kind: "none",
+    media_url: null,
+    media_path: null,
+    media_alt: "A TruShot Media campaign being produced",
+    position: 30,
+    is_published: true,
+  },
+  {
+    id: "about-growth-partner",
+    element_key: "about-growth-partner",
+    element_type: "about",
+    eyebrow: "Your creative growth partner",
+    title: "Creative that moves the business.",
+    body: "TruShot Media partners with ambitious businesses to build attention, trust and demand. We connect strategy, production and ongoing optimisation in one direct collaboration—from the first idea to measurable momentum.",
+    media_kind: "none",
+    media_url: null,
+    media_path: null,
+    media_alt: "The TruShot Media team working with a client",
+    position: 40,
+    is_published: true,
+  },
+];
 
 const fallbackPackages: PricingPackage[] = [
   {
@@ -129,5 +188,21 @@ export async function getPublishedPricing(): Promise<PricingPackage[]> {
     })) as PricingPackage[];
   } catch {
     return fallbackPackages;
+  }
+}
+
+export async function getPublishedWebsiteElements(): Promise<WebsiteElement[]> {
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("website-site-elements")
+      .select("id,element_key,element_type,eyebrow,title,body,media_kind,media_url,media_path,media_alt,position,is_published")
+      .eq("is_published", true)
+      .order("position");
+
+    if (error || !data?.length) return fallbackWebsiteElements;
+    return data as WebsiteElement[];
+  } catch {
+    return fallbackWebsiteElements;
   }
 }

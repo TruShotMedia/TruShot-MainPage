@@ -5,24 +5,21 @@ import { AnalyticsTracker } from "@/components/public/analytics-tracker";
 import { EnquiryForm } from "@/components/public/enquiry-form";
 import { PackageButton } from "@/components/public/package-button";
 import { PublicHeader } from "@/components/public/public-header";
-import { getPublishedPricing } from "@/lib/data/public";
+import { fallbackWebsiteElements, getPublishedPricing, getPublishedWebsiteElements } from "@/lib/data/public";
 import { formatCurrency } from "@/lib/format";
 
-const services = [
-  ["01", "Social content", "Short-form video and stills designed to earn attention in the feed."],
-  ["02", "Brand stories", "Films that make the people, thinking and value behind your business tangible."],
-  ["03", "Campaigns", "A connected content system built around a goal, not a pile of disconnected assets."],
-];
-
 export default async function HomePage() {
-  const packages = await getPublishedPricing();
+  const [packages, websiteElements] = await Promise.all([getPublishedPricing(), getPublishedWebsiteElements()]);
+  const services = websiteElements.filter((element) => element.element_type === "service");
+  const about = websiteElements.find((element) => element.element_key === "about-growth-partner")
+    ?? fallbackWebsiteElements[3];
   const businessSchema = {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     name: "TruShot Media",
     areaServed: "Brisbane, Queensland, Australia",
     email: "info@fearlessau.com",
-    description: "Strategy-led video, photography and social content production.",
+    description: "A creative growth partner connecting strategy, content and campaigns for ambitious Brisbane businesses.",
   };
 
   return (
@@ -35,44 +32,62 @@ export default async function HomePage() {
         <div className="hero-kicker"><span /> Brisbane · Queensland · Australia</div>
         <h1>Make work<br />worth <em>watching.</em></h1>
         <div className="hero-bottom">
-          <p>Strategy-led video and social content for brands that want more than “just post something.”</p>
+          <p>A creative growth partner combining strategy, content and campaigns to build attention, trust and momentum.</p>
           <a className="circle-link" href="#work" aria-label="Explore TruShot Media" data-analytics-key="hero.explore"><ArrowDown /></a>
         </div>
       </section>
 
       <div className="ticker" aria-hidden="true">
-        <div>VIDEO PRODUCTION <span>✦</span> SOCIAL CONTENT <span>✦</span> PHOTOGRAPHY <span>✦</span> STRATEGY <span>✦</span> VIDEO PRODUCTION <span>✦</span></div>
+        <div>GROWTH STRATEGY <span>✦</span> VIDEO PRODUCTION <span>✦</span> SOCIAL CONTENT <span>✦</span> CAMPAIGNS <span>✦</span> GROWTH STRATEGY <span>✦</span></div>
       </div>
 
       <section className="statement" id="work" data-section="work">
         <p className="section-label">What we do</p>
         <div>
-          <h2>Good content gets seen.<br /><span>Great content gets felt.</span></h2>
-          <p>We turn clear thinking into sharp creative — so your audience understands who you are, why you matter, and what to do next.</p>
+          <h2>Content earns attention.<br /><span>Partnership builds momentum.</span></h2>
+          <p>We connect strategy, production and optimisation—giving ambitious businesses a repeatable creative system built around growth.</p>
         </div>
       </section>
 
       <section className="service-grid" aria-label="Services">
-        {services.map(([number, title, copy]) => (
-          <article className="service-card" key={number}>
-            <div className="service-number">{number}</div>
-            <div className="service-shape" aria-hidden="true"><span /></div>
-            <h3>{title}</h3>
-            <p>{copy}</p>
+        {services.map((service, index) => (
+          <article className="service-card" key={service.id}>
+            <div className="service-media">
+              <div className="service-shape" aria-hidden="true"><span /></div>
+              {service.media_kind === "video" && service.media_url && (
+                <video autoPlay muted loop playsInline preload="metadata" aria-hidden="true">
+                  <source src={service.media_url} />
+                </video>
+              )}
+              <div className="service-media-shade" aria-hidden="true" />
+              <div className="service-number">{String(index + 1).padStart(2, "0")}</div>
+            </div>
+            <div className="service-content">
+              {service.eyebrow && <span className="service-eyebrow">{service.eyebrow}</span>}
+              <h3>{service.title}</h3>
+              <p>{service.body}</p>
+            </div>
           </article>
         ))}
       </section>
 
       <section className="about-section" id="about" data-section="about">
-        <div className="about-mark">TS<span>✦</span></div>
+        <div className="about-media">
+          <Image
+            src={about.media_kind === "image" && about.media_url ? about.media_url : "/brand/wallpaper.png"}
+            alt={about.media_alt || "TruShot Media"}
+            fill
+            sizes="(max-width: 720px) 100vw, 47vw"
+          />
+        </div>
         <div className="about-copy">
-          <p className="section-label light">About TruShot</p>
-          <h2>Small team.<br />Serious intent.</h2>
-          <p>TruShot Media is a Brisbane content studio built for businesses that care about the standard of their work. We keep the process direct, collaborative and useful — from the first idea to the final export.</p>
+          <p className="section-label light">{about.eyebrow || "About TruShot"}</p>
+          <h2>{about.title}</h2>
+          <p>{about.body}</p>
           <div className="about-stats">
-            <div><strong>Strategy</strong><span>before cameras</span></div>
-            <div><strong>Craft</strong><span>without the theatre</span></div>
-            <div><strong>Clarity</strong><span>at every handover</span></div>
+            <div><strong>Strategy</strong><span>directs the work</span></div>
+            <div><strong>Content</strong><span>built to compound</span></div>
+            <div><strong>Growth</strong><span>measured and refined</span></div>
           </div>
         </div>
       </section>
@@ -111,8 +126,8 @@ export default async function HomePage() {
           {[
             ["01", "Align", "We get clear on the audience, message and useful outcome."],
             ["02", "Create", "We plan, shoot and build the right set of assets."],
-            ["03", "Refine", "You review through a tidy feedback loop, without chaos."],
-            ["04", "Deliver", "Final assets arrive organised, ready to publish and reuse."],
+            ["03", "Learn", "We review the response, find the signal and sharpen what comes next."],
+            ["04", "Grow", "Each cycle builds a stronger, more useful creative system for your business."],
           ].map(([number, title, copy]) => (
             <article key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></article>
           ))}
