@@ -1,5 +1,6 @@
 import { CalendarDays, Clock3, Pencil, Plus } from "lucide-react";
 import { createTask, updateTask } from "@/app/admin/actions";
+import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -14,7 +15,17 @@ export default async function TasksPage() {
   return (
     <>
       <PageHeader eyebrow="Created assets" title="Tasks / Assets" description="Plan every deliverable, assign its hours and due date, then move it through the production pipeline." actions={
-        <details className="action-popover"><summary className="admin-primary-button"><Plus size={16} /> New asset</summary><form action={createTask} className="quick-form wide"><h3>Create a task / asset</h3><label>Title<input name="title" required /></label><label>Job<select name="job_id" required><option value="">Choose job</option>{(jobs ?? []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></label><label>Status<select name="status_id" required>{data.statuses.map((status: TaskStatus) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label><label>Asset type<input name="asset_type" placeholder="Reel, photo set, edit…" /></label><label>Hours<input name="hours" type="number" min="0" step="0.25" /></label><label>Due date<input name="due_date" type="date" /></label><label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label className="form-span">Description<textarea name="description" rows={3} /></label><SubmitButton pendingLabel="Creating…">Create asset</SubmitButton></form></details>
+        <ActionPopover action={createTask} summary={<><Plus size={16} /> New asset</>} title="Create a task / asset" formClassName="quick-form wide">
+          <label>Title<input name="title" required /></label>
+          <label>Job<select name="job_id" required><option value="">Choose job</option>{(jobs ?? []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></label>
+          <label>Status<select name="status_id" required>{data.statuses.map((status: TaskStatus) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
+          <label>Asset type<input name="asset_type" placeholder="Reel, photo set, edit…" /></label>
+          <label>Hours<input name="hours" type="number" min="0" step="0.25" /></label>
+          <label>Due date<input name="due_date" type="date" /></label>
+          <label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
+          <label className="form-span">Description<textarea name="description" rows={3} /></label>
+          <SubmitButton pendingLabel="Creating…">Create asset</SubmitButton>
+        </ActionPopover>
       } />
       {data.tasks.length ? <div className="task-status-groups">
         {data.statuses.map((status: TaskStatus) => {

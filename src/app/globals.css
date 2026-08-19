@@ -392,6 +392,8 @@ img { max-width: 100%; }
 .quick-form { position: absolute; top: calc(100% + 10px); right: 0; z-index: 60; display: grid; width: 320px; gap: 13px; border: 1px solid #d7d6ce; border-radius: 15px; background: white; padding: 22px; box-shadow: 0 25px 80px rgba(20,29,23,.18); }
 .quick-form.wide { grid-template-columns: 1fr 1fr; width: 530px; }
 .quick-form h3 { grid-column: 1 / -1; margin: 0 0 6px; }
+.quick-form .popover-close-button { position: absolute; top: 14px; right: 14px; display: grid; width: 32px; min-height: 32px; place-items: center; border: 1px solid #deddd6; border-radius: 9px; background: #f7f6f1; padding: 0; color: #727770; cursor: pointer; margin: 0; }
+.quick-form .popover-close-button:hover { border-color: #bfc8c1; color: var(--green); }
 .quick-form textarea { min-height: 90px; resize: vertical; }
 .quick-form button { margin-top: 4px; }
 .quick-form.wide button, .form-span { grid-column: 1 / -1; }

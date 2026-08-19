@@ -5,8 +5,24 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+
+type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
+
+async function getNextTaskPosition(context: AdminContext, statusId: string) {
+  const { data, error } = await context.supabase
+    .from("website-job-tasks")
+    .select("position")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status_id", statusId)
+    .is("archived_at", null)
+    .order("position", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return nextTaskPosition(data?.[0]?.position);
+}
 
 export async function signIn(formData: FormData) {
   const email = z.email().safeParse(formData.get("email"));
@@ -256,6 +272,7 @@ export async function createTask(formData: FormData) {
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  const position = await getNextTaskPosition(context, input.status_id);
   const { error } = await context.supabase.from("website-job-tasks").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     title: input.title,
@@ -268,7 +285,7 @@ export async function createTask(formData: FormData) {
     description: input.description || null,
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
-    position: Date.now(),
+    position,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/tasks");
@@ -321,9 +338,10 @@ export async function movePipelineTask(taskId: string, statusId: string) {
     .eq("is_active", true)
     .single();
   if (statusError || !status) throw new Error("That pipeline stage is no longer available.");
+  const position = await getNextTaskPosition(context, parsed.statusId);
   const { data: task, error } = await context.supabase.from("website-job-tasks").update({
     status_id: parsed.statusId,
-    position: Date.now(),
+    position,
     updated_by: context.claims.sub,
   }).eq("id", parsed.taskId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).select("id").single();
   if (error || !task) throw new Error(error?.message ?? "The task could not be moved.");

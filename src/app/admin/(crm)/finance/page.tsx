@@ -1,7 +1,9 @@
 import { Plus } from "lucide-react";
 import { createExpense } from "@/app/admin/actions";
+import { ActionPopover } from "@/components/admin/action-popover";
 import { AdminChart } from "@/components/admin/chart";
 import { PageHeader } from "@/components/admin/page-header";
+import { SubmitButton } from "@/components/admin/submit-button";
 import { TaxEstimator } from "@/components/admin/tax-estimator";
 import { getFinanceData } from "@/lib/data/admin";
 import { formatCurrency } from "@/lib/format";
@@ -30,7 +32,16 @@ export default async function FinancePage() {
 
   return (
     <>
-      <PageHeader eyebrow="Financial control" title="Finance & Tax" description="See cash, profit, expenses and a practical sole-trader tax reserve without losing the underlying detail." actions={<details className="action-popover"><summary className="admin-primary-button"><Plus size={16} /> Add expense</summary><form action={createExpense} className="quick-form wide"><h3>Record an expense</h3><label>Vendor<input name="vendor" required /></label><label>Amount AUD<input name="amount_dollars" type="number" min="0" step="0.01" required /></label><label>GST credit AUD<input name="gst_credit_dollars" type="number" min="0" step="0.01" defaultValue="0" /></label><label>Date<input name="incurred_on" type="date" required /></label><label className="form-span">Description<input name="description" /></label><button className="admin-primary-button" type="submit">Save expense</button></form></details>} />
+      <PageHeader eyebrow="Financial control" title="Finance & Tax" description="See cash, profit, expenses and a practical sole-trader tax reserve without losing the underlying detail." actions={
+        <ActionPopover action={createExpense} summary={<><Plus size={16} /> Add expense</>} title="Record an expense" formClassName="quick-form wide">
+          <label>Vendor<input name="vendor" required /></label>
+          <label>Amount AUD<input name="amount_dollars" type="number" min="0" step="0.01" required /></label>
+          <label>GST credit AUD<input name="gst_credit_dollars" type="number" min="0" step="0.01" defaultValue="0" /></label>
+          <label>Date<input name="incurred_on" type="date" required /></label>
+          <label className="form-span">Description<input name="description" /></label>
+          <SubmitButton pendingLabel="Saving…">Save expense</SubmitButton>
+        </ActionPopover>
+      } />
       <section className="finance-kpis"><article><p>Invoiced</p><strong>{formatCurrency(overview?.invoiced_cents)}</strong><span>Excluding void invoices</span></article><article><p>Received</p><strong>{formatCurrency(overview?.paid_cents)}</strong><span>Payments recorded</span></article><article><p>Expenses</p><strong>{formatCurrency(expenseCents)}</strong><span>Deductibility before adjustments</span></article><article><p>Gross margin</p><strong>{formatCurrency(Number(overview?.invoiced_cents ?? 0) - expenseCents)}</strong><span>Invoice value less expenses</span></article></section>
       <section className="admin-card chart-card finance-chart"><div className="card-heading"><div><p>Last 12 months</p><h2>Month-to-month invoice income</h2></div><span>Invoice date basis</span></div><AdminChart option={chartOption} height={330} /></section>
       <TaxEstimator revenueCents={Number(overview?.invoiced_cents ?? 0)} expenseCents={expenseCents} gstCollectedCents={gstCollected} gstCreditsCents={gstCredits} isGstRegistered={Boolean(data.taxSettings?.is_gst_registered)} />

@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { CalendarDays, Clock3, GripVertical } from "lucide-react";
 import { movePipelineTask } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
+import { nextTaskPosition } from "@/lib/task-position";
 import type { PipelineTask, TaskStatus } from "@/lib/types";
 
 function TaskCard({ task, isSaving }: { task: PipelineTask; isSaving: boolean }) {
@@ -56,13 +57,21 @@ export function PipelineBoard({ initialStatuses, initialTasks }: { initialStatus
 
     setMessage("");
     setSavingId(taskId);
-    setTasks((all) => all.map((task) => task.id === taskId ? { ...task, status_id: destination, position: Date.now() } : task));
     try {
+      const highestDestinationPosition = tasks
+        .filter((task) => task.status_id === destination)
+        .reduce((highest, task) => Math.max(highest, Number(task.position)), 0);
+      const position = nextTaskPosition(highestDestinationPosition);
+      setTasks((all) => all
+        .map((task) => task.id === taskId ? { ...task, status_id: destination, position } : task)
+        .sort((left, right) => Number(left.position) - Number(right.position)));
       await movePipelineTask(taskId, destination);
       setMessage(`${current.title} moved successfully.`);
     } catch {
-      setTasks((all) => all.map((task) => task.id === taskId ? current : task));
-      setMessage("The move was not saved. Your card has been restored—refresh your session and try again.");
+      setTasks((all) => all
+        .map((task) => task.id === taskId ? current : task)
+        .sort((left, right) => Number(left.position) - Number(right.position)));
+      setMessage("The move was not saved. Your card has been restored—please try again.");
     } finally {
       setSavingId(null);
     }

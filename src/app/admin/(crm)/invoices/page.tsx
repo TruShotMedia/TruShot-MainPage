@@ -1,5 +1,6 @@
 import { Info, Plus } from "lucide-react";
 import { createInvoice } from "@/app/admin/actions";
+import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -13,7 +14,15 @@ export default async function InvoicesPage() {
   return (
     <>
       <PageHeader eyebrow="Accounts receivable" title="Invoices" description="Track invoice value, payments, dates and the allocation of value across linked jobs." actions={
-        <details className="action-popover"><summary className="admin-primary-button"><Plus size={16} /> New invoice</summary><form action={createInvoice} className="quick-form wide"><h3>Create an invoice</h3><label>Invoice number<input name="invoice_number" required placeholder="INV-0012" /></label><label>Client<select name="client_id"><option value="">No client</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Total AUD<input name="total_dollars" type="number" min="0" step="0.01" required /></label><label>Status<select name="status"><option value="draft">Draft</option><option value="sent">Sent</option><option value="viewed">Viewed</option><option value="part_paid">Part paid</option><option value="paid">Paid</option><option value="overdue">Overdue</option><option value="void">Void</option></select></label><label>Invoice date<input name="issue_date" type="date" defaultValue={todayDateInput()} required /></label><label>Due date<input name="due_date" type="date" /></label><SubmitButton pendingLabel="Creating…">Create invoice</SubmitButton></form></details>
+        <ActionPopover action={createInvoice} summary={<><Plus size={16} /> New invoice</>} title="Create an invoice" formClassName="quick-form wide">
+          <label>Invoice number<input name="invoice_number" required placeholder="INV-0012" /></label>
+          <label>Client<select name="client_id"><option value="">No client</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+          <label>Total AUD<input name="total_dollars" type="number" min="0" step="0.01" required /></label>
+          <label>Status<select name="status"><option value="draft">Draft</option><option value="sent">Sent</option><option value="viewed">Viewed</option><option value="part_paid">Part paid</option><option value="paid">Paid</option><option value="overdue">Overdue</option><option value="void">Void</option></select></label>
+          <label>Invoice date<input name="issue_date" type="date" defaultValue={todayDateInput()} required /></label>
+          <label>Due date<input name="due_date" type="date" /></label>
+          <SubmitButton pendingLabel="Creating…">Create invoice</SubmitButton>
+        </ActionPopover>
       } />
       <div className="formula-note"><Info size={17} /><p><strong>Suggested cash split:</strong> reserve 25% of every invoice for tax and make 75% available for owner withdrawals. These are planning allocations, not a final tax calculation.</p></div>
       {invoices.length ? <section className="admin-card table-card"><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Invoice</th><th>Client</th><th>Invoice date</th><th>Due</th><th>Status</th><th>Total</th><th>Paid</th><th>Balance</th><th>Suggested split</th></tr></thead><tbody>

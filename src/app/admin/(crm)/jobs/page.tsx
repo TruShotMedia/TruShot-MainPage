@@ -1,5 +1,6 @@
 import { Info, Pencil, Plus } from "lucide-react";
 import { createJob, updateJob } from "@/app/admin/actions";
+import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -16,7 +17,15 @@ export default async function JobsPage() {
   return (
     <>
       <PageHeader eyebrow="Production" title="Jobs" description="One source of truth for the brief, dates, assets, hours, delivered photos and value of every job." actions={
-        <details className="action-popover"><summary className="admin-primary-button"><Plus size={16} /> New job</summary><form action={createJob} className="quick-form wide"><h3>Create a job</h3><label>Job title<input name="title" required /></label><label>Client<select name="client_id"><option value="">No client yet</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Status<select name="status_id" required>{(statuses ?? []).map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label><label>Shoot date<input name="shoot_date" type="date" /></label><label>Due date<input name="due_date" type="date" /></label><label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label><SubmitButton pendingLabel="Creating…">Create job</SubmitButton></form></details>
+        <ActionPopover action={createJob} summary={<><Plus size={16} /> New job</>} title="Create a job" formClassName="quick-form wide">
+          <label>Job title<input name="title" required /></label>
+          <label>Client<select name="client_id"><option value="">No client yet</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+          <label>Status<select name="status_id" required>{(statuses ?? []).map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
+          <label>Shoot date<input name="shoot_date" type="date" /></label>
+          <label>Due date<input name="due_date" type="date" /></label>
+          <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>
+          <SubmitButton pendingLabel="Creating…">Create job</SubmitButton>
+        </ActionPopover>
       } />
       <div className="formula-note"><Info size={17} /><p><strong>How the numbers work:</strong> hours sum task hours; created assets count tasks; open tasks exclude Ready To Post and Posted / Done. Value allocates each linked invoice by this job’s share of total invoice hours.</p></div>
       {jobs.length ? <section className="admin-card table-card"><div className="admin-table-wrap"><table className="admin-table jobs-table"><thead><tr><th>Job</th><th>Status</th><th>Dates</th><th>Hours</th><th>Assets</th><th>Photos</th><th>Open</th><th>Value</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
