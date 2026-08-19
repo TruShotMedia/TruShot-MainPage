@@ -50,11 +50,56 @@ export async function getClients() {
     .is("archived_at", null)
     .order("name");
   if (!clients?.length) return [];
-  const { data: contacts } = await context.supabase
-    .from("website-client-contacts")
-    .select("id,client_id,name,email,phone,is_primary")
-    .in("client_id", clients.map((client) => client.id));
-  return clients.map((client) => ({ ...client, contacts: (contacts ?? []).filter((contact) => contact.client_id === client.id) }));
+  const [{ data: contacts }, { data: invoices }, { data: payments }, { data: jobs }, { data: jobMetrics }] = await Promise.all([
+    context.supabase
+      .from("website-client-contacts")
+      .select("id,client_id,name,email,phone,is_primary")
+      .in("client_id", clients.map((client) => client.id)),
+    context.supabase
+      .from("website-invoices")
+      .select("id,client_id,status,total_cents")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-payments")
+      .select("invoice_id,amount_cents")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-jobs")
+      .select("id,client_id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-job-metrics")
+      .select("id,value_cents")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+  ]);
+  const invoiceById = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice]));
+  const invoicedByClient = new Map<string, number>();
+  for (const invoice of invoices ?? []) {
+    if (!invoice.client_id || invoice.status === "void") continue;
+    invoicedByClient.set(invoice.client_id, (invoicedByClient.get(invoice.client_id) ?? 0) + Number(invoice.total_cents));
+  }
+  const paidByClient = new Map<string, number>();
+  for (const payment of payments ?? []) {
+    const invoice = invoiceById.get(payment.invoice_id);
+    if (!invoice?.client_id || invoice.status === "void") continue;
+    paidByClient.set(invoice.client_id, (paidByClient.get(invoice.client_id) ?? 0) + Number(payment.amount_cents));
+  }
+  const jobById = new Map((jobs ?? []).map((job) => [job.id, job]));
+  const earnedByClient = new Map<string, number>();
+  for (const metric of jobMetrics ?? []) {
+    const job = jobById.get(metric.id);
+    if (!job?.client_id) continue;
+    earnedByClient.set(job.client_id, (earnedByClient.get(job.client_id) ?? 0) + Number(metric.value_cents));
+  }
+  return clients.map((client) => ({
+    ...client,
+    contacts: (contacts ?? []).filter((contact) => contact.client_id === client.id),
+    invoiced_cents: invoicedByClient.get(client.id) ?? 0,
+    earned_cents: earnedByClient.get(client.id) ?? 0,
+    paid_cents: paidByClient.get(client.id) ?? 0,
+  }));
 }
 
 export async function getJobs() {
@@ -62,16 +107,23 @@ export async function getJobs() {
   if (!context) return [];
   const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
-    context.supabase.from("website-jobs").select("id,location,description,notes").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,location,description,notes,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
-    context.supabase.from("website-job-statuses").select("id,label,color,position").order("position"),
+    context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
   ]);
-  return (metrics ?? []).map((job) => ({
-    ...job,
-    ...(baseJobs ?? []).find((entry) => entry.id === job.id),
-    client: (clients ?? []).find((client) => client.id === job.client_id) ?? null,
-    status: (statuses ?? []).find((status) => status.id === job.status_id) ?? null,
-  }));
+  const baseById = new Map((baseJobs ?? []).map((job) => [job.id, job]));
+  const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
+  const statusById = new Map((statuses ?? []).map((status) => [status.id, status]));
+  return (metrics ?? []).flatMap((job) => {
+    const baseJob = baseById.get(job.id);
+    if (!baseJob) return [];
+    return [{
+      ...job,
+      ...baseJob,
+      client: job.client_id ? clientById.get(job.client_id) ?? null : null,
+      status: statusById.get(job.status_id) ?? null,
+    }];
+  });
 }
 
 export async function getPipeline() {
@@ -79,7 +131,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [] };
   const [statuses, tasks, jobs, clients] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position,updated_at").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
@@ -96,7 +148,7 @@ export async function getInvoices() {
   const context = await getAdminContext();
   if (!context) return [];
   const [{ data: invoices }, { data: clients }, { data: payments }] = await Promise.all([
-    context.supabase.from("website-invoices").select("id,client_id,invoice_number,status,issue_date,due_date,total_cents").is("archived_at", null).order("issue_date", { ascending: false }),
+    context.supabase.from("website-invoices").select("id,client_id,invoice_number,status,issue_date,due_date,subtotal_cents,gst_cents,total_cents,external_url,notes").is("archived_at", null).order("issue_date", { ascending: false }),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-payments").select("id,invoice_id,amount_cents,paid_at"),
   ]);

@@ -1,22 +1,23 @@
-import { Info, Pencil, Plus } from "lucide-react";
-import { createJob, updateJob } from "@/app/admin/actions";
+import { Info, Plus } from "lucide-react";
+import { createJob } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
+import { StatusGroupedTable } from "@/components/admin/status-grouped-table";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { getAdminContext, getJobs } from "@/lib/data/admin";
-import { formatCurrency, formatDate } from "@/lib/format";
+import type { JobRecord, JobStatus, SelectOption } from "@/lib/types";
 
 export default async function JobsPage() {
   const [jobs, context] = await Promise.all([getJobs(), getAdminContext()]);
   if (!context) return null;
   const [{ data: clients }, { data: statuses }] = await Promise.all([
     context.supabase.from("website-clients").select("id,name").is("archived_at", null).order("name"),
-    context.supabase.from("website-job-statuses").select("id,label").eq("is_active", true).order("position"),
+    context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
   ]);
   return (
     <>
-      <PageHeader eyebrow="Production" title="Jobs" description="One source of truth for the brief, dates, assets, hours, delivered photos and value of every job." actions={
+      <PageHeader eyebrow="Production" title="Jobs" description="Every job is grouped by status. Select rows for bulk updates, or drag a row directly into its next stage." actions={
         <ActionPopover action={createJob} summary={<><Plus size={16} /> New job</>} title="Create a job" formClassName="quick-form wide">
           <label>Job title<input name="title" required /></label>
           <label>Client<select name="client_id"><option value="">No client yet</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
@@ -28,38 +29,15 @@ export default async function JobsPage() {
         </ActionPopover>
       } />
       <div className="formula-note"><Info size={17} /><p><strong>How the numbers work:</strong> hours sum task hours; created assets count tasks; open tasks exclude Ready To Post and Posted / Done. Value allocates each linked invoice by this job’s share of total invoice hours.</p></div>
-      {jobs.length ? <section className="admin-card table-card"><div className="admin-table-wrap"><table className="admin-table jobs-table"><thead><tr><th>Job</th><th>Status</th><th>Dates</th><th>Hours</th><th>Assets</th><th>Photos</th><th>Open</th><th>Value</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
-        {jobs.map((job: Record<string, unknown>) => {
-          const client = job.client as { name?: string } | null;
-          const status = job.status as { id?: string; label?: string; color?: string } | null;
-          return <tr key={job.id as string}>
-            <td><strong>{job.title as string}</strong><small>{client?.name ?? "No client"}</small></td>
-            <td><span className="status-dot" style={{ background: status?.color ?? "#777" }} /> {status?.label ?? "—"}</td>
-            <td><small>Shoot {formatDate(job.shoot_date as string)}</small><small>Due {formatDate(job.due_date as string)}</small></td>
-            <td><strong>{Number(job.hours ?? 0).toFixed(2)}</strong>{Boolean(job.has_unset_task_hours) && <small className="warning-text">Unset task hours</small>}</td>
-            <td>{String(job.created_assets ?? 0)}</td><td>{String(job.photos_delivered ?? 0)}</td><td><span className="count-pill">{String(job.open_tasks ?? 0)}</span></td>
-            <td><strong>{formatCurrency(Number(job.value_cents ?? 0))}</strong>{Boolean(job.allocation_needs_hours) && <small className="warning-text">Needs hours</small>}</td>
-            <td>
-              <details className="row-editor"><summary aria-label={`Edit ${job.title as string}`}><Pencil size={14} /> Edit</summary>
-                <form action={updateJob} className="quick-form wide">
-                  <input type="hidden" name="id" value={job.id as string} /><h3>Edit job</h3>
-                  <label>Job title<input name="title" required defaultValue={job.title as string} /></label>
-                  <label>Job number<input name="job_number" defaultValue={String(job.job_number ?? "")} /></label>
-                  <label>Client<select name="client_id" defaultValue={String(job.client_id ?? "")}><option value="">No client</option>{(clients ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-                  <label>Status<select name="status_id" required defaultValue={String(job.status_id ?? "")} >{(statuses ?? []).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-                  <label>Shoot date<input name="shoot_date" type="date" defaultValue={String(job.shoot_date ?? "")} /></label>
-                  <label>Due date<input name="due_date" type="date" defaultValue={String(job.due_date ?? "")} /></label>
-                  <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={Number(job.photos_delivered ?? 0)} /></label>
-                  <label>Location<input name="location" defaultValue={String(job.location ?? "")} /></label>
-                  <label className="form-span">Description<textarea name="description" rows={3} defaultValue={String(job.description ?? "")} /></label>
-                  <label className="form-span">Internal notes<textarea name="notes" rows={3} defaultValue={String(job.notes ?? "")} /></label>
-                  <SubmitButton pendingLabel="Saving…">Save job</SubmitButton>
-                </form>
-              </details>
-            </td>
-          </tr>;
-        })}
-      </tbody></table></div></section> : <EmptyState title="No jobs yet" description="Create the first job now, or continue to the CSV import once the base workflows are confirmed." />}
+      {jobs.length ? (
+        <StatusGroupedTable
+          key={jobs.map((job) => `${job.id}:${job.updated_at}`).join("|")}
+          kind="jobs"
+          records={jobs as JobRecord[]}
+          statuses={(statuses ?? []) as JobStatus[]}
+          clients={(clients ?? []) as SelectOption[]}
+        />
+      ) : <EmptyState title="No jobs yet" description="Create the first job now, or continue to the CSV import once the base workflows are confirmed." />}
     </>
   );
 }

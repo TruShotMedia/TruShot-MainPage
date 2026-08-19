@@ -7,7 +7,7 @@ export default async function PipelinePage() {
   const data = await getPipeline();
   return (
     <>
-      <PageHeader eyebrow="Production flow" title="Asset pipeline" description="Every task represents a created asset. Move work from not started through review to ready and done." />
+      <PageHeader eyebrow="Production flow" title="Asset pipeline" description="Move active assets through production. Completed work leaves the board when you check it off from Ready To Post." />
       <PipelineBoard initialStatuses={data.statuses as TaskStatus[]} initialTasks={data.tasks as PipelineTask[]} />
     </>
   );

@@ -63,4 +63,15 @@ describe("ActionPopover", () => {
 
     expect(details.open).toBe(false);
   });
+
+  it("stays open and reports an error when the action fails", async () => {
+    const action = vi.fn(async () => { throw new Error("Save failed"); });
+    const { details, form } = await renderPopover(action);
+    details.open = true;
+
+    await act(async () => form.requestSubmit());
+
+    expect(details.open).toBe(true);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("could not be saved");
+  });
 });

@@ -27,14 +27,18 @@ export default async function ClientsPage() {
           return <article className="client-card" key={client.id as string}>
             <div className="client-avatar">{initials(client.name as string)}</div>
             <div className="client-title"><div><h2>{client.name as string}</h2><p>{String(client.industry || "Industry not set")}</p></div><span className={`status-pill status-${client.status}`}>{String(client.status)}</span></div>
-            <dl><div><dt>Primary contact</dt><dd>{String(primary?.name || "—")}</dd></div><div><dt>Email</dt><dd>{String(primary?.email || "—")}</dd></div><div><dt>Monthly budget</dt><dd>{client.monthly_budget_cents ? formatCurrency(Number(client.monthly_budget_cents)) : "—"}</dd></div></dl>
+            <dl><div><dt>Primary contact</dt><dd>{String(primary?.name || "—")}</dd></div><div><dt>Email</dt><dd>{String(primary?.email || "—")}</dd></div><div><dt>Total job value</dt><dd>{formatCurrency(Number(client.earned_cents ?? 0))}</dd></div><div><dt>Received</dt><dd>{formatCurrency(Number(client.paid_cents ?? 0))}</dd></div><div><dt>Monthly budget</dt><dd>{client.monthly_budget_cents ? formatCurrency(Number(client.monthly_budget_cents)) : "—"}</dd></div></dl>
             <div className="client-foot"><span className={`priority-dot priority-${client.priority}`} /> {String(client.priority)} priority {Boolean(client.is_retainer) && <b>Retainer</b>}</div>
-            <details className="inline-editor client-editor">
-              <summary><Pencil size={14} /> Edit details</summary>
-              <form action={updateClient} className="quick-form wide">
+            <ActionPopover
+              action={updateClient}
+              summary={<><Pencil size={14} /> Edit details</>}
+              title={`Edit ${client.name as string}`}
+              detailsClassName="inline-editor client-editor"
+              summaryClassName=""
+              formClassName="quick-form wide"
+            >
                 <input type="hidden" name="id" value={client.id as string} />
                 <input type="hidden" name="contact_id" value={String(primary?.id ?? "")} />
-                <h3>Edit {client.name as string}</h3>
                 <label>Client name<input name="name" required defaultValue={client.name as string} /></label>
                 <label>Status<select name="status" defaultValue={client.status as string}><option value="lead">Lead</option><option value="active">Active</option><option value="paused">Paused</option><option value="inactive">Inactive</option></select></label>
                 <label>Industry<input name="industry" defaultValue={String(client.industry ?? "")} /></label>
@@ -47,8 +51,7 @@ export default async function ClientsPage() {
                 <label className="checkbox-field"><input name="is_retainer" type="checkbox" defaultChecked={Boolean(client.is_retainer)} /><span>Retainer client</span></label>
                 <label className="form-span">Notes<textarea name="notes" rows={3} defaultValue={String(client.notes ?? "")} /></label>
                 <SubmitButton pendingLabel="Saving…">Save client</SubmitButton>
-              </form>
-            </details>
+            </ActionPopover>
             <div className="record-actions">
               <form action={duplicateClient}><input type="hidden" name="id" value={client.id as string} /><SubmitButton className="record-action-button" pendingLabel="Duplicating…"><Copy size={13} /> Duplicate</SubmitButton></form>
               <form action={archiveClient}><input type="hidden" name="id" value={client.id as string} /><SubmitButton className="record-action-button danger" pendingLabel="Removing…"><Archive size={13} /> Remove</SubmitButton></form>

@@ -11,6 +11,8 @@ import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 
 type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
 
+const recordIdsSchema = z.array(z.string().uuid()).min(1).max(250).transform((ids) => [...new Set(ids)]);
+
 async function getNextTaskPosition(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
     .from("website-job-tasks")
@@ -22,6 +24,53 @@ async function getNextTaskPosition(context: AdminContext, statusId: string) {
     .limit(1);
   if (error) throw new Error(error.message);
   return nextTaskPosition(data?.[0]?.position);
+}
+
+async function requireTaskStatus(context: AdminContext, statusId: string) {
+  const { data, error } = await context.supabase
+    .from("website-task-statuses")
+    .select("id,key")
+    .eq("id", statusId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("is_active", true)
+    .single();
+  if (error || !data) throw new Error("That task status is no longer available.");
+  return data;
+}
+
+async function requireJobStatus(context: AdminContext, statusId: string) {
+  const { data, error } = await context.supabase
+    .from("website-job-statuses")
+    .select("id")
+    .eq("id", statusId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("is_active", true)
+    .single();
+  if (error || !data) throw new Error("That job status is no longer available.");
+  return data;
+}
+
+async function requireClient(context: AdminContext, clientId: string) {
+  if (!clientId) return;
+  const { data, error } = await context.supabase
+    .from("website-clients")
+    .select("id")
+    .eq("id", clientId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .single();
+  if (error || !data) throw new Error("That client is no longer available.");
+}
+
+async function requireJob(context: AdminContext, jobId: string) {
+  const { data, error } = await context.supabase
+    .from("website-jobs")
+    .select("id")
+    .eq("id", jobId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .single();
+  if (error || !data) throw new Error("That job is no longer available.");
 }
 
 export async function signIn(formData: FormData) {
@@ -206,6 +255,7 @@ export async function createJob(formData: FormData) {
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  await Promise.all([requireJobStatus(context, input.status_id), requireClient(context, input.client_id)]);
   const { error } = await context.supabase.from("website-jobs").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     title: input.title,
@@ -239,6 +289,7 @@ export async function updateJob(formData: FormData) {
   if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) throw new Error("Due date cannot be before the shoot date.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  await Promise.all([requireJobStatus(context, input.status_id), requireClient(context, input.client_id)]);
   const { data, error } = await context.supabase.from("website-jobs").update({
     title: input.title,
     job_number: input.job_number || null,
@@ -272,6 +323,7 @@ export async function createTask(formData: FormData) {
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const position = await getNextTaskPosition(context, input.status_id);
   const { error } = await context.supabase.from("website-job-tasks").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
@@ -308,6 +360,7 @@ export async function updateTask(formData: FormData) {
   if (hours !== null && (!Number.isFinite(hours) || hours < 0)) throw new Error("Task hours are not valid.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  const [status] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const { data, error } = await context.supabase.from("website-job-tasks").update({
     title: input.title,
     job_id: input.job_id,
@@ -317,6 +370,7 @@ export async function updateTask(formData: FormData) {
     due_date: input.due_date || null,
     priority: input.priority,
     description: input.description || null,
+    completed_at: status.key === "posted_done" ? new Date().toISOString() : null,
     updated_by: context.claims.sub,
   }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Task could not be updated.");
@@ -330,18 +384,12 @@ export async function movePipelineTask(taskId: string, statusId: string) {
   const parsed = z.object({ taskId: z.string().uuid(), statusId: z.string().uuid() }).parse({ taskId, statusId });
   const context = await getAdminContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
-  const { data: status, error: statusError } = await context.supabase
-    .from("website-task-statuses")
-    .select("id")
-    .eq("id", parsed.statusId)
-    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-    .eq("is_active", true)
-    .single();
-  if (statusError || !status) throw new Error("That pipeline stage is no longer available.");
+  const status = await requireTaskStatus(context, parsed.statusId);
   const position = await getNextTaskPosition(context, parsed.statusId);
   const { data: task, error } = await context.supabase.from("website-job-tasks").update({
     status_id: parsed.statusId,
     position,
+    completed_at: status.key === "posted_done" ? new Date().toISOString() : null,
     updated_by: context.claims.sub,
   }).eq("id", parsed.taskId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).select("id").single();
   if (error || !task) throw new Error(error?.message ?? "The task could not be moved.");
@@ -352,11 +400,74 @@ export async function movePipelineTask(taskId: string, statusId: string) {
   return { ok: true };
 }
 
+export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
+  const parsed = z.object({ jobIds: recordIdsSchema, statusId: z.string().uuid() }).parse({ jobIds, statusId });
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  await requireJobStatus(context, parsed.statusId);
+
+  const { data: existing, error: readError } = await context.supabase
+    .from("website-jobs")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", parsed.jobIds);
+  if (readError || existing?.length !== parsed.jobIds.length) throw new Error("One or more selected jobs are no longer available.");
+
+  const { data, error } = await context.supabase
+    .from("website-jobs")
+    .update({ status_id: parsed.statusId, updated_by: context.claims.sub })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", parsed.jobIds)
+    .select("id");
+  if (error || data?.length !== parsed.jobIds.length) throw new Error(error?.message ?? "The selected jobs could not be updated.");
+
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/overview");
+  return { ok: true, updated: data.length };
+}
+
+export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) {
+  const parsed = z.object({ taskIds: recordIdsSchema, statusId: z.string().uuid() }).parse({ taskIds, statusId });
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  const status = await requireTaskStatus(context, parsed.statusId);
+
+  const { data: existing, error: readError } = await context.supabase
+    .from("website-job-tasks")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", parsed.taskIds);
+  if (readError || existing?.length !== parsed.taskIds.length) throw new Error("One or more selected assets are no longer available.");
+
+  const { data, error } = await context.supabase
+    .from("website-job-tasks")
+    .update({
+      status_id: parsed.statusId,
+      completed_at: status.key === "posted_done" ? new Date().toISOString() : null,
+      updated_by: context.claims.sub,
+    })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", parsed.taskIds)
+    .select("id");
+  if (error || data?.length !== parsed.taskIds.length) throw new Error(error?.message ?? "The selected assets could not be updated.");
+
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/overview");
+  return { ok: true, updated: data.length };
+}
+
 export async function createInvoice(formData: FormData) {
   const input = z.object({
     invoice_number: z.string().trim().min(1).max(60),
     client_id: z.string().uuid().or(z.literal("")),
     total_dollars: z.coerce.number().min(0),
+    gst_dollars: z.coerce.number().min(0),
     issue_date: z.string().min(1),
     due_date: z.string().or(z.literal("")),
     status: z.enum(["draft", "sent", "viewed", "part_paid", "paid", "overdue", "void"]),
@@ -364,7 +475,11 @@ export async function createInvoice(formData: FormData) {
   if (input.due_date && input.due_date < input.issue_date) throw new Error("Due date cannot be before the invoice date.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  await requireClient(context, input.client_id);
   const totalCents = Math.round(input.total_dollars * 100);
+  const gstCents = Math.round(input.gst_dollars * 100);
+  if (!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(gstCents)) throw new Error("Invoice total is too large.");
+  if (gstCents > totalCents) throw new Error("GST cannot be greater than the invoice total.");
   const { error } = await context.supabase.from("website-invoices").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     client_id: input.client_id || null,
@@ -372,13 +487,73 @@ export async function createInvoice(formData: FormData) {
     status: input.status,
     issue_date: input.issue_date,
     due_date: input.due_date || null,
-    subtotal_cents: totalCents,
-    gst_cents: 0,
+    subtotal_cents: totalCents - gstCents,
+    gst_cents: gstCents,
     total_cents: totalCents,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/finance");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/overview");
+}
+
+export async function updateInvoice(formData: FormData) {
+  const input = z.object({
+    id: z.string().uuid(),
+    invoice_number: z.string().trim().min(1).max(60),
+    client_id: z.string().uuid().or(z.literal("")),
+    total_dollars: z.coerce.number().min(0),
+    gst_dollars: z.coerce.number().min(0),
+    issue_date: z.string().min(1),
+    due_date: z.string().or(z.literal("")),
+    status: z.enum(["draft", "sent", "viewed", "part_paid", "paid", "overdue", "void"]),
+    notes: z.string().trim().max(2_000),
+  }).parse(Object.fromEntries(formData));
+  if (input.due_date && input.due_date < input.issue_date) throw new Error("Due date cannot be before the invoice date.");
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  await requireClient(context, input.client_id);
+  const totalCents = Math.round(input.total_dollars * 100);
+  const gstCents = Math.round(input.gst_dollars * 100);
+  if (!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(gstCents)) throw new Error("Invoice total is too large.");
+  if (gstCents > totalCents) throw new Error("GST cannot be greater than the invoice total.");
+
+  const { data: payments, error: paymentsError } = await context.supabase
+    .from("website-payments")
+    .select("amount_cents")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("invoice_id", input.id);
+  if (paymentsError) throw new Error(paymentsError.message);
+  const paidCents = (payments ?? []).reduce((sum, payment) => sum + Number(payment.amount_cents), 0);
+  if (totalCents < paidCents) throw new Error("Invoice total cannot be lower than payments already received.");
+
+  const { data, error } = await context.supabase
+    .from("website-invoices")
+    .update({
+      invoice_number: input.invoice_number,
+      client_id: input.client_id || null,
+      total_cents: totalCents,
+      subtotal_cents: totalCents - gstCents,
+      gst_cents: gstCents,
+      issue_date: input.issue_date,
+      due_date: input.due_date || null,
+      status: input.status,
+      notes: input.notes || null,
+    })
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Invoice could not be updated.");
+
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/overview");
 }
 
 export async function createExpense(formData: FormData) {
