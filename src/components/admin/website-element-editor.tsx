@@ -7,15 +7,7 @@ import { Check, ImageIcon, LoaderCircle, Upload, Video } from "lucide-react";
 import { updateWebsiteElement } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { WebsiteElement } from "@/lib/types";
-
-const mediaExtensions: Record<string, string> = {
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/avif": "avif",
-};
+import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
 export function WebsiteElementEditor({
   element,
@@ -32,8 +24,9 @@ export function WebsiteElementEditor({
   const [selectedFileName, setSelectedFileName] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
-  const isVideo = element.element_type === "service";
-  const accept = isVideo ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp,image/avif";
+  const isVideo = element.media_kind === "video";
+  const isImage = element.media_kind === "image";
+  const mediaLabel = isVideo ? "Video" : isImage ? "Image" : "Branded fallback";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,14 +41,7 @@ export function WebsiteElementEditor({
       let mediaPath = removeMedia ? "" : (element.media_path ?? "");
 
       if (file) {
-        const extension = mediaExtensions[file.type];
-        const maxSize = isVideo ? 80 * 1024 * 1024 : 10 * 1024 * 1024;
-        if (!extension || !accept.split(",").includes(file.type)) {
-          throw new Error(isVideo ? "Choose an MP4 or WebM video." : "Choose a JPG, PNG, WebP or AVIF image.");
-        }
-        if (file.size > maxSize) {
-          throw new Error(isVideo ? "Videos must be 80 MB or smaller." : "Images must be 10 MB or smaller.");
-        }
+        const { kind, extension } = validateWebsiteMediaFile(file);
 
         setMessage(`Uploading ${file.name}…`);
         const path = `${workspaceId}/${element.element_key}/${crypto.randomUUID()}.${extension}`;
@@ -67,7 +53,7 @@ export function WebsiteElementEditor({
         });
         if (error) throw new Error(error.message);
         const { data } = supabase.storage.from("website-media").getPublicUrl(path);
-        mediaKind = isVideo ? "video" : "image";
+        mediaKind = kind;
         mediaUrl = data.publicUrl;
         mediaPath = path;
       }
@@ -91,23 +77,30 @@ export function WebsiteElementEditor({
   return (
     <article className={`website-element-card ${element.element_type === "about" ? "about-element-card" : ""}`}>
       <div className="website-element-preview">
-        {element.element_type === "service" ? (
-          <>
-            <div className="admin-media-fallback" aria-hidden="true"><span /></div>
-            {element.media_kind === "video" && element.media_url && (
-              <video src={element.media_url} autoPlay muted loop playsInline preload="metadata" />
-            )}
-          </>
-        ) : (
+        {element.element_type === "service" && !isImage && (
+          <div className="admin-media-fallback" aria-hidden="true"><span /></div>
+        )}
+        {element.element_type === "about" && !isImage && (
           <Image
-            src={element.media_kind === "image" && element.media_url ? element.media_url : "/brand/wallpaper.png"}
+            src="/brand/wallpaper.png"
+            alt=""
+            fill
+            sizes="(max-width: 900px) 100vw, 44vw"
+          />
+        )}
+        {isImage && element.media_url && (
+          <Image
+            src={element.media_url}
             alt={element.media_alt || "TruShot Media"}
             fill
             sizes="(max-width: 900px) 100vw, 44vw"
           />
         )}
+        {isVideo && element.media_url && (
+          <video src={element.media_url} autoPlay muted loop playsInline preload="metadata" aria-label={element.media_alt || "TruShot Media"} />
+        )}
         <span className="website-preview-number">{number}</span>
-        <span className="website-media-badge">{isVideo ? <Video size={13} /> : <ImageIcon size={13} />}{isVideo ? "Video" : "Photo"}</span>
+        <span className="website-media-badge">{isVideo ? <Video size={13} /> : <ImageIcon size={13} />}{mediaLabel}</span>
       </div>
 
       <form className="website-element-form" onSubmit={handleSubmit}>
@@ -131,8 +124,8 @@ export function WebsiteElementEditor({
 
         <div className="website-upload-row">
           <label className="website-upload-button">
-            <Upload size={15} /> {element.media_url ? `Replace ${isVideo ? "video" : "photo"}` : `Upload ${isVideo ? "video" : "photo"}`}
-            <input ref={fileInput} type="file" accept={accept} onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")} />
+            <Upload size={15} /> {element.media_url ? "Replace media" : "Upload image or video"}
+            <input ref={fileInput} type="file" accept={WEBSITE_MEDIA_ACCEPT} onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")} />
           </label>
           {element.media_url && (
             <label className="website-remove-media">
@@ -140,7 +133,7 @@ export function WebsiteElementEditor({
               Use branded fallback
             </label>
           )}
-          <span>{selectedFileName || (isVideo ? "MP4 or WebM · max 80 MB" : "JPG, PNG, WebP or AVIF · max 10 MB")}</span>
+          <span>{selectedFileName || "Images max 10 MB · videos max 80 MB"}</span>
         </div>
 
         <div className="website-element-actions">

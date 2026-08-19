@@ -59,6 +59,14 @@ export default async function HomePage() {
                   <source src={service.media_url} />
                 </video>
               )}
+              {service.media_kind === "image" && service.media_url && (
+                <Image
+                  src={service.media_url}
+                  alt={service.media_alt || service.title}
+                  fill
+                  sizes="(max-width: 1050px) 100vw, 33vw"
+                />
+              )}
               <div className="service-media-shade" aria-hidden="true" />
               <div className="service-number">{String(index + 1).padStart(2, "0")}</div>
             </div>
@@ -73,12 +81,17 @@ export default async function HomePage() {
 
       <section className="about-section" id="about" data-section="about">
         <div className="about-media">
-          <Image
-            src={about.media_kind === "image" && about.media_url ? about.media_url : "/brand/wallpaper.png"}
-            alt={about.media_alt || "TruShot Media"}
-            fill
-            sizes="(max-width: 720px) 100vw, 47vw"
-          />
+          {about.media_kind !== "image" && (
+            <Image src="/brand/wallpaper.png" alt="" fill sizes="(max-width: 720px) 100vw, 47vw" />
+          )}
+          {about.media_kind === "image" && about.media_url && (
+            <Image src={about.media_url} alt={about.media_alt || "TruShot Media"} fill sizes="(max-width: 720px) 100vw, 47vw" />
+          )}
+          {about.media_kind === "video" && about.media_url && (
+            <video autoPlay muted loop playsInline preload="metadata" aria-hidden="true">
+              <source src={about.media_url} />
+            </video>
+          )}
         </div>
         <div className="about-copy">
           <p className="section-label light">{about.eyebrow || "About TruShot"}</p>

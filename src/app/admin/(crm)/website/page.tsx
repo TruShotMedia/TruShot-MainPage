@@ -13,11 +13,11 @@ export default async function WebsiteElementsPage() {
       <PageHeader
         eyebrow="Public website"
         title="Website Elements"
-        description="Shape the growth-partner story customers see. Update the three service-card videos, About photo and supporting copy without touching code. Saved changes publish immediately."
+        description="Shape the growth-partner story customers see. Every service and About media slot accepts an image or video, and supporting copy can be updated without touching code. Saved changes publish immediately."
         actions={<a className="admin-primary-button" href="/" target="_blank" rel="noreferrer">View website <ExternalLink size={14} /></a>}
       />
       <div className="formula-note website-guidance">
-        <p><strong>Media guidance:</strong> Use short, silent-friendly 6–15 second video loops with the subject near the centre. Choose a candid, landscape-format team or client photo for About. Compressed media keeps the mobile experience fast.</p>
+        <p><strong>Media guidance:</strong> Every slot accepts an image or a short, silent-friendly MP4/WebM video loop. Landscape media with the subject near the centre works best, and compressed files keep the mobile experience fast.</p>
       </div>
       <div className="website-elements-grid">
         {elements.map((element, index) => (

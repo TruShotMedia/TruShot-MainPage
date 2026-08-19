@@ -695,17 +695,12 @@ export async function updateWebsiteElement(formData: FormData) {
 
   const { data: existing, error: readError } = await context.supabase
     .from("website-site-elements")
-    .select("element_key,element_type")
+    .select("element_key")
     .eq("id", input.id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .maybeSingle();
   if (readError || !existing || existing.element_key !== input.element_key) {
     throw new Error("Website element could not be found.");
-  }
-
-  const expectedMediaKind = existing.element_type === "service" ? "video" : "image";
-  if (input.media_kind !== "none" && input.media_kind !== expectedMediaKind) {
-    throw new Error(`This element only accepts ${expectedMediaKind} media.`);
   }
 
   let mediaUrl: string | null = null;
