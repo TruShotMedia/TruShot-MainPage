@@ -6,6 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: "TruShot Media",
   title: {
     default: "TruShot Media | Creative Growth Partner Brisbane",
     template: "%s | TruShot Media",
@@ -34,6 +35,11 @@ export const metadata: Metadata = {
     title: "TruShot Media — Creative that builds momentum",
     description: "Strategy, content and campaigns working together to grow ambitious Brisbane businesses.",
     images: ["/brand/wallpaper.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "TruShot",
+    statusBarStyle: "black-translucent",
   },
   robots: { index: true, follow: true },
 };

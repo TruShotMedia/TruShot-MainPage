@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">TruShot Media</title>
+  <rect width="512" height="512" fill="#1f5e41"/>
+  <path d="M88 121h222v74h-72v208h-78V195H88z" fill="#fff"/>
+  <circle cx="350" cy="306" r="88" fill="none" stroke="#fff" stroke-width="34"/>
+  <circle cx="350" cy="306" r="24" fill="#fff"/>
+  <path d="M348 186l30 46h-60z" fill="#fff"/>
+</svg>
