@@ -32,6 +32,7 @@ describe("website media", () => {
 
   it("applies the correct size limit for each media kind", () => {
     expect(() => validateWebsiteMediaFile({ type: "image/jpeg", size: 10 * 1024 * 1024 + 1 })).toThrow("Images must be 10 MB or smaller");
-    expect(() => validateWebsiteMediaFile({ type: "video/mp4", size: 80 * 1024 * 1024 + 1 })).toThrow("Videos must be 80 MB or smaller");
+    expect(validateWebsiteMediaFile({ type: "video/mp4", size: 200 * 1024 * 1024 })).toEqual({ kind: "video", extension: "mp4" });
+    expect(() => validateWebsiteMediaFile({ type: "video/mp4", size: 200 * 1024 * 1024 + 1 })).toThrow("Videos must be 200 MB or smaller");
   });
 });

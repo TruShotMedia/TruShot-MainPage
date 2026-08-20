@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Check, ImageIcon, LoaderCircle, Upload, Video } from "lucide-react";
 import { updateWebsiteElement } from "@/app/admin/actions";
-import { createClient } from "@/lib/supabase/client";
+import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import type { WebsiteElement } from "@/lib/types";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
@@ -45,16 +45,14 @@ export function WebsiteElementEditor({
 
         setMessage(`Uploading ${file.name}…`);
         const path = `${workspaceId}/${element.element_key}/${crypto.randomUUID()}.${extension}`;
-        const supabase = createClient();
-        const { error } = await supabase.storage.from("website-media").upload(path, file, {
+        const uploaded = await uploadWebsiteMediaResumable({
+          file,
+          storagePath: path,
           cacheControl: "3600",
-          contentType: file.type,
-          upsert: false,
+          onProgress: ({ percentage }) => setMessage(`Uploading ${file.name} · ${percentage}%`),
         });
-        if (error) throw new Error(error.message);
-        const { data } = supabase.storage.from("website-media").getPublicUrl(path);
         mediaKind = kind;
-        mediaUrl = data.publicUrl;
+        mediaUrl = uploaded.publicUrl;
         mediaPath = path;
       }
 
@@ -133,7 +131,7 @@ export function WebsiteElementEditor({
               Use branded fallback
             </label>
           )}
-          <span>{selectedFileName || "JPG, PNG, WebP, AVIF · MP4, MOV, WebM · videos max 80 MB"}</span>
+          <span>{selectedFileName || "JPG, PNG, WebP, AVIF · MP4, MOV, WebM · videos max 200 MB"}</span>
         </div>
 
         <div className="website-element-actions">

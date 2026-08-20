@@ -16,7 +16,7 @@ export const WEBSITE_MEDIA_ACCEPT = `${Object.keys(WEBSITE_MEDIA_EXTENSIONS).joi
 
 export const WEBSITE_MEDIA_MAX_BYTES: Record<WebsiteMediaKind, number> = {
   image: 10 * 1024 * 1024,
-  video: 80 * 1024 * 1024,
+  video: 200 * 1024 * 1024,
 };
 
 export function getWebsiteMediaKind(mimeType: string): WebsiteMediaKind | null {
@@ -30,7 +30,7 @@ export function validateWebsiteMediaFile(file: { type: string; size: number }) {
     throw new Error("Choose an MP4, MOV or WebM video, or a JPG, PNG, WebP or AVIF image.");
   }
   if (file.size > WEBSITE_MEDIA_MAX_BYTES[kind]) {
-    throw new Error(kind === "video" ? "Videos must be 80 MB or smaller." : "Images must be 10 MB or smaller.");
+    throw new Error(kind === "video" ? "Videos must be 200 MB or smaller." : "Images must be 10 MB or smaller.");
   }
   return { kind, extension: WEBSITE_MEDIA_EXTENSIONS[file.type] };
 }

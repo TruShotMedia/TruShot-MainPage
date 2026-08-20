@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Check, FileVideo, FolderPlus, ImageIcon, Images, LoaderCircle, Play, Trash2, Upload, X } from "lucide-react";
 import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem } from "@/app/admin/actions";
+import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
@@ -103,19 +104,20 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     try {
       const uploadedItems = [];
       for (const [index, file] of selectedFiles.entries()) {
-        setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · ${file.name}`);
+        setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · 0% · ${file.name}`);
         const { kind, extension } = validateWebsiteMediaFile(file);
         const storagePath = `${workspaceId}/portfolio/${crypto.randomUUID()}.${extension}`;
-        const { error } = await supabase.storage.from("website-media").upload(storagePath, file, {
+        const uploaded = await uploadWebsiteMediaResumable({
+          file,
+          storagePath,
           cacheControl: "31536000",
-          contentType: file.type,
-          upsert: false,
+          onProgress: ({ percentage }) => {
+            setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · ${percentage}% · ${file.name}`);
+          },
         });
-        if (error) throw new Error(error.message);
 
         uploadedPaths.push(storagePath);
-        const { data } = supabase.storage.from("website-media").getPublicUrl(storagePath);
-        uploadedItems.push({ media_kind: kind, public_url: data.publicUrl, storage_path: storagePath });
+        uploadedItems.push({ media_kind: kind, public_url: uploaded.publicUrl, storage_path: storagePath });
       }
 
       setMessage("Building the collection…");
@@ -201,7 +203,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
           <div>
             <p className="card-label">Batch upload</p>
             <h2>Add photos and videos</h2>
-            <p>Choose up to {MAX_BATCH_FILES} files or drag them into the drop zone. The portfolio composes the visual layout automatically.</p>
+            <p>Choose up to {MAX_BATCH_FILES} files or drag them into the drop zone. Videos can be up to 200 MB and uploads resume through brief connection drops.</p>
           </div>
         </div>
         <form onSubmit={handleUpload} className="portfolio-upload-form">
@@ -234,7 +236,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
             />
             <span className="portfolio-dropzone-icon"><Upload size={22} /></span>
             <strong>{categories.length === 0 ? "Create a category to begin" : isDragging ? "Drop your files here" : "Drop photos and videos here"}</strong>
-            <small>{categories.length === 0 ? "The upload area will unlock automatically." : "or click to browse · JPG, PNG, WebP, AVIF, MP4, MOV, WebM"}</small>
+            <small>{categories.length === 0 ? "The upload area will unlock automatically." : "or click to browse · images up to 10 MB · videos up to 200 MB"}</small>
           </label>
 
           {selectedFiles.length > 0 && (
