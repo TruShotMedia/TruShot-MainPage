@@ -49,10 +49,10 @@ img { max-width: 100%; }
 
 .hero {
   display: flex;
-  min-height: min(820px, 90svh);
+  min-height: min(780px, 84svh);
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 160px clamp(24px, 5vw, 80px) 60px;
+  justify-content: flex-start;
+  padding: 205px clamp(24px, 5vw, 80px) 54px;
   background:
     radial-gradient(circle at 80% 12%, rgba(31, 94, 65, 0.08), transparent 32%),
     linear-gradient(135deg, rgba(255,255,255,0.4), transparent 45%), var(--paper);
@@ -213,7 +213,7 @@ img { max-width: 100%; }
   .public-header { height: 82px; padding: 0 20px; }
   .public-logo, .public-logo img { width: 135px; }
   .header-cta { font-size: 12px; }
-  .hero { min-height: 700px; padding: 112px 20px 30px; }
+  .hero { min-height: 660px; padding: 155px 20px 30px; }
   .hero-kicker { margin-bottom: 24px; }
   .hero h1 { font-size: clamp(58px, 19vw, 94px); line-height: .84; }
   .hero-bottom { align-items: center; margin-top: 38px; }
