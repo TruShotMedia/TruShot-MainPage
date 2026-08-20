@@ -1,5 +1,6 @@
+import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { PricingPackage, PricingItem, WebsiteElement } from "@/lib/types";
+import type { PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
 
 export const fallbackWebsiteElements: WebsiteElement[] = [
   {
@@ -204,5 +205,21 @@ export async function getPublishedWebsiteElements(): Promise<WebsiteElement[]> {
     return data as WebsiteElement[];
   } catch {
     return fallbackWebsiteElements;
+  }
+}
+
+export async function getPublicWebsiteSettings(): Promise<PublicWebsiteSettings> {
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("website-settings")
+      .select("show_pricing")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .maybeSingle();
+
+    if (error || !data) return { show_pricing: true };
+    return { show_pricing: data.show_pricing !== false };
+  } catch {
+    return { show_pricing: true };
   }
 }

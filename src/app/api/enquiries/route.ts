@@ -40,19 +40,32 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Please check the form details" }, { status: 400 });
 
   const supabase = createPublicClient();
+  const { data: websiteSettings, error: settingsError } = await supabase
+    .from("website-settings")
+    .select("show_pricing")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .maybeSingle();
+  if (settingsError) return NextResponse.json({ error: "Unable to check website settings" }, { status: 503 });
+
+  const showPricing = websiteSettings?.show_pricing !== false;
+  let packageId: string | null = null;
   let pricingVersionId: string | null = null;
-  if (parsed.data.packageId) {
+  if (showPricing && parsed.data.packageId) {
     const { data: selectedPackage } = await supabase
       .from("website-pricing-packages")
       .select("version_id")
       .eq("id", parsed.data.packageId)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_active", true)
       .maybeSingle();
-    pricingVersionId = selectedPackage?.version_id ?? null;
+    if (!selectedPackage) return NextResponse.json({ error: "That package is no longer available" }, { status: 400 });
+    packageId = parsed.data.packageId;
+    pricingVersionId = selectedPackage.version_id;
   }
 
   const { error } = await supabase.from("website-enquiries").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
-    package_id: parsed.data.packageId || null,
+    package_id: packageId,
     pricing_version_id: pricingVersionId,
     name: parsed.data.name,
     business_name: parsed.data.businessName || null,

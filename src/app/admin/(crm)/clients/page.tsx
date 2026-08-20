@@ -4,11 +4,11 @@ import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
-import { getClients } from "@/lib/data/admin";
+import { getClientPackageOptionsAdmin, getClients } from "@/lib/data/admin";
 import { formatCurrency, initials } from "@/lib/format";
 
 export default async function ClientsPage() {
-  const clients = await getClients();
+  const [clients, packages] = await Promise.all([getClients(), getClientPackageOptionsAdmin()]);
   return (
     <>
       <PageHeader eyebrow="Relationships" title="Clients" description="The people and businesses behind every brief, job, invoice and ongoing partnership." actions={
@@ -17,6 +17,7 @@ export default async function ClientsPage() {
           <label>Email<input name="email" type="email" /></label>
           <label>Phone<input name="phone" /></label>
           <label>Industry<input name="industry" /></label>
+          <label>Package<select name="package_id"><option value="">No package selected</option>{packages.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           <SubmitButton pendingLabel="Creating…">Create client</SubmitButton>
         </ActionPopover>
       } />
@@ -24,10 +25,12 @@ export default async function ClientsPage() {
         {clients.map((client: Record<string, unknown>) => {
           const contacts = (client.contacts ?? []) as Record<string, unknown>[];
           const primary = contacts.find((contact) => contact.is_primary) ?? contacts[0];
+          const selectedPackage = client.package as Record<string, unknown> | null;
+          const selectedPackageIsCurrent = packages.some((item) => item.id === client.package_id);
           return <article className="client-card" key={client.id as string}>
             <div className="client-avatar">{initials(client.name as string)}</div>
             <div className="client-title"><div><h2>{client.name as string}</h2><p>{String(client.industry || "Industry not set")}</p></div><span className={`status-pill status-${client.status}`}>{String(client.status)}</span></div>
-            <dl><div><dt>Primary contact</dt><dd>{String(primary?.name || "—")}</dd></div><div><dt>Email</dt><dd>{String(primary?.email || "—")}</dd></div><div><dt>Total job value</dt><dd>{formatCurrency(Number(client.earned_cents ?? 0))}</dd></div><div><dt>Received</dt><dd>{formatCurrency(Number(client.paid_cents ?? 0))}</dd></div><div><dt>Monthly budget</dt><dd>{client.monthly_budget_cents ? formatCurrency(Number(client.monthly_budget_cents)) : "—"}</dd></div></dl>
+            <dl><div><dt>Primary contact</dt><dd>{String(primary?.name || "—")}</dd></div><div><dt>Email</dt><dd>{String(primary?.email || "—")}</dd></div><div><dt>Package</dt><dd>{String(selectedPackage?.title || "Not selected")}</dd></div><div><dt>Total job value</dt><dd>{formatCurrency(Number(client.earned_cents ?? 0))}</dd></div><div><dt>Received</dt><dd>{formatCurrency(Number(client.paid_cents ?? 0))}</dd></div><div><dt>Monthly budget</dt><dd>{client.monthly_budget_cents ? formatCurrency(Number(client.monthly_budget_cents)) : "—"}</dd></div></dl>
             <div className="client-foot"><span className={`priority-dot priority-${client.priority}`} /> {String(client.priority)} priority {Boolean(client.is_retainer) && <b>Retainer</b>}</div>
             <ActionPopover
               action={updateClient}
@@ -45,6 +48,7 @@ export default async function ClientsPage() {
                 <label>Website<input name="website_url" type="url" defaultValue={String(client.website_url ?? "")} placeholder="https://" /></label>
                 <label>Priority<select name="priority" defaultValue={client.priority as string}><option value="low">Low</option><option value="standard">Standard</option><option value="high">High</option><option value="vip">VIP</option></select></label>
                 <label>Monthly budget AUD<input name="monthly_budget_dollars" type="number" min="0" step="0.01" defaultValue={client.monthly_budget_cents == null ? "" : Number(client.monthly_budget_cents) / 100} /></label>
+                <label>Package<select name="package_id" defaultValue={String(client.package_id ?? "")}><option value="">No package selected</option>{selectedPackage && !selectedPackageIsCurrent && <option value={client.package_id as string}>{String(selectedPackage.title)} (previous)</option>}{packages.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
                 <label>Contact name<input name="contact_name" defaultValue={String(primary?.name ?? "")} /></label>
                 <label>Contact email<input name="contact_email" type="email" defaultValue={String(primary?.email ?? "")} /></label>
                 <label>Contact phone<input name="contact_phone" defaultValue={String(primary?.phone ?? "")} /></label>

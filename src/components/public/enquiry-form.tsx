@@ -4,18 +4,19 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, CheckCircle2, LoaderCircle } from "lucide-react";
 import type { PricingPackage } from "@/lib/types";
 
-export function EnquiryForm({ packages }: { packages: PricingPackage[] }) {
+export function EnquiryForm({ packages, showPackages = true }: { packages: PricingPackage[]; showPackages?: boolean }) {
   const [selected, setSelected] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   useEffect(() => {
+    if (!showPackages) return;
     const onPackage = (event: Event) => {
       const slug = (event as CustomEvent<string>).detail;
       setSelected(packages.find((item) => item.slug === slug)?.id ?? "");
     };
     window.addEventListener("trushot:package", onPackage);
     return () => window.removeEventListener("trushot:package", onPackage);
-  }, [packages]);
+  }, [packages, showPackages]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,13 +63,15 @@ export function EnquiryForm({ packages }: { packages: PricingPackage[] }) {
           <span>Phone</span>
           <input name="phone" type="tel" placeholder="04xx xxx xxx" />
         </label>
-        <label className="form-wide">
-          <span>Package</span>
-          <select name="packageId" value={selected} onChange={(event) => setSelected(event.target.value)}>
-            <option value="">I’m not sure yet</option>
-            {packages.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select>
-        </label>
+        {showPackages && (
+          <label className="form-wide">
+            <span>Package</span>
+            <select name="packageId" value={selected} onChange={(event) => setSelected(event.target.value)}>
+              <option value="">I’m not sure yet</option>
+              {packages.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+        )}
         <label className="form-wide">
           <span>What are you looking to create?</span>
           <textarea name="message" maxLength={5000} rows={5} placeholder="Tell us what success looks like, what you need, and any key timing." />

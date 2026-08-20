@@ -5,11 +5,15 @@ import { AnalyticsTracker } from "@/components/public/analytics-tracker";
 import { EnquiryForm } from "@/components/public/enquiry-form";
 import { PackageButton } from "@/components/public/package-button";
 import { PublicHeader } from "@/components/public/public-header";
-import { fallbackWebsiteElements, getPublishedPricing, getPublishedWebsiteElements } from "@/lib/data/public";
+import { fallbackWebsiteElements, getPublishedPricing, getPublishedWebsiteElements, getPublicWebsiteSettings } from "@/lib/data/public";
 import { formatCurrency } from "@/lib/format";
 
 export default async function HomePage() {
-  const [packages, websiteElements] = await Promise.all([getPublishedPricing(), getPublishedWebsiteElements()]);
+  const [packages, websiteElements, websiteSettings] = await Promise.all([
+    getPublishedPricing(),
+    getPublishedWebsiteElements(),
+    getPublicWebsiteSettings(),
+  ]);
   const services = websiteElements.filter((element) => element.element_type === "service");
   const about = websiteElements.find((element) => element.element_key === "about-growth-partner")
     ?? fallbackWebsiteElements[3];
@@ -26,7 +30,7 @@ export default async function HomePage() {
     <main className="public-site">
       <AnalyticsTracker />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(businessSchema) }} />
-      <PublicHeader />
+      <PublicHeader showPricing={websiteSettings.show_pricing} />
 
       <section className="hero" data-section="hero">
         <div className="hero-kicker"><span /> Brisbane · Queensland · Australia</div>
@@ -38,7 +42,13 @@ export default async function HomePage() {
       </section>
 
       <div className="ticker" aria-hidden="true">
-        <div>GROWTH STRATEGY <span>✦</span> VIDEO PRODUCTION <span>✦</span> SOCIAL CONTENT <span>✦</span> CAMPAIGNS <span>✦</span> GROWTH STRATEGY <span>✦</span></div>
+        <div className="ticker-track">
+          {[0, 1].map((copy) => (
+            <span className="ticker-sequence" key={copy}>
+              GROWTH STRATEGY <b>✦</b> VIDEO PRODUCTION <b>✦</b> SOCIAL CONTENT <b>✦</b> CAMPAIGNS <b>✦</b>
+            </span>
+          ))}
+        </div>
       </div>
 
       <section className="statement" id="work" data-section="work">
@@ -50,7 +60,7 @@ export default async function HomePage() {
       </section>
 
       <section className="service-grid" aria-label="Services">
-        {services.map((service, index) => (
+        {services.map((service) => (
           <article className="service-card" key={service.id}>
             <div className="service-media">
               <div className="service-shape" aria-hidden="true"><span /></div>
@@ -68,7 +78,6 @@ export default async function HomePage() {
                 />
               )}
               <div className="service-media-shade" aria-hidden="true" />
-              <div className="service-number">{String(index + 1).padStart(2, "0")}</div>
             </div>
             <div className="service-content">
               {service.eyebrow && <span className="service-eyebrow">{service.eyebrow}</span>}
@@ -105,7 +114,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="pricing-section" id="pricing" data-section="pricing">
+      {websiteSettings.show_pricing && <section className="pricing-section" id="pricing" data-section="pricing">
         <div className="pricing-heading">
           <div>
             <p className="section-label">Pricing</p>
@@ -130,7 +139,7 @@ export default async function HomePage() {
             </article>
           ))}
         </div>
-      </section>
+      </section>}
 
       <section className="process-section" data-section="process">
         <p className="section-label light">The process</p>
@@ -153,7 +162,7 @@ export default async function HomePage() {
           <h2>Tell us what<br />you’re building.</h2>
           <p>A short brief is enough. We’ll help shape the rest.</p>
         </div>
-        <EnquiryForm packages={packages} />
+        <EnquiryForm packages={websiteSettings.show_pricing ? packages : []} showPackages={websiteSettings.show_pricing} />
       </section>
 
       <footer className="public-footer">

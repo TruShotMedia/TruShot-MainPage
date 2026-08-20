@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-export function PublicHeader() {
+export function PublicHeader({ showPricing = true }: { showPricing?: boolean }) {
   return (
     <header className="public-header">
       <Link href="/" className="public-logo" aria-label="TruShot Media home">
@@ -11,10 +11,10 @@ export function PublicHeader() {
       <nav aria-label="Primary navigation">
         <a href="#work">Work</a>
         <a href="#about">About</a>
-        <a href="#pricing">Pricing</a>
+        {showPricing && <a href="#pricing">Pricing</a>}
       </nav>
       <a className="header-cta" href="#enquire" data-analytics-key="header.enquire">
-        Start a project <ArrowUpRight size={17} />
+        Become a partner <ArrowUpRight size={17} />
       </a>
     </header>
   );

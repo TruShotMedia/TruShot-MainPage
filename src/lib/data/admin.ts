@@ -46,11 +46,11 @@ export async function getClients() {
   if (!context) return [];
   const { data: clients } = await context.supabase
     .from("website-clients")
-    .select("id,name,slug,status,industry,website_url,priority,is_retainer,monthly_budget_cents,notes,updated_at")
+    .select("id,name,slug,status,industry,website_url,priority,is_retainer,monthly_budget_cents,package_id,notes,updated_at")
     .is("archived_at", null)
     .order("name");
   if (!clients?.length) return [];
-  const [{ data: contacts }, { data: invoices }, { data: payments }, { data: jobs }, { data: jobMetrics }] = await Promise.all([
+  const [{ data: contacts }, { data: invoices }, { data: payments }, { data: jobs }, { data: jobMetrics }, { data: packages }] = await Promise.all([
     context.supabase
       .from("website-client-contacts")
       .select("id,client_id,name,email,phone,is_primary")
@@ -72,6 +72,10 @@ export async function getClients() {
     context.supabase
       .from("website-job-metrics")
       .select("id,value_cents")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-pricing-packages")
+      .select("id,title")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
   const invoiceById = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice]));
@@ -95,6 +99,7 @@ export async function getClients() {
   }
   return clients.map((client) => ({
     ...client,
+    package: (packages ?? []).find((item) => item.id === client.package_id) ?? null,
     contacts: (contacts ?? []).filter((contact) => contact.client_id === client.id),
     invoiced_cents: invoicedByClient.get(client.id) ?? 0,
     earned_cents: earnedByClient.get(client.id) ?? 0,
@@ -204,6 +209,26 @@ export async function getPricingAdmin() {
   return packages.map((item) => ({ ...item, items: (items ?? []).filter((entry) => entry.package_id === item.id) }));
 }
 
+export async function getClientPackageOptionsAdmin() {
+  const context = await getAdminContext();
+  if (!context) return [];
+  const { data: version } = await context.supabase
+    .from("website-pricing-versions")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status", "published")
+    .maybeSingle();
+  if (!version) return [];
+  const { data } = await context.supabase
+    .from("website-pricing-packages")
+    .select("id,title,price_cents")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("version_id", version.id)
+    .eq("is_active", true)
+    .order("position");
+  return data ?? [];
+}
+
 export async function getWebsiteElementsAdmin() {
   const context = await getAdminContext();
   if (!context) return [];
@@ -213,6 +238,17 @@ export async function getWebsiteElementsAdmin() {
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .order("position");
   return data ?? [];
+}
+
+export async function getWebsiteVisibilityAdmin() {
+  const context = await getAdminContext();
+  if (!context) return { show_pricing: true };
+  const { data } = await context.supabase
+    .from("website-settings")
+    .select("show_pricing")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .maybeSingle();
+  return { show_pricing: data?.show_pricing !== false };
 }
 
 export async function getAnalyticsData() {

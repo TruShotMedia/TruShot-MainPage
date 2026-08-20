@@ -62,6 +62,27 @@ async function requireClient(context: AdminContext, clientId: string) {
   if (error || !data) throw new Error("That client is no longer available.");
 }
 
+async function requirePublishedPricingPackage(context: AdminContext, packageId: string) {
+  if (!packageId) return;
+  const { data: pricingPackage, error: packageError } = await context.supabase
+    .from("website-pricing-packages")
+    .select("id,version_id")
+    .eq("id", packageId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("is_active", true)
+    .single();
+  if (packageError || !pricingPackage) throw new Error("That package is no longer available.");
+
+  const { data: version, error: versionError } = await context.supabase
+    .from("website-pricing-versions")
+    .select("id")
+    .eq("id", pricingPackage.version_id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status", "published")
+    .single();
+  if (versionError || !version) throw new Error("That package is no longer published.");
+}
+
 async function requireJob(context: AdminContext, jobId: string) {
   const { data, error } = await context.supabase
     .from("website-jobs")
@@ -97,15 +118,18 @@ export async function createClient(formData: FormData) {
     email: z.string().trim().email().or(z.literal("")),
     phone: z.string().trim().max(40),
     industry: z.string().trim().max(120),
+    package_id: z.string().uuid().or(z.literal("")).optional().default(""),
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  await requirePublishedPricingPackage(context, input.package_id);
   const baseSlug = slugify(input.name);
   const { data: client, error } = await context.supabase.from("website-clients").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     name: input.name,
     slug: `${baseSlug}-${Date.now().toString(36).slice(-4)}`,
     industry: input.industry || null,
+    package_id: input.package_id || null,
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
   }).select("id").single();
@@ -134,6 +158,7 @@ export async function updateClient(formData: FormData) {
     website_url: z.string().trim().url().or(z.literal("")),
     priority: z.enum(["low", "standard", "high", "vip"]),
     monthly_budget_dollars: z.string(),
+    package_id: z.string().uuid().or(z.literal("")),
     is_retainer: z.string().optional(),
     notes: z.string().trim().max(2_000),
     contact_name: z.string().trim().max(160),
@@ -145,6 +170,7 @@ export async function updateClient(formData: FormData) {
   const budgetDollars = input.monthly_budget_dollars.trim();
   const budgetCents = budgetDollars === "" ? null : Math.round(Number(budgetDollars) * 100);
   if (budgetCents !== null && (!Number.isFinite(budgetCents) || budgetCents < 0)) throw new Error("Monthly budget is not valid.");
+  await requirePublishedPricingPackage(context, input.package_id);
 
   const { data: client, error } = await context.supabase
     .from("website-clients")
@@ -155,6 +181,7 @@ export async function updateClient(formData: FormData) {
       website_url: input.website_url || null,
       priority: input.priority,
       monthly_budget_cents: budgetCents,
+      package_id: input.package_id || null,
       is_retainer: input.is_retainer === "on",
       notes: input.notes || null,
       updated_by: context.claims.sub,
@@ -197,7 +224,7 @@ export async function duplicateClient(formData: FormData) {
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
   const [{ data: source, error: sourceError }, { data: contacts, error: contactsError }] = await Promise.all([
-    context.supabase.from("website-clients").select("name,status,industry,website_url,priority,monthly_budget_cents,is_retainer,source,notes").eq("id", clientId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).single(),
+    context.supabase.from("website-clients").select("name,status,industry,website_url,priority,monthly_budget_cents,package_id,is_retainer,source,notes").eq("id", clientId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).single(),
     context.supabase.from("website-client-contacts").select("name,email,phone,role_title,is_primary").eq("client_id", clientId).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
   if (sourceError || contactsError || !source) throw new Error(sourceError?.message ?? contactsError?.message ?? "Client could not be found.");
@@ -211,6 +238,7 @@ export async function duplicateClient(formData: FormData) {
     website_url: source.website_url,
     priority: source.priority,
     monthly_budget_cents: source.monthly_budget_cents,
+    package_id: source.package_id,
     is_retainer: source.is_retainer,
     source: source.source,
     notes: source.notes,
@@ -616,6 +644,7 @@ export async function approveEnquiry(formData: FormData) {
     slug: `${slugify(enquiry.business_name || enquiry.name)}-${Date.now().toString(36).slice(-5)}`,
     status: "active",
     source: "website_enquiry",
+    package_id: enquiry.package_id,
     notes: enquiry.message,
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
@@ -668,6 +697,21 @@ export async function updateSettings(formData: FormData) {
   if (settingsError || taxError) throw new Error(settingsError?.message ?? taxError?.message);
   revalidatePath("/admin/settings");
   revalidatePath("/");
+}
+
+export async function updateWebsiteVisibility(formData: FormData) {
+  const input = z.object({ show_pricing: z.literal("on").optional() }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-settings")
+    .update({ show_pricing: input.show_pricing === "on" })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Website visibility could not be saved.");
+  revalidatePath("/");
+  revalidatePath("/admin/website");
 }
 
 const editableWebsiteKeys = [

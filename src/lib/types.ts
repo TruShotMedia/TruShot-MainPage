@@ -43,6 +43,10 @@ export type WebsiteElement = {
   is_published: boolean;
 };
 
+export type PublicWebsiteSettings = {
+  show_pricing: boolean;
+};
+
 export type TaskStatus = {
   id: string;
   key: string;
