@@ -2,19 +2,28 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable } from "@dnd-kit/sortable";
+import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, Images, LoaderCircle, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, reorderPortfolioItems } from "@/app/admin/actions";
-import { movePortfolioItem } from "@/lib/portfolio";
+import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, reorderPortfolioCategories, reorderPortfolioItems } from "@/app/admin/actions";
+import { movePortfolioCategory, movePortfolioItem } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
 const MAX_BATCH_FILES = 20;
+const CATEGORY_DRAG_PREFIX = "portfolio-category:";
+
+function getCategoryDragId(categoryId: string) {
+  return `${CATEGORY_DRAG_PREFIX}${categoryId}`;
+}
+
+function getCategoryIdFromDragId(dragId: string) {
+  return dragId.startsWith(CATEGORY_DRAG_PREFIX) ? dragId.slice(CATEGORY_DRAG_PREFIX.length) : dragId;
+}
 
 type DeleteRequest = {
   id: string;
@@ -123,6 +132,84 @@ function SortablePortfolioCard({
   );
 }
 
+function SortablePortfolioCategory({
+  category,
+  categoryIndex,
+  children,
+  confirmingDelete,
+  disabled,
+  isDeleting,
+  itemOrderFeedback,
+  onCancelDelete,
+  onConfirmDelete,
+  onRequestDelete,
+}: {
+  category: PortfolioCategory;
+  categoryIndex: number;
+  children: ReactNode;
+  confirmingDelete: boolean;
+  disabled: boolean;
+  isDeleting: boolean;
+  itemOrderFeedback: { status: "saving" | "saved" | "error"; message: string } | null;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+  onRequestDelete: () => void;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    id: getCategoryDragId(category.id),
+    disabled,
+  });
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={`admin-card portfolio-admin-category ${isDragging ? "is-dragging" : ""}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 4 : undefined }}
+      aria-busy={isDeleting}
+    >
+      <header className="portfolio-admin-category-heading">
+        <div>
+          <span>{String(categoryIndex + 1).padStart(2, "0")} · {category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</span>
+          <h2>{category.name}</h2>
+          {category.description && <p>{category.description}</p>}
+        </div>
+        <div className="portfolio-admin-category-tools">
+          {category.items.length > 1 ? (
+            <p className={`portfolio-order-status ${itemOrderFeedback?.status ?? ""}`} role="status" aria-live="polite">
+              {itemOrderFeedback?.message ?? "Drag media to set its display order."}
+            </p>
+          ) : null}
+          <div className="portfolio-admin-category-actions">
+            <button
+              className="portfolio-category-order-handle"
+              type="button"
+              aria-label={`Move ${category.name} category`}
+              title="Drag to change category order"
+              disabled={disabled}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical size={15} />
+              Move category
+            </button>
+            <RemoveControls
+              confirming={confirmingDelete}
+              disabled={category.items.length > 0}
+              disabledTitle={category.items.length > 0 ? "Remove this category’s media first" : undefined}
+              isDeleting={isDeleting}
+              label="Remove category"
+              onCancel={onCancelDelete}
+              onConfirm={onConfirmDelete}
+              onRequest={onRequestDelete}
+            />
+          </div>
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
 function getFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
@@ -147,6 +234,8 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [portfolioCategories, setPortfolioCategories] = useState(categories);
   const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
   const [orderFeedback, setOrderFeedback] = useState<{ categoryId: string; status: "saving" | "saved" | "error"; message: string } | null>(null);
+  const [orderingCategories, setOrderingCategories] = useState(false);
+  const [categoryOrderFeedback, setCategoryOrderFeedback] = useState<{ status: "saving" | "saved" | "error"; message: string } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -297,7 +386,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   }
 
   async function handleReorder(categoryId: string, event: DragEndEvent) {
-    if (!event.over || event.active.id === event.over.id || orderingCategoryId) return;
+    if (!event.over || event.active.id === event.over.id || orderingCategoryId || orderingCategories) return;
     const category = portfolioCategories.find((candidate) => candidate.id === categoryId);
     if (!category) return;
 
@@ -321,6 +410,29 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       setOrderFeedback({ categoryId, status: "error", message: "That order was not saved. The previous order has been restored." });
     } finally {
       setOrderingCategoryId(null);
+    }
+  }
+
+  async function handleCategoryReorder(event: DragEndEvent) {
+    if (!event.over || event.active.id === event.over.id || orderingCategories || orderingCategoryId) return;
+    const activeId = getCategoryIdFromDragId(String(event.active.id));
+    const overId = getCategoryIdFromDragId(String(event.over.id));
+    const previousCategories = portfolioCategories;
+    const nextCategories = movePortfolioCategory(previousCategories, activeId, overId);
+    if (nextCategories === previousCategories) return;
+
+    setPortfolioCategories(nextCategories);
+    setOrderingCategories(true);
+    setCategoryOrderFeedback({ status: "saving", message: "Saving category order…" });
+    try {
+      await reorderPortfolioCategories(nextCategories.map((category) => category.id));
+      setCategoryOrderFeedback({ status: "saved", message: "Category order saved." });
+      router.refresh();
+    } catch {
+      setPortfolioCategories(previousCategories);
+      setCategoryOrderFeedback({ status: "error", message: "That category order was not saved. The previous order has been restored." });
+    } finally {
+      setOrderingCategories(false);
     }
   }
 
@@ -423,53 +535,53 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       {portfolioCategories.length > 0 ? (
         <section className="portfolio-admin-categories" aria-label="Portfolio categories">
           <div className="portfolio-library-summary"><span><Images size={16} /> {portfolioCategories.length} {portfolioCategories.length === 1 ? "category" : "categories"}</span><span>{totalItems} {totalItems === 1 ? "piece" : "pieces"}</span></div>
-          {portfolioCategories.map((category, categoryIndex) => (
-            <section className="admin-card portfolio-admin-category" key={category.id}>
-              <header className="portfolio-admin-category-heading">
-                <div><span>{String(categoryIndex + 1).padStart(2, "0")} · {category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</span><h2>{category.name}</h2>{category.description && <p>{category.description}</p>}</div>
-                <div className="portfolio-admin-category-tools">
-                  {category.items.length > 1 ? (
-                    <p className={`portfolio-order-status ${orderFeedback?.categoryId === category.id ? orderFeedback.status : ""}`} role="status" aria-live="polite">
-                      {orderFeedback?.categoryId === category.id ? orderFeedback.message : "Drag media to set its display order."}
-                    </p>
-                  ) : null}
-                  <RemoveControls
-                    confirming={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
-                    disabled={category.items.length > 0}
-                    disabledTitle={category.items.length > 0 ? "Remove this category’s media first" : undefined}
+          <p className={`portfolio-category-order-status ${categoryOrderFeedback?.status ?? ""}`} role="status" aria-live="polite">
+            <GripVertical size={14} />
+            {categoryOrderFeedback?.message ?? "Drag a category handle to set the order shown on your portfolio."}
+          </p>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => { void handleCategoryReorder(event); }}>
+            <SortableContext items={portfolioCategories.map((category) => getCategoryDragId(category.id))} strategy={verticalListSortingStrategy}>
+              <div className="portfolio-category-sort-list">
+                {portfolioCategories.map((category, categoryIndex) => (
+                  <SortablePortfolioCategory
+                    key={category.id}
+                    category={category}
+                    categoryIndex={categoryIndex}
+                    confirmingDelete={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
+                    disabled={portfolioCategories.length < 2 || orderingCategories || Boolean(orderingCategoryId) || Boolean(deletingId) || Boolean(deleteRequest)}
                     isDeleting={deletingId === category.id}
-                    label="Remove category"
-                    onCancel={() => setDeleteRequest(null)}
-                    onConfirm={() => handleDeleteCategory(category)}
-                    onRequest={() => setDeleteRequest({ id: category.id, kind: "category" })}
-                  />
-                </div>
-              </header>
-
-              {category.items.length > 0 ? (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => { void handleReorder(category.id, event); }}>
-                  <SortableContext items={category.items.map((item) => item.id)} strategy={rectSortingStrategy}>
-                    <div className="portfolio-admin-grid">
-                      {category.items.map((item) => (
-                        <SortablePortfolioCard
-                          key={item.id}
-                          item={item}
-                          confirmingDelete={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
-                          disabled={Boolean(orderingCategoryId) || deletingId === item.id || (deleteRequest?.kind === "item" && deleteRequest.id === item.id)}
-                          isDeleting={deletingId === item.id}
-                          onCancelDelete={() => setDeleteRequest(null)}
-                          onConfirmDelete={() => handleDeleteItem(item)}
-                          onRequestDelete={() => setDeleteRequest({ id: item.id, kind: "item" })}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              ) : (
-                <div className="portfolio-category-empty"><ImageIcon size={18} /><p>No media yet. Choose this category above, then drop in your files.</p></div>
-              )}
-            </section>
-          ))}
+                    itemOrderFeedback={orderFeedback?.categoryId === category.id ? orderFeedback : null}
+                    onCancelDelete={() => setDeleteRequest(null)}
+                    onConfirmDelete={() => handleDeleteCategory(category)}
+                    onRequestDelete={() => setDeleteRequest({ id: category.id, kind: "category" })}
+                  >
+                    {category.items.length > 0 ? (
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => { void handleReorder(category.id, event); }}>
+                        <SortableContext items={category.items.map((item) => item.id)} strategy={rectSortingStrategy}>
+                          <div className="portfolio-admin-grid">
+                            {category.items.map((item) => (
+                              <SortablePortfolioCard
+                                key={item.id}
+                                item={item}
+                                confirmingDelete={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
+                                disabled={orderingCategories || Boolean(orderingCategoryId) || deletingId === item.id || (deleteRequest?.kind === "item" && deleteRequest.id === item.id)}
+                                isDeleting={deletingId === item.id}
+                                onCancelDelete={() => setDeleteRequest(null)}
+                                onConfirmDelete={() => handleDeleteItem(item)}
+                                onRequestDelete={() => setDeleteRequest({ id: item.id, kind: "item" })}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    ) : (
+                      <div className="portfolio-category-empty"><ImageIcon size={18} /><p>No media yet. Choose this category above, then drop in your files.</p></div>
+                    )}
+                  </SortablePortfolioCategory>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </section>
       ) : (
         <section className="admin-card empty-state portfolio-empty-state">

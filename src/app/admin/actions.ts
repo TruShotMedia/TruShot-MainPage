@@ -970,6 +970,29 @@ export async function reorderPortfolioItems(categoryId: string, itemIds: string[
   return { ok: true, updated: input.itemIds.length };
 }
 
+export async function reorderPortfolioCategories(categoryIds: string[]) {
+  const input = z.array(z.string().uuid()).min(1).max(100).parse(categoryIds);
+  if (new Set(input).size !== input.length) {
+    throw new Error("The portfolio category order contains duplicates.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data, error } = await context.supabase.rpc("website-reorder-portfolio-categories", {
+    p_workspace_id: TRUSHOT_WORKSPACE_ID,
+    p_category_ids: input,
+  });
+  if (error) throw new Error(error.message);
+  if (Number(data) !== input.length) {
+    throw new Error("The complete portfolio category order could not be saved.");
+  }
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, updated: input.length };
+}
+
 export async function deletePortfolioCategory(id: string) {
   const categoryId = z.string().uuid().parse(id);
   const context = await getAdminContext();

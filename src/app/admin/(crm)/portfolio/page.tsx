@@ -13,7 +13,7 @@ export default async function PortfolioAdminPage() {
       <PageHeader
         eyebrow="Private showcase"
         title="Portfolio"
-        description="Create categories, batch-upload photos and videos, then drag each piece into the exact order shown at your unlisted /portfolio link."
+        description="Create categories, batch-upload photos and videos, then drag categories and media into the exact order shown at your unlisted /portfolio link."
         actions={<a className="admin-primary-button" href="/portfolio" target="_blank" rel="noreferrer">Open private link <ExternalLink size={14} /></a>}
       />
       <div className="formula-note website-guidance">

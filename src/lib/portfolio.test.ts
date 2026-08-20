@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPortfolioDisplaySize, movePortfolioItem } from "./portfolio";
+import { getPortfolioDisplaySize, movePortfolioCategory, movePortfolioItem } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -20,6 +20,23 @@ describe("movePortfolioItem", () => {
   it("returns the current order when a drag target is missing", () => {
     const items = [{ id: "photo-a" }, { id: "photo-b" }];
     expect(movePortfolioItem(items, "missing", "photo-b")).toBe(items);
+  });
+});
+
+describe("movePortfolioCategory", () => {
+  it("moves a category while leaving the server-provided order untouched", () => {
+    const categories = [
+      { id: "campaigns", name: "Campaigns" },
+      { id: "brand-stories", name: "Brand stories" },
+      { id: "social-content", name: "Social content" },
+    ];
+
+    expect(movePortfolioCategory(categories, "social-content", "campaigns").map((category) => category.id)).toEqual([
+      "social-content",
+      "campaigns",
+      "brand-stories",
+    ]);
+    expect(categories.map((category) => category.id)).toEqual(["campaigns", "brand-stories", "social-content"]);
   });
 });
 

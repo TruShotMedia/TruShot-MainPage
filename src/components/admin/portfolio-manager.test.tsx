@@ -11,6 +11,7 @@ const actionMocks = vi.hoisted(() => ({
   createPortfolioItems: vi.fn(async () => ({ ok: true })),
   deletePortfolioCategory: vi.fn(async () => ({ ok: true })),
   deletePortfolioItem: vi.fn(async () => ({ ok: true })),
+  reorderPortfolioCategories: vi.fn(async () => ({ ok: true, updated: 1 })),
   reorderPortfolioItems: vi.fn(async () => ({ ok: true, updated: 1 })),
 }));
 
@@ -38,6 +39,19 @@ const categories: PortfolioCategory[] = [{
     display_size: "wide",
   }],
 }];
+
+const sortableCategories: PortfolioCategory[] = [
+  categories[0],
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    name: "Brand stories",
+    slug: "brand-stories",
+    description: "Long-form brand work",
+    position: 20,
+    is_published: true,
+    items: [],
+  },
+];
 
 describe("PortfolioManager media removal", () => {
   let container: HTMLDivElement;
@@ -96,5 +110,23 @@ describe("PortfolioManager media removal", () => {
     expect(actionMocks.deletePortfolioItem).toHaveBeenCalledWith(categories[0].items[0].id);
     expect(routerMocks.refresh).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Photo removed from the portfolio.");
+  });
+
+  it("renders independent category and media drag handles", async () => {
+    await act(async () => {
+      root.render(<PortfolioManager categories={sortableCategories} workspaceId="11111111-1111-4111-8111-111111111111" />);
+    });
+
+    const categoryHandles = Array.from(container.querySelectorAll<HTMLButtonElement>(".portfolio-category-order-handle"));
+    const mediaHandles = Array.from(container.querySelectorAll<HTMLButtonElement>(".portfolio-order-handle"));
+
+    expect(categoryHandles).toHaveLength(2);
+    expect(categoryHandles.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Move Campaigns category",
+      "Move Brand stories category",
+    ]);
+    expect(categoryHandles.every((button) => !button.disabled)).toBe(true);
+    expect(mediaHandles).toHaveLength(1);
+    expect(container.textContent).toContain("Drag a category handle to set the order shown on your portfolio.");
   });
 });
