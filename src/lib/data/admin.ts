@@ -251,6 +251,18 @@ export async function getWebsiteVisibilityAdmin() {
   return { show_pricing: data?.show_pricing !== false };
 }
 
+export async function getPortfolioItemsAdmin() {
+  const context = await getAdminContext();
+  if (!context) return [];
+  const { data } = await context.supabase
+    .from("website-portfolio-items")
+    .select("id,media_kind,title,caption,alt_text,public_url,display_size")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("position")
+    .order("created_at");
+  return data ?? [];
+}
+
 export async function getAnalyticsData() {
   const context = await getAdminContext();
   if (!context) return null;

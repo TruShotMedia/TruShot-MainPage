@@ -793,3 +793,108 @@ export async function updateWebsiteElement(formData: FormData) {
   revalidatePath("/admin/website");
   return { ok: true };
 }
+
+export async function createPortfolioItem(formData: FormData) {
+  const input = z.object({
+    title: z.string().trim().max(120).refine((value) => value.length === 0 || value.length >= 2, "Use at least two characters for the title."),
+    caption: z.string().trim().max(280),
+    alt_text: z.string().trim().min(3).max(180),
+    display_size: z.enum(["standard", "wide", "tall"]),
+    media_kind: z.enum(["video", "image"]),
+    public_url: z.string().trim().max(2_000),
+    storage_path: z.string().trim().max(500),
+  }).parse(Object.fromEntries(formData));
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const extensionGroup = input.media_kind === "video" ? "mp4|mov|webm" : "jpe?g|png|webp|avif";
+  const expectedPathPattern = new RegExp(
+    `^${TRUSHOT_WORKSPACE_ID}/portfolio/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(${extensionGroup})$`,
+    "i",
+  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || !expectedPathPattern.test(input.storage_path)) {
+    throw new Error("The uploaded portfolio media path is not valid.");
+  }
+
+  let parsedPublicUrl: URL;
+  try {
+    parsedPublicUrl = new URL(input.public_url);
+  } catch {
+    throw new Error("The uploaded portfolio media URL is not valid.");
+  }
+  const parsedSupabaseUrl = new URL(supabaseUrl);
+  const expectedUrlPath = `/storage/v1/object/public/website-media/${input.storage_path}`;
+  if (
+    parsedPublicUrl.protocol !== "https:"
+    || parsedPublicUrl.hostname !== parsedSupabaseUrl.hostname
+    || parsedPublicUrl.pathname !== expectedUrlPath
+  ) {
+    throw new Error("The uploaded portfolio media URL is not valid.");
+  }
+
+  const { data: latest, error: positionError } = await context.supabase
+    .from("website-portfolio-items")
+    .select("position")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("position", { ascending: false })
+    .limit(1);
+  if (positionError) throw new Error(positionError.message);
+
+  const { error } = await context.supabase.from("website-portfolio-items").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    media_kind: input.media_kind,
+    title: input.title || null,
+    caption: input.caption || null,
+    alt_text: input.alt_text,
+    storage_path: input.storage_path,
+    public_url: parsedPublicUrl.toString(),
+    display_size: input.display_size,
+    position: Number(latest?.[0]?.position ?? 0) + 10,
+    is_published: true,
+    created_by: context.claims.sub,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}
+
+export async function deletePortfolioItem(id: string) {
+  const portfolioId = z.string().uuid().parse(id);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: item, error: readError } = await context.supabase
+    .from("website-portfolio-items")
+    .select("id,storage_path")
+    .eq("id", portfolioId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .maybeSingle();
+  if (readError || !item) throw new Error(readError?.message ?? "Portfolio item could not be found.");
+  const storedPathPattern = new RegExp(
+    `^${TRUSHOT_WORKSPACE_ID}/portfolio/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(mp4|mov|webm|jpe?g|png|webp|avif)$`,
+    "i",
+  );
+  if (!storedPathPattern.test(item.storage_path)) {
+    throw new Error("The stored portfolio media path is not valid.");
+  }
+
+  const { error: storageError } = await context.supabase.storage
+    .from("website-media")
+    .remove([item.storage_path]);
+  if (storageError) throw new Error(storageError.message);
+
+  const { error } = await context.supabase
+    .from("website-portfolio-items")
+    .delete()
+    .eq("id", portfolioId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}

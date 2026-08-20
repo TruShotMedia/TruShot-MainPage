@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/portfolio",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
+      },
+      {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },

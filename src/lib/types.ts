@@ -47,6 +47,16 @@ export type PublicWebsiteSettings = {
   show_pricing: boolean;
 };
 
+export type PortfolioItem = {
+  id: string;
+  media_kind: "video" | "image";
+  title: string | null;
+  caption: string | null;
+  alt_text: string;
+  public_url: string;
+  display_size: "standard" | "wide" | "tall";
+};
+
 export type TaskStatus = {
   id: string;
   key: string;

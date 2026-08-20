@@ -1,6 +1,6 @@
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
+import type { PortfolioItem, PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
 
 export const fallbackWebsiteElements: WebsiteElement[] = [
   {
@@ -221,5 +221,23 @@ export async function getPublicWebsiteSettings(): Promise<PublicWebsiteSettings>
     return { show_pricing: data.show_pricing !== false };
   } catch {
     return { show_pricing: true };
+  }
+}
+
+export async function getPublishedPortfolioItems(): Promise<PortfolioItem[]> {
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("website-portfolio-items")
+      .select("id,media_kind,title,caption,alt_text,public_url,display_size")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_published", true)
+      .order("position")
+      .order("created_at");
+
+    if (error) return [];
+    return (data ?? []) as PortfolioItem[];
+  } catch {
+    return [];
   }
 }
