@@ -970,6 +970,57 @@ export async function reorderPortfolioItems(categoryId: string, itemIds: string[
   return { ok: true, updated: input.itemIds.length };
 }
 
+export async function movePortfolioItemToCategory(inputValue: {
+  itemId: string;
+  sourceCategoryId: string;
+  targetCategoryId: string;
+  sourceItemIds: string[];
+  targetItemIds: string[];
+}) {
+  const input = z.object({
+    itemId: z.string().uuid(),
+    sourceCategoryId: z.string().uuid(),
+    targetCategoryId: z.string().uuid(),
+    sourceItemIds: z.array(z.string().uuid()).max(500),
+    targetItemIds: z.array(z.string().uuid()).min(1).max(500),
+  }).parse(inputValue);
+
+  if (input.sourceCategoryId === input.targetCategoryId) {
+    throw new Error("Choose a different portfolio category.");
+  }
+  if (new Set(input.sourceItemIds).size !== input.sourceItemIds.length || new Set(input.targetItemIds).size !== input.targetItemIds.length) {
+    throw new Error("The portfolio move contains duplicate media.");
+  }
+  if (input.sourceItemIds.includes(input.itemId) || input.targetItemIds.filter((id) => id === input.itemId).length !== 1) {
+    throw new Error("The moved media must appear once in its destination order.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  await Promise.all([
+    requirePortfolioCategory(context, input.sourceCategoryId),
+    requirePortfolioCategory(context, input.targetCategoryId),
+  ]);
+
+  const { data, error } = await context.supabase.rpc("website-move-portfolio-item", {
+    p_workspace_id: TRUSHOT_WORKSPACE_ID,
+    p_item_id: input.itemId,
+    p_source_category_id: input.sourceCategoryId,
+    p_target_category_id: input.targetCategoryId,
+    p_source_item_ids: input.sourceItemIds,
+    p_target_item_ids: input.targetItemIds,
+  });
+  if (error) throw new Error(error.message);
+  const expectedUpdates = input.sourceItemIds.length + input.targetItemIds.length;
+  if (Number(data) !== expectedUpdates) {
+    throw new Error("The media could not be moved completely.");
+  }
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, updated: expectedUpdates };
+}
+
 export async function reorderPortfolioCategories(categoryIds: string[]) {
   const input = z.array(z.string().uuid()).min(1).max(100).parse(categoryIds);
   if (new Set(input).size !== input.length) {
