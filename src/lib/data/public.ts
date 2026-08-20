@@ -1,6 +1,6 @@
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { PortfolioItem, PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
+import type { PortfolioCategory, PortfolioItem, PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
 
 export const fallbackWebsiteElements: WebsiteElement[] = [
   {
@@ -224,19 +224,35 @@ export async function getPublicWebsiteSettings(): Promise<PublicWebsiteSettings>
   }
 }
 
-export async function getPublishedPortfolioItems(): Promise<PortfolioItem[]> {
+export async function getPublishedPortfolioCategories(): Promise<PortfolioCategory[]> {
   try {
     const supabase = createPublicClient();
-    const { data, error } = await supabase
-      .from("website-portfolio-items")
-      .select("id,media_kind,title,caption,alt_text,public_url,display_size")
-      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-      .eq("is_published", true)
-      .order("position")
-      .order("created_at");
+    const [categoriesResult, itemsResult] = await Promise.all([
+      supabase
+        .from("website-portfolio-categories")
+        .select("id,name,slug,description,position,is_published")
+        .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+        .eq("is_published", true)
+        .order("position")
+        .order("created_at"),
+      supabase
+        .from("website-portfolio-items")
+        .select("id,category_id,media_kind,alt_text,public_url,display_size")
+        .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+        .eq("is_published", true)
+        .order("category_id")
+        .order("position")
+        .order("created_at"),
+    ]);
 
-    if (error) return [];
-    return (data ?? []) as PortfolioItem[];
+    if (categoriesResult.error || itemsResult.error) return [];
+    const items = (itemsResult.data ?? []) as PortfolioItem[];
+    return (categoriesResult.data ?? [])
+      .map((category) => ({
+        ...category,
+        items: items.filter((item) => item.category_id === category.id),
+      }))
+      .filter((category) => category.items.length > 0) as PortfolioCategory[];
   } catch {
     return [];
   }

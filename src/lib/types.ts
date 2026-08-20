@@ -49,12 +49,21 @@ export type PublicWebsiteSettings = {
 
 export type PortfolioItem = {
   id: string;
+  category_id: string;
   media_kind: "video" | "image";
-  title: string | null;
-  caption: string | null;
   alt_text: string;
   public_url: string;
   display_size: "standard" | "wide" | "tall";
+};
+
+export type PortfolioCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  position: number;
+  is_published: boolean;
+  items: PortfolioItem[];
 };
 
 export type TaskStatus = {

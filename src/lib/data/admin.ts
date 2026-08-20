@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
+import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -251,16 +252,31 @@ export async function getWebsiteVisibilityAdmin() {
   return { show_pricing: data?.show_pricing !== false };
 }
 
-export async function getPortfolioItemsAdmin() {
+export async function getPortfolioCategoriesAdmin(): Promise<PortfolioCategory[]> {
   const context = await getAdminContext();
   if (!context) return [];
-  const { data } = await context.supabase
-    .from("website-portfolio-items")
-    .select("id,media_kind,title,caption,alt_text,public_url,display_size")
-    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-    .order("position")
-    .order("created_at");
-  return data ?? [];
+  const [categoriesResult, itemsResult] = await Promise.all([
+    context.supabase
+      .from("website-portfolio-categories")
+      .select("id,name,slug,description,position,is_published")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("position")
+      .order("created_at"),
+    context.supabase
+      .from("website-portfolio-items")
+      .select("id,category_id,media_kind,alt_text,public_url,display_size")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("category_id")
+      .order("position")
+      .order("created_at"),
+  ]);
+
+  if (categoriesResult.error || itemsResult.error) return [];
+  const items = (itemsResult.data ?? []) as PortfolioItem[];
+  return (categoriesResult.data ?? []).map((category) => ({
+    ...category,
+    items: items.filter((item) => item.category_id === category.id),
+  })) as PortfolioCategory[];
 }
 
 export async function getAnalyticsData() {

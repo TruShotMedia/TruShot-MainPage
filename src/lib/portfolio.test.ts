@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { curatePortfolioItems } from "./portfolio";
+import { curatePortfolioItems, getPortfolioDisplaySize } from "./portfolio";
 
 describe("curatePortfolioItems", () => {
   it("moves the first video into the feature position without losing the remaining order", () => {
@@ -26,5 +26,24 @@ describe("curatePortfolioItems", () => {
     ];
 
     expect(curatePortfolioItems(items)).toEqual(items);
+  });
+});
+
+describe("getPortfolioDisplaySize", () => {
+  it("makes videos wide so motion has room to lead", () => {
+    expect(getPortfolioDisplaySize(0, "video")).toBe("wide");
+    expect(getPortfolioDisplaySize(4, "video")).toBe("wide");
+  });
+
+  it("cycles images through a balanced editorial pattern", () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map((index) => getPortfolioDisplaySize(index, "image"))).toEqual([
+      "standard",
+      "tall",
+      "standard",
+      "wide",
+      "standard",
+      "tall",
+      "standard",
+    ]);
   });
 });

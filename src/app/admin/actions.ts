@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { getPortfolioDisplaySize } from "@/lib/portfolio";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
@@ -794,20 +795,13 @@ export async function updateWebsiteElement(formData: FormData) {
   return { ok: true };
 }
 
-export async function createPortfolioItem(formData: FormData) {
-  const input = z.object({
-    title: z.string().trim().max(120).refine((value) => value.length === 0 || value.length >= 2, "Use at least two characters for the title."),
-    caption: z.string().trim().max(280),
-    alt_text: z.string().trim().min(3).max(180),
-    display_size: z.enum(["standard", "wide", "tall"]),
-    media_kind: z.enum(["video", "image"]),
-    public_url: z.string().trim().max(2_000),
-    storage_path: z.string().trim().max(500),
-  }).parse(Object.fromEntries(formData));
+const portfolioUploadSchema = z.object({
+  media_kind: z.enum(["video", "image"]),
+  public_url: z.string().trim().max(2_000),
+  storage_path: z.string().trim().max(500),
+});
 
-  const context = await getAdminContext();
-  if (!context) redirect("/admin/login");
-
+function validatePortfolioUpload(input: z.infer<typeof portfolioUploadSchema>) {
   const extensionGroup = input.media_kind === "video" ? "mp4|mov|webm" : "jpe?g|png|webp|avif";
   const expectedPathPattern = new RegExp(
     `^${TRUSHOT_WORKSPACE_ID}/portfolio/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(${extensionGroup})$`,
@@ -834,27 +828,139 @@ export async function createPortfolioItem(formData: FormData) {
     throw new Error("The uploaded portfolio media URL is not valid.");
   }
 
+  return { ...input, public_url: parsedPublicUrl.toString() };
+}
+
+async function requirePortfolioCategory(context: AdminContext, categoryId: string) {
+  const { data, error } = await context.supabase
+    .from("website-portfolio-categories")
+    .select("id,name")
+    .eq("id", categoryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .single();
+  if (error || !data) throw new Error("That portfolio category is no longer available.");
+  return data;
+}
+
+export async function createPortfolioCategory(formData: FormData) {
+  const input = z.object({
+    name: z.string().trim().min(2).max(80),
+    description: z.string().trim().max(280),
+  }).parse(Object.fromEntries(formData));
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const baseSlug = slugify(input.name) || "portfolio-category";
+  const { data: existing, error: slugError } = await context.supabase
+    .from("website-portfolio-categories")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("slug", baseSlug)
+    .maybeSingle();
+  if (slugError) throw new Error(slugError.message);
+
   const { data: latest, error: positionError } = await context.supabase
-    .from("website-portfolio-items")
+    .from("website-portfolio-categories")
     .select("position")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .order("position", { ascending: false })
     .limit(1);
   if (positionError) throw new Error(positionError.message);
 
-  const { error } = await context.supabase.from("website-portfolio-items").insert({
+  const { data: category, error } = await context.supabase
+    .from("website-portfolio-categories")
+    .insert({
+      workspace_id: TRUSHOT_WORKSPACE_ID,
+      name: input.name,
+      slug: existing ? `${baseSlug}-${crypto.randomUUID().slice(0, 8)}` : baseSlug,
+      description: input.description || null,
+      position: Number(latest?.[0]?.position ?? 0) + 10,
+      is_published: true,
+      created_by: context.claims.sub,
+    })
+    .select("id")
+    .single();
+  if (error || !category) throw new Error(error?.message ?? "The category could not be created.");
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, id: category.id };
+}
+
+export async function createPortfolioItems(formData: FormData) {
+  const input = z.object({
+    category_id: z.string().uuid(),
+    items: z.string().max(60_000),
+  }).parse(Object.fromEntries(formData));
+
+  let parsedItems: unknown;
+  try {
+    parsedItems = JSON.parse(input.items);
+  } catch {
+    throw new Error("The uploaded portfolio media list is not valid.");
+  }
+  const uploads = z.array(portfolioUploadSchema).min(1).max(20).parse(parsedItems).map(validatePortfolioUpload);
+  if (new Set(uploads.map((upload) => upload.storage_path)).size !== uploads.length) {
+    throw new Error("The upload contains duplicate media files.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const category = await requirePortfolioCategory(context, input.category_id);
+
+  const { data: latest, count, error: positionError } = await context.supabase
+    .from("website-portfolio-items")
+    .select("position", { count: "exact" })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("category_id", category.id)
+    .order("position", { ascending: false })
+    .limit(1);
+  if (positionError) throw new Error(positionError.message);
+
+  const startingPosition = Number(latest?.[0]?.position ?? 0);
+  const startingIndex = count ?? 0;
+  const rows = uploads.map((upload, index) => ({
     workspace_id: TRUSHOT_WORKSPACE_ID,
-    media_kind: input.media_kind,
-    title: input.title || null,
-    caption: input.caption || null,
-    alt_text: input.alt_text,
-    storage_path: input.storage_path,
-    public_url: parsedPublicUrl.toString(),
-    display_size: input.display_size,
-    position: Number(latest?.[0]?.position ?? 0) + 10,
+    category_id: category.id,
+    media_kind: upload.media_kind,
+    title: null,
+    caption: null,
+    alt_text: `${category.name} portfolio ${upload.media_kind} ${startingIndex + index + 1}`,
+    storage_path: upload.storage_path,
+    public_url: upload.public_url,
+    display_size: getPortfolioDisplaySize(startingIndex + index, upload.media_kind),
+    position: startingPosition + ((index + 1) * 10),
     is_published: true,
     created_by: context.claims.sub,
-  });
+  }));
+  const { error } = await context.supabase.from("website-portfolio-items").insert(rows);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}
+
+export async function deletePortfolioCategory(id: string) {
+  const categoryId = z.string().uuid().parse(id);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  await requirePortfolioCategory(context, categoryId);
+
+  const { count, error: countError } = await context.supabase
+    .from("website-portfolio-items")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("category_id", categoryId);
+  if (countError) throw new Error(countError.message);
+  if ((count ?? 0) > 0) throw new Error("Remove the media in this category before deleting it.");
+
+  const { error } = await context.supabase
+    .from("website-portfolio-categories")
+    .delete()
+    .eq("id", categoryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
   if (error) throw new Error(error.message);
 
   revalidatePath("/portfolio");
