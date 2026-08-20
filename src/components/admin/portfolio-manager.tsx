@@ -12,6 +12,50 @@ import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-me
 
 const MAX_BATCH_FILES = 20;
 
+type DeleteRequest = {
+  id: string;
+  kind: "category" | "item";
+};
+
+type RemoveControlsProps = {
+  confirming: boolean;
+  disabled?: boolean;
+  disabledTitle?: string;
+  isDeleting: boolean;
+  label: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  onRequest: () => void;
+};
+
+function RemoveControls({ confirming, disabled = false, disabledTitle, isDeleting, label, onCancel, onConfirm, onRequest }: RemoveControlsProps) {
+  if (!confirming) {
+    return (
+      <button
+        className="portfolio-remove-button"
+        type="button"
+        onClick={onRequest}
+        disabled={disabled || isDeleting}
+        title={disabledTitle}
+      >
+        {isDeleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />}
+        {isDeleting ? "Removing…" : label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="portfolio-delete-confirmation" role="group" aria-label={`Confirm ${label.toLowerCase()}`}>
+      <span>Delete permanently?</span>
+      <button type="button" className="portfolio-delete-cancel" onClick={onCancel} disabled={isDeleting}>Keep</button>
+      <button type="button" className="portfolio-delete-confirm" onClick={onConfirm} disabled={isDeleting} autoFocus>
+        {isDeleting ? <LoaderCircle className="spin" size={13} /> : <Trash2 size={13} />}
+        {isDeleting ? "Deleting…" : "Delete"}
+      </button>
+    </div>
+  );
+}
+
 function getFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
@@ -32,6 +76,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [message, setMessage] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const activeCategoryId = categories.some((category) => category.id === selectedCategoryId)
     ? selectedCategoryId
     : categories[0]?.id ?? "";
@@ -140,12 +185,14 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   }
 
   async function handleDeleteItem(item: PortfolioItem) {
-    if (!window.confirm(`Remove this ${item.media_kind}? This permanently deletes the uploaded file.`)) return;
     setDeletingId(item.id);
     setStatus("idle");
     setMessage("");
     try {
       await deletePortfolioItem(item.id);
+      setDeleteRequest(null);
+      setStatus("saved");
+      setMessage(`${item.media_kind === "video" ? "Video" : "Photo"} removed from the portfolio.`);
       router.refresh();
     } catch (error) {
       setStatus("error");
@@ -156,13 +203,16 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   }
 
   async function handleDeleteCategory(category: PortfolioCategory) {
-    if (category.items.length > 0 || !window.confirm(`Remove the empty “${category.name}” category?`)) return;
+    if (category.items.length > 0) return;
     setDeletingId(category.id);
     setStatus("idle");
     setMessage("");
     try {
       await deletePortfolioCategory(category.id);
       if (activeCategoryId === category.id) setSelectedCategoryId("");
+      setDeleteRequest(null);
+      setStatus("saved");
+      setMessage(`“${category.name}” removed.`);
       router.refresh();
     } catch (error) {
       setStatus("error");
@@ -275,16 +325,16 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
             <section className="admin-card portfolio-admin-category" key={category.id}>
               <header className="portfolio-admin-category-heading">
                 <div><span>{String(categoryIndex + 1).padStart(2, "0")} · {category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</span><h2>{category.name}</h2>{category.description && <p>{category.description}</p>}</div>
-                <button
-                  className="portfolio-remove-button"
-                  type="button"
-                  onClick={() => handleDeleteCategory(category)}
-                  disabled={category.items.length > 0 || deletingId === category.id}
-                  title={category.items.length > 0 ? "Remove this category’s media first" : "Remove category"}
-                >
-                  {deletingId === category.id ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />}
-                  Remove category
-                </button>
+                <RemoveControls
+                  confirming={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
+                  disabled={category.items.length > 0}
+                  disabledTitle={category.items.length > 0 ? "Remove this category’s media first" : undefined}
+                  isDeleting={deletingId === category.id}
+                  label="Remove category"
+                  onCancel={() => setDeleteRequest(null)}
+                  onConfirm={() => handleDeleteCategory(category)}
+                  onRequest={() => setDeleteRequest({ id: category.id, kind: "category" })}
+                />
               </header>
 
               {category.items.length > 0 ? (
@@ -301,10 +351,14 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
                       </div>
                       <div className="portfolio-admin-copy">
                         <small>{item.display_size} layout</small>
-                        <button className="portfolio-remove-button" type="button" onClick={() => handleDeleteItem(item)} disabled={deletingId === item.id}>
-                          {deletingId === item.id ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />}
-                          {deletingId === item.id ? "Removing…" : "Remove media"}
-                        </button>
+                        <RemoveControls
+                          confirming={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
+                          isDeleting={deletingId === item.id}
+                          label="Remove media"
+                          onCancel={() => setDeleteRequest(null)}
+                          onConfirm={() => handleDeleteItem(item)}
+                          onRequest={() => setDeleteRequest({ id: item.id, kind: "item" })}
+                        />
                       </div>
                     </article>
                   ))}

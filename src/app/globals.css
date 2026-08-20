@@ -700,6 +700,13 @@ img { max-width: 100%; }
 .portfolio-admin-copy .portfolio-remove-button { min-height: 32px; margin-top: 0; }
 .portfolio-remove-button:disabled { cursor: wait; opacity: .65; }
 .portfolio-admin-category-heading .portfolio-remove-button:disabled { border-color: #deded8; background: #f1f0eb; color: #999d97; cursor: not-allowed; }
+.portfolio-delete-confirmation { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; border: 1px solid #e8c4ba; border-radius: 9px; background: #fff7f4; padding: 4px; box-shadow: 0 10px 28px rgba(95, 48, 35, .09); }
+.portfolio-delete-confirmation > span { margin: 0 4px 0 6px; color: #844438; font-size: 8px; font-weight: 900; letter-spacing: .02em; white-space: nowrap; }
+.portfolio-delete-confirmation button { display: inline-flex; min-height: 28px; align-items: center; justify-content: center; gap: 5px; margin: 0; border-radius: 6px; padding: 0 9px; font-size: 8px; font-weight: 900; cursor: pointer; }
+.portfolio-delete-cancel { border: 1px solid #d9d8d1; background: white; color: #676c66; }
+.portfolio-delete-confirm { border: 1px solid #9d4c3d; background: #9d4c3d; color: white; }
+.portfolio-delete-confirmation button:disabled { cursor: wait; opacity: .7; }
+.portfolio-admin-copy .portfolio-delete-confirmation { min-height: 32px; }
 .portfolio-category-empty { display: flex; min-height: 125px; align-items: center; justify-content: center; gap: 10px; border: 1px dashed #d2d4cc; border-radius: 12px; background: #f5f4ef; color: #8a9088; }
 .portfolio-category-empty p { margin: 0; font-size: 10px; }
 .portfolio-empty-state { min-height: 330px; }
