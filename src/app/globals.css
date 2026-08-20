@@ -235,8 +235,11 @@ img { max-width: 100%; }
 .portfolio-media-shade { position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, rgba(7,13,9,.02) 45%, rgba(7,13,9,.72)); pointer-events: none; }
 .portfolio-tile:hover .portfolio-media > img, .portfolio-tile:hover .portfolio-media > video { filter: saturate(1.05); transform: scale(1.025); }
 .portfolio-kind { position: absolute; top: 18px; right: 18px; z-index: 2; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(8,16,11,.28); padding: 7px 10px; color: white; backdrop-filter: blur(10px); font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.portfolio-video-control { position: absolute; top: 18px; left: 18px; z-index: 3; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgba(255,255,255,.32); border-radius: 50%; background: rgba(8,16,11,.28); color: white; backdrop-filter: blur(10px); cursor: pointer; }
+.portfolio-video-controls { position: absolute; top: 18px; left: 18px; z-index: 3; display: flex; gap: 7px; }
+.portfolio-video-control { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgba(255,255,255,.32); border-radius: 50%; background: rgba(8,16,11,.28); color: white; backdrop-filter: blur(10px); cursor: pointer; }
 .portfolio-video-control:hover { background: white; color: var(--green); }
+.portfolio-video-control:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.portfolio-video-sound-control[aria-pressed="true"] { background: rgba(8,16,11,.5); color: #dce6e0; }
 .portfolio-tile-copy { position: absolute; right: 0; bottom: 0; left: 0; z-index: 2; padding: clamp(22px, 3vw, 42px); color: white; }
 .portfolio-tile-copy h2 { margin: 0; font-size: clamp(23px, 2.5vw, 43px); letter-spacing: -.045em; line-height: 1; text-transform: uppercase; }
 .portfolio-tile-copy p { max-width: 550px; margin: 13px 0 0; color: rgba(255,255,255,.78); font-size: 13px; line-height: 1.45; }

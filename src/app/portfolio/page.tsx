@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 export default async function PortfolioPage() {
   const categories = await getPublishedPortfolioCategories();
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
+  const firstVideoId = categories.flatMap((category) => category.items).find((item) => item.media_kind === "video")?.id;
 
   return (
     <main className="portfolio-page">
@@ -68,7 +69,7 @@ export default async function PortfolioPage() {
                       >
                         <div className="portfolio-media">
                           {item.media_kind === "video" ? (
-                            <PortfolioVideo src={item.public_url} label={item.alt_text} />
+                            <PortfolioVideo src={item.public_url} label={item.alt_text} soundEnabled={item.id === firstVideoId} />
                           ) : (
                             <Image
                               src={item.public_url}
