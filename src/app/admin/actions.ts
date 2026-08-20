@@ -942,6 +942,34 @@ export async function createPortfolioItems(formData: FormData) {
   return { ok: true };
 }
 
+export async function reorderPortfolioItems(categoryId: string, itemIds: string[]) {
+  const input = z.object({
+    categoryId: z.string().uuid(),
+    itemIds: z.array(z.string().uuid()).min(1).max(500),
+  }).parse({ categoryId, itemIds });
+  if (new Set(input.itemIds).size !== input.itemIds.length) {
+    throw new Error("The portfolio order contains duplicate media.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  await requirePortfolioCategory(context, input.categoryId);
+
+  const { data, error } = await context.supabase.rpc("website-reorder-portfolio-items", {
+    p_workspace_id: TRUSHOT_WORKSPACE_ID,
+    p_category_id: input.categoryId,
+    p_item_ids: input.itemIds,
+  });
+  if (error) throw new Error(error.message);
+  if (Number(data) !== input.itemIds.length) {
+    throw new Error("The complete portfolio order could not be saved.");
+  }
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, updated: input.itemIds.length };
+}
+
 export async function deletePortfolioCategory(id: string) {
   const categoryId = z.string().uuid().parse(id);
   const context = await getAdminContext();

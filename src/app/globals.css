@@ -686,8 +686,14 @@ img { max-width: 100%; }
 .portfolio-admin-category-heading h2 { margin: 8px 0 0; font-size: 28px; letter-spacing: -.045em; }
 .portfolio-admin-category-heading p { max-width: 600px; margin: 10px 0 0; color: #7d837b; font-size: 10px; line-height: 1.5; }
 .portfolio-admin-category-heading .portfolio-remove-button { margin-top: 0; }
+.portfolio-admin-category-tools { display: flex; align-items: flex-end; flex-direction: column; gap: 9px; }
+.portfolio-order-status { margin: 0 !important; color: #777d75 !important; font-size: 8px !important; font-weight: 800; letter-spacing: .035em; white-space: nowrap; }
+.portfolio-order-status.saving { color: #8a6b2e !important; }
+.portfolio-order-status.saved { color: #276144 !important; }
+.portfolio-order-status.error { max-width: 280px; color: #9d4c3d !important; text-align: right; white-space: normal; }
 .portfolio-admin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
-.portfolio-admin-card { overflow: hidden; border: 1px solid #deddd6; border-radius: 16px; background: #faf9f5; content-visibility: auto; contain-intrinsic-size: 0 460px; }
+.portfolio-admin-card { overflow: hidden; border: 1px solid #deddd6; border-radius: 16px; background: #faf9f5; content-visibility: auto; contain-intrinsic-size: 0 460px; transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease; }
+.portfolio-admin-card.is-dragging { border-color: rgba(31,94,65,.42); opacity: .72; box-shadow: 0 22px 48px rgba(19,50,34,.2); }
 .portfolio-admin-preview { position: relative; aspect-ratio: 16 / 11; overflow: hidden; background: #dce2da; }
 .portfolio-admin-preview > img, .portfolio-admin-preview > video { width: 100%; height: 100%; object-fit: cover; }
 .portfolio-admin-preview > video { position: absolute; inset: 0; }
@@ -696,6 +702,11 @@ img { max-width: 100%; }
 .portfolio-admin-copy > div small { color: var(--green); font-size: 8px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
 .portfolio-admin-copy h2 { margin: 6px 0 0; font-size: 19px; letter-spacing: -.035em; }
 .portfolio-admin-copy > p { min-height: 44px; margin: 13px 0 0; color: #747a72; font-size: 10px; line-height: 1.5; }
+.portfolio-admin-card-controls { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.portfolio-order-handle { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; border: 1px solid #d5d9d3; border-radius: 8px; background: #f1f4ef; padding: 0 10px; color: var(--green); font-size: 8px; font-weight: 900; cursor: grab; touch-action: none; }
+.portfolio-order-handle:active { cursor: grabbing; }
+.portfolio-order-handle:focus-visible { outline: 2px solid rgba(31,94,65,.35); outline-offset: 2px; }
+.portfolio-order-handle:disabled { cursor: wait; opacity: .5; }
 .portfolio-remove-button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; margin-top: 18px; border: 1px solid #e1cbc5; border-radius: 8px; background: #fff8f6; padding: 0 12px; color: #9d4c3d; font-size: 9px; font-weight: 900; cursor: pointer; }
 .portfolio-admin-copy .portfolio-remove-button { min-height: 32px; margin-top: 0; }
 .portfolio-remove-button:disabled { cursor: wait; opacity: .65; }
@@ -821,5 +832,8 @@ img { max-width: 100%; }
   .portfolio-category-form > button { width: 100%; }
   .portfolio-admin-category-heading { align-items: stretch; flex-direction: column; }
   .portfolio-admin-category-heading .portfolio-remove-button { width: fit-content; }
+  .portfolio-admin-category-tools { align-items: flex-start; }
+  .portfolio-order-status.error { text-align: left; }
   .portfolio-admin-copy { align-items: flex-start; flex-direction: column; }
+  .portfolio-admin-card-controls { width: 100%; justify-content: space-between; }
 }

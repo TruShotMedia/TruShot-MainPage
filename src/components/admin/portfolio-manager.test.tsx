@@ -11,6 +11,7 @@ const actionMocks = vi.hoisted(() => ({
   createPortfolioItems: vi.fn(async () => ({ ok: true })),
   deletePortfolioCategory: vi.fn(async () => ({ ok: true })),
   deletePortfolioItem: vi.fn(async () => ({ ok: true })),
+  reorderPortfolioItems: vi.fn(async () => ({ ok: true, updated: 1 })),
 }));
 
 const routerMocks = vi.hoisted(() => ({

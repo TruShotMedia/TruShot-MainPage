@@ -1,31 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { curatePortfolioItems, getPortfolioDisplaySize } from "./portfolio";
+import { getPortfolioDisplaySize, movePortfolioItem } from "./portfolio";
 
-describe("curatePortfolioItems", () => {
-  it("moves the first video into the feature position without losing the remaining order", () => {
+describe("movePortfolioItem", () => {
+  it("moves an item to the requested place without mutating the saved order", () => {
     const items = [
-      { id: "photo-a", media_kind: "image" as const },
-      { id: "photo-b", media_kind: "image" as const },
-      { id: "video-a", media_kind: "video" as const },
-      { id: "video-b", media_kind: "video" as const },
+      { id: "photo-a" },
+      { id: "photo-b" },
+      { id: "video-a" },
     ];
 
-    expect(curatePortfolioItems(items).map((item) => item.id)).toEqual([
+    expect(movePortfolioItem(items, "video-a", "photo-a").map((item) => item.id)).toEqual([
       "video-a",
       "photo-a",
       "photo-b",
-      "video-b",
     ]);
     expect(items[0].id).toBe("photo-a");
   });
 
-  it("keeps a photo-only collection in its curated order", () => {
-    const items = [
-      { id: "photo-a", media_kind: "image" as const },
-      { id: "photo-b", media_kind: "image" as const },
-    ];
-
-    expect(curatePortfolioItems(items)).toEqual(items);
+  it("returns the current order when a drag target is missing", () => {
+    const items = [{ id: "photo-a" }, { id: "photo-b" }];
+    expect(movePortfolioItem(items, "missing", "photo-b")).toBe(items);
   });
 });
 

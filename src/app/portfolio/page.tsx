@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react";
 import { PortfolioVideo } from "@/components/public/portfolio-video";
 import { getPublishedPortfolioCategories } from "@/lib/data/public";
-import { curatePortfolioItems } from "@/lib/portfolio";
 
 export const metadata: Metadata = {
   title: "Selected Work",
@@ -19,10 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PortfolioPage() {
-  const categories = (await getPublishedPortfolioCategories()).map((category) => ({
-    ...category,
-    items: curatePortfolioItems(category.items),
-  }));
+  const categories = await getPublishedPortfolioCategories();
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
 
   return (

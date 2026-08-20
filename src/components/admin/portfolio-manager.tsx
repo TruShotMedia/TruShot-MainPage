@@ -3,8 +3,12 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Check, FileVideo, FolderPlus, ImageIcon, Images, LoaderCircle, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem } from "@/app/admin/actions";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, Images, LoaderCircle, Play, Trash2, Upload, X } from "lucide-react";
+import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, reorderPortfolioItems } from "@/app/admin/actions";
+import { movePortfolioItem } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
@@ -56,6 +60,69 @@ function RemoveControls({ confirming, disabled = false, disabledTitle, isDeletin
   );
 }
 
+function SortablePortfolioCard({
+  item,
+  confirmingDelete,
+  disabled,
+  isDeleting,
+  onCancelDelete,
+  onConfirmDelete,
+  onRequestDelete,
+}: {
+  item: PortfolioItem;
+  confirmingDelete: boolean;
+  disabled: boolean;
+  isDeleting: boolean;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+  onRequestDelete: () => void;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id, disabled });
+
+  return (
+    <article
+      ref={setNodeRef}
+      className={`portfolio-admin-card ${isDragging ? "is-dragging" : ""}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }}
+      aria-busy={isDeleting}
+    >
+      <div className="portfolio-admin-preview">
+        {item.media_kind === "image" ? (
+          <Image src={item.public_url} alt={item.alt_text} fill sizes="(max-width: 850px) 100vw, 33vw" />
+        ) : (
+          <video src={item.public_url} muted playsInline controls preload="metadata" aria-label={item.alt_text} />
+        )}
+        <span className="website-media-badge">{item.media_kind === "video" ? <Play size={12} /> : <ImageIcon size={12} />}{item.media_kind}</span>
+      </div>
+      <div className="portfolio-admin-copy">
+        <small>{item.display_size} layout</small>
+        <div className="portfolio-admin-card-controls">
+          <button
+            className="portfolio-order-handle"
+            type="button"
+            aria-label={`Move ${item.media_kind}`}
+            title="Drag to change display order"
+            disabled={disabled}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical size={15} />
+            Move
+          </button>
+          <RemoveControls
+            confirming={confirmingDelete}
+            isDeleting={isDeleting}
+            label="Remove media"
+            onCancel={onCancelDelete}
+            onConfirm={onConfirmDelete}
+            onRequest={onRequestDelete}
+          />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function getFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
@@ -77,9 +144,16 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [categorySaving, setCategorySaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
-  const activeCategoryId = categories.some((category) => category.id === selectedCategoryId)
+  const [portfolioCategories, setPortfolioCategories] = useState(categories);
+  const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
+  const [orderFeedback, setOrderFeedback] = useState<{ categoryId: string; status: "saving" | "saved" | "error"; message: string } | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const activeCategoryId = portfolioCategories.some((category) => category.id === selectedCategoryId)
     ? selectedCategoryId
-    : categories[0]?.id ?? "";
+    : portfolioCategories[0]?.id ?? "";
 
   function addFiles(fileList: FileList | File[]) {
     const incoming = Array.from(fileList);
@@ -222,7 +296,35 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     }
   }
 
-  const totalItems = categories.reduce((total, category) => total + category.items.length, 0);
+  async function handleReorder(categoryId: string, event: DragEndEvent) {
+    if (!event.over || event.active.id === event.over.id || orderingCategoryId) return;
+    const category = portfolioCategories.find((candidate) => candidate.id === categoryId);
+    if (!category) return;
+
+    const previousItems = category.items;
+    const nextItems = movePortfolioItem(previousItems, String(event.active.id), String(event.over.id));
+    if (nextItems === previousItems) return;
+
+    setPortfolioCategories((current) => current.map((candidate) => (
+      candidate.id === categoryId ? { ...candidate, items: nextItems } : candidate
+    )));
+    setOrderingCategoryId(categoryId);
+    setOrderFeedback({ categoryId, status: "saving", message: "Saving display order…" });
+    try {
+      await reorderPortfolioItems(categoryId, nextItems.map((item) => item.id));
+      setOrderFeedback({ categoryId, status: "saved", message: "Display order saved." });
+      router.refresh();
+    } catch {
+      setPortfolioCategories((current) => current.map((candidate) => (
+        candidate.id === categoryId ? { ...candidate, items: previousItems } : candidate
+      )));
+      setOrderFeedback({ categoryId, status: "error", message: "That order was not saved. The previous order has been restored." });
+    } finally {
+      setOrderingCategoryId(null);
+    }
+  }
+
+  const totalItems = portfolioCategories.reduce((total, category) => total + category.items.length, 0);
 
   return (
     <>
@@ -259,21 +361,21 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
         <form onSubmit={handleUpload} className="portfolio-upload-form">
           <div className="website-element-fields portfolio-category-select">
             <label>Upload to category
-              <select value={activeCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)} disabled={categories.length === 0} required>
-                {categories.length === 0 ? <option value="">Create a category first</option> : categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
+              <select value={activeCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)} disabled={portfolioCategories.length === 0} required>
+                {portfolioCategories.length === 0 ? <option value="">Create a category first</option> : portfolioCategories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
               </select>
             </label>
           </div>
 
           <label
-            className={`portfolio-dropzone ${isDragging ? "is-dragging" : ""} ${categories.length === 0 ? "is-disabled" : ""}`}
-            onDragEnter={(event) => { event.preventDefault(); if (categories.length > 0) setIsDragging(true); }}
+            className={`portfolio-dropzone ${isDragging ? "is-dragging" : ""} ${portfolioCategories.length === 0 ? "is-disabled" : ""}`}
+            onDragEnter={(event) => { event.preventDefault(); if (portfolioCategories.length > 0) setIsDragging(true); }}
             onDragOver={(event) => { event.preventDefault(); }}
             onDragLeave={(event) => { event.preventDefault(); setIsDragging(false); }}
             onDrop={(event) => {
               event.preventDefault();
               setIsDragging(false);
-              if (categories.length > 0) addFiles(event.dataTransfer.files);
+              if (portfolioCategories.length > 0) addFiles(event.dataTransfer.files);
             }}
           >
             <input
@@ -281,12 +383,12 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
               type="file"
               accept={WEBSITE_MEDIA_ACCEPT}
               multiple
-              disabled={categories.length === 0 || status === "saving"}
+              disabled={portfolioCategories.length === 0 || status === "saving"}
               onChange={(event) => event.target.files && addFiles(event.target.files)}
             />
             <span className="portfolio-dropzone-icon"><Upload size={22} /></span>
-            <strong>{categories.length === 0 ? "Create a category to begin" : isDragging ? "Drop your files here" : "Drop photos and videos here"}</strong>
-            <small>{categories.length === 0 ? "The upload area will unlock automatically." : "or click to browse · images up to 10 MB · videos up to 200 MB"}</small>
+            <strong>{portfolioCategories.length === 0 ? "Create a category to begin" : isDragging ? "Drop your files here" : "Drop photos and videos here"}</strong>
+            <small>{portfolioCategories.length === 0 ? "The upload area will unlock automatically." : "or click to browse · images up to 10 MB · videos up to 200 MB"}</small>
           </label>
 
           {selectedFiles.length > 0 && (
@@ -311,58 +413,58 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
               {status === "saved" && <Check size={14} />}
               {message}
             </p>
-            <button className="admin-primary-button" type="submit" disabled={status === "saving" || categories.length === 0 || selectedFiles.length === 0}>
+            <button className="admin-primary-button" type="submit" disabled={status === "saving" || portfolioCategories.length === 0 || selectedFiles.length === 0}>
               {status === "saving" ? "Publishing…" : selectedFiles.length > 0 ? `Publish ${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"}` : "Publish files"}
             </button>
           </div>
         </form>
       </section>
 
-      {categories.length > 0 ? (
+      {portfolioCategories.length > 0 ? (
         <section className="portfolio-admin-categories" aria-label="Portfolio categories">
-          <div className="portfolio-library-summary"><span><Images size={16} /> {categories.length} {categories.length === 1 ? "category" : "categories"}</span><span>{totalItems} {totalItems === 1 ? "piece" : "pieces"}</span></div>
-          {categories.map((category, categoryIndex) => (
+          <div className="portfolio-library-summary"><span><Images size={16} /> {portfolioCategories.length} {portfolioCategories.length === 1 ? "category" : "categories"}</span><span>{totalItems} {totalItems === 1 ? "piece" : "pieces"}</span></div>
+          {portfolioCategories.map((category, categoryIndex) => (
             <section className="admin-card portfolio-admin-category" key={category.id}>
               <header className="portfolio-admin-category-heading">
                 <div><span>{String(categoryIndex + 1).padStart(2, "0")} · {category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</span><h2>{category.name}</h2>{category.description && <p>{category.description}</p>}</div>
-                <RemoveControls
-                  confirming={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
-                  disabled={category.items.length > 0}
-                  disabledTitle={category.items.length > 0 ? "Remove this category’s media first" : undefined}
-                  isDeleting={deletingId === category.id}
-                  label="Remove category"
-                  onCancel={() => setDeleteRequest(null)}
-                  onConfirm={() => handleDeleteCategory(category)}
-                  onRequest={() => setDeleteRequest({ id: category.id, kind: "category" })}
-                />
+                <div className="portfolio-admin-category-tools">
+                  {category.items.length > 1 ? (
+                    <p className={`portfolio-order-status ${orderFeedback?.categoryId === category.id ? orderFeedback.status : ""}`} role="status" aria-live="polite">
+                      {orderFeedback?.categoryId === category.id ? orderFeedback.message : "Drag media to set its display order."}
+                    </p>
+                  ) : null}
+                  <RemoveControls
+                    confirming={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
+                    disabled={category.items.length > 0}
+                    disabledTitle={category.items.length > 0 ? "Remove this category’s media first" : undefined}
+                    isDeleting={deletingId === category.id}
+                    label="Remove category"
+                    onCancel={() => setDeleteRequest(null)}
+                    onConfirm={() => handleDeleteCategory(category)}
+                    onRequest={() => setDeleteRequest({ id: category.id, kind: "category" })}
+                  />
+                </div>
               </header>
 
               {category.items.length > 0 ? (
-                <div className="portfolio-admin-grid">
-                  {category.items.map((item) => (
-                    <article className="portfolio-admin-card" key={item.id}>
-                      <div className="portfolio-admin-preview">
-                        {item.media_kind === "image" ? (
-                          <Image src={item.public_url} alt={item.alt_text} fill sizes="(max-width: 850px) 100vw, 33vw" />
-                        ) : (
-                          <video src={item.public_url} muted playsInline controls preload="metadata" aria-label={item.alt_text} />
-                        )}
-                        <span className="website-media-badge">{item.media_kind === "video" ? <Play size={12} /> : <ImageIcon size={12} />}{item.media_kind}</span>
-                      </div>
-                      <div className="portfolio-admin-copy">
-                        <small>{item.display_size} layout</small>
-                        <RemoveControls
-                          confirming={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => { void handleReorder(category.id, event); }}>
+                  <SortableContext items={category.items.map((item) => item.id)} strategy={rectSortingStrategy}>
+                    <div className="portfolio-admin-grid">
+                      {category.items.map((item) => (
+                        <SortablePortfolioCard
+                          key={item.id}
+                          item={item}
+                          confirmingDelete={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
+                          disabled={Boolean(orderingCategoryId) || deletingId === item.id || (deleteRequest?.kind === "item" && deleteRequest.id === item.id)}
                           isDeleting={deletingId === item.id}
-                          label="Remove media"
-                          onCancel={() => setDeleteRequest(null)}
-                          onConfirm={() => handleDeleteItem(item)}
-                          onRequest={() => setDeleteRequest({ id: item.id, kind: "item" })}
+                          onCancelDelete={() => setDeleteRequest(null)}
+                          onConfirmDelete={() => handleDeleteItem(item)}
+                          onRequestDelete={() => setDeleteRequest({ id: item.id, kind: "item" })}
                         />
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               ) : (
                 <div className="portfolio-category-empty"><ImageIcon size={18} /><p>No media yet. Choose this category above, then drop in your files.</p></div>
               )}
