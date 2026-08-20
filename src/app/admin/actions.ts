@@ -708,7 +708,7 @@ export async function updateWebsiteElement(formData: FormData) {
   if (input.media_kind !== "none") {
     if (input.media_alt.length < 3) throw new Error("Add useful alternative text for this media.");
     const allowedExtension = input.media_kind === "video"
-      ? /\.(mp4|webm)$/i
+      ? /\.(mp4|mov|webm)$/i
       : /\.(jpe?g|png|webp|avif)$/i;
     const expectedPrefix = `${TRUSHOT_WORKSPACE_ID}/${input.element_key}/`;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

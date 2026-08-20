@@ -49,7 +49,7 @@ img { max-width: 100%; }
 
 .hero {
   display: flex;
-  min-height: min(900px, 100svh);
+  min-height: min(820px, 90svh);
   flex-direction: column;
   justify-content: flex-end;
   padding: 160px clamp(24px, 5vw, 80px) 60px;
@@ -213,9 +213,10 @@ img { max-width: 100%; }
   .public-header { height: 82px; padding: 0 20px; }
   .public-logo, .public-logo img { width: 135px; }
   .header-cta { font-size: 12px; }
-  .hero { min-height: 780px; padding: 130px 20px 35px; }
+  .hero { min-height: 700px; padding: 112px 20px 30px; }
+  .hero-kicker { margin-bottom: 24px; }
   .hero h1 { font-size: clamp(58px, 19vw, 94px); line-height: .84; }
-  .hero-bottom { align-items: center; }
+  .hero-bottom { align-items: center; margin-top: 38px; }
   .hero-bottom p { font-size: 17px; }
   .circle-link { width: 53px; height: 53px; }
   .statement { grid-template-columns: 1fr; padding-right: 20px; padding-left: 20px; }

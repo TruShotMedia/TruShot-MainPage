@@ -133,7 +133,7 @@ export function WebsiteElementEditor({
               Use branded fallback
             </label>
           )}
-          <span>{selectedFileName || "Images max 10 MB · videos max 80 MB"}</span>
+          <span>{selectedFileName || "JPG, PNG, WebP, AVIF · MP4, MOV, WebM · videos max 80 MB"}</span>
         </div>
 
         <div className="website-element-actions">

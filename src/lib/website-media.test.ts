@@ -13,6 +13,9 @@ describe("website media", () => {
     ["image/avif", "image", "avif"],
     ["video/mp4", "video", "mp4"],
     ["video/webm", "video", "webm"],
+    ["video/quicktime", "video", "mov"],
+    ["video/mov", "video", "mov"],
+    ["video/x-quicktime", "video", "mov"],
   ] as const)("accepts %s as %s", (type, kind, extension) => {
     expect(validateWebsiteMediaFile({ type, size: 1024 })).toEqual({ kind, extension });
     expect(WEBSITE_MEDIA_ACCEPT).toContain(type);
@@ -20,7 +23,11 @@ describe("website media", () => {
 
   it("rejects unsupported formats", () => {
     expect(getWebsiteMediaKind("image/gif")).toBeNull();
-    expect(() => validateWebsiteMediaFile({ type: "video/quicktime", size: 1024 })).toThrow("Choose an MP4 or WebM video");
+    expect(() => validateWebsiteMediaFile({ type: "video/avi", size: 1024 })).toThrow("Choose an MP4, MOV or WebM video");
+  });
+
+  it("includes the MOV extension in the native file picker filter", () => {
+    expect(WEBSITE_MEDIA_ACCEPT.split(",")).toContain(".mov");
   });
 
   it("applies the correct size limit for each media kind", () => {
