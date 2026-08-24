@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { ClientEnquiry, PortfolioCategory, PortfolioItem } from "@/lib/types";
+import type { CalendarJob, CalendarTask, ClientEnquiry, PipelineTask, PortfolioCategory, PortfolioItem, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -147,6 +147,118 @@ export async function getPipeline() {
       const job = (jobs.data ?? []).find((entry) => entry.id === task.job_id);
       return { ...task, job: job ? { ...job, client: (clients.data ?? []).find((client) => client.id === job.client_id) ?? null } : null };
     }),
+  };
+}
+
+export async function getTabletKioskData(): Promise<{
+  statuses: TaskStatus[];
+  pipelineTasks: PipelineTask[];
+  calendarJobs: CalendarJob[];
+  calendarTasks: CalendarTask[];
+  pendingRequestCount: number;
+}> {
+  const context = await getAdminContext();
+  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], pendingRequestCount: 0 };
+  const { supabase } = context;
+
+  const [taskStatusesResult, tasksResult, jobsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
+    supabase
+      .from("website-task-statuses")
+      .select("id,key,label,color,position,is_open,is_active")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("position"),
+    supabase
+      .from("website-job-tasks")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("position"),
+    supabase
+      .from("website-jobs")
+      .select("id,title,client_id,status_id,shoot_date,due_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    supabase
+      .from("website-clients")
+      .select("id,name")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    supabase
+      .from("website-job-statuses")
+      .select("id,label,color,is_closed")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    supabase
+      .from("website-enquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .in("status", ["new", "reviewing"])
+      .is("archived_at", null),
+  ]);
+
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, clientsResult, jobStatusesResult, enquiriesResult]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error("The tablet workspace could not be refreshed.");
+
+  const allTaskStatuses = taskStatusesResult.data ?? [];
+  const tasks = tasksResult.data ?? [];
+  const jobs = jobsResult.data ?? [];
+  const clientsById = new Map((clientsResult.data ?? []).map((client) => [client.id, client]));
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const taskStatusesById = new Map(allTaskStatuses.map((status) => [status.id, status]));
+  const jobStatusesById = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));
+
+  const pipelineTasks = tasks.map((task) => {
+    const job = jobsById.get(task.job_id);
+    const client = job?.client_id ? clientsById.get(job.client_id) ?? null : null;
+    return { ...task, job: job ? { id: job.id, title: job.title, client } : null };
+  }) as PipelineTask[];
+
+  const calendarJobs = jobs.map((job): CalendarJob => {
+    const status = jobStatusesById.get(job.status_id);
+    return {
+      id: job.id,
+      entity_type: "job",
+      title: job.title,
+      client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
+      shoot_date: job.shoot_date,
+      due_date: job.due_date,
+      status_label: status?.label ?? "Unknown",
+      status_color: status?.color ?? "#777d76",
+      is_complete: status?.is_closed ?? false,
+    };
+  });
+
+  const calendarTasks = tasks.flatMap((task): CalendarTask[] => {
+    const job = jobsById.get(task.job_id);
+    if (!job) return [];
+    const status = taskStatusesById.get(task.status_id);
+    return [{
+      id: task.id,
+      entity_type: "task",
+      title: task.title,
+      job_title: job.title,
+      client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
+      due_date: task.due_date,
+      priority: task.priority as CalendarTask["priority"],
+      status_label: status?.label ?? "Unknown",
+      status_color: status?.color ?? "#777d76",
+      is_complete: !(status?.is_open ?? true),
+    }];
+  });
+
+  return {
+    statuses: allTaskStatuses.filter((status) => status.is_active).map((status) => ({
+      id: status.id,
+      key: status.key,
+      label: status.label,
+      color: status.color,
+      position: status.position,
+      is_open: status.is_open,
+    })),
+    pipelineTasks,
+    calendarJobs,
+    calendarTasks,
+    pendingRequestCount: enquiriesResult.count ?? 0,
   };
 }
 

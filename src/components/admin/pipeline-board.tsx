@@ -11,6 +11,7 @@ import { nextTaskPosition } from "@/lib/task-position";
 import type { PipelineTask, TaskStatus } from "@/lib/types";
 
 type PipelineVariant = "admin" | "tablet";
+const EMPTY_STATUS_ALIASES: Record<string, string> = {};
 
 function TaskCard({ task, isSaving, canComplete, onComplete, variant }: { task: PipelineTask; isSaving: boolean; canComplete: boolean; onComplete: () => void; variant: PipelineVariant }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving });
@@ -32,13 +33,13 @@ function TaskCard({ task, isSaving, canComplete, onComplete, variant }: { task: 
   );
 }
 
-function Column({ status, tasks, savingId, onComplete, variant }: { status: TaskStatus; tasks: PipelineTask[]; savingId: string | null; onComplete: (task: PipelineTask) => void; variant: PipelineVariant }) {
+function Column({ status, tasks, savingId, onComplete, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; savingId: string | null; onComplete: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-${variant} ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b></header>
       <div className="pipeline-stack">
-        {tasks.map((task) => <TaskCard key={task.id} task={task} isSaving={savingId === task.id} canComplete={status.key === "ready_to_post"} onComplete={() => onComplete(task)} variant={variant} />)}
+        {tasks.map((task) => <TaskCard key={task.id} task={task} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} variant={variant} />)}
         {!tasks.length && <div className="pipeline-empty">Drop an asset here</div>}
       </div>
     </section>
@@ -48,13 +49,19 @@ function Column({ status, tasks, savingId, onComplete, variant }: { status: Task
 export function PipelineBoard({
   initialStatuses,
   initialTasks,
+  completionStatusKey = "ready_to_post",
   onTasksChange,
+  statusAliases = EMPTY_STATUS_ALIASES,
   variant = "admin",
+  visibleStatusKeys,
 }: {
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
+  completionStatusKey?: string;
   onTasksChange?: (tasks: PipelineTask[]) => void;
+  statusAliases?: Record<string, string>;
   variant?: PipelineVariant;
+  visibleStatusKeys?: string[];
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [message, setMessage] = useState("");
@@ -63,9 +70,26 @@ export function PipelineBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
     useSensor(KeyboardSensor),
   );
-  const visibleStatuses = useMemo(() => visiblePipelineStatuses(initialStatuses), [initialStatuses]);
+  const visibleStatuses = useMemo(() => {
+    if (!visibleStatusKeys) return visiblePipelineStatuses(initialStatuses);
+    const statusesByKey = new Map(initialStatuses.map((status) => [status.key, status]));
+    return visibleStatusKeys.flatMap((key) => {
+      const status = statusesByKey.get(key);
+      return status ? [status] : [];
+    });
+  }, [initialStatuses, visibleStatusKeys]);
   const postedStatus = useMemo(() => initialStatuses.find((status) => status.key === "posted_done") ?? null, [initialStatuses]);
-  const byStatus = useMemo(() => new Map(visibleStatuses.map((status) => [status.id, tasks.filter((task) => task.status_id === status.id)])), [tasks, visibleStatuses]);
+  const displayStatusByTaskStatus = useMemo(() => {
+    const statusesByKey = new Map(initialStatuses.map((status) => [status.key, status]));
+    const aliases = new Map<string, string>();
+    for (const [sourceKey, destinationKey] of Object.entries(statusAliases)) {
+      const source = statusesByKey.get(sourceKey);
+      const destination = statusesByKey.get(destinationKey);
+      if (source && destination) aliases.set(source.id, destination.id);
+    }
+    return aliases;
+  }, [initialStatuses, statusAliases]);
+  const byStatus = useMemo(() => new Map(visibleStatuses.map((status) => [status.id, tasks.filter((task) => (displayStatusByTaskStatus.get(task.status_id) ?? task.status_id) === status.id)])), [displayStatusByTaskStatus, tasks, visibleStatuses]);
 
   async function saveMove(taskId: string, destination: string, successMessage: string) {
     if (savingId) return;
@@ -104,9 +128,12 @@ export function PipelineBoard({
     const overId = String(event.over.id);
     const destination = overId.startsWith("status-")
       ? overId.replace("status-", "")
-      : tasks.find((task) => task.id === overId)?.status_id;
+      : (() => {
+          const targetStatusId = tasks.find((task) => task.id === overId)?.status_id;
+          return targetStatusId ? displayStatusByTaskStatus.get(targetStatusId) ?? targetStatusId : undefined;
+        })();
     const current = tasks.find((task) => task.id === taskId);
-    if (!destination || !current || current.status_id === destination) return;
+    if (!destination || !current || (displayStatusByTaskStatus.get(current.status_id) ?? current.status_id) === destination) return;
     await saveMove(taskId, destination, `${current.title} moved successfully.`);
   }
 
@@ -120,10 +147,10 @@ export function PipelineBoard({
 
   return (
     <>
-      <div className={`pipeline-toolbar pipeline-toolbar-${variant}`}><p>{variant === "tablet" ? "Touch and drag assets between stages. Complete finished work from Ready To Post." : "Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset."}</p>{message && <span role="status">{message}</span>}</div>
+      {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className={`pipeline-board pipeline-board-${variant}`}>
-          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeTask} variant={variant} />)}
+          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeTask} variant={variant} completionStatusKey={completionStatusKey} />)}
         </div>
       </DndContext>
     </>
