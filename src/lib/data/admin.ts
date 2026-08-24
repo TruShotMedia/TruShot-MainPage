@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
+import type { ClientEnquiry, PortfolioCategory, PortfolioItem } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -28,7 +28,7 @@ export async function getOverviewData() {
     supabase.from("website-clients").select("id", { count: "exact", head: true }).is("archived_at", null),
     supabase.from("website-jobs").select("id", { count: "exact", head: true }).is("archived_at", null),
     supabase.from("website-job-tasks").select("id", { count: "exact", head: true }).is("archived_at", null),
-    supabase.from("website-enquiries").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabase.from("website-enquiries").select("id", { count: "exact", head: true }).in("status", ["new", "reviewing"]),
     supabase.from("website-invoices").select("id,total_cents,status,due_date"),
     supabase.from("website-finance-overview").select("*").maybeSingle(),
     supabase.from("website-job-metrics").select("id,title,job_number,hours,created_assets,open_tasks,value_cents,due_date").gt("open_tasks", 0).order("due_date", { ascending: true, nullsFirst: false }).limit(6),
@@ -168,11 +168,20 @@ export async function getInvoices() {
 export async function getEnquiries() {
   const context = await getAdminContext();
   if (!context) return [];
-  const [{ data: enquiries }, { data: packages }] = await Promise.all([
-    context.supabase.from("website-enquiries").select("id,package_id,name,business_name,email,phone,message,status,created_at").order("created_at", { ascending: false }),
+  const [{ data: enquiries }, { data: packages }, { data: clients }] = await Promise.all([
+    context.supabase
+      .from("website-enquiries")
+      .select("id,package_id,name,business_name,email,phone,message,budget_range,preferred_timeline,source_path,status,rejection_reason,internal_notes,reviewed_at,converted_client_id,archived_at,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("created_at", { ascending: false }),
     context.supabase.from("website-pricing-packages").select("id,title"),
+    context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
-  return (enquiries ?? []).map((enquiry) => ({ ...enquiry, package: (packages ?? []).find((item) => item.id === enquiry.package_id) ?? null }));
+  return (enquiries ?? []).map((enquiry) => ({
+    ...enquiry,
+    package: (packages ?? []).find((item) => item.id === enquiry.package_id) ?? null,
+    converted_client: (clients ?? []).find((item) => item.id === enquiry.converted_client_id) ?? null,
+  })) as ClientEnquiry[];
 }
 
 export async function getFinanceData() {

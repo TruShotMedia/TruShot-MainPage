@@ -155,3 +155,27 @@ export type CalendarTask = {
 };
 
 export type CalendarItem = CalendarJob | CalendarTask;
+
+export type EnquiryStatus = "new" | "reviewing" | "approved" | "declined" | "archived";
+
+export type ClientEnquiry = {
+  id: string;
+  package_id: string | null;
+  name: string;
+  business_name: string | null;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  budget_range: string | null;
+  preferred_timeline: string | null;
+  source_path: string;
+  status: EnquiryStatus;
+  rejection_reason: string | null;
+  internal_notes: string | null;
+  reviewed_at: string | null;
+  converted_client_id: string | null;
+  archived_at: string | null;
+  created_at: string;
+  package: { id: string; title: string } | null;
+  converted_client: { id: string; name: string } | null;
+};

@@ -694,18 +694,147 @@ export async function updatePricingPackage(formData: FormData) {
   revalidatePath("/admin/pricing");
 }
 
-export async function approveEnquiry(formData: FormData) {
-  const enquiryId = z.string().uuid().parse(formData.get("id"));
+function enquiryIdFrom(formData: FormData) {
+  return z.string().uuid().parse(formData.get("id"));
+}
+
+function revalidateEnquiryViews() {
+  revalidatePath("/admin/requests");
+  revalidatePath("/admin/overview");
+}
+
+export async function markEnquiryReviewing(formData: FormData) {
+  const enquiryId = enquiryIdFrom(formData);
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  const { data: enquiry } = await context.supabase
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({ status: "reviewing", reviewed_by: context.claims.sub })
+    .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .in("status", ["new", "reviewing"])
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That request could not be moved into review.");
+  revalidateEnquiryViews();
+}
+
+export async function updateEnquiryNotes(formData: FormData) {
+  const input = z.object({
+    id: z.string().uuid(),
+    internal_notes: z.string().trim().max(2_000),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({ internal_notes: input.internal_notes || null })
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .neq("status", "archived")
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Those request notes could not be saved.");
+  revalidateEnquiryViews();
+}
+
+export async function rejectEnquiry(formData: FormData) {
+  const input = z.object({
+    id: z.string().uuid(),
+    rejection_reason: z.string().trim().min(3).max(1_000),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({
+      status: "declined",
+      rejection_reason: input.rejection_reason,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: context.claims.sub,
+      archived_at: null,
+      archived_by: null,
+    })
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .in("status", ["new", "reviewing"])
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That request could not be rejected.");
+  revalidateEnquiryViews();
+}
+
+export async function archiveRejectedEnquiry(formData: FormData) {
+  const enquiryId = enquiryIdFrom(formData);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({ status: "archived", archived_at: new Date().toISOString(), archived_by: context.claims.sub })
+    .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status", "declined")
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That rejected request could not be archived.");
+  revalidateEnquiryViews();
+}
+
+export async function restoreArchivedEnquiry(formData: FormData) {
+  const enquiryId = enquiryIdFrom(formData);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({ status: "declined", archived_at: null, archived_by: null })
+    .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status", "archived")
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That request could not be restored.");
+  revalidateEnquiryViews();
+}
+
+export async function reopenEnquiry(formData: FormData) {
+  const enquiryId = enquiryIdFrom(formData);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-enquiries")
+    .update({
+      status: "reviewing",
+      rejection_reason: null,
+      reviewed_at: null,
+      reviewed_by: context.claims.sub,
+      archived_at: null,
+      archived_by: null,
+    })
+    .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("status", "declined")
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That request could not be reopened.");
+  revalidateEnquiryViews();
+}
+
+export async function approveEnquiry(formData: FormData) {
+  const enquiryId = enquiryIdFrom(formData);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data: enquiry, error: enquiryError } = await context.supabase
     .from("website-enquiries")
     .select("*")
     .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .in("status", ["new", "reviewing"])
     .maybeSingle();
-  if (!enquiry || enquiry.converted_client_id) return;
+  if (enquiryError || !enquiry || enquiry.converted_client_id) {
+    throw new Error(enquiryError?.message ?? "That request is no longer awaiting a decision.");
+  }
 
-  const { data: client, error } = await context.supabase.from("website-clients").insert({
+  const { data: client, error: clientError } = await context.supabase.from("website-clients").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     name: enquiry.business_name || enquiry.name,
     slug: `${slugify(enquiry.business_name || enquiry.name)}-${Date.now().toString(36).slice(-5)}`,
@@ -716,8 +845,9 @@ export async function approveEnquiry(formData: FormData) {
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
   }).select("id").single();
-  if (error || !client) throw new Error(error?.message ?? "Could not approve enquiry");
-  await context.supabase.from("website-client-contacts").insert({
+  if (clientError || !client) throw new Error(clientError?.message ?? "The client could not be created.");
+
+  const { error: contactError } = await context.supabase.from("website-client-contacts").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     client_id: client.id,
     name: enquiry.name,
@@ -725,15 +855,31 @@ export async function approveEnquiry(formData: FormData) {
     phone: enquiry.phone,
     is_primary: true,
   });
-  await context.supabase.from("website-enquiries").update({
+  if (contactError) {
+    await context.supabase.from("website-clients").delete().eq("id", client.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+    throw new Error(contactError.message);
+  }
+
+  const { data: approved, error: approvalError } = await context.supabase.from("website-enquiries").update({
     status: "approved",
     converted_client_id: client.id,
+    rejection_reason: null,
+    archived_at: null,
+    archived_by: null,
     reviewed_at: new Date().toISOString(),
     reviewed_by: context.claims.sub,
-  }).eq("id", enquiryId);
-  revalidatePath("/admin/requests");
+  })
+    .eq("id", enquiryId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .in("status", ["new", "reviewing"])
+    .select("id")
+    .single();
+  if (approvalError || !approved) {
+    await context.supabase.from("website-clients").delete().eq("id", client.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+    throw new Error(approvalError?.message ?? "The request could not be approved.");
+  }
+  revalidateEnquiryViews();
   revalidatePath("/admin/clients");
-  revalidatePath("/admin/overview");
 }
 
 export async function updateSettings(formData: FormData) {
