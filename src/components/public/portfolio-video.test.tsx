@@ -51,4 +51,15 @@ describe("PortfolioVideo sound controls", () => {
     expect(container.querySelector("video")!.muted).toBe(true);
     expect(container.querySelector(".portfolio-video-sound-control")).toBeNull();
   });
+
+  it("keeps a poster and loading treatment in place while media is preparing", async () => {
+    await act(async () => {
+      root.render(<PortfolioVideo src="https://example.com/later.mp4" poster="https://example.com/poster.jpg" label="Poster-backed video" />);
+    });
+
+    const video = container.querySelector("video")!;
+    expect(video.getAttribute("poster")).toBe("https://example.com/poster.jpg");
+    expect(video.classList.contains("has-poster")).toBe(true);
+    expect(container.querySelector(".portfolio-video-placeholder")).toBeTruthy();
+  });
 });

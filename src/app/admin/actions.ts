@@ -299,6 +299,7 @@ export async function createJob(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
 }
 
 export async function updateJob(formData: FormData) {
@@ -337,6 +338,7 @@ export async function updateJob(formData: FormData) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
 }
 
 export async function createTask(formData: FormData) {
@@ -371,6 +373,7 @@ export async function createTask(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
+  revalidatePath("/admin/calendar");
 }
 
 export async function updateTask(formData: FormData) {
@@ -407,6 +410,65 @@ export async function updateTask(formData: FormData) {
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
+}
+
+export async function updateCalendarItem(formData: FormData) {
+  const raw = Object.fromEntries(formData);
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+
+  if (raw.entity_type === "job") {
+    const input = z.object({
+      entity_type: z.literal("job"),
+      id: z.string().uuid(),
+      shoot_date: z.string().or(z.literal("")),
+      due_date: z.string().or(z.literal("")),
+    }).parse(raw);
+    if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) {
+      throw new Error("The deadline cannot be before the shoot date.");
+    }
+    const { data, error } = await context.supabase
+      .from("website-jobs")
+      .update({
+        shoot_date: input.shoot_date || null,
+        due_date: input.due_date || null,
+        updated_by: context.claims.sub,
+      })
+      .eq("id", input.id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "The job schedule could not be saved.");
+  } else {
+    const input = z.object({
+      entity_type: z.literal("task"),
+      id: z.string().uuid(),
+      due_date: z.string().or(z.literal("")),
+      priority: z.enum(["low", "normal", "high", "urgent"]),
+    }).parse(raw);
+    const { data, error } = await context.supabase
+      .from("website-job-tasks")
+      .update({
+        due_date: input.due_date || null,
+        priority: input.priority,
+        updated_by: context.claims.sub,
+      })
+      .eq("id", input.id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "The task deadline could not be saved.");
+  }
+
+  revalidatePath("/admin/calendar");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/overview");
+  return { ok: true };
 }
 
 export async function movePipelineTask(taskId: string, statusId: string) {
@@ -426,6 +488,7 @@ export async function movePipelineTask(taskId: string, statusId: string) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
   return { ok: true };
 }
 
@@ -454,6 +517,7 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
 
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
   return { ok: true, updated: data.length };
 }
 
@@ -488,6 +552,7 @@ export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) 
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
   return { ok: true, updated: data.length };
 }
 
@@ -625,6 +690,7 @@ export async function updatePricingPackage(formData: FormData) {
   }).eq("id", input.id);
   if (error) throw new Error(error.message);
   revalidatePath("/");
+  revalidatePath("/pricing");
   revalidatePath("/admin/pricing");
 }
 
@@ -799,6 +865,8 @@ const portfolioUploadSchema = z.object({
   media_kind: z.enum(["video", "image"]),
   public_url: z.string().trim().max(2_000),
   storage_path: z.string().trim().max(500),
+  poster_url: z.string().trim().max(2_000).nullable().optional(),
+  poster_path: z.string().trim().max(500).nullable().optional(),
 });
 
 function validatePortfolioUpload(input: z.infer<typeof portfolioUploadSchema>) {
@@ -828,7 +896,45 @@ function validatePortfolioUpload(input: z.infer<typeof portfolioUploadSchema>) {
     throw new Error("The uploaded portfolio media URL is not valid.");
   }
 
-  return { ...input, public_url: parsedPublicUrl.toString() };
+  if (Boolean(input.poster_path) !== Boolean(input.poster_url)) {
+    throw new Error("The video thumbnail is incomplete.");
+  }
+  if ((input.poster_path || input.poster_url) && input.media_kind !== "video") {
+    throw new Error("Only videos can have portfolio thumbnails.");
+  }
+
+  let posterUrl: string | null = null;
+  if (input.poster_path && input.poster_url) {
+    const expectedPosterPathPattern = new RegExp(
+      `^${TRUSHOT_WORKSPACE_ID}/portfolio/posters/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.jpg$`,
+      "i",
+    );
+    if (!expectedPosterPathPattern.test(input.poster_path)) {
+      throw new Error("The uploaded video thumbnail path is not valid.");
+    }
+    let parsedPosterUrl: URL;
+    try {
+      parsedPosterUrl = new URL(input.poster_url);
+    } catch {
+      throw new Error("The uploaded video thumbnail URL is not valid.");
+    }
+    const expectedPosterUrlPath = `/storage/v1/object/public/website-media/${input.poster_path}`;
+    if (
+      parsedPosterUrl.protocol !== "https:"
+      || parsedPosterUrl.hostname !== parsedSupabaseUrl.hostname
+      || parsedPosterUrl.pathname !== expectedPosterUrlPath
+    ) {
+      throw new Error("The uploaded video thumbnail URL is not valid.");
+    }
+    posterUrl = parsedPosterUrl.toString();
+  }
+
+  return {
+    ...input,
+    public_url: parsedPublicUrl.toString(),
+    poster_url: posterUrl,
+    poster_path: input.poster_path ?? null,
+  };
 }
 
 async function requirePortfolioCategory(context: AdminContext, categoryId: string) {
@@ -888,6 +994,30 @@ export async function createPortfolioCategory(formData: FormData) {
   return { ok: true, id: category.id };
 }
 
+export async function updatePortfolioCategory(formData: FormData) {
+  const input = z.object({
+    id: z.string().uuid(),
+    name: z.string().trim().min(2).max(80),
+    description: z.string().trim().max(280),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  await requirePortfolioCategory(context, input.id);
+
+  const { data, error } = await context.supabase
+    .from("website-portfolio-categories")
+    .update({ name: input.name, description: input.description || null })
+    .eq("id", input.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "The category could not be updated.");
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}
+
 export async function createPortfolioItems(formData: FormData) {
   const input = z.object({
     category_id: z.string().uuid(),
@@ -929,6 +1059,8 @@ export async function createPortfolioItems(formData: FormData) {
     alt_text: `${category.name} portfolio ${upload.media_kind} ${startingIndex + index + 1}`,
     storage_path: upload.storage_path,
     public_url: upload.public_url,
+    poster_url: upload.poster_url,
+    poster_path: upload.poster_path,
     display_size: getPortfolioDisplaySize(startingIndex + index, upload.media_kind),
     position: startingPosition + ((index + 1) * 10),
     is_published: true,
@@ -937,6 +1069,63 @@ export async function createPortfolioItems(formData: FormData) {
   const { error } = await context.supabase.from("website-portfolio-items").insert(rows);
   if (error) throw new Error(error.message);
 
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}
+
+export async function savePortfolioVideoPoster(inputValue: {
+  itemId: string;
+  posterUrl: string;
+  posterPath: string;
+}) {
+  const input = z.object({
+    itemId: z.string().uuid(),
+    posterUrl: z.string().trim().url().max(2_000),
+    posterPath: z.string().trim().max(500),
+  }).parse(inputValue);
+  const expectedPosterPathPattern = new RegExp(
+    `^${TRUSHOT_WORKSPACE_ID}/portfolio/posters/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.jpg$`,
+    "i",
+  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || !expectedPosterPathPattern.test(input.posterPath)) {
+    throw new Error("The video thumbnail path is not valid.");
+  }
+  const parsedPosterUrl = new URL(input.posterUrl);
+  const parsedSupabaseUrl = new URL(supabaseUrl);
+  if (
+    parsedPosterUrl.protocol !== "https:"
+    || parsedPosterUrl.hostname !== parsedSupabaseUrl.hostname
+    || parsedPosterUrl.pathname !== `/storage/v1/object/public/website-media/${input.posterPath}`
+  ) {
+    throw new Error("The video thumbnail URL is not valid.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data: item, error: readError } = await context.supabase
+    .from("website-portfolio-items")
+    .select("id,media_kind,poster_path")
+    .eq("id", input.itemId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .single();
+  if (readError || !item || item.media_kind !== "video") {
+    throw new Error(readError?.message ?? "That portfolio video is no longer available.");
+  }
+
+  const { data, error } = await context.supabase
+    .from("website-portfolio-items")
+    .update({ poster_path: input.posterPath, poster_url: parsedPosterUrl.toString() })
+    .eq("id", item.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "The video thumbnail could not be saved.");
+
+  if (item.poster_path && item.poster_path !== input.posterPath) {
+    await context.supabase.storage.from("website-media").remove([item.poster_path]);
+  }
   revalidatePath("/portfolio");
   revalidatePath("/admin/portfolio");
   return { ok: true };
@@ -1077,7 +1266,7 @@ export async function deletePortfolioItem(id: string) {
 
   const { data: item, error: readError } = await context.supabase
     .from("website-portfolio-items")
-    .select("id,storage_path")
+    .select("id,storage_path,poster_path")
     .eq("id", portfolioId)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .maybeSingle();
@@ -1090,9 +1279,10 @@ export async function deletePortfolioItem(id: string) {
     throw new Error("The stored portfolio media path is not valid.");
   }
 
+  const pathsToRemove = [item.storage_path, item.poster_path].filter((path): path is string => Boolean(path));
   const { error: storageError } = await context.supabase.storage
     .from("website-media")
-    .remove([item.storage_path]);
+    .remove(pathsToRemove);
   if (storageError) throw new Error(storageError.message);
 
   const { error } = await context.supabase

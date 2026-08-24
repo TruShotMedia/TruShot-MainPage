@@ -237,7 +237,7 @@ export async function getPublishedPortfolioCategories(): Promise<PortfolioCatego
         .order("created_at"),
       supabase
         .from("website-portfolio-items")
-        .select("id,category_id,media_kind,alt_text,public_url,display_size")
+        .select("id,category_id,media_kind,alt_text,public_url,poster_url,poster_path,display_size")
         .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
         .eq("is_published", true)
         .order("category_id")

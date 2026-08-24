@@ -53,6 +53,8 @@ export type PortfolioItem = {
   media_kind: "video" | "image";
   alt_text: string;
   public_url: string;
+  poster_url: string | null;
+  poster_path: string | null;
   display_size: "standard" | "wide" | "tall";
 };
 
@@ -126,3 +128,30 @@ export type PipelineTask = {
   updated_at: string;
   job?: { title: string; client?: { name: string } | null } | null;
 };
+
+export type CalendarJob = {
+  id: string;
+  entity_type: "job";
+  title: string;
+  client_name: string | null;
+  shoot_date: string | null;
+  due_date: string | null;
+  status_label: string;
+  status_color: string;
+  is_complete: boolean;
+};
+
+export type CalendarTask = {
+  id: string;
+  entity_type: "task";
+  title: string;
+  job_title: string;
+  client_name: string | null;
+  due_date: string | null;
+  priority: "low" | "normal" | "high" | "urgent";
+  status_label: string;
+  status_color: string;
+  is_complete: boolean;
+};
+
+export type CalendarItem = CalendarJob | CalendarTask;

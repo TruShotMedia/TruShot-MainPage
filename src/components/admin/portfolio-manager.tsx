@@ -6,12 +6,15 @@ import { type ReactNode, useRef, useState } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useDroppable, useSensor, useSensors, type CollisionDetection, type DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, Images, LoaderCircle, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, reorderPortfolioCategories, reorderPortfolioItems } from "@/app/admin/actions";
+import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, ImagePlus, Images, LoaderCircle, Pencil, Play, Trash2, Upload, X } from "lucide-react";
+import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
+import { ActionPopover } from "@/components/admin/action-popover";
+import { SubmitButton } from "@/components/admin/submit-button";
 import { movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
+import { createVideoPoster } from "@/lib/video-poster";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
 const MAX_BATCH_FILES = 20;
@@ -91,7 +94,9 @@ function SortablePortfolioCard({
   confirmingDelete,
   disabled,
   isDeleting,
+  isBuildingPoster,
   onCancelDelete,
+  onBuildPoster,
   onConfirmDelete,
   onRequestDelete,
 }: {
@@ -99,7 +104,9 @@ function SortablePortfolioCard({
   confirmingDelete: boolean;
   disabled: boolean;
   isDeleting: boolean;
+  isBuildingPoster: boolean;
   onCancelDelete: () => void;
+  onBuildPoster: () => void;
   onConfirmDelete: () => void;
   onRequestDelete: () => void;
 }) {
@@ -120,13 +127,25 @@ function SortablePortfolioCard({
         {item.media_kind === "image" ? (
           <Image src={item.public_url} alt={item.alt_text} fill sizes="(max-width: 850px) 100vw, 33vw" />
         ) : (
-          <video src={item.public_url} muted playsInline controls preload="metadata" aria-label={item.alt_text} />
+          <video src={item.public_url} poster={item.poster_url ?? undefined} muted playsInline controls preload="metadata" aria-label={item.alt_text} />
         )}
         <span className="website-media-badge">{item.media_kind === "video" ? <Play size={12} /> : <ImageIcon size={12} />}{item.media_kind}</span>
       </div>
       <div className="portfolio-admin-copy">
         <small>{item.display_size} layout</small>
         <div className="portfolio-admin-card-controls">
+          {item.media_kind === "video" ? (
+            <button
+              className="portfolio-poster-button"
+              type="button"
+              onClick={onBuildPoster}
+              disabled={disabled || isBuildingPoster}
+              title={item.poster_url ? "Replace this video's thumbnail" : "Create a thumbnail from this video"}
+            >
+              {isBuildingPoster ? <LoaderCircle className="spin" size={14} /> : <ImagePlus size={14} />}
+              {isBuildingPoster ? "Building…" : item.poster_url ? "Refresh thumbnail" : "Build thumbnail"}
+            </button>
+          ) : null}
           <button
             className="portfolio-order-handle"
             type="button"
@@ -231,6 +250,19 @@ function SortablePortfolioCategory({
               <GripVertical size={15} />
               Move category
             </button>
+            <ActionPopover
+              action={updatePortfolioCategory}
+              summary={<><Pencil size={14} /> Edit details</>}
+              title={`Edit ${category.name}`}
+              detailsClassName="portfolio-category-editor"
+              summaryClassName="portfolio-category-edit-button"
+              formClassName="quick-form"
+            >
+              <input type="hidden" name="id" value={category.id} />
+              <label>Category title<input name="name" minLength={2} maxLength={80} defaultValue={category.name} required /></label>
+              <label>Introduction <span>Optional</span><textarea name="description" maxLength={280} rows={4} defaultValue={category.description ?? ""} /></label>
+              <SubmitButton pendingLabel="Saving…">Save category</SubmitButton>
+            </ActionPopover>
             <RemoveControls
               confirming={confirmingDelete}
               disabled={category.items.length > 0}
@@ -269,6 +301,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [message, setMessage] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [buildingPosterId, setBuildingPosterId] = useState<string | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [portfolioCategories, setPortfolioCategories] = useState(categories);
   const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
@@ -364,7 +397,29 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
         });
 
         uploadedPaths.push(storagePath);
-        uploadedItems.push({ media_kind: kind, public_url: uploaded.publicUrl, storage_path: storagePath });
+
+        let posterPath: string | null = null;
+        let posterUrl: string | null = null;
+        if (kind === "video") {
+          try {
+            setMessage(`Preparing thumbnail ${index + 1} of ${selectedFiles.length} · ${file.name}`);
+            const poster = await createVideoPoster(file);
+            posterPath = `${workspaceId}/portfolio/posters/${crypto.randomUUID()}.jpg`;
+            const uploadedPoster = await uploadWebsiteMediaResumable({ file: poster, storagePath: posterPath });
+            posterUrl = uploadedPoster.publicUrl;
+            uploadedPaths.push(posterPath);
+          } catch {
+            posterPath = null;
+            posterUrl = null;
+          }
+        }
+        uploadedItems.push({
+          media_kind: kind,
+          public_url: uploaded.publicUrl,
+          storage_path: storagePath,
+          poster_url: posterUrl,
+          poster_path: posterPath,
+        });
       }
 
       setMessage("Building the collection…");
@@ -383,6 +438,35 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       }
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "The media could not be uploaded.");
+    }
+  }
+
+  async function handleBuildPoster(item: PortfolioItem) {
+    setBuildingPosterId(item.id);
+    setStatus("saving");
+    setMessage("Capturing a thumbnail from the video…");
+    const supabase = createClient();
+    let posterPath = "";
+    try {
+      const poster = await createVideoPoster(item.public_url);
+      posterPath = `${workspaceId}/portfolio/posters/${crypto.randomUUID()}.jpg`;
+      const uploadedPoster = await uploadWebsiteMediaResumable({ file: poster, storagePath: posterPath });
+      await savePortfolioVideoPoster({ itemId: item.id, posterUrl: uploadedPoster.publicUrl, posterPath });
+      setPortfolioCategories((current) => current.map((category) => ({
+        ...category,
+        items: category.items.map((candidate) => candidate.id === item.id
+          ? { ...candidate, poster_url: uploadedPoster.publicUrl, poster_path: posterPath }
+          : candidate),
+      })));
+      setStatus("saved");
+      setMessage("Video thumbnail saved. Visitors will see it while the video loads.");
+      router.refresh();
+    } catch (error) {
+      if (posterPath) await supabase.storage.from("website-media").remove([posterPath]);
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "The video thumbnail could not be created.");
+    } finally {
+      setBuildingPosterId(null);
     }
   }
 
@@ -648,9 +732,11 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
                             key={item.id}
                             item={item}
                             confirmingDelete={deleteRequest?.kind === "item" && deleteRequest.id === item.id}
-                            disabled={orderingCategories || Boolean(orderingCategoryId) || deletingId === item.id || (deleteRequest?.kind === "item" && deleteRequest.id === item.id)}
+                            disabled={orderingCategories || Boolean(orderingCategoryId) || Boolean(buildingPosterId) || deletingId === item.id || (deleteRequest?.kind === "item" && deleteRequest.id === item.id)}
                             isDeleting={deletingId === item.id}
+                            isBuildingPoster={buildingPosterId === item.id}
                             onCancelDelete={() => setDeleteRequest(null)}
+                            onBuildPoster={() => handleBuildPoster(item)}
                             onConfirmDelete={() => handleDeleteItem(item)}
                             onRequestDelete={() => setDeleteRequest({ id: item.id, kind: "item" })}
                           />

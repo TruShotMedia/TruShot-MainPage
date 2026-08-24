@@ -264,7 +264,7 @@ export async function getPortfolioCategoriesAdmin(): Promise<PortfolioCategory[]
       .order("created_at"),
     context.supabase
       .from("website-portfolio-items")
-      .select("id,category_id,media_kind,alt_text,public_url,display_size")
+      .select("id,category_id,media_kind,alt_text,public_url,poster_url,poster_path,display_size")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("category_id")
       .order("position")
@@ -277,6 +277,75 @@ export async function getPortfolioCategoriesAdmin(): Promise<PortfolioCategory[]
     ...category,
     items: items.filter((item) => item.category_id === category.id),
   })) as PortfolioCategory[];
+}
+
+export async function getCalendarData() {
+  const context = await getAdminContext();
+  if (!context) return { jobs: [], tasks: [] };
+
+  const [jobsResult, tasksResult, clientsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
+    context.supabase
+      .from("website-jobs")
+      .select("id,title,client_id,status_id,shoot_date,due_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-job-tasks")
+      .select("id,title,job_id,status_id,due_date,priority")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-clients")
+      .select("id,name")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-job-statuses")
+      .select("id,label,color,is_closed")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-task-statuses")
+      .select("id,label,color,is_open")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+  ]);
+
+  const clients = new Map((clientsResult.data ?? []).map((client) => [client.id, client.name]));
+  const jobStatuses = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));
+  const taskStatuses = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
+  const jobsById = new Map((jobsResult.data ?? []).map((job) => [job.id, job]));
+
+  return {
+    jobs: (jobsResult.data ?? []).map((job) => {
+      const status = jobStatuses.get(job.status_id);
+      return {
+        id: job.id,
+        entity_type: "job" as const,
+        title: job.title,
+        client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
+        shoot_date: job.shoot_date,
+        due_date: job.due_date,
+        status_label: status?.label ?? "Unknown",
+        status_color: status?.color ?? "#777d76",
+        is_complete: status?.is_closed ?? false,
+      };
+    }),
+    tasks: (tasksResult.data ?? []).flatMap((task) => {
+      const job = jobsById.get(task.job_id);
+      if (!job) return [];
+      const status = taskStatuses.get(task.status_id);
+      return [{
+        id: task.id,
+        entity_type: "task" as const,
+        title: task.title,
+        job_title: job.title,
+        client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
+        due_date: task.due_date,
+        priority: task.priority as "low" | "normal" | "high" | "urgent",
+        status_label: status?.label ?? "Unknown",
+        status_color: status?.color ?? "#777d76",
+        is_complete: !(status?.is_open ?? true),
+      }];
+    }),
+  };
 }
 
 export async function getAnalyticsData() {

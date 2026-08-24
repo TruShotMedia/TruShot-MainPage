@@ -14,6 +14,8 @@ const actionMocks = vi.hoisted(() => ({
   movePortfolioItemToCategory: vi.fn(async () => ({ ok: true, updated: 1 })),
   reorderPortfolioCategories: vi.fn(async () => ({ ok: true, updated: 1 })),
   reorderPortfolioItems: vi.fn(async () => ({ ok: true, updated: 1 })),
+  savePortfolioVideoPoster: vi.fn(async () => ({ ok: true })),
+  updatePortfolioCategory: vi.fn(async () => ({ ok: true })),
 }));
 
 const routerMocks = vi.hoisted(() => ({
@@ -37,6 +39,8 @@ const categories: PortfolioCategory[] = [{
     media_kind: "image",
     alt_text: "Campaign portfolio image",
     public_url: "https://example.com/campaign.jpg",
+    poster_url: null,
+    poster_path: null,
     display_size: "wide",
   }],
 }];

@@ -1,12 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowDown, ArrowUpRight, Check, Minus } from "lucide-react";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { AnalyticsTracker } from "@/components/public/analytics-tracker";
 import { EnquiryForm } from "@/components/public/enquiry-form";
-import { PackageButton } from "@/components/public/package-button";
+import { PricingSection } from "@/components/public/pricing-section";
 import { PublicHeader } from "@/components/public/public-header";
 import { fallbackWebsiteElements, getPublishedPricing, getPublishedWebsiteElements, getPublicWebsiteSettings } from "@/lib/data/public";
-import { formatCurrency } from "@/lib/format";
 
 export default async function HomePage() {
   const [packages, websiteElements, websiteSettings] = await Promise.all([
@@ -114,32 +113,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {websiteSettings.show_pricing && <section className="pricing-section" id="pricing" data-section="pricing">
-        <div className="pricing-heading">
-          <div>
-            <p className="section-label">Pricing</p>
-            <h2>Choose your<br /><span>level of momentum.</span></h2>
-          </div>
-          <p>Start with one focused asset or build a consistent creative engine. Every package can be shaped around the outcome.</p>
-        </div>
-        <div className="pricing-grid">
-          {packages.map((item, index) => (
-            <article className={`pricing-card ${item.is_featured ? "featured" : ""}`} key={item.id}>
-              <div className="package-topline"><span>0{index + 1}</span>{item.badge && <b>{item.badge}</b>}</div>
-              <p className="package-eyebrow">{item.eyebrow}</p>
-              <h3>{item.title}</h3>
-              <div className="package-price"><strong>{formatCurrency(item.price_cents)}</strong><span>{item.price_suffix}</span></div>
-              <p className="package-summary">{item.summary}</p>
-              <ul>
-                {item.items.map((entry) => (
-                  <li key={entry.id}>{entry.kind === "exclusion" ? <Minus size={15} /> : <Check size={15} />} {entry.label}</li>
-                ))}
-              </ul>
-              <PackageButton slug={item.slug} label={item.cta_label} />
-            </article>
-          ))}
-        </div>
-      </section>}
+      {websiteSettings.show_pricing && <PricingSection packages={packages} />}
 
       <section className="process-section" data-section="process">
         <p className="section-label light">The process</p>

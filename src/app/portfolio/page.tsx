@@ -69,7 +69,7 @@ export default async function PortfolioPage() {
                       >
                         <div className="portfolio-media">
                           {item.media_kind === "video" ? (
-                            <PortfolioVideo src={item.public_url} label={item.alt_text} soundEnabled={item.id === firstVideoId} />
+                            <PortfolioVideo src={item.public_url} poster={item.poster_url} label={item.alt_text} soundEnabled={item.id === firstVideoId} />
                           ) : (
                             <Image
                               src={item.public_url}

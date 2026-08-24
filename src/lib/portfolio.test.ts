@@ -50,8 +50,8 @@ describe("movePortfolioItemBetweenCategories", () => {
       position: 10,
       is_published: true,
       items: [
-        { id: "video-a", category_id: "campaigns", media_kind: "video" as const, alt_text: "Video", public_url: "/video.mp4", display_size: "wide" as const },
-        { id: "photo-a", category_id: "campaigns", media_kind: "image" as const, alt_text: "Photo", public_url: "/photo.jpg", display_size: "standard" as const },
+        { id: "video-a", category_id: "campaigns", media_kind: "video" as const, alt_text: "Video", public_url: "/video.mp4", poster_url: null, poster_path: null, display_size: "wide" as const },
+        { id: "photo-a", category_id: "campaigns", media_kind: "image" as const, alt_text: "Photo", public_url: "/photo.jpg", poster_url: null, poster_path: null, display_size: "standard" as const },
       ],
     },
     {
@@ -62,7 +62,7 @@ describe("movePortfolioItemBetweenCategories", () => {
       position: 20,
       is_published: true,
       items: [
-        { id: "photo-b", category_id: "brand-stories", media_kind: "image" as const, alt_text: "Photo B", public_url: "/photo-b.jpg", display_size: "tall" as const },
+        { id: "photo-b", category_id: "brand-stories", media_kind: "image" as const, alt_text: "Photo B", public_url: "/photo-b.jpg", poster_url: null, poster_path: null, display_size: "tall" as const },
       ],
     },
   ];

@@ -6,14 +6,16 @@ import { getPortfolioCategoriesAdmin } from "@/lib/data/admin";
 
 export default async function PortfolioAdminPage() {
   const categories = await getPortfolioCategoriesAdmin();
-  const portfolioVersion = categories.map((category) => `${category.id}:${category.items.map((item) => item.id).join(",")}`).join("|");
+  const portfolioVersion = categories.map((category) => (
+    `${category.id}:${category.name}:${category.description ?? ""}:${category.items.map((item) => `${item.id}:${item.poster_url ?? ""}`).join(",")}`
+  )).join("|");
 
   return (
     <>
       <PageHeader
         eyebrow="Private showcase"
         title="Portfolio"
-        description="Create categories, batch-upload photos and videos, then drag categories and media into the exact order shown at your unlisted /portfolio link."
+        description="Create and edit categories, batch-upload photos and videos, build reliable video thumbnails, then drag everything into the exact order shown at your unlisted /portfolio link."
         actions={<a className="admin-primary-button" href="/portfolio" target="_blank" rel="noreferrer">Open private link <ExternalLink size={14} /></a>}
       />
       <div className="formula-note website-guidance">
