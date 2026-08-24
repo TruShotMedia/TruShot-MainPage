@@ -829,17 +829,32 @@ img { max-width: 100%; }
 .calendar-legend { display: flex; align-items: center; gap: 18px; border-top: 1px solid #e7e6df; background: #f5f4ef; padding: 9px 20px; color: #81867f; font-size: 8px; }
 .calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .calendar-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.calendar-legend .legend-job-window { width: 17px; border-radius: 999px; background: var(--green); }
 .legend-shoot { background: #26704c; }.legend-job-due { background: #b36a47; }.legend-task-due { background: #665a89; }
 .calendar-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid #deddd7; border-bottom: 1px solid #deddd7; background: #eeede7; }
 .calendar-weekdays span { padding: 8px 10px; color: #8a8f88; font-size: 7px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.calendar-day { min-width: 0; min-height: 132px; border-right: 1px solid #e6e5df; border-bottom: 1px solid #e6e5df; background: #faf9f5; padding: 8px; }
+.calendar-grid { display: block; }
+.calendar-week { position: relative; --calendar-range-space: 0px; }
+.calendar-week-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.calendar-day { min-width: 0; min-height: calc(132px + var(--calendar-range-space)); border-right: 1px solid #e6e5df; border-bottom: 1px solid #e6e5df; background: #faf9f5; padding: 8px; }
 .calendar-day:nth-child(7n) { border-right: 0; }
 .calendar-day.is-outside { background: #f1f0eb; opacity: .52; }
 .calendar-day > time { display: grid; width: 23px; height: 23px; place-items: center; margin-bottom: 6px; border-radius: 50%; color: #6f756e; font-size: 9px; font-weight: 850; }
 .calendar-day.is-today > time { background: var(--green); color: white; }
-.calendar-day > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.calendar-day > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; margin-top: var(--calendar-range-space); }
 .calendar-day > small { display: block; margin-top: 5px; color: #8c918a; font-size: 7px; font-weight: 850; }
+.calendar-range-layer { position: absolute; top: 39px; right: 0; left: 0; z-index: 2; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 22px; gap: 3px 0; pointer-events: none; }
+.calendar-job-range { --calendar-range-color: var(--green); display: grid; min-width: 0; height: 22px; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; margin: 0 4px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--calendar-range-color) 31%, #d5d9d4); border-radius: 7px; background: color-mix(in srgb, var(--calendar-range-color) 13%, #f7f5ee); padding: 0 8px; color: color-mix(in srgb, var(--calendar-range-color) 82%, #172019); text-align: left; box-shadow: 0 2px 7px rgba(24,35,27,.055); pointer-events: auto; cursor: pointer; }
+.calendar-job-range:hover { border-color: var(--calendar-range-color); filter: brightness(.98); }
+.calendar-job-range.continues-before { margin-left: 0; border-left: 0; border-radius: 0 7px 7px 0; }
+.calendar-job-range.continues-after { margin-right: 0; border-right: 0; border-radius: 7px 0 0 7px; }
+.calendar-job-range.continues-before.continues-after { border-radius: 0; }
+.calendar-job-range strong, .calendar-job-range em, .calendar-job-range span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-job-range strong { font-size: 7px; font-weight: 950; }
+.calendar-job-range em { color: color-mix(in srgb, var(--calendar-range-color) 63%, #687069); font-size: 6px; font-style: normal; font-weight: 750; }
+.calendar-job-range span { border-left: 1px solid color-mix(in srgb, var(--calendar-range-color) 22%, #d4d8d3); padding-left: 7px; color: color-mix(in srgb, var(--calendar-range-color) 74%, #626a63); font-size: 6px; font-weight: 900; text-transform: uppercase; }
+.calendar-job-range.is-complete { filter: grayscale(1); opacity: .46; }
+.calendar-job-range.is-complete strong { text-decoration: line-through; }
 .calendar-event { display: grid; min-width: 0; grid-template-columns: 5px auto minmax(0, 1fr); align-items: center; gap: 4px; border: 0; border-radius: 6px; background: #edf1ed; padding: 5px 6px; text-align: left; cursor: pointer; }
 .calendar-event:hover { filter: brightness(.97); }
 .calendar-event > span { width: 5px; height: 5px; border-radius: 50%; }
@@ -851,6 +866,15 @@ img { max-width: 100%; }
 .calendar-event.is-complete { background: #ecece8; filter: grayscale(1); opacity: .48; }
 .calendar-event.is-complete strong, .calendar-event.is-complete em { color: #777b76; text-decoration-color: #a7aaa5; }
 .calendar-event.is-complete em { text-decoration: line-through; }
+.calendar-mobile-job-range { display: grid; min-width: 0; min-height: 42px; grid-template-columns: 6px 58px minmax(0, 1fr); align-items: center; gap: 7px; border: 1px solid #d9dfda; border-radius: 8px; background: #e8efe9; padding: 7px 8px; text-align: left; cursor: pointer; }
+.calendar-mobile-job-range > span { width: 6px; height: 100%; min-height: 25px; border-radius: 999px; }
+.calendar-mobile-job-range > strong { color: var(--green); font-size: 7px; font-weight: 950; text-transform: uppercase; }
+.calendar-mobile-job-range > div { display: block; }
+.calendar-mobile-job-range em, .calendar-mobile-job-range small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-mobile-job-range em { color: #303731; font-size: 9px; font-style: normal; font-weight: 850; }
+.calendar-mobile-job-range small { margin-top: 3px; color: #747b74; font-size: 7px; }
+.calendar-mobile-job-range.is-complete { filter: grayscale(1); opacity: .48; }
+.calendar-mobile-job-range.is-complete em { text-decoration: line-through; }
 .calendar-mobile-agenda { display: none; }
 .calendar-sidebar { display: flex; flex-direction: column; gap: 16px; }
 .priority-radar, .unscheduled-queue { overflow: hidden; }

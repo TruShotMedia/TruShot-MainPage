@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type MouseEvent } from "react";
+import { useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   addMonths,
@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, X } from "lucide-react";
 import { updateCalendarItem } from "@/app/admin/actions";
+import { buildCalendarRangeWeeks, getCalendarJobRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
 import type { CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 type CalendarFilter = "all" | "jobs" | "tasks";
@@ -55,12 +56,53 @@ function dueLabel(date: string, today: string) {
   return `Due in ${difference}d`;
 }
 
+function formatJobWindow(range: CalendarJobRange) {
+  const start = parseISO(range.start);
+  const end = parseISO(range.end);
+  if (format(start, "yyyy") !== format(end, "yyyy")) return `${format(start, "d MMM yyyy")}–${format(end, "d MMM yyyy")}`;
+  if (format(start, "yyyy-MM") !== format(end, "yyyy-MM")) return `${format(start, "d MMM")}–${format(end, "d MMM")}`;
+  return `${format(start, "d")}–${format(end, "d MMM")}`;
+}
+
 function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: (item: CalendarItem) => void }) {
   return (
     <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
       <span />
       <strong>{event.label}</strong>
       <em>{event.item.title}</em>
+    </button>
+  );
+}
+
+function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment; onOpen: (item: CalendarJob) => void }) {
+  const windowLabel = formatJobWindow(segment);
+  return (
+    <button
+      type="button"
+      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
+      className={`calendar-job-range ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${segment.item.is_complete ? "is-complete" : ""}`}
+      onClick={() => onOpen(segment.item)}
+      title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${segment.item.is_complete ? " · completed" : ""}`}
+      style={{
+        "--calendar-range-color": segment.item.status_color,
+        gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
+        gridRow: segment.lane + 1,
+      } as CSSProperties}
+    >
+      <strong>{segment.item.title}</strong>
+      <em>{segment.item.client_name ?? "No client"}</em>
+      <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
+    </button>
+  );
+}
+
+function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange; onOpen: (item: CalendarJob) => void }) {
+  const windowLabel = formatJobWindow(range);
+  return (
+    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${range.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
+      <span style={{ background: range.item.status_color }} />
+      <strong>Job window</strong>
+      <div><em>{range.item.title}</em><small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small></div>
     </button>
   );
 }
@@ -82,16 +124,31 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
     if (filter === "tasks") return item.entity_type === "task";
     return true;
   }), [filter, items, showCompleted]);
-  const events = useMemo(() => getCalendarEvents(visibleItems), [visibleItems]);
+  const visibleJobs = useMemo(() => visibleItems.filter((item): item is CalendarJob => item.entity_type === "job"), [visibleItems]);
+  const jobRanges = useMemo(() => getCalendarJobRanges(visibleJobs), [visibleJobs]);
+  const rangedJobIds = useMemo(() => new Set(jobRanges.map((range) => range.id)), [jobRanges]);
+  const events = useMemo(() => getCalendarEvents(visibleItems.filter((item) => item.entity_type === "task" || !rangedJobIds.has(item.id))), [rangedJobIds, visibleItems]);
   const calendarDays = useMemo(() => eachDayOfInterval({
     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
   }), [currentMonth]);
+  const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), jobRanges), [calendarDays, jobRanges]);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
     return grouped;
   }, [events]);
+  const mobileRangesByDay = useMemo(() => {
+    const grouped = new Map<string, CalendarJobRange[]>();
+    const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+    const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+    for (const range of jobRanges) {
+      if (range.start > monthEnd || range.end < monthStart) continue;
+      const displayDay = range.start < monthStart ? monthStart : range.start;
+      grouped.set(displayDay, [...(grouped.get(displayDay) ?? []), range]);
+    }
+    return grouped;
+  }, [currentMonth, jobRanges]);
 
   const activeItems = items.filter((item) => !item.is_complete);
   const overdueCount = activeItems.filter((item) => getDueDate(item) && getDueDate(item)! < today).length;
@@ -115,9 +172,11 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
       return rightPriority - leftPriority || leftDue.localeCompare(rightDue);
     })
     .slice(0, 8);
-  const monthEvents = calendarDays
-    .filter((day) => isSameMonth(day, currentMonth))
-    .flatMap((day) => eventsByDay.get(format(day, "yyyy-MM-dd")) ?? []);
+  const hasMonthEntries = calendarDays.some((day) => {
+    if (!isSameMonth(day, currentMonth)) return false;
+    const dateKey = format(day, "yyyy-MM-dd");
+    return Boolean(eventsByDay.get(dateKey)?.length || mobileRangesByDay.get(dateKey)?.length);
+  });
 
   function closeEditor() {
     setSelectedItem(null);
@@ -181,32 +240,41 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
           </header>
 
           <div className="calendar-legend" aria-label="Calendar legend">
-            <span><i className="legend-shoot" /> Shoot / production</span>
+            <span><i className="legend-job-window" /> Job schedule</span>
+            <span><i className="legend-shoot" /> Single production date</span>
             <span><i className="legend-job-due" /> Job deadline</span>
             <span><i className="legend-task-due" /> Task deadline</span>
           </div>
 
           <div className="calendar-weekdays" aria-hidden="true">{weekdays.map((day) => <span key={day}>{day}</span>)}</div>
           <div className="calendar-grid">
-            {calendarDays.map((day) => {
-              const dateKey = format(day, "yyyy-MM-dd");
-              const dayEvents = eventsByDay.get(dateKey) ?? [];
-              return (
-                <div className={`calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
-                  <time dateTime={dateKey}>{format(day, "d")}</time>
-                  <div>{dayEvents.slice(0, 4).map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div>
-                  {dayEvents.length > 4 && <small>+{dayEvents.length - 4} more</small>}
+            {calendarWeeks.map((week) => (
+              <div className="calendar-week" style={{ "--calendar-range-space": `${week.laneCount * 25}px` } as CSSProperties} key={week.dayKeys[0]}>
+                <div className="calendar-week-days">
+                  {week.dayKeys.map((dateKey) => {
+                    const day = parseISO(dateKey);
+                    const dayEvents = eventsByDay.get(dateKey) ?? [];
+                    return (
+                      <div className={`calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
+                        <time dateTime={dateKey}>{format(day, "d")}</time>
+                        <div>{dayEvents.slice(0, 4).map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div>
+                        {dayEvents.length > 4 && <small>+{dayEvents.length - 4} more</small>}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+                {week.segments.length ? <div className="calendar-range-layer">{week.segments.map((segment) => <CalendarJobRangeButton segment={segment} onOpen={setSelectedItem} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+              </div>
+            ))}
           </div>
 
           <div className="calendar-mobile-agenda">
-            {monthEvents.length ? calendarDays.map((day) => {
+            {hasMonthEntries ? calendarDays.map((day) => {
               const dateKey = format(day, "yyyy-MM-dd");
               const dayEvents = eventsByDay.get(dateKey) ?? [];
-              if (!isSameMonth(day, currentMonth) || !dayEvents.length) return null;
-              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span></time><div>{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div></section>;
+              const dayRanges = mobileRangesByDay.get(dateKey) ?? [];
+              if (!isSameMonth(day, currentMonth) || (!dayEvents.length && !dayRanges.length)) return null;
+              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span></time><div>{dayRanges.map((range) => <MobileJobRangeButton range={range} onOpen={setSelectedItem} key={range.id} />)}{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div></section>;
             }) : <p>No dated work matches these filters this month.</p>}
           </div>
         </section>
@@ -243,7 +311,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
             <input type="hidden" name="id" value={selectedItem.id} />
             {selectedItem.entity_type === "job" ? (
               <div className="calendar-editor-fields">
-                <label>Shoot / production date<input type="date" name="shoot_date" defaultValue={selectedItem.shoot_date ?? ""} /></label>
+                <label>Job start / production date<input type="date" name="shoot_date" defaultValue={selectedItem.shoot_date ?? ""} /></label>
                 <label>Job deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
               </div>
             ) : (

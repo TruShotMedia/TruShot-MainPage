@@ -72,4 +72,28 @@ describe("CalendarManager completed work", () => {
     expect(container.textContent).not.toContain("Completed campaign");
     expect(container.textContent).not.toContain("Completed reel");
   });
+
+  it("renders a multi-day job as one continuous production window", async () => {
+    const month = format(new Date(), "yyyy-MM");
+    const jobs: CalendarJob[] = [{
+      id: "33333333-3333-4333-8333-333333333333",
+      entity_type: "job",
+      title: "Launch campaign",
+      client_name: "Ravish Media",
+      shoot_date: `${month}-14`,
+      due_date: `${month}-16`,
+      status_label: "In progress",
+      status_color: "#397253",
+      is_complete: false,
+    }];
+
+    await act(async () => root.render(<CalendarManager jobs={jobs} tasks={[]} />));
+
+    const rangeSegments = container.querySelectorAll<HTMLButtonElement>('.calendar-job-range[title*="Launch campaign"]');
+    expect(rangeSegments.length).toBeGreaterThanOrEqual(1);
+    expect([...rangeSegments].every((segment) => segment.title.includes("3 days"))).toBe(true);
+    expect(container.querySelectorAll(".calendar-event-shoot")).toHaveLength(0);
+    expect(container.querySelectorAll(".calendar-event-job-due")).toHaveLength(0);
+    expect(container.querySelector(".calendar-mobile-job-range")?.textContent).toContain("14–16");
+  });
 });
