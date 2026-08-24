@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -37,7 +38,7 @@ export async function updateSession(request: NextRequest) {
 
   if (data?.claims && isLogin) {
     const url = request.nextUrl.clone();
-    url.pathname = "/admin/overview";
+    url.pathname = safeAuthenticatedPath(request.nextUrl.searchParams.get("next"));
     url.search = "";
     return NextResponse.redirect(url);
   }

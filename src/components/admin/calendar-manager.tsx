@@ -57,7 +57,7 @@ function dueLabel(date: string, today: string) {
 
 function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: (item: CalendarItem) => void }) {
   return (
-    <button type="button" className={`calendar-event calendar-event-${event.kind}`} onClick={() => onOpen(event.item)} title={`${event.label}: ${event.item.title}`}>
+    <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
       <span />
       <strong>{event.label}</strong>
       <em>{event.item.title}</em>
@@ -70,7 +70,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
   const [items, setItems] = useState<CalendarItem[]>([...jobs, ...tasks]);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [filter, setFilter] = useState<CalendarFilter>("all");
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -176,7 +176,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
               {(["all", "jobs", "tasks"] as const).map((option) => (
                 <button type="button" className={filter === option ? "is-active" : ""} onClick={() => setFilter(option)} key={option}>{option}</button>
               ))}
-              <label><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} /> Show completed</label>
+              <label><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} /> Completed visible</label>
             </div>
           </header>
 

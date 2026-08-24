@@ -10,7 +10,7 @@ export default async function CalendarPage() {
       <PageHeader
         eyebrow="Production planning"
         title="Calendar"
-        description="See shoot dates and every job or asset deadline in one place. Overdue and urgent work is brought forward automatically."
+        description="See shoot dates and every job or asset deadline in one place. Completed work stays visible in a quieter grey state for context."
         actions={<div className="calendar-page-badge"><CalendarDays size={16} /> Deadline command centre</div>}
       />
       <CalendarManager jobs={data.jobs} tasks={data.tasks} />

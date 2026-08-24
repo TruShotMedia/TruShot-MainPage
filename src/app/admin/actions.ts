@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
 import { getPortfolioDisplaySize } from "@/lib/portfolio";
@@ -98,13 +99,16 @@ async function requireJob(context: AdminContext, jobId: string) {
 export async function signIn(formData: FormData) {
   const email = z.email().safeParse(formData.get("email"));
   const password = z.string().min(6).safeParse(formData.get("password"));
-  if (!email.success || !password.success) redirect("/admin/login?error=invalid");
+  const destination = safeAuthenticatedPath(z.string().safeParse(formData.get("next")).data);
+  const failureUrl = (error: string) => `/admin/login?${new URLSearchParams({ error, next: destination })}`;
+  if (!email.success || !password.success) redirect(failureUrl("invalid"));
 
   const supabase = await createSupabaseClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
-  if (error) redirect("/admin/login?error=credentials");
+  if (error) redirect(failureUrl("credentials"));
   revalidatePath("/admin", "layout");
-  redirect("/admin/overview");
+  revalidatePath("/tablet");
+  redirect(destination);
 }
 
 export async function signOut() {
@@ -300,6 +304,7 @@ export async function createJob(formData: FormData) {
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
 }
 
 export async function updateJob(formData: FormData) {
@@ -339,6 +344,7 @@ export async function updateJob(formData: FormData) {
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
 }
 
 export async function createTask(formData: FormData) {
@@ -374,6 +380,7 @@ export async function createTask(formData: FormData) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
 }
 
 export async function updateTask(formData: FormData) {
@@ -411,6 +418,7 @@ export async function updateTask(formData: FormData) {
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
 }
 
 export async function updateCalendarItem(formData: FormData) {
@@ -468,6 +476,7 @@ export async function updateCalendarItem(formData: FormData) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/overview");
+  revalidatePath("/tablet");
   return { ok: true };
 }
 
@@ -489,6 +498,7 @@ export async function movePipelineTask(taskId: string, statusId: string) {
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
   return { ok: true };
 }
 
@@ -518,6 +528,7 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
   return { ok: true, updated: data.length };
 }
 
@@ -553,6 +564,7 @@ export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) 
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
   return { ok: true, updated: data.length };
 }
 
