@@ -1,5 +1,11 @@
 # TruShot CRM changelog
 
+## 2026-08-25 — Portfolio viewing protection
+
+- Added an unobtrusive view-only barrier that prevents the standard context menu, media dragging and browser save shortcut on portfolio media.
+- Removed native video download and picture-in-picture controls in the grid and full-screen viewer.
+- Added a short private-preview notice when a visitor attempts a blocked saving action.
+
 ## 2026-08-25 — Uniform portfolio grid
 
 - Removed the oversized first portfolio asset so every photo and video follows the same responsive collage columns and its own media ratio.

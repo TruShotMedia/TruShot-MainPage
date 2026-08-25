@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react";
 import { PortfolioGallery } from "@/components/public/portfolio-gallery";
+import { PortfolioProtection } from "@/components/public/portfolio-protection";
 import { getPublishedPortfolioCategories } from "@/lib/data/public";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default async function PortfolioPage() {
 
   return (
     <main className="portfolio-page">
+      <PortfolioProtection />
       <header className="portfolio-header">
         <Link href="/" className="portfolio-logo" aria-label="TruShot Media home">
           <Image src="/brand/logo-white.png" alt="TruShot Media" width={220} height={82} priority />

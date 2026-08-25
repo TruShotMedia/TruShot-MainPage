@@ -36,6 +36,8 @@ describe("PortfolioVideo sound controls", () => {
     const muteButton = container.querySelector<HTMLButtonElement>('[aria-label="Mute video"]')!;
     expect(video.muted).toBe(false);
     expect(muteButton).toBeTruthy();
+    expect(video.getAttribute("controlslist")).toContain("nodownload");
+    expect(video.draggable).toBe(false);
 
     await act(async () => muteButton.click());
 

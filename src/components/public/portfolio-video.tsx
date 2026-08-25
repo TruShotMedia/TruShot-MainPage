@@ -91,6 +91,9 @@ export function PortfolioVideo({
         muted={isMuted}
         loop
         playsInline
+        controlsList="nodownload noplaybackrate"
+        disablePictureInPicture
+        draggable={false}
         preload={shouldLoad ? "metadata" : "none"}
         aria-label={label}
         onLoadedMetadata={(event) => {

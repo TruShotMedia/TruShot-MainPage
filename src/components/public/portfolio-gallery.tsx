@@ -118,6 +118,9 @@ export function PortfolioGallery({
             src={selectedItem.public_url}
             poster={selectedItem.poster_url ?? undefined}
             controls
+            controlsList="nodownload noplaybackrate"
+            disablePictureInPicture
+            draggable={false}
             autoPlay
             playsInline
             preload="metadata"
@@ -129,6 +132,7 @@ export function PortfolioGallery({
             alt={selectedItem.alt_text}
             fill
             priority
+            draggable={false}
             sizes="100vw"
           />
         )}
@@ -171,6 +175,7 @@ export function PortfolioGallery({
                   alt={item.alt_text}
                   fill
                   priority={priorityFirst && index === 0}
+                  draggable={false}
                   sizes="(max-width: 1050px) 50vw, 25vw"
                   onLoad={(event) => recordDimensions(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
                 />
