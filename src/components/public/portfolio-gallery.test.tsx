@@ -102,7 +102,7 @@ describe("PortfolioGallery full-screen viewer", () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
   });
 
-  it("adapts the collage tile to the image's measured orientation", async () => {
+  it("adapts the collage tile to the image's measured orientation without featuring the first item", async () => {
     await act(async () => {
       root.render(<PortfolioGallery items={[items[0]]} />);
     });
@@ -116,7 +116,7 @@ describe("PortfolioGallery full-screen viewer", () => {
 
     const tile = container.querySelector<HTMLElement>(".portfolio-tile")!;
     expect(tile.classList.contains("portfolio-tile-wide")).toBe(true);
-    expect(tile.classList.contains("portfolio-tile-featured")).toBe(true);
+    expect(tile.classList.contains("portfolio-tile-featured")).toBe(false);
     expect(container.querySelector<HTMLElement>(".portfolio-media")!.style.aspectRatio).toBe(`${1920 / 1080} / 1`);
   });
 });

@@ -151,10 +151,9 @@ export function PortfolioGallery({
         {items.map((item, index) => {
           const detectedLayout = detectedLayouts[item.id];
           const displaySize = detectedLayout?.displaySize ?? item.display_size;
-          const isFeatured = index === 0 && displaySize === "wide";
           return (
           <article
-            className={`portfolio-tile portfolio-tile-${displaySize} ${isFeatured ? "portfolio-tile-featured" : ""}`}
+            className={`portfolio-tile portfolio-tile-${displaySize}`}
             key={item.id}
           >
             <div className="portfolio-media" style={detectedLayout ? { aspectRatio: detectedLayout.ratio } : undefined}>
@@ -172,7 +171,7 @@ export function PortfolioGallery({
                   alt={item.alt_text}
                   fill
                   priority={priorityFirst && index === 0}
-                  sizes={isFeatured || displaySize === "wide" ? "(max-width: 720px) 100vw, 66vw" : "(max-width: 720px) 100vw, 34vw"}
+                  sizes="(max-width: 1050px) 50vw, 25vw"
                   onLoad={(event) => recordDimensions(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
                 />
               )}

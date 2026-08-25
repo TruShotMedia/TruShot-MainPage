@@ -1,5 +1,10 @@
 # TruShot CRM changelog
 
+## 2026-08-25 — Uniform portfolio grid
+
+- Removed the oversized first portfolio asset so every photo and video follows the same responsive collage columns and its own media ratio.
+- Updated responsive image sizing for the four-column desktop and two-column tablet/mobile layouts.
+
 ## 2026-08-25 — Job invoice relationships and bulk actions
 
 - Added searchable invoice relationships to the job editor, including safe removal of unlocked relationships and protection for locked allocations.
