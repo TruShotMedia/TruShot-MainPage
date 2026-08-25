@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { TabletPipelineKiosk } from "@/components/tablet/tablet-pipeline-kiosk";
 import { TABLET_REFRESH_INTERVAL_MINUTES } from "@/lib/config";
 import { getAdminContext, getTabletKioskData } from "@/lib/data/admin";
 import { todayDateInput } from "@/lib/format";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
+import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 
 export const metadata: Metadata = {
   title: "Tablet Pipeline",
@@ -16,7 +18,7 @@ export default async function TabletPage() {
   const context = await getAdminContext();
   if (!context) redirect("/admin/login?next=%2Ftablet");
 
-  const data = await getTabletKioskData();
+  const [data, cookieStore] = await Promise.all([getTabletKioskData(), cookies()]);
   const notion = getNotionConfigurationSummary();
   const pipelineVersion = data.pipelineTasks
     .map((task) => `${task.id}:${task.status_id}:${task.updated_at}`)
@@ -28,6 +30,7 @@ export default async function TabletPage() {
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
       initialTasks={data.pipelineTasks}
+      initialView={parseTabletView(cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
       notionSyncEnabled={notion.configured}

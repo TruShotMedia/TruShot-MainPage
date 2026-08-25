@@ -8,9 +8,8 @@ import { Bell, CalendarDays, LayoutDashboard, RefreshCw, Rows3 } from "lucide-re
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
+import { TABLET_VIEW_COOKIE_NAME, type TabletView } from "@/lib/tablet-view";
 import type { CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
-
-type TabletView = "pipeline" | "calendar";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
@@ -34,6 +33,7 @@ export function TabletPipelineKiosk({
   initialNow,
   initialStatuses,
   initialTasks,
+  initialView,
   pendingRequestCount,
   pipelineVersion,
   notionSyncEnabled,
@@ -46,6 +46,7 @@ export function TabletPipelineKiosk({
   initialNow: string;
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
+  initialView: TabletView;
   pendingRequestCount: number;
   pipelineVersion: string;
   notionSyncEnabled: boolean;
@@ -54,7 +55,7 @@ export function TabletPipelineKiosk({
   today: string;
 }) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<TabletView>("pipeline");
+  const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [now, setNow] = useState(() => new Date(initialNow));
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
@@ -63,6 +64,11 @@ export function TabletPipelineKiosk({
     lastRefreshAt.current = Date.now();
     router.refresh();
   }, [router]);
+
+  const selectView = useCallback((view: TabletView) => {
+    setActiveView(view);
+    document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, []);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
@@ -97,8 +103,8 @@ export function TabletPipelineKiosk({
         </div>
 
         <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
-          <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => setActiveView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Pipeline</button>
-          <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => setActiveView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
+          <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Pipeline</button>
+          <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
         </nav>
 
         <div className="tablet-kiosk-actions">

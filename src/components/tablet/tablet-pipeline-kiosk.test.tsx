@@ -3,6 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -21,6 +22,7 @@ describe("TabletPipelineKiosk", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     routerMocks.refresh.mockClear();
+    document.cookie = `${TABLET_VIEW_COOKIE_NAME}=; Path=/; Max-Age=0`;
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,6 +45,7 @@ describe("TabletPipelineKiosk", () => {
         initialNow="2026-08-25T00:00:00.000Z"
         initialStatuses={[]}
         initialTasks={[]}
+        initialView="pipeline"
         pendingRequestCount={3}
         pipelineVersion="empty"
         notionSyncEnabled={false}
@@ -61,6 +64,7 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => calendarTab.click());
     expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="pipeline-view"]')).toBeNull();
+    expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=calendar`);
   });
 
   it("refreshes conservatively only while the kiosk is visible and online", async () => {
@@ -71,6 +75,7 @@ describe("TabletPipelineKiosk", () => {
         initialNow="2026-08-25T00:00:00.000Z"
         initialStatuses={[]}
         initialTasks={[]}
+        initialView="calendar"
         pendingRequestCount={0}
         pipelineVersion="empty"
         notionSyncEnabled={false}
@@ -82,6 +87,7 @@ describe("TabletPipelineKiosk", () => {
 
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
     expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
 
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
