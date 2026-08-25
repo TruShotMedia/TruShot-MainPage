@@ -124,6 +124,7 @@ export function PortfolioGallery({
       <div ref={mediaFrameRef} className="portfolio-lightbox-media" key={selectedItem.id}>
         {selectedItem.media_kind === "video" ? (
           <video
+            className="portfolio-lightbox-video"
             src={selectedItem.public_url}
             poster={selectedItem.poster_url ?? undefined}
             controls
@@ -134,6 +135,7 @@ export function PortfolioGallery({
             playsInline
             preload="metadata"
             aria-label={selectedItem.alt_text}
+            style={{ objectFit: "contain", objectPosition: "center center" }}
           />
         ) : (
           <Image

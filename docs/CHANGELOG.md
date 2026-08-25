@@ -1,5 +1,11 @@
 # TruShot CRM changelog
 
+## 2026-08-25 — Portrait full-screen containment
+
+- Fixed portrait portfolio videos expanding and cropping when the dedicated full-screen action was used.
+- Anchored lightbox video playback to a black canvas with explicit centred `contain` behaviour for standard, native and WebKit full-screen states.
+- Added a portrait-video regression test so vertical work keeps its full frame and expected side bars.
+
 ## 2026-08-25 — Square row-first portfolio grid
 
 - Replaced the public masonry columns with a true CSS Grid that fills each row from left to right in portfolio order.

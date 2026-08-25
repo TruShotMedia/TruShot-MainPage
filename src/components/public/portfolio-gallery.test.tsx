@@ -34,7 +34,7 @@ const items: PortfolioItem[] = [
     public_url: "https://example.com/film.mp4",
     poster_url: "https://example.com/film-poster.jpg",
     poster_path: "workspace/portfolio/posters/film-poster.jpg",
-    display_size: "standard",
+    display_size: "tall",
   },
 ];
 
@@ -85,7 +85,7 @@ describe("PortfolioGallery full-screen viewer", () => {
     const lightboxVideo = document.querySelector<HTMLVideoElement>('.portfolio-lightbox-media video')!;
     expect(lightboxVideo.getAttribute("src")).toBe("https://example.com/film.mp4");
     expect(lightboxVideo.getAttribute("poster")).toBe("https://example.com/film-poster.jpg");
-    expect(document.querySelector('.portfolio-lightbox [aria-label="Square orientation"]')).toBeTruthy();
+    expect(document.querySelector('.portfolio-lightbox [aria-label="Portrait orientation"]')).toBeTruthy();
     expect(document.querySelector('.portfolio-lightbox')?.textContent).not.toContain("Motion");
 
     await act(async () => {
@@ -101,6 +101,21 @@ describe("PortfolioGallery full-screen viewer", () => {
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="View Campaign still full screen"]')!.click());
     await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Enter native full screen"]')!.click());
 
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a portrait video contained and centred on the full-screen canvas", async () => {
+    await act(async () => {
+      root.render(<PortfolioGallery items={[items[1]]} />);
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="View Campaign film full screen"]')!.click());
+
+    const video = document.querySelector<HTMLVideoElement>(".portfolio-lightbox-video")!;
+    expect(video.style.objectFit).toBe("contain");
+    expect(video.style.objectPosition).toBe("center center");
+    expect(video.parentElement?.classList.contains("portfolio-lightbox-media")).toBe(true);
+
+    await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Enter native full screen"]')!.click());
     expect(requestFullscreen).toHaveBeenCalledOnce();
   });
 
