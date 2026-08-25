@@ -7,7 +7,6 @@ import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
 import { runNotionSync } from "@/lib/notion/sync";
-import { getPortfolioDisplaySize } from "@/lib/portfolio";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
@@ -1031,6 +1030,7 @@ export async function updateWebsiteElement(formData: FormData) {
 
 const portfolioUploadSchema = z.object({
   media_kind: z.enum(["video", "image"]),
+  display_size: z.enum(["standard", "wide", "tall"]),
   public_url: z.string().trim().max(2_000),
   storage_path: z.string().trim().max(500),
   poster_url: z.string().trim().max(2_000).nullable().optional(),
@@ -1141,15 +1141,17 @@ export async function createPortfolioCategory(formData: FormData) {
     .order("position", { ascending: false })
     .limit(1);
   if (positionError) throw new Error(positionError.message);
+  const slug = existing ? `${baseSlug}-${crypto.randomUUID().slice(0, 8)}` : baseSlug;
+  const position = Number(latest?.[0]?.position ?? 0) + 10;
 
   const { data: category, error } = await context.supabase
     .from("website-portfolio-categories")
     .insert({
       workspace_id: TRUSHOT_WORKSPACE_ID,
       name: input.name,
-      slug: existing ? `${baseSlug}-${crypto.randomUUID().slice(0, 8)}` : baseSlug,
+      slug,
       description: input.description || null,
-      position: Number(latest?.[0]?.position ?? 0) + 10,
+      position,
       is_published: true,
       created_by: context.claims.sub,
     })
@@ -1159,7 +1161,17 @@ export async function createPortfolioCategory(formData: FormData) {
 
   revalidatePath("/portfolio");
   revalidatePath("/admin/portfolio");
-  return { ok: true, id: category.id };
+  return {
+    ok: true,
+    category: {
+      id: category.id,
+      name: input.name,
+      slug,
+      description: input.description || null,
+      position,
+      is_published: true,
+    },
+  };
 }
 
 export async function updatePortfolioCategory(formData: FormData) {
@@ -1229,7 +1241,7 @@ export async function createPortfolioItems(formData: FormData) {
     public_url: upload.public_url,
     poster_url: upload.poster_url,
     poster_path: upload.poster_path,
-    display_size: getPortfolioDisplaySize(startingIndex + index, upload.media_kind),
+    display_size: upload.display_size,
     position: startingPosition + ((index + 1) * 10),
     is_published: true,
     created_by: context.claims.sub,

@@ -10,11 +10,12 @@ import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, ImagePlus, Image
 import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { SubmitButton } from "@/components/admin/submit-button";
-import { movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "@/lib/portfolio";
+import { getImageDimensions } from "@/lib/media-dimensions";
+import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
-import { createVideoPoster } from "@/lib/video-poster";
+import { createVideoPoster, createVideoPosterWithDimensions } from "@/lib/video-poster";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
 const MAX_BATCH_FILES = 20;
@@ -123,7 +124,7 @@ function SortablePortfolioCard({
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 3 : undefined }}
       aria-busy={isDeleting}
     >
-      <div className="portfolio-admin-preview">
+      <div className={`portfolio-admin-preview portfolio-admin-preview-${item.display_size}`}>
         {item.media_kind === "image" ? (
           <Image src={item.public_url} alt={item.alt_text} fill sizes="(max-width: 850px) 100vw, 33vw" />
         ) : (
@@ -189,12 +190,49 @@ function PortfolioCategoryDropTarget({ category, children }: { category: Portfol
   );
 }
 
-function SortablePortfolioCategory({
+function SortableCategoryOrderRow({
+  category,
+  index,
+  disabled,
+}: {
+  category: PortfolioCategory;
+  index: number;
+  disabled: boolean;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    id: getCategoryDragId(category.id),
+    data: { type: "portfolio-category", categoryId: category.id },
+    disabled,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`portfolio-category-order-row ${isDragging ? "is-dragging" : ""}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 4 : undefined }}
+    >
+      <button
+        className="portfolio-category-order-handle"
+        type="button"
+        aria-label={`Move ${category.name} category`}
+        title="Drag to change category order"
+        disabled={disabled}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={16} />
+      </button>
+      <span>{String(index + 1).padStart(2, "0")}</span>
+      <div><strong>{category.name}</strong><small>{category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</small></div>
+    </div>
+  );
+}
+
+function PortfolioAdminCategory({
   category,
   categoryIndex,
   children,
   confirmingDelete,
-  disabled,
   isDeleting,
   itemOrderFeedback,
   onCancelDelete,
@@ -205,24 +243,15 @@ function SortablePortfolioCategory({
   categoryIndex: number;
   children: ReactNode;
   confirmingDelete: boolean;
-  disabled: boolean;
   isDeleting: boolean;
   itemOrderFeedback: { status: "saving" | "saved" | "error"; message: string } | null;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
   onRequestDelete: () => void;
 }) {
-  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
-    id: getCategoryDragId(category.id),
-    data: { type: "portfolio-category", categoryId: category.id },
-    disabled,
-  });
-
   return (
     <section
-      ref={setNodeRef}
-      className={`admin-card portfolio-admin-category ${isDragging ? "is-dragging" : ""}`}
-      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 4 : undefined }}
+      className="admin-card portfolio-admin-category"
       aria-busy={isDeleting}
     >
       <header className="portfolio-admin-category-heading">
@@ -238,18 +267,6 @@ function SortablePortfolioCategory({
             </p>
           ) : null}
           <div className="portfolio-admin-category-actions">
-            <button
-              className="portfolio-category-order-handle"
-              type="button"
-              aria-label={`Move ${category.name} category`}
-              title="Drag to change category order"
-              disabled={disabled}
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical size={15} />
-              Move category
-            </button>
             <ActionPopover
               action={updatePortfolioCategory}
               summary={<><Pencil size={14} /> Edit details</>}
@@ -304,6 +321,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [buildingPosterId, setBuildingPosterId] = useState<string | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [portfolioCategories, setPortfolioCategories] = useState(categories);
+  const [serverCategories, setServerCategories] = useState(categories);
   const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
   const [orderFeedback, setOrderFeedback] = useState<{ categoryId: string; status: "saving" | "saved" | "error"; message: string } | null>(null);
   const [orderingCategories, setOrderingCategories] = useState(false);
@@ -312,9 +330,12 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const activeCategoryId = portfolioCategories.some((category) => category.id === selectedCategoryId)
-    ? selectedCategoryId
-    : portfolioCategories[0]?.id ?? "";
+  if (categories !== serverCategories) {
+    setServerCategories(categories);
+    setPortfolioCategories(categories);
+    setSelectedCategoryId((current) => categories.some((category) => category.id === current) ? current : categories[0]?.id ?? "");
+  }
+  const activeCategoryId = portfolioCategories.some((category) => category.id === selectedCategoryId) ? selectedCategoryId : "";
 
   function addFiles(fileList: FileList | File[]) {
     const incoming = Array.from(fileList);
@@ -352,9 +373,10 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     try {
       const result = await createPortfolioCategory(new FormData(event.currentTarget));
       categoryFormRef.current?.reset();
-      setSelectedCategoryId(result.id);
+      setPortfolioCategories((current) => [...current, { ...result.category, items: [] }]);
+      setSelectedCategoryId(result.category.id);
       setStatus("saved");
-      setMessage("Category created. It is ready for media.");
+      setMessage(`${result.category.name} created and selected for upload.`);
       router.refresh();
     } catch (error) {
       setStatus("error");
@@ -376,6 +398,13 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       setMessage("Choose or drop at least one image or video.");
       return;
     }
+    const destinationCategory = portfolioCategories.find((category) => category.id === activeCategoryId);
+    if (!destinationCategory) {
+      setStatus("error");
+      setMessage("Choose the portfolio category for this upload.");
+      return;
+    }
+    const destinationCategoryId = destinationCategory.id;
 
     setStatus("saving");
     const supabase = createClient();
@@ -386,15 +415,28 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       for (const [index, file] of selectedFiles.entries()) {
         const { kind, extension } = validateWebsiteMediaFile(file);
         let poster: File | null = null;
+        let dimensions: { width: number; height: number } | null = null;
         if (kind === "video") {
           setMessage(`Creating thumbnail ${index + 1} of ${selectedFiles.length} · ${file.name}`);
           try {
-            poster = await createVideoPoster(file);
+            const result = await createVideoPosterWithDimensions(file);
+            poster = result.file;
+            dimensions = { width: result.width, height: result.height };
           } catch (error) {
             const detail = error instanceof Error ? error.message : "This browser could not decode the video.";
             throw new Error(`Automatic thumbnail creation failed for ${file.name}. ${detail} Try Safari or an H.264 MP4 if the file uses an uncommon codec.`);
           }
+        } else {
+          setMessage(`Reading layout ${index + 1} of ${selectedFiles.length} · ${file.name}`);
+          try {
+            dimensions = await getImageDimensions(file);
+          } catch {
+            dimensions = null;
+          }
         }
+        const displaySize = dimensions
+          ? getPortfolioDisplaySizeFromDimensions(dimensions.width, dimensions.height)
+          : "standard";
 
         setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · 0% · ${file.name}`);
         const storagePath = `${workspaceId}/portfolio/${crypto.randomUUID()}.${extension}`;
@@ -420,6 +462,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
         }
         uploadedItems.push({
           media_kind: kind,
+          display_size: displaySize,
           public_url: uploaded.publicUrl,
           storage_path: storagePath,
           poster_url: posterUrl,
@@ -429,13 +472,13 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
 
       setMessage("Building the collection…");
       const formData = new FormData();
-      formData.set("category_id", activeCategoryId);
+      formData.set("category_id", destinationCategoryId);
       formData.set("items", JSON.stringify(uploadedItems));
       await createPortfolioItems(formData);
 
       setSelectedFiles([]);
       setStatus("saved");
-      setMessage(`${uploadedItems.length} ${uploadedItems.length === 1 ? "file" : "files"} published to the portfolio.`);
+      setMessage(`${uploadedItems.length} ${uploadedItems.length === 1 ? "file" : "files"} published to ${destinationCategory.name}.`);
       router.refresh();
     } catch (error) {
       if (uploadedPaths.length > 0) {
@@ -581,7 +624,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
 
   async function handleCategoryReorder(event: DragEndEvent) {
     if (!event.over || event.active.id === event.over.id || orderingCategories || orderingCategoryId) return;
-    if (!String(event.over.id).startsWith(CATEGORY_DRAG_PREFIX)) return;
+    if (!String(event.active.id).startsWith(CATEGORY_DRAG_PREFIX) || !String(event.over.id).startsWith(CATEGORY_DRAG_PREFIX)) return;
     const activeId = getCategoryIdFromDragId(String(event.active.id));
     const overId = getCategoryIdFromDragId(String(event.over.id));
     const previousCategories = portfolioCategories;
@@ -601,14 +644,6 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     } finally {
       setOrderingCategories(false);
     }
-  }
-
-  function handlePortfolioDragEnd(event: DragEndEvent) {
-    if (String(event.active.id).startsWith(CATEGORY_DRAG_PREFIX)) {
-      void handleCategoryReorder(event);
-      return;
-    }
-    void handleMediaReorder(event);
   }
 
   const totalItems = portfolioCategories.reduce((total, category) => total + category.items.length, 0);
@@ -648,21 +683,22 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
         <form onSubmit={handleUpload} className="portfolio-upload-form">
           <div className="website-element-fields portfolio-category-select">
             <label>Upload to category
-              <select value={activeCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)} disabled={portfolioCategories.length === 0} required>
+              <select value={activeCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)} disabled={portfolioCategories.length === 0 || status === "saving"} required>
+                {!activeCategoryId ? <option value="">Choose a category</option> : null}
                 {portfolioCategories.length === 0 ? <option value="">Create a category first</option> : portfolioCategories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
               </select>
             </label>
           </div>
 
           <label
-            className={`portfolio-dropzone ${isDragging ? "is-dragging" : ""} ${portfolioCategories.length === 0 ? "is-disabled" : ""}`}
-            onDragEnter={(event) => { event.preventDefault(); if (portfolioCategories.length > 0) setIsDragging(true); }}
+            className={`portfolio-dropzone ${isDragging ? "is-dragging" : ""} ${!activeCategoryId ? "is-disabled" : ""}`}
+            onDragEnter={(event) => { event.preventDefault(); if (activeCategoryId) setIsDragging(true); }}
             onDragOver={(event) => { event.preventDefault(); }}
             onDragLeave={(event) => { event.preventDefault(); setIsDragging(false); }}
             onDrop={(event) => {
               event.preventDefault();
               setIsDragging(false);
-              if (portfolioCategories.length > 0) addFiles(event.dataTransfer.files);
+              if (activeCategoryId) addFiles(event.dataTransfer.files);
             }}
           >
             <input
@@ -670,12 +706,12 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
               type="file"
               accept={WEBSITE_MEDIA_ACCEPT}
               multiple
-              disabled={portfolioCategories.length === 0 || status === "saving"}
+              disabled={!activeCategoryId || status === "saving"}
               onChange={(event) => event.target.files && addFiles(event.target.files)}
             />
             <span className="portfolio-dropzone-icon"><Upload size={22} /></span>
-            <strong>{portfolioCategories.length === 0 ? "Create a category to begin" : isDragging ? "Drop your files here" : "Drop photos and videos here"}</strong>
-            <small>{portfolioCategories.length === 0 ? "The upload area will unlock automatically." : "or click to browse · images up to 50 MB · videos up to 200 MB"}</small>
+            <strong>{portfolioCategories.length === 0 ? "Create a category to begin" : !activeCategoryId ? "Choose a category to begin" : isDragging ? "Drop your files here" : "Drop photos and videos here"}</strong>
+            <small>{!activeCategoryId ? "The upload area unlocks after a destination is selected." : "or click to browse · images up to 50 MB · videos up to 200 MB"}</small>
           </label>
 
           {selectedFiles.length > 0 && (
@@ -700,7 +736,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
               {status === "saved" && <Check size={14} />}
               {message}
             </p>
-            <button className="admin-primary-button" type="submit" disabled={status === "saving" || portfolioCategories.length === 0 || selectedFiles.length === 0}>
+            <button className="admin-primary-button" type="submit" disabled={status === "saving" || !activeCategoryId || selectedFiles.length === 0}>
               {status === "saving" ? "Publishing…" : selectedFiles.length > 0 ? `Publish ${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"}` : "Publish files"}
             </button>
           </div>
@@ -708,22 +744,48 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       </section>
 
       {portfolioCategories.length > 0 ? (
-        <section className="portfolio-admin-categories" aria-label="Portfolio categories">
+        <>
+          <section className="admin-card portfolio-category-order-card" aria-labelledby="portfolio-category-order-heading">
+            <div className="portfolio-upload-intro">
+              <span><GripVertical size={18} /></span>
+              <div>
+                <p className="card-label">Portfolio structure</p>
+                <h2 id="portfolio-category-order-heading">Sort category order</h2>
+                <p>Drag the rows into the order visitors should see. Changes save as soon as a row is dropped.</p>
+              </div>
+            </div>
+            <div className="portfolio-category-order-panel">
+              <p className={`portfolio-category-order-status ${categoryOrderFeedback?.status ?? ""}`} role="status" aria-live="polite">
+                <GripVertical size={14} />
+                {categoryOrderFeedback?.message ?? "Drag a row to set the category order shown on your portfolio."}
+              </p>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleCategoryReorder(event)}>
+                <SortableContext items={portfolioCategories.map((category) => getCategoryDragId(category.id))} strategy={verticalListSortingStrategy}>
+                  <div className="portfolio-category-order-list">
+                    {portfolioCategories.map((category, index) => (
+                      <SortableCategoryOrderRow
+                        key={category.id}
+                        category={category}
+                        index={index}
+                        disabled={portfolioCategories.length < 2 || orderingCategories || Boolean(orderingCategoryId) || Boolean(deletingId) || Boolean(deleteRequest)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </section>
+
+          <section className="portfolio-admin-categories" aria-label="Portfolio categories">
           <div className="portfolio-library-summary"><span><Images size={16} /> {portfolioCategories.length} {portfolioCategories.length === 1 ? "category" : "categories"}</span><span>{totalItems} {totalItems === 1 ? "piece" : "pieces"}</span></div>
-          <p className={`portfolio-category-order-status ${categoryOrderFeedback?.status ?? ""}`} role="status" aria-live="polite">
-            <GripVertical size={14} />
-            {categoryOrderFeedback?.message ?? "Drag a category handle to set the order shown on your portfolio."}
-          </p>
-          <DndContext sensors={sensors} collisionDetection={portfolioCollisionDetection} onDragEnd={handlePortfolioDragEnd}>
-            <SortableContext items={portfolioCategories.map((category) => getCategoryDragId(category.id))} strategy={verticalListSortingStrategy}>
+          <DndContext sensors={sensors} collisionDetection={portfolioCollisionDetection} onDragEnd={(event) => void handleMediaReorder(event)}>
               <div className="portfolio-category-sort-list">
                 {portfolioCategories.map((category, categoryIndex) => (
-                  <SortablePortfolioCategory
+                  <PortfolioAdminCategory
                     key={category.id}
                     category={category}
                     categoryIndex={categoryIndex}
                     confirmingDelete={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
-                    disabled={portfolioCategories.length < 2 || orderingCategories || Boolean(orderingCategoryId) || Boolean(deletingId) || Boolean(deleteRequest)}
                     isDeleting={deletingId === category.id}
                     itemOrderFeedback={orderFeedback?.categoryId === category.id ? orderFeedback : null}
                     onCancelDelete={() => setDeleteRequest(null)}
@@ -748,12 +810,12 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
                         )) : <><ImageIcon size={18} /><p>No media yet. Drag media here, or choose this category above before uploading.</p></>}
                       </PortfolioCategoryDropTarget>
                     </SortableContext>
-                  </SortablePortfolioCategory>
+                  </PortfolioAdminCategory>
                 ))}
               </div>
-            </SortableContext>
           </DndContext>
-        </section>
+          </section>
+        </>
       ) : (
         <section className="admin-card empty-state portfolio-empty-state">
           <span><FolderPlus size={21} /></span>

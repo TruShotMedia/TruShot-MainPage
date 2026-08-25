@@ -1,7 +1,5 @@
 import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
 
-const imageTilePattern: PortfolioItem["display_size"][] = ["standard", "tall", "standard", "wide", "standard", "tall"];
-
 function movePortfolioEntry<T extends { id: string }>(items: T[], activeId: string, overId: string): T[] {
   const activeIndex = items.findIndex((item) => item.id === activeId);
   const overIndex = items.findIndex((item) => item.id === overId);
@@ -55,8 +53,11 @@ export function movePortfolioItemBetweenCategories(
   });
 }
 
-/** Produces a varied editorial rhythm without requiring a layout choice per upload. */
-export function getPortfolioDisplaySize(index: number, mediaKind: PortfolioItem["media_kind"]): PortfolioItem["display_size"] {
-  if (mediaKind === "video") return "wide";
-  return imageTilePattern[index % imageTilePattern.length];
+/** Matches the portfolio tile to the media's real orientation. */
+export function getPortfolioDisplaySizeFromDimensions(width: number, height: number): PortfolioItem["display_size"] {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return "standard";
+  const ratio = width / height;
+  if (ratio >= 1.15) return "wide";
+  if (ratio <= 0.9) return "tall";
+  return "standard";
 }

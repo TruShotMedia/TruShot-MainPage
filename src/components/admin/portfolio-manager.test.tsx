@@ -7,7 +7,17 @@ import type { PortfolioCategory } from "@/lib/types";
 import { PortfolioManager } from "./portfolio-manager";
 
 const actionMocks = vi.hoisted(() => ({
-  createPortfolioCategory: vi.fn(async () => ({ id: "33333333-3333-4333-8333-333333333333" })),
+  createPortfolioCategory: vi.fn(async () => ({
+    ok: true,
+    category: {
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "New collection",
+      slug: "new-collection",
+      description: null,
+      position: 30,
+      is_published: true,
+    },
+  })),
   createPortfolioItems: vi.fn(async () => ({ ok: true })),
   deletePortfolioCategory: vi.fn(async () => ({ ok: true })),
   deletePortfolioItem: vi.fn(async () => ({ ok: true })),
@@ -63,6 +73,7 @@ describe("PortfolioManager media removal", () => {
   let root: Root;
 
   beforeEach(() => {
+    actionMocks.createPortfolioCategory.mockClear();
     actionMocks.deletePortfolioItem.mockClear();
     routerMocks.refresh.mockClear();
     container = document.createElement("div");
@@ -132,6 +143,39 @@ describe("PortfolioManager media removal", () => {
     ]);
     expect(categoryHandles.every((button) => !button.disabled)).toBe(true);
     expect(mediaHandles).toHaveLength(1);
-    expect(container.textContent).toContain("Drag a category handle to set the order shown on your portfolio.");
+    expect(container.textContent).toContain("Sort category order");
+    expect(container.textContent).toContain("Drag a row to set the category order shown on your portfolio.");
+  });
+
+  it("keeps a newly created category selected instead of falling back to the first category", async () => {
+    await renderManager();
+    const form = container.querySelector<HTMLFormElement>(".portfolio-category-form")!;
+    const nameInput = form.querySelector<HTMLInputElement>('[name="name"]')!;
+    nameInput.value = "New collection";
+
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+
+    const categorySelect = container.querySelector<HTMLSelectElement>(".portfolio-category-select select")!;
+    expect(actionMocks.createPortfolioCategory).toHaveBeenCalledOnce();
+    expect(categorySelect.value).toBe("33333333-3333-4333-8333-333333333333");
+    expect(Array.from(categorySelect.options).map((option) => option.text)).toContain("New collection");
+    expect(container.textContent).toContain("New collection created and selected for upload.");
+
+    await act(async () => {
+      root.render(<PortfolioManager categories={[...categories, {
+        id: "33333333-3333-4333-8333-333333333333",
+        name: "New collection",
+        slug: "new-collection",
+        description: null,
+        position: 30,
+        is_published: true,
+        items: [],
+      }]} workspaceId="11111111-1111-4111-8111-111111111111" />);
+    });
+
+    expect(container.querySelector<HTMLSelectElement>(".portfolio-category-select select")!.value).toBe("33333333-3333-4333-8333-333333333333");
   });
 });

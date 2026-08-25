@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Expand, Maximize2, X } from "lucide-react";
 import { PortfolioVideo } from "@/components/public/portfolio-video";
+import { getPortfolioDisplaySizeFromDimensions } from "@/lib/portfolio";
 import type { PortfolioItem } from "@/lib/types";
 
 type FullscreenVideo = HTMLVideoElement & {
@@ -21,10 +22,22 @@ export function PortfolioGallery({
   priorityFirst?: boolean;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [detectedLayouts, setDetectedLayouts] = useState<Record<string, { displaySize: PortfolioItem["display_size"]; ratio: number }>>({});
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const mediaFrameRef = useRef<HTMLDivElement>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedItem = selectedIndex === null ? null : items[selectedIndex];
+
+  const recordDimensions = useCallback((itemId: string, width: number, height: number) => {
+    if (!width || !height) return;
+    const ratio = width / height;
+    const displaySize = getPortfolioDisplaySizeFromDimensions(width, height);
+    setDetectedLayouts((current) => {
+      const existing = current[itemId];
+      if (existing?.displaySize === displaySize && Math.abs(existing.ratio - ratio) < 0.001) return current;
+      return { ...current, [itemId]: { displaySize, ratio } };
+    });
+  }, []);
 
   const closeViewer = useCallback(() => {
     setSelectedIndex(null);
@@ -135,21 +148,32 @@ export function PortfolioGallery({
   return (
     <>
       <div className="portfolio-gallery">
-        {items.map((item, index) => (
+        {items.map((item, index) => {
+          const detectedLayout = detectedLayouts[item.id];
+          const displaySize = detectedLayout?.displaySize ?? item.display_size;
+          const isFeatured = index === 0 && displaySize === "wide";
+          return (
           <article
-            className={`portfolio-tile portfolio-tile-${item.display_size} ${index === 0 ? "portfolio-tile-featured" : ""}`}
+            className={`portfolio-tile portfolio-tile-${displaySize} ${isFeatured ? "portfolio-tile-featured" : ""}`}
             key={item.id}
           >
-            <div className="portfolio-media">
+            <div className="portfolio-media" style={detectedLayout ? { aspectRatio: detectedLayout.ratio } : undefined}>
               {item.media_kind === "video" ? (
-                <PortfolioVideo src={item.public_url} poster={item.poster_url} label={item.alt_text} soundEnabled={item.id === firstVideoId} />
+                <PortfolioVideo
+                  src={item.public_url}
+                  poster={item.poster_url}
+                  label={item.alt_text}
+                  soundEnabled={item.id === firstVideoId}
+                  onDimensions={(width, height) => recordDimensions(item.id, width, height)}
+                />
               ) : (
                 <Image
                   src={item.public_url}
                   alt={item.alt_text}
                   fill
                   priority={priorityFirst && index === 0}
-                  sizes={index === 0 || item.display_size === "wide" ? "(max-width: 720px) 100vw, 66vw" : "(max-width: 720px) 100vw, 34vw"}
+                  sizes={isFeatured || displaySize === "wide" ? "(max-width: 720px) 100vw, 66vw" : "(max-width: 720px) 100vw, 34vw"}
+                  onLoad={(event) => recordDimensions(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
                 />
               )}
               <div className="portfolio-media-shade" />
@@ -168,7 +192,8 @@ export function PortfolioGallery({
               </button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
       {lightbox}
     </>

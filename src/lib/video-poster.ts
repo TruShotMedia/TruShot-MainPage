@@ -27,8 +27,8 @@ function waitForVideoEvent(video: HTMLVideoElement, eventName: "loadedmetadata" 
   });
 }
 
-/** Captures an early representative video frame as a compact JPEG poster. */
-export async function createVideoPoster(source: File | string) {
+/** Captures an early representative video frame and its source dimensions. */
+export async function createVideoPosterWithDimensions(source: File | string) {
   const video = document.createElement("video");
   const objectUrl = source instanceof File ? URL.createObjectURL(source) : null;
   if (typeof source === "string") video.crossOrigin = "anonymous";
@@ -60,10 +60,19 @@ export async function createVideoPoster(source: File | string) {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.84));
     if (!blob) throw new Error("Your browser could not save the video thumbnail.");
-    return new File([blob], "portfolio-video-thumbnail.jpg", { type: "image/jpeg", lastModified: Date.now() });
+    return {
+      file: new File([blob], "portfolio-video-thumbnail.jpg", { type: "image/jpeg", lastModified: Date.now() }),
+      width: video.videoWidth,
+      height: video.videoHeight,
+    };
   } finally {
     video.removeAttribute("src");
     video.load();
     if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
+}
+
+/** Captures an early representative video frame as a compact JPEG poster. */
+export async function createVideoPoster(source: File | string) {
+  return (await createVideoPosterWithDimensions(source)).file;
 }

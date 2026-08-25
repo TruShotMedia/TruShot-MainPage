@@ -6,9 +6,6 @@ import { getPortfolioCategoriesAdmin } from "@/lib/data/admin";
 
 export default async function PortfolioAdminPage() {
   const categories = await getPortfolioCategoriesAdmin();
-  const portfolioVersion = categories.map((category) => (
-    `${category.id}:${category.name}:${category.description ?? ""}:${category.items.map((item) => `${item.id}:${item.poster_url ?? ""}`).join(",")}`
-  )).join("|");
 
   return (
     <>
@@ -21,7 +18,7 @@ export default async function PortfolioAdminPage() {
       <div className="formula-note website-guidance">
         <p><strong>Private-link behaviour:</strong> this page is excluded from public navigation, the sitemap and search indexing. Anyone you send the exact URL to can still view it, so only publish work cleared for client presentation.</p>
       </div>
-      <PortfolioManager key={portfolioVersion} categories={categories} workspaceId={TRUSHOT_WORKSPACE_ID} />
+      <PortfolioManager categories={categories} workspaceId={TRUSHOT_WORKSPACE_ID} />
     </>
   );
 }

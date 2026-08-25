@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPortfolioDisplaySize, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "./portfolio";
+import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -86,21 +86,15 @@ describe("movePortfolioItemBetweenCategories", () => {
   });
 });
 
-describe("getPortfolioDisplaySize", () => {
-  it("makes videos wide so motion has room to lead", () => {
-    expect(getPortfolioDisplaySize(0, "video")).toBe("wide");
-    expect(getPortfolioDisplaySize(4, "video")).toBe("wide");
+describe("getPortfolioDisplaySizeFromDimensions", () => {
+  it("matches horizontal, vertical, and square media to its natural tile", () => {
+    expect(getPortfolioDisplaySizeFromDimensions(1920, 1080)).toBe("wide");
+    expect(getPortfolioDisplaySizeFromDimensions(1080, 1920)).toBe("tall");
+    expect(getPortfolioDisplaySizeFromDimensions(1200, 1200)).toBe("standard");
+    expect(getPortfolioDisplaySizeFromDimensions(1080, 1350)).toBe("tall");
   });
 
-  it("cycles images through a balanced editorial pattern", () => {
-    expect([0, 1, 2, 3, 4, 5, 6].map((index) => getPortfolioDisplaySize(index, "image"))).toEqual([
-      "standard",
-      "tall",
-      "standard",
-      "wide",
-      "standard",
-      "tall",
-      "standard",
-    ]);
+  it("uses a stable square tile when dimensions are unavailable", () => {
+    expect(getPortfolioDisplaySizeFromDimensions(0, 0)).toBe("standard");
   });
 });

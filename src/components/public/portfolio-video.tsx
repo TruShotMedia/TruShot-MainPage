@@ -8,11 +8,13 @@ export function PortfolioVideo({
   label,
   poster,
   soundEnabled = false,
+  onDimensions,
 }: {
   src: string;
   label: string;
   poster?: string | null;
   soundEnabled?: boolean;
+  onDimensions?: (width: number, height: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -91,6 +93,10 @@ export function PortfolioVideo({
         playsInline
         preload={shouldLoad ? "metadata" : "none"}
         aria-label={label}
+        onLoadedMetadata={(event) => {
+          const video = event.currentTarget;
+          if (video.videoWidth && video.videoHeight) onDimensions?.(video.videoWidth, video.videoHeight);
+        }}
         onLoadedData={() => { setIsReady(true); setHasError(false); }}
         onCanPlay={() => { setIsReady(true); setHasError(false); }}
         onError={() => { setHasError(true); setIsReady(false); }}

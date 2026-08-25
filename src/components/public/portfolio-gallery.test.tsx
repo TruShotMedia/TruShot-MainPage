@@ -24,7 +24,7 @@ const items: PortfolioItem[] = [
     public_url: "https://example.com/still.jpg",
     poster_url: null,
     poster_path: null,
-    display_size: "wide",
+    display_size: "tall",
   },
   {
     id: "22222222-2222-4222-8222-222222222222",
@@ -44,6 +44,7 @@ describe("PortfolioGallery full-screen viewer", () => {
   const requestFullscreen = vi.fn(async () => undefined);
 
   beforeEach(() => {
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: vi.fn(() => ({ matches: true })),
@@ -99,5 +100,23 @@ describe("PortfolioGallery full-screen viewer", () => {
     await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Enter native full screen"]')!.click());
 
     expect(requestFullscreen).toHaveBeenCalledOnce();
+  });
+
+  it("adapts the collage tile to the image's measured orientation", async () => {
+    await act(async () => {
+      root.render(<PortfolioGallery items={[items[0]]} />);
+    });
+    const image = container.querySelector<HTMLImageElement>(".portfolio-media img")!;
+    Object.defineProperties(image, {
+      naturalWidth: { configurable: true, value: 1920 },
+      naturalHeight: { configurable: true, value: 1080 },
+    });
+
+    await act(async () => image.dispatchEvent(new Event("load", { bubbles: true })));
+
+    const tile = container.querySelector<HTMLElement>(".portfolio-tile")!;
+    expect(tile.classList.contains("portfolio-tile-wide")).toBe(true);
+    expect(tile.classList.contains("portfolio-tile-featured")).toBe(true);
+    expect(container.querySelector<HTMLElement>(".portfolio-media")!.style.aspectRatio).toBe(`${1920 / 1080} / 1`);
   });
 });
