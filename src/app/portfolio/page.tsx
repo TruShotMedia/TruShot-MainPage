@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react";
-import { PortfolioVideo } from "@/components/public/portfolio-video";
+import { PortfolioGallery } from "@/components/public/portfolio-gallery";
 import { getPublishedPortfolioCategories } from "@/lib/data/public";
 
 export const metadata: Metadata = {
@@ -61,30 +61,7 @@ export default async function PortfolioPage() {
                     <div><span>Collection {String(categoryIndex + 1).padStart(2, "0")}</span><h2>{category.name}</h2></div>
                     <div><p>{category.description || "A focused selection of motion and stills from this body of work."}</p><small>{category.items.length} {category.items.length === 1 ? "piece" : "pieces"}</small></div>
                   </header>
-                  <div className="portfolio-gallery">
-                    {category.items.map((item, index) => (
-                      <article
-                        className={`portfolio-tile portfolio-tile-${item.display_size} ${index === 0 ? "portfolio-tile-featured" : ""}`}
-                        key={item.id}
-                      >
-                        <div className="portfolio-media">
-                          {item.media_kind === "video" ? (
-                            <PortfolioVideo src={item.public_url} poster={item.poster_url} label={item.alt_text} soundEnabled={item.id === firstVideoId} />
-                          ) : (
-                            <Image
-                              src={item.public_url}
-                              alt={item.alt_text}
-                              fill
-                              priority={categoryIndex === 0 && index === 0}
-                              sizes={index === 0 || item.display_size === "wide" ? "(max-width: 720px) 100vw, 66vw" : "(max-width: 720px) 100vw, 34vw"}
-                            />
-                          )}
-                          <div className="portfolio-media-shade" />
-                          <span className="portfolio-kind">{item.media_kind === "video" ? "Motion" : "Still"}</span>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
+                  <PortfolioGallery items={category.items} firstVideoId={firstVideoId} priorityFirst={categoryIndex === 0} />
                 </section>
               ))}
             </div>

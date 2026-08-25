@@ -143,7 +143,7 @@ function SortablePortfolioCard({
               title={item.poster_url ? "Replace this video's thumbnail" : "Create a thumbnail from this video"}
             >
               {isBuildingPoster ? <LoaderCircle className="spin" size={14} /> : <ImagePlus size={14} />}
-              {isBuildingPoster ? "Building…" : item.poster_url ? "Refresh thumbnail" : "Build thumbnail"}
+              {isBuildingPoster ? "Building…" : item.poster_url ? "Regenerate thumbnail" : "Create thumbnail"}
             </button>
           ) : null}
           <button
@@ -384,8 +384,19 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     try {
       const uploadedItems = [];
       for (const [index, file] of selectedFiles.entries()) {
-        setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · 0% · ${file.name}`);
         const { kind, extension } = validateWebsiteMediaFile(file);
+        let poster: File | null = null;
+        if (kind === "video") {
+          setMessage(`Creating thumbnail ${index + 1} of ${selectedFiles.length} · ${file.name}`);
+          try {
+            poster = await createVideoPoster(file);
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : "This browser could not decode the video.";
+            throw new Error(`Automatic thumbnail creation failed for ${file.name}. ${detail} Try Safari or an H.264 MP4 if the file uses an uncommon codec.`);
+          }
+        }
+
+        setMessage(`Uploading ${index + 1} of ${selectedFiles.length} · 0% · ${file.name}`);
         const storagePath = `${workspaceId}/portfolio/${crypto.randomUUID()}.${extension}`;
         const uploaded = await uploadWebsiteMediaResumable({
           file,
@@ -400,18 +411,12 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
 
         let posterPath: string | null = null;
         let posterUrl: string | null = null;
-        if (kind === "video") {
-          try {
-            setMessage(`Preparing thumbnail ${index + 1} of ${selectedFiles.length} · ${file.name}`);
-            const poster = await createVideoPoster(file);
-            posterPath = `${workspaceId}/portfolio/posters/${crypto.randomUUID()}.jpg`;
-            const uploadedPoster = await uploadWebsiteMediaResumable({ file: poster, storagePath: posterPath });
-            posterUrl = uploadedPoster.publicUrl;
-            uploadedPaths.push(posterPath);
-          } catch {
-            posterPath = null;
-            posterUrl = null;
-          }
+        if (poster) {
+          setMessage(`Uploading thumbnail ${index + 1} of ${selectedFiles.length} · ${file.name}`);
+          posterPath = `${workspaceId}/portfolio/posters/${crypto.randomUUID()}.jpg`;
+          const uploadedPoster = await uploadWebsiteMediaResumable({ file: poster, storagePath: posterPath });
+          posterUrl = uploadedPoster.publicUrl;
+          uploadedPaths.push(posterPath);
         }
         uploadedItems.push({
           media_kind: kind,
@@ -637,7 +642,7 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
           <div>
             <p className="card-label">Batch upload</p>
             <h2>Add photos and videos</h2>
-            <p>Choose up to {MAX_BATCH_FILES} files or drag them into the drop zone. Photos can be up to 50 MB, videos up to 200 MB, and uploads resume through brief connection drops.</p>
+            <p>Choose up to {MAX_BATCH_FILES} files or drag them into the drop zone. Photo previews are optimised automatically, every video gets a thumbnail before publishing, and uploads resume through brief connection drops.</p>
           </div>
         </div>
         <form onSubmit={handleUpload} className="portfolio-upload-form">

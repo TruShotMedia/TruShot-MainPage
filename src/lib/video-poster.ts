@@ -35,14 +35,20 @@ export async function createVideoPoster(source: File | string) {
   video.muted = true;
   video.playsInline = true;
   video.preload = "auto";
-  video.src = typeof source === "string" ? source : objectUrl!;
 
   try {
-    await waitForVideoEvent(video, "loadedmetadata");
-    if (!video.videoWidth || !video.videoHeight) await waitForVideoEvent(video, "loadeddata");
+    const metadataReady = waitForVideoEvent(video, "loadedmetadata");
+    video.src = typeof source === "string" ? source : objectUrl!;
+    video.load();
+    await metadataReady;
+    if (!video.videoWidth || !video.videoHeight) {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) await waitForVideoEvent(video, "loadeddata");
+      if (!video.videoWidth || !video.videoHeight) throw new Error("The video did not expose a frame for its thumbnail.");
+    }
     if (Number.isFinite(video.duration) && video.duration > 0.2) {
+      const frameReady = waitForVideoEvent(video, "seeked");
       video.currentTime = Math.min(1, Math.max(0.08, video.duration * 0.08));
-      await waitForVideoEvent(video, "seeked");
+      await frameReady;
     }
 
     const scale = Math.min(1, POSTER_MAX_WIDTH / video.videoWidth);
