@@ -63,7 +63,7 @@ export function NotionSyncPanel({
       <div>
         <p className="card-label">Integration</p>
         <h2>Notion import</h2>
-        <p>Imports missing clients, jobs and tasks from the original Notion databases without overwriting CRM edits.</p>
+        <p>Imports missing jobs and tasks from Notion without overwriting CRM edits. A legacy Clients database can be connected optionally.</p>
       </div>
       <div className="notion-sync-panel">
         <header>
@@ -86,7 +86,7 @@ export function NotionSyncPanel({
 
         <p className="notion-sync-explainer"><CloudDownload size={15} /> A browser asks for a scan on page load at most once per interval. A database lock prevents duplicate scans across tabs or devices.</p>
         {message ? <p className={`notion-sync-message is-${messageKind}`} role="status">{message}</p> : null}
-        {!configured ? <p className="notion-sync-setup-note">Complete the Notion connection steps, add the five server variables in Vercel, then redeploy. The token is never exposed to the browser.</p> : null}
+        {!configured ? <p className="notion-sync-setup-note">Connect the Jobs and Tasks databases, add the three required server variables in Vercel, then redeploy. The token is never exposed to the browser.</p> : null}
       </div>
     </section>
   );

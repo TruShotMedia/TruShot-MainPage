@@ -114,6 +114,7 @@ async function importNotionPages(
   clientPages: NotionPage[],
   jobPages: NotionPage[],
   taskPages: NotionPage[],
+  hasClientSource: boolean,
 ) {
   const [jobStatusesResult, taskStatusesResult, clientsResult, jobsResult, tasksResult, linksResult] = await Promise.all([
     context.supabase.from("website-job-statuses").select("id,key").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("is_active", true),
@@ -148,7 +149,9 @@ async function importNotionPages(
   const warnings: string[] = [];
 
   const clientPageById = new Map(clientPages.map((page) => [page.id, page]));
-  const referencedClientPageIds = new Set(jobPages.flatMap((page) => notionRelations(page, ["Client"])));
+  const referencedClientPageIds = new Set(hasClientSource
+    ? jobPages.flatMap((page) => notionRelations(page, ["Client"]))
+    : []);
   const clientIdByNotionPage = new Map<string, string>();
   const pendingClientLinks: Array<{ page: NotionPage; entityId: string; matchedExisting: boolean }> = [];
   const newClientRows: Array<{ page: NotionPage; row: Record<string, unknown>; slug: string }> = [];
@@ -230,7 +233,7 @@ async function importNotionPages(
       if (activeJobIds.has(existingLink.entity_id)) jobIdByNotionPage.set(page.id, existingLink.entity_id);
       continue;
     }
-    const clientRelations = notionRelations(page, ["Client"]);
+    const clientRelations = hasClientSource ? notionRelations(page, ["Client"]) : [];
     const clientId = clientRelations.length ? clientIdByNotionPage.get(clientRelations[0]) ?? null : null;
     const match = findMatchingJob(page, clientId, jobs, claimedJobIds);
     if (match) {
@@ -406,7 +409,7 @@ export async function runNotionSync({ force = false }: { force?: boolean } = {})
     linked: emptyCounts(),
     unresolvedTasks: 0,
     warnings: [],
-    message: "Add the Notion token and three data source IDs in Vercel to enable automatic imports.",
+    message: "Add the Notion token plus the Jobs and Tasks data source IDs in Vercel to enable automatic imports.",
   };
 
   const context = await getAdminContext();
@@ -435,11 +438,13 @@ export async function runNotionSync({ force = false }: { force?: boolean } = {})
 
   try {
     const [clientPages, jobPages, taskPages] = await Promise.all([
-      queryNotionSource(configuration.token, configuration.clientsSourceId),
+      configuration.clientsSourceId
+        ? queryNotionSource(configuration.token, configuration.clientsSourceId)
+        : Promise.resolve<NotionPage[]>([]),
       queryNotionSource(configuration.token, configuration.jobsSourceId),
       queryNotionSource(configuration.token, configuration.tasksSourceId),
     ]);
-    const imported = await importNotionPages(context, clientPages, jobPages, taskPages);
+    const imported = await importNotionPages(context, clientPages, jobPages, taskPages, Boolean(configuration.clientsSourceId));
     const completedAt = new Date();
     const scanned = { clients: clientPages.length, jobs: jobPages.length, tasks: taskPages.length };
     const result: NotionSyncResult = {
