@@ -2,10 +2,13 @@ import { ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/admin/page-header";
 import { PortfolioManager } from "@/components/admin/portfolio-manager";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
-import { getPortfolioCategoriesAdmin } from "@/lib/data/admin";
+import { getPortfolioCategoriesAdmin, getPortfolioMiscLogosAdmin } from "@/lib/data/admin";
 
 export default async function PortfolioAdminPage() {
-  const categories = await getPortfolioCategoriesAdmin();
+  const [categories, miscLogos] = await Promise.all([
+    getPortfolioCategoriesAdmin(),
+    getPortfolioMiscLogosAdmin(),
+  ]);
 
   return (
     <>
@@ -18,7 +21,7 @@ export default async function PortfolioAdminPage() {
       <div className="formula-note website-guidance">
         <p><strong>Private-link behaviour:</strong> this page is excluded from public navigation, the sitemap and search indexing. Anyone you send the exact URL to can still view it, so only publish work cleared for client presentation.</p>
       </div>
-      <PortfolioManager categories={categories} workspaceId={TRUSHOT_WORKSPACE_ID} />
+      <PortfolioManager categories={categories} miscLogos={miscLogos} workspaceId={TRUSHOT_WORKSPACE_ID} />
     </>
   );
 }

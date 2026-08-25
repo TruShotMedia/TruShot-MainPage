@@ -1,6 +1,6 @@
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { PortfolioCategory, PortfolioItem, PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
+import type { PortfolioCategory, PortfolioItem, PortfolioMiscLogo, PricingPackage, PricingItem, PublicWebsiteSettings, WebsiteElement } from "@/lib/types";
 
 export const fallbackWebsiteElements: WebsiteElement[] = [
   {
@@ -253,6 +253,23 @@ export async function getPublishedPortfolioCategories(): Promise<PortfolioCatego
         items: items.filter((item) => item.category_id === category.id),
       }))
       .filter((category) => category.items.length > 0) as PortfolioCategory[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getPublishedPortfolioMiscLogos(): Promise<PortfolioMiscLogo[]> {
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("website-portfolio-logos")
+      .select("id,name,logo_url,logo_path,position,is_published")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_published", true)
+      .order("position")
+      .order("created_at");
+    if (error) return [];
+    return (data ?? []) as PortfolioMiscLogo[];
   } catch {
     return [];
   }

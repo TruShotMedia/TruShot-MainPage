@@ -2,19 +2,19 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useDroppable, useSensor, useSensors, type CollisionDetection, type DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, ImagePlus, Images, LoaderCircle, Pencil, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, removePortfolioCategoryLogo, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioCategoryLogo, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
+import { createPortfolioCategory, createPortfolioItems, createPortfolioMiscLogos, deletePortfolioCategory, deletePortfolioItem, deletePortfolioMiscLogo, movePortfolioItemToCategory, removePortfolioCategoryLogo, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioCategoryLogo, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { getImageDimensions } from "@/lib/media-dimensions";
 import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
-import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
+import type { PortfolioCategory, PortfolioItem, PortfolioMiscLogo } from "@/lib/types";
 import { createVideoPoster, createVideoPosterWithDimensions } from "@/lib/video-poster";
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
@@ -23,6 +23,7 @@ const MAX_CATEGORY_LOGO_SIZE = 10 * 1024 * 1024;
 const CATEGORY_LOGO_ACCEPT = "image/png,image/jpeg,image/webp";
 const CATEGORY_DRAG_PREFIX = "portfolio-category:";
 const CATEGORY_DROP_PREFIX = "portfolio-category-drop:";
+const EMPTY_MISC_LOGOS: PortfolioMiscLogo[] = [];
 
 function getCategoryDragId(categoryId: string) {
   return `${CATEGORY_DRAG_PREFIX}${categoryId}`;
@@ -50,7 +51,7 @@ const portfolioCollisionDetection: CollisionDetection = (args) => {
 
 type DeleteRequest = {
   id: string;
-  kind: "category" | "item";
+  kind: "category" | "item" | "misc-logo";
 };
 
 type LogoFeedback = {
@@ -396,15 +397,34 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function PortfolioManager({ categories, workspaceId }: { categories: PortfolioCategory[]; workspaceId: string }) {
+function getStandaloneLogoName(fileName: string) {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+  return withoutExtension.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim() || "Partner logo";
+}
+
+function QueuedLogoPreview({ file }: { file: File }) {
+  const [previewUrl] = useState(() => URL.createObjectURL(file));
+  useEffect(() => {
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  return <Image src={previewUrl} alt="" fill sizes="80px" unoptimized />;
+}
+
+export function PortfolioManager({ categories, miscLogos, workspaceId }: { categories: PortfolioCategory[]; miscLogos?: PortfolioMiscLogo[]; workspaceId: string }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
+  const miscLogoInput = useRef<HTMLInputElement>(null);
   const categoryFormRef = useRef<HTMLFormElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedMiscLogoFiles, setSelectedMiscLogoFiles] = useState<File[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(categories[0]?.id ?? "");
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingMiscLogos, setIsDraggingMiscLogos] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [miscLogoStatus, setMiscLogoStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [miscLogoMessage, setMiscLogoMessage] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [buildingPosterId, setBuildingPosterId] = useState<string | null>(null);
@@ -413,6 +433,9 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [portfolioCategories, setPortfolioCategories] = useState(categories);
   const [serverCategories, setServerCategories] = useState(categories);
+  const incomingMiscLogos = miscLogos ?? EMPTY_MISC_LOGOS;
+  const [portfolioMiscLogos, setPortfolioMiscLogos] = useState(incomingMiscLogos);
+  const [serverMiscLogos, setServerMiscLogos] = useState(incomingMiscLogos);
   const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
   const [orderFeedback, setOrderFeedback] = useState<{ categoryId: string; status: "saving" | "saved" | "error"; message: string } | null>(null);
   const [orderingCategories, setOrderingCategories] = useState(false);
@@ -425,6 +448,10 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
     setServerCategories(categories);
     setPortfolioCategories(categories);
     setSelectedCategoryId((current) => categories.some((category) => category.id === current) ? current : categories[0]?.id ?? "");
+  }
+  if (incomingMiscLogos !== serverMiscLogos) {
+    setServerMiscLogos(incomingMiscLogos);
+    setPortfolioMiscLogos(incomingMiscLogos);
   }
   const activeCategoryId = portfolioCategories.some((category) => category.id === selectedCategoryId) ? selectedCategoryId : "";
 
@@ -454,6 +481,87 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   function removeQueuedFile(file: File) {
     const key = getFileKey(file);
     setSelectedFiles((current) => current.filter((candidate) => getFileKey(candidate) !== key));
+  }
+
+  function addMiscLogoFiles(fileList: FileList | File[]) {
+    const incoming = Array.from(fileList);
+    if (incoming.length === 0) return;
+
+    try {
+      incoming.forEach(getCategoryLogoExtension);
+      const byKey = new Map(selectedMiscLogoFiles.map((file) => [getFileKey(file), file]));
+      incoming.forEach((file) => byKey.set(getFileKey(file), file));
+      const nextFiles = [...byKey.values()];
+      if (nextFiles.length > MAX_BATCH_FILES) throw new Error(`Upload up to ${MAX_BATCH_FILES} logos at a time.`);
+      setSelectedMiscLogoFiles(nextFiles);
+      setMiscLogoStatus("idle");
+      setMiscLogoMessage("");
+    } catch (error) {
+      setMiscLogoStatus("error");
+      setMiscLogoMessage(error instanceof Error ? error.message : "Those logos could not be added.");
+    } finally {
+      if (miscLogoInput.current) miscLogoInput.current.value = "";
+    }
+  }
+
+  async function handleMiscLogoUpload(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (selectedMiscLogoFiles.length === 0) {
+      setMiscLogoStatus("error");
+      setMiscLogoMessage("Choose or drop at least one logo.");
+      return;
+    }
+
+    setMiscLogoStatus("saving");
+    const supabase = createClient();
+    const uploadedPaths: string[] = [];
+    try {
+      const uploads = [];
+      for (const [index, file] of selectedMiscLogoFiles.entries()) {
+        const extension = getCategoryLogoExtension(file);
+        const logoPath = `${workspaceId}/portfolio/logos/misc/${crypto.randomUUID()}.${extension}`;
+        setMiscLogoMessage(`Uploading ${index + 1} of ${selectedMiscLogoFiles.length} · 0% · ${file.name}`);
+        const uploaded = await uploadWebsiteMediaResumable({
+          file,
+          storagePath: logoPath,
+          cacheControl: "31536000",
+          onProgress: ({ percentage }) => setMiscLogoMessage(`Uploading ${index + 1} of ${selectedMiscLogoFiles.length} · ${percentage}% · ${file.name}`),
+        });
+        uploadedPaths.push(logoPath);
+        uploads.push({ name: getStandaloneLogoName(file.name), logoUrl: uploaded.publicUrl, logoPath });
+      }
+
+      setMiscLogoMessage("Publishing logos to the portfolio banner…");
+      const saved = await createPortfolioMiscLogos({ logos: uploads });
+      setPortfolioMiscLogos((current) => [...current, ...saved.logos]);
+      setSelectedMiscLogoFiles([]);
+      setMiscLogoStatus("saved");
+      setMiscLogoMessage(`${saved.logos.length} ${saved.logos.length === 1 ? "logo" : "logos"} added to the banner.`);
+      router.refresh();
+    } catch (error) {
+      if (uploadedPaths.length > 0) await supabase.storage.from("website-media").remove(uploadedPaths);
+      setMiscLogoStatus("error");
+      setMiscLogoMessage(error instanceof Error ? error.message : "The standalone logos could not be uploaded.");
+    }
+  }
+
+  async function handleMiscLogoRemove(logo: PortfolioMiscLogo) {
+    setDeletingId(logo.id);
+    setMiscLogoStatus("idle");
+    setMiscLogoMessage("");
+    try {
+      await deletePortfolioMiscLogo(logo.id);
+      setPortfolioMiscLogos((current) => current.filter((candidate) => candidate.id !== logo.id));
+      setDeleteRequest(null);
+      setMiscLogoStatus("saved");
+      setMiscLogoMessage(`“${logo.name}” removed from the portfolio banner.`);
+      router.refresh();
+    } catch (error) {
+      setMiscLogoStatus("error");
+      setMiscLogoMessage(error instanceof Error ? error.message : "The standalone logo could not be removed.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleCreateCategory(event: React.FormEvent<HTMLFormElement>) {
@@ -821,6 +929,87 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
             {categorySaving ? "Creating…" : "Create category"}
           </button>
         </form>
+      </section>
+
+      <section className="admin-card portfolio-misc-logo-card" aria-labelledby="portfolio-misc-logo-heading">
+        <div className="portfolio-upload-intro">
+          <span><ImagePlus size={18} /></span>
+          <div>
+            <p className="card-label">Logo banner</p>
+            <h2 id="portfolio-misc-logo-heading">Standalone logos</h2>
+            <p>Add collaborators, venues or brands that belong in the scrolling portfolio banner without creating a category for them.</p>
+          </div>
+        </div>
+        <div className="portfolio-misc-logo-panel">
+          <form className="portfolio-misc-logo-form" onSubmit={handleMiscLogoUpload}>
+            <label
+              className={`portfolio-misc-logo-dropzone ${isDraggingMiscLogos ? "is-dragging" : ""}`}
+              onDragEnter={(event) => { event.preventDefault(); setIsDraggingMiscLogos(true); }}
+              onDragOver={(event) => event.preventDefault()}
+              onDragLeave={(event) => { event.preventDefault(); setIsDraggingMiscLogos(false); }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setIsDraggingMiscLogos(false);
+                addMiscLogoFiles(event.dataTransfer.files);
+              }}
+            >
+              <input
+                ref={miscLogoInput}
+                type="file"
+                accept={CATEGORY_LOGO_ACCEPT}
+                multiple
+                disabled={miscLogoStatus === "saving"}
+                onChange={(event) => event.target.files && addMiscLogoFiles(event.target.files)}
+              />
+              <ImagePlus size={20} />
+              <span><strong>{isDraggingMiscLogos ? "Drop logos here" : "Choose or drop logos"}</strong><small>PNG, JPG or WebP · up to 10 MB each · {MAX_BATCH_FILES} at once</small></span>
+            </label>
+
+            {selectedMiscLogoFiles.length > 0 && (
+              <div className="portfolio-misc-logo-queue" aria-label="Standalone logos ready to upload">
+                {selectedMiscLogoFiles.map((file) => (
+                  <div className="portfolio-misc-logo-queued" key={getFileKey(file)}>
+                    <span className="portfolio-misc-logo-preview"><QueuedLogoPreview file={file} /></span>
+                    <div><strong>{getStandaloneLogoName(file.name)}</strong><small>{formatFileSize(file.size)}</small></div>
+                    <button type="button" onClick={() => setSelectedMiscLogoFiles((current) => current.filter((candidate) => getFileKey(candidate) !== getFileKey(file)))} aria-label={`Remove ${file.name} from upload`}><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="website-element-actions">
+              <p className={`website-save-status ${miscLogoStatus}`} role="status" aria-live="polite">
+                {miscLogoStatus === "saving" && <LoaderCircle className="spin" size={14} />}
+                {miscLogoStatus === "saved" && <Check size={14} />}
+                {miscLogoMessage || `${portfolioMiscLogos.length} standalone ${portfolioMiscLogos.length === 1 ? "logo" : "logos"} published.`}
+              </p>
+              <button className="admin-primary-button" type="submit" disabled={miscLogoStatus === "saving" || selectedMiscLogoFiles.length === 0}>
+                {miscLogoStatus === "saving" ? "Publishing…" : selectedMiscLogoFiles.length > 0 ? `Add ${selectedMiscLogoFiles.length} ${selectedMiscLogoFiles.length === 1 ? "logo" : "logos"}` : "Add logos"}
+              </button>
+            </div>
+          </form>
+
+          {portfolioMiscLogos.length > 0 ? (
+            <div className="portfolio-misc-logo-library" aria-label="Published standalone logos">
+              {portfolioMiscLogos.map((logo) => (
+                <article className="portfolio-misc-logo-row" key={logo.id}>
+                  <span className="portfolio-misc-logo-preview has-logo"><Image src={logo.logo_url} alt={`${logo.name} logo`} fill sizes="90px" /></span>
+                  <div><strong>{logo.name}</strong><small>Standalone · live in banner</small></div>
+                  <RemoveControls
+                    confirming={deleteRequest?.kind === "misc-logo" && deleteRequest.id === logo.id}
+                    isDeleting={deletingId === logo.id}
+                    label="Remove logo"
+                    onCancel={() => setDeleteRequest(null)}
+                    onConfirm={() => void handleMiscLogoRemove(logo)}
+                    onRequest={() => setDeleteRequest({ id: logo.id, kind: "misc-logo" })}
+                  />
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="portfolio-misc-logo-empty"><ImageIcon size={19} /><p>No standalone logos yet. Category logos will continue to appear in the banner as usual.</p></div>
+          )}
+        </div>
       </section>
 
       <section className="admin-card portfolio-upload-panel">

@@ -4,27 +4,30 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react";
 import { PortfolioGallery } from "@/components/public/portfolio-gallery";
 import { PortfolioProtection } from "@/components/public/portfolio-protection";
-import { getPublishedPortfolioCategories } from "@/lib/data/public";
-import type { PortfolioCategory } from "@/lib/types";
+import { getPublishedPortfolioCategories, getPublishedPortfolioMiscLogos } from "@/lib/data/public";
+import type { PortfolioCategory, PortfolioMiscLogo } from "@/lib/types";
 
 const MINIMUM_LOGO_TILES = 12;
 
-function PortfolioLogoMarquee({ categories }: { categories: PortfolioCategory[] }) {
-  const logoCategories = categories.filter((category) => category.logo_url);
-  if (logoCategories.length === 0) return null;
+function PortfolioLogoMarquee({ categories, miscLogos }: { categories: PortfolioCategory[]; miscLogos: PortfolioMiscLogo[] }) {
+  const logos = [
+    ...categories.filter((category) => category.logo_url).map((category) => ({ id: `category:${category.id}`, name: category.name, logoUrl: category.logo_url! })),
+    ...miscLogos.map((logo) => ({ id: `misc:${logo.id}`, name: logo.name, logoUrl: logo.logo_url })),
+  ];
+  if (logos.length === 0) return null;
 
-  const repetitions = Math.ceil(MINIMUM_LOGO_TILES / logoCategories.length);
-  const logoTiles = Array.from({ length: repetitions }, () => logoCategories).flat();
+  const repetitions = Math.ceil(MINIMUM_LOGO_TILES / logos.length);
+  const logoTiles = Array.from({ length: repetitions }, () => logos).flat();
 
   return (
     <section className="portfolio-logo-marquee" aria-label="Featured portfolio collaborators">
-      <span className="sr-only">Featured collaborators: {logoCategories.map((category) => category.name).join(", ")}</span>
+      <span className="sr-only">Featured collaborators: {logos.map((logo) => logo.name).join(", ")}</span>
       <div className="portfolio-logo-marquee-track" aria-hidden="true">
         {[0, 1].map((group) => (
           <div className="portfolio-logo-marquee-group" key={group}>
-            {logoTiles.map((category, index) => (
-              <span className="portfolio-logo-marquee-tile" key={`${group}-${category.id}-${index}`}>
-                <Image src={category.logo_url!} alt="" fill sizes="(max-width: 700px) 130px, 210px" />
+            {logoTiles.map((logo, index) => (
+              <span className="portfolio-logo-marquee-tile" key={`${group}-${logo.id}-${index}`}>
+                <Image src={logo.logoUrl} alt="" fill sizes="(max-width: 700px) 130px, 210px" />
               </span>
             ))}
           </div>
@@ -47,7 +50,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PortfolioPage() {
-  const categories = await getPublishedPortfolioCategories();
+  const [categories, miscLogos] = await Promise.all([
+    getPublishedPortfolioCategories(),
+    getPublishedPortfolioMiscLogos(),
+  ]);
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
   const firstVideoId = categories.flatMap((category) => category.items).find((item) => item.media_kind === "video")?.id;
 
@@ -74,7 +80,7 @@ export default async function PortfolioPage() {
       </section>
 
       <section className="portfolio-collection">
-        <PortfolioLogoMarquee categories={categories} />
+        <PortfolioLogoMarquee categories={categories} miscLogos={miscLogos} />
 
         {categories.length > 0 ? (
           <>

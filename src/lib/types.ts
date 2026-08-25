@@ -70,6 +70,15 @@ export type PortfolioCategory = {
   items: PortfolioItem[];
 };
 
+export type PortfolioMiscLogo = {
+  id: string;
+  name: string;
+  logo_url: string;
+  logo_path: string;
+  position: number;
+  is_published: boolean;
+};
+
 export type TaskStatus = {
   id: string;
   key: string;

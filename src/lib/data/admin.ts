@@ -2,7 +2,7 @@ import { cache } from "react";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarJob, CalendarTask, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, TaskStatus } from "@/lib/types";
+import type { CalendarJob, CalendarTask, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -426,6 +426,19 @@ export async function getPortfolioCategoriesAdmin(): Promise<PortfolioCategory[]
     ...category,
     items: items.filter((item) => item.category_id === category.id),
   })) as PortfolioCategory[];
+}
+
+export async function getPortfolioMiscLogosAdmin(): Promise<PortfolioMiscLogo[]> {
+  const context = await getAdminContext();
+  if (!context) return [];
+  const { data, error } = await context.supabase
+    .from("website-portfolio-logos")
+    .select("id,name,logo_url,logo_path,position,is_published")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("position")
+    .order("created_at");
+  if (error) return [];
+  return (data ?? []) as PortfolioMiscLogo[];
 }
 
 export async function getCalendarData() {

@@ -1212,6 +1212,12 @@ const portfolioCategoryLogoSchema = z.object({
   logoPath: z.string().trim().max(500),
 });
 
+const portfolioMiscLogoSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  logoUrl: z.string().trim().url().max(2_000),
+  logoPath: z.string().trim().max(500),
+});
+
 function validatePortfolioCategoryLogo(input: z.infer<typeof portfolioCategoryLogoSchema>) {
   const expectedPathPattern = new RegExp(
     `^${TRUSHOT_WORKSPACE_ID}/portfolio/logos/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(jpe?g|png|webp)$`,
@@ -1230,6 +1236,29 @@ function validatePortfolioCategoryLogo(input: z.infer<typeof portfolioCategoryLo
     || parsedLogoUrl.pathname !== `/storage/v1/object/public/website-media/${input.logoPath}`
   ) {
     throw new Error("The category logo URL is not valid.");
+  }
+
+  return { ...input, logoUrl: parsedLogoUrl.toString() };
+}
+
+function validatePortfolioMiscLogo(input: z.infer<typeof portfolioMiscLogoSchema>) {
+  const expectedPathPattern = new RegExp(
+    `^${TRUSHOT_WORKSPACE_ID}/portfolio/logos/misc/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(jpe?g|png|webp)$`,
+    "i",
+  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || !expectedPathPattern.test(input.logoPath)) {
+    throw new Error("The standalone logo path is not valid.");
+  }
+
+  const parsedLogoUrl = new URL(input.logoUrl);
+  const parsedSupabaseUrl = new URL(supabaseUrl);
+  if (
+    parsedLogoUrl.protocol !== "https:"
+    || parsedLogoUrl.hostname !== parsedSupabaseUrl.hostname
+    || parsedLogoUrl.pathname !== `/storage/v1/object/public/website-media/${input.logoPath}`
+  ) {
+    throw new Error("The standalone logo URL is not valid.");
   }
 
   return { ...input, logoUrl: parsedLogoUrl.toString() };
@@ -1378,6 +1407,74 @@ export async function removePortfolioCategoryLogo(categoryIdValue: string) {
   revalidatePath("/portfolio");
   revalidatePath("/admin/portfolio");
   return { ok: true };
+}
+
+export async function createPortfolioMiscLogos(inputValue: {
+  logos: Array<{ name: string; logoUrl: string; logoPath: string }>;
+}) {
+  const parsed = z.object({ logos: z.array(portfolioMiscLogoSchema).min(1).max(20) }).parse(inputValue);
+  const logos = parsed.logos.map(validatePortfolioMiscLogo);
+  if (new Set(logos.map((logo) => logo.logoPath)).size !== logos.length) {
+    throw new Error("The upload contains duplicate logo files.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: latest, error: positionError } = await context.supabase
+    .from("website-portfolio-logos")
+    .select("position")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("position", { ascending: false })
+    .limit(1);
+  if (positionError) throw new Error(positionError.message);
+  const startingPosition = Number(latest?.[0]?.position ?? 0);
+
+  const { data, error } = await context.supabase
+    .from("website-portfolio-logos")
+    .insert(logos.map((logo, index) => ({
+      workspace_id: TRUSHOT_WORKSPACE_ID,
+      name: logo.name,
+      logo_url: logo.logoUrl,
+      logo_path: logo.logoPath,
+      position: startingPosition + ((index + 1) * 10),
+      is_published: true,
+      created_by: context.claims.sub,
+    })))
+    .select("id,name,logo_url,logo_path,position,is_published");
+  if (error || !data) throw new Error(error?.message ?? "The standalone logos could not be saved.");
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, logos: data };
+}
+
+export async function deletePortfolioMiscLogo(logoIdValue: string) {
+  const logoId = z.string().uuid().parse(logoIdValue);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: logo, error: readError } = await context.supabase
+    .from("website-portfolio-logos")
+    .select("id,name,logo_path")
+    .eq("id", logoId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .single();
+  if (readError || !logo) throw new Error("That standalone logo is no longer available.");
+
+  const { data: removed, error } = await context.supabase
+    .from("website-portfolio-logos")
+    .delete()
+    .eq("id", logo.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !removed) throw new Error(error?.message ?? "The standalone logo could not be removed.");
+
+  await context.supabase.storage.from("website-media").remove([logo.logo_path]);
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, name: logo.name };
 }
 
 export async function createPortfolioItems(formData: FormData) {

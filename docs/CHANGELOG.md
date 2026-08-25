@@ -1,11 +1,14 @@
 # TruShot CRM changelog
 
-## 2026-08-25 — Portfolio category logo banner
+## 2026-08-25 — Portfolio logo banner
 
 - Added an optional PNG, JPG or WebP logo to every portfolio category, with upload, replacement and removal controls in the Portfolio admin page.
 - Added a seamless, responsive logo marquee at the top of the public portfolio collection. It only renders when at least one published, visible category has a logo.
 - Added database-backed logo paths and public URLs with paired-value validation, unique replacement paths to avoid stale CDN content, and storage cleanup when a logo or empty category is removed.
 - Extended the portfolio's view-only interaction barrier to cover displayed client logos.
+- Added a dedicated Standalone logos card to Admin → Portfolio for brands and collaborators that do not need a media category, including multi-file drag-and-drop, previews, resumable upload progress and confirmed removal.
+- Added the prefixed `website-portfolio-logos` table with workspace RLS, explicit grants, ordered publishing metadata and isolated `portfolio/logos/misc` storage paths.
+- Combined published standalone logos with category logos in the same continuous public banner while preserving accessible collaborator names.
 
 ## 2026-08-25 — Portfolio viewing protection
 

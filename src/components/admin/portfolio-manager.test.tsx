@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PortfolioCategory } from "@/lib/types";
+import type { PortfolioCategory, PortfolioMiscLogo } from "@/lib/types";
 import { PortfolioManager } from "./portfolio-manager";
 
 const actionMocks = vi.hoisted(() => ({
@@ -21,8 +21,10 @@ const actionMocks = vi.hoisted(() => ({
     },
   })),
   createPortfolioItems: vi.fn(async () => ({ ok: true })),
+  createPortfolioMiscLogos: vi.fn(async () => ({ ok: true, logos: [] })),
   deletePortfolioCategory: vi.fn(async () => ({ ok: true })),
   deletePortfolioItem: vi.fn(async () => ({ ok: true })),
+  deletePortfolioMiscLogo: vi.fn(async () => ({ ok: true, name: "Venue partner" })),
   movePortfolioItemToCategory: vi.fn(async () => ({ ok: true, updated: 1 })),
   removePortfolioCategoryLogo: vi.fn(async () => ({ ok: true })),
   reorderPortfolioCategories: vi.fn(async () => ({ ok: true, updated: 1 })),
@@ -76,6 +78,15 @@ const sortableCategories: PortfolioCategory[] = [
   },
 ];
 
+const miscLogos: PortfolioMiscLogo[] = [{
+  id: "55555555-5555-4555-8555-555555555555",
+  name: "Venue partner",
+  logo_url: "https://example.com/venue-partner.png",
+  logo_path: "11111111-1111-4111-8111-111111111111/portfolio/logos/misc/55555555-5555-4555-8555-555555555555.png",
+  position: 10,
+  is_published: true,
+}];
+
 describe("PortfolioManager media removal", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -83,6 +94,7 @@ describe("PortfolioManager media removal", () => {
   beforeEach(() => {
     actionMocks.createPortfolioCategory.mockClear();
     actionMocks.deletePortfolioItem.mockClear();
+    actionMocks.deletePortfolioMiscLogo.mockClear();
     actionMocks.removePortfolioCategoryLogo.mockClear();
     routerMocks.refresh.mockClear();
     container = document.createElement("div");
@@ -168,6 +180,29 @@ describe("PortfolioManager media removal", () => {
     expect(actionMocks.removePortfolioCategoryLogo).toHaveBeenCalledWith(categories[0].id);
     expect(container.textContent).toContain("Logo removed from the portfolio banner.");
     expect(container.textContent).toContain("Campaigns");
+  });
+
+  it("shows standalone logos separately and requires confirmation before removing one", async () => {
+    await act(async () => {
+      root.render(<PortfolioManager categories={categories} miscLogos={miscLogos} workspaceId="11111111-1111-4111-8111-111111111111" />);
+    });
+
+    expect(container.textContent).toContain("Standalone logos");
+    expect(container.textContent).toContain("Venue partner");
+    const removeButton = container.querySelector<HTMLButtonElement>(".portfolio-misc-logo-row .portfolio-remove-button")!;
+    await act(async () => removeButton.click());
+
+    expect(actionMocks.deletePortfolioMiscLogo).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Delete permanently?");
+    const deleteButton = Array.from(container.querySelectorAll<HTMLButtonElement>(".portfolio-misc-logo-row button"))
+      .find((button) => button.textContent === "Delete")!;
+    await act(async () => {
+      deleteButton.click();
+      await Promise.resolve();
+    });
+
+    expect(actionMocks.deletePortfolioMiscLogo).toHaveBeenCalledWith(miscLogos[0].id);
+    expect(container.textContent).toContain("“Venue partner” removed from the portfolio banner.");
   });
 
   it("keeps a newly created category selected instead of falling back to the first category", async () => {
