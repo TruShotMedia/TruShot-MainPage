@@ -711,8 +711,10 @@ function enquiryIdFrom(formData: FormData) {
 }
 
 function revalidateEnquiryViews() {
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin/requests");
   revalidatePath("/admin/overview");
+  revalidatePath("/tablet");
 }
 
 export async function markEnquiryReviewing(formData: FormData) {

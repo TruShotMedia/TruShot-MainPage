@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarJob, CalendarTask, ClientEnquiry, PipelineTask, PortfolioCategory, PortfolioItem, TaskStatus } from "@/lib/types";
@@ -28,7 +29,12 @@ export async function getOverviewData() {
     supabase.from("website-clients").select("id", { count: "exact", head: true }).is("archived_at", null),
     supabase.from("website-jobs").select("id", { count: "exact", head: true }).is("archived_at", null),
     supabase.from("website-job-tasks").select("id", { count: "exact", head: true }).is("archived_at", null),
-    supabase.from("website-enquiries").select("id", { count: "exact", head: true }).in("status", ["new", "reviewing"]),
+    supabase
+      .from("website-enquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .in("status", [...ACTIVE_CLIENT_REQUEST_STATUSES])
+      .is("archived_at", null),
     supabase.from("website-invoices").select("id,total_cents,status,due_date"),
     supabase.from("website-finance-overview").select("*").maybeSingle(),
     supabase.from("website-job-metrics").select("id,title,job_number,hours,created_assets,open_tasks,value_cents,due_date").gt("open_tasks", 0).order("due_date", { ascending: true, nullsFirst: false }).limit(6),
@@ -191,7 +197,7 @@ export async function getTabletKioskData(): Promise<{
       .from("website-enquiries")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-      .in("status", ["new", "reviewing"])
+      .in("status", [...ACTIVE_CLIENT_REQUEST_STATUSES])
       .is("archived_at", null),
   ]);
 

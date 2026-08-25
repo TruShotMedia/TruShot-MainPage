@@ -9,14 +9,14 @@ export function AdminShell({
   children,
   displayName,
   role,
-  unread,
+  pendingRequestCount,
   notionSyncEnabled,
   notionSyncIntervalMinutes,
 }: {
   children: React.ReactNode;
   displayName: string;
   role: string;
-  unread: number;
+  pendingRequestCount: number;
   notionSyncEnabled: boolean;
   notionSyncIntervalMinutes: number;
 }) {
@@ -43,8 +43,8 @@ export function AdminShell({
           </details>
           <div className="admin-search"><Search size={17} /><span>Search workspace</span><kbd>⌘ K</kbd></div>
           <div className="topbar-actions">
-            <Link href="/admin/requests" className="notification-button" aria-label={`${unread} unread notifications`}>
-              <Bell size={18} />{unread > 0 && <span>{unread}</span>}
+            <Link href="/admin/requests" className="notification-button" aria-label={`${pendingRequestCount} client ${pendingRequestCount === 1 ? "request" : "requests"} awaiting review`}>
+              <Bell size={18} />{pendingRequestCount > 0 ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
             </Link>
             <Link href="/admin/settings" aria-label="Settings"><Settings size={18} /></Link>
           </div>
