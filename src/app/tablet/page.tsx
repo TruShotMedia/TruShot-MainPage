@@ -4,6 +4,7 @@ import { TabletPipelineKiosk } from "@/components/tablet/tablet-pipeline-kiosk";
 import { TABLET_REFRESH_INTERVAL_MINUTES } from "@/lib/config";
 import { getAdminContext, getTabletKioskData } from "@/lib/data/admin";
 import { todayDateInput } from "@/lib/format";
+import { getNotionConfigurationSummary } from "@/lib/notion/config";
 
 export const metadata: Metadata = {
   title: "Tablet Pipeline",
@@ -16,6 +17,7 @@ export default async function TabletPage() {
   if (!context) redirect("/admin/login?next=%2Ftablet");
 
   const data = await getTabletKioskData();
+  const notion = getNotionConfigurationSummary();
   const pipelineVersion = data.pipelineTasks
     .map((task) => `${task.id}:${task.status_id}:${task.updated_at}`)
     .join("|");
@@ -28,6 +30,8 @@ export default async function TabletPage() {
       initialTasks={data.pipelineTasks}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
+      notionSyncEnabled={notion.configured}
+      notionSyncIntervalMinutes={notion.syncIntervalMinutes}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}
       today={todayDateInput()}
     />

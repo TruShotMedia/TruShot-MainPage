@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => routerMocks }));
 vi.mock("next/image", () => ({ default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} /> }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
 vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: () => <div data-testid="pipeline-view">Pipeline board</div> }));
+vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => null }));
 vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: () => <div data-testid="calendar-view">Calendar board</div> }));
 
 describe("TabletPipelineKiosk", () => {
@@ -44,6 +45,8 @@ describe("TabletPipelineKiosk", () => {
         initialTasks={[]}
         pendingRequestCount={3}
         pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
         refreshIntervalMinutes={15}
         today="2026-08-25"
       />,
@@ -70,6 +73,8 @@ describe("TabletPipelineKiosk", () => {
         initialTasks={[]}
         pendingRequestCount={0}
         pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
         refreshIntervalMinutes={15}
         today="2026-08-25"
       />,

@@ -1,15 +1,20 @@
 import { Save } from "lucide-react";
 import { updateSettings } from "@/app/admin/actions";
+import { NotionSyncPanel } from "@/components/admin/notion-sync-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext } from "@/lib/data/admin";
+import { getNotionConfigurationSummary } from "@/lib/notion/config";
+import type { NotionSyncResult } from "@/lib/notion/types";
 
 export default async function SettingsPage() {
   const context = await getAdminContext();
   if (!context) return null;
-  const [{ data: settings }, { data: tax }] = await Promise.all([
+  const notionConfiguration = getNotionConfigurationSummary();
+  const [{ data: settings }, { data: tax }, { data: notionSync }] = await Promise.all([
     context.supabase.from("website-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
     context.supabase.from("website-tax-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
+    context.supabase.from("website-notion-sync-state").select("status,last_successful_at,last_error,last_result").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
   ]);
   return (
     <>
@@ -19,6 +24,14 @@ export default async function SettingsPage() {
         <section className="admin-card settings-section"><div><p className="card-label">Search</p><h2>SEO presentation</h2><p>Default title and description shown to search engines and social previews.</p></div><div className="settings-fields"><label className="form-span">SEO title<input name="seo_title" defaultValue={settings?.seo_title} minLength={20} maxLength={70} required /></label><label className="form-span">SEO description<textarea name="seo_description" defaultValue={settings?.seo_description} minLength={50} maxLength={170} rows={4} required /></label></div></section>
         <div className="settings-save"><button className="admin-primary-button" type="submit"><Save size={16} /> Save settings</button></div>
       </form>
+      <NotionSyncPanel
+        configured={notionConfiguration.configured}
+        intervalMinutes={notionConfiguration.syncIntervalMinutes}
+        lastError={notionSync?.last_error ?? null}
+        lastResult={(notionSync?.last_result as NotionSyncResult | null) ?? null}
+        lastSuccessfulAt={notionSync?.last_successful_at ?? null}
+        status={notionSync?.status ?? "idle"}
+      />
     </>
   );
 }

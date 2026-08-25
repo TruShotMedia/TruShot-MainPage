@@ -3,20 +3,26 @@ import Link from "next/link";
 import { Bell, LogOut, Menu, Search, Settings } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
+import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 
 export function AdminShell({
   children,
   displayName,
   role,
   unread,
+  notionSyncEnabled,
+  notionSyncIntervalMinutes,
 }: {
   children: React.ReactNode;
   displayName: string;
   role: string;
   unread: number;
+  notionSyncEnabled: boolean;
+  notionSyncIntervalMinutes: number;
 }) {
   return (
     <div className="admin-shell">
+      <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
       <aside className="admin-sidebar">
         <Link className="admin-logo" href="/admin/overview">
           <Image src="/brand/logo-white.png" alt="TruShot Media" width={230} height={84} priority />

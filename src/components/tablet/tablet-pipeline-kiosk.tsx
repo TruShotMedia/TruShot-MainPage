@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, CalendarDays, LayoutDashboard, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
+import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import type { CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
 
@@ -35,6 +36,8 @@ export function TabletPipelineKiosk({
   initialTasks,
   pendingRequestCount,
   pipelineVersion,
+  notionSyncEnabled,
+  notionSyncIntervalMinutes,
   refreshIntervalMinutes,
   today,
 }: {
@@ -45,6 +48,8 @@ export function TabletPipelineKiosk({
   initialTasks: PipelineTask[];
   pendingRequestCount: number;
   pipelineVersion: string;
+  notionSyncEnabled: boolean;
+  notionSyncIntervalMinutes: number;
   refreshIntervalMinutes: number;
   today: string;
 }) {
@@ -81,6 +86,7 @@ export function TabletPipelineKiosk({
 
   return (
     <main className="tablet-kiosk">
+      <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
       <header className="tablet-kiosk-header">
         <div className="tablet-kiosk-identity">
           <Image src="/brand/logo-green.png" alt="TruShot Media" width={230} height={84} priority />

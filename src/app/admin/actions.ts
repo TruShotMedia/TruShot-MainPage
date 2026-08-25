@@ -6,6 +6,7 @@ import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { runNotionSync } from "@/lib/notion/sync";
 import { getPortfolioDisplaySize } from "@/lib/portfolio";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
@@ -922,6 +923,15 @@ export async function updateSettings(formData: FormData) {
   if (settingsError || taxError) throw new Error(settingsError?.message ?? taxError?.message);
   revalidatePath("/admin/settings");
   revalidatePath("/");
+}
+
+export async function syncNotionImport(force = false) {
+  const result = await runNotionSync({ force });
+  if (result.status === "completed") {
+    revalidatePath("/admin", "layout");
+    revalidatePath("/tablet");
+  }
+  return result;
 }
 
 export async function updateWebsiteVisibility(formData: FormData) {
