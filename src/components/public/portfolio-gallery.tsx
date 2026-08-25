@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Expand, Maximize2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, Maximize2, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
 import { PortfolioVideo } from "@/components/public/portfolio-video";
 import { getPortfolioDisplaySizeFromDimensions } from "@/lib/portfolio";
 import type { PortfolioItem } from "@/lib/types";
@@ -11,6 +11,16 @@ import type { PortfolioItem } from "@/lib/types";
 type FullscreenVideo = HTMLVideoElement & {
   webkitEnterFullscreen?: () => void;
 };
+
+function PortfolioOrientationIcon({ displaySize }: { displaySize: PortfolioItem["display_size"] }) {
+  const label = displaySize === "wide" ? "Landscape" : displaySize === "tall" ? "Portrait" : "Square";
+  const Icon = displaySize === "wide" ? RectangleHorizontal : displaySize === "tall" ? RectangleVertical : Square;
+  return (
+    <span className={`portfolio-orientation portfolio-orientation-${displaySize}`} aria-label={`${label} orientation`} title={`${label} orientation`}>
+      <Icon size={15} aria-hidden="true" />
+    </span>
+  );
+}
 
 export function PortfolioGallery({
   items,
@@ -22,20 +32,19 @@ export function PortfolioGallery({
   priorityFirst?: boolean;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [detectedLayouts, setDetectedLayouts] = useState<Record<string, { displaySize: PortfolioItem["display_size"]; ratio: number }>>({});
+  const [detectedLayouts, setDetectedLayouts] = useState<Record<string, PortfolioItem["display_size"]>>({});
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const mediaFrameRef = useRef<HTMLDivElement>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedItem = selectedIndex === null ? null : items[selectedIndex];
+  const selectedDisplaySize = selectedItem ? detectedLayouts[selectedItem.id] ?? selectedItem.display_size : "standard";
 
   const recordDimensions = useCallback((itemId: string, width: number, height: number) => {
     if (!width || !height) return;
-    const ratio = width / height;
     const displaySize = getPortfolioDisplaySizeFromDimensions(width, height);
     setDetectedLayouts((current) => {
-      const existing = current[itemId];
-      if (existing?.displaySize === displaySize && Math.abs(existing.ratio - ratio) < 0.001) return current;
-      return { ...current, [itemId]: { displaySize, ratio } };
+      if (current[itemId] === displaySize) return current;
+      return { ...current, [itemId]: displaySize };
     });
   }, []);
 
@@ -99,7 +108,7 @@ export function PortfolioGallery({
     >
       <div className="portfolio-lightbox-toolbar">
         <div>
-          <span>{selectedItem.media_kind === "video" ? "Motion" : "Still"}</span>
+          <PortfolioOrientationIcon displaySize={selectedDisplaySize} />
           <small>{String((selectedIndex ?? 0) + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}</small>
         </div>
         <div>
@@ -153,14 +162,13 @@ export function PortfolioGallery({
     <>
       <div className="portfolio-gallery">
         {items.map((item, index) => {
-          const detectedLayout = detectedLayouts[item.id];
-          const displaySize = detectedLayout?.displaySize ?? item.display_size;
+          const displaySize = detectedLayouts[item.id] ?? item.display_size;
           return (
           <article
             className={`portfolio-tile portfolio-tile-${displaySize}`}
             key={item.id}
           >
-            <div className="portfolio-media" style={detectedLayout ? { aspectRatio: detectedLayout.ratio } : undefined}>
+            <div className="portfolio-media">
               {item.media_kind === "video" ? (
                 <PortfolioVideo
                   src={item.public_url}
@@ -176,12 +184,12 @@ export function PortfolioGallery({
                   fill
                   priority={priorityFirst && index === 0}
                   draggable={false}
-                  sizes="(max-width: 1050px) 50vw, 25vw"
+                  sizes="(max-width: 720px) 50vw, (max-width: 1050px) 33vw, 25vw"
                   onLoad={(event) => recordDimensions(item.id, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
                 />
               )}
               <div className="portfolio-media-shade" />
-              <span className="portfolio-kind">{item.media_kind === "video" ? "Motion" : "Still"}</span>
+              <PortfolioOrientationIcon displaySize={displaySize} />
               <button
                 className="portfolio-expand-button"
                 type="button"

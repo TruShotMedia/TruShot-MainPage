@@ -1,5 +1,12 @@
 # TruShot CRM changelog
 
+## 2026-08-25 — Square row-first portfolio grid
+
+- Replaced the public masonry columns with a true CSS Grid that fills each row from left to right in portfolio order.
+- Standardised every public thumbnail to a square, Instagram-style crop while preserving the original portrait or landscape ratio in the full-screen viewer.
+- Replaced the Motion/Still badges with compact, accessible landscape, portrait or square orientation icons.
+- Kept the established four-column desktop layout, with three columns on tablets and two on phones.
+
 ## 2026-08-25 — Portfolio logo banner
 
 - Added an optional PNG, JPG or WebP logo to every portfolio category, with upload, replacement and removal controls in the Portfolio admin page.

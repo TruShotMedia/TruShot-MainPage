@@ -85,6 +85,8 @@ describe("PortfolioGallery full-screen viewer", () => {
     const lightboxVideo = document.querySelector<HTMLVideoElement>('.portfolio-lightbox-media video')!;
     expect(lightboxVideo.getAttribute("src")).toBe("https://example.com/film.mp4");
     expect(lightboxVideo.getAttribute("poster")).toBe("https://example.com/film-poster.jpg");
+    expect(document.querySelector('.portfolio-lightbox [aria-label="Square orientation"]')).toBeTruthy();
+    expect(document.querySelector('.portfolio-lightbox')?.textContent).not.toContain("Motion");
 
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
@@ -102,7 +104,7 @@ describe("PortfolioGallery full-screen viewer", () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
   });
 
-  it("adapts the collage tile to the image's measured orientation without featuring the first item", async () => {
+  it("keeps the grid tile square while updating its orientation icon from measured media", async () => {
     await act(async () => {
       root.render(<PortfolioGallery items={[items[0]]} />);
     });
@@ -117,6 +119,8 @@ describe("PortfolioGallery full-screen viewer", () => {
     const tile = container.querySelector<HTMLElement>(".portfolio-tile")!;
     expect(tile.classList.contains("portfolio-tile-wide")).toBe(true);
     expect(tile.classList.contains("portfolio-tile-featured")).toBe(false);
-    expect(container.querySelector<HTMLElement>(".portfolio-media")!.style.aspectRatio).toBe(`${1920 / 1080} / 1`);
+    expect(container.querySelector<HTMLElement>(".portfolio-media")!.style.aspectRatio).toBe("");
+    expect(container.querySelector('[aria-label="Landscape orientation"]')).toBeTruthy();
+    expect(container.textContent).not.toContain("Motion");
   });
 });

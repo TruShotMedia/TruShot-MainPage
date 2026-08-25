@@ -234,12 +234,9 @@ img { max-width: 100%; }
 .portfolio-category-heading > div:last-child { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .portfolio-category-heading p { max-width: 560px; margin: 0; color: #656a64; font-size: clamp(15px, 1.4vw, 20px); line-height: 1.5; }
 .portfolio-category-heading small { flex: 0 0 auto; color: #7d827b; font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
-.portfolio-gallery { --portfolio-collage-gap: clamp(9px, 1.15vw, 18px); columns: 4; column-gap: var(--portfolio-collage-gap); }
-.portfolio-tile { display: inline-block; width: 100%; margin: 0 0 var(--portfolio-collage-gap); overflow: hidden; break-inside: avoid; vertical-align: top; content-visibility: auto; contain-intrinsic-size: 0 600px; }
-.portfolio-media { position: relative; width: 100%; min-height: 0; overflow: hidden; background: #183a29; }
-.portfolio-tile-standard .portfolio-media { aspect-ratio: 1 / 1; }
-.portfolio-tile-wide .portfolio-media { aspect-ratio: 16 / 10; }
-.portfolio-tile-tall .portfolio-media { aspect-ratio: 3 / 5; }
+.portfolio-gallery { --portfolio-grid-gap: clamp(9px, 1.15vw, 18px); display: grid; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--portfolio-grid-gap); }
+.portfolio-tile { display: block; min-width: 0; overflow: hidden; content-visibility: auto; contain-intrinsic-size: 0 360px; }
+.portfolio-media { position: relative; width: 100%; min-height: 0; overflow: hidden; aspect-ratio: 1 / 1; background: #183a29; }
 .portfolio-media > img, .portfolio-media > video { position: absolute; width: 100%; height: 100%; inset: 0; object-fit: cover; transition: transform 900ms cubic-bezier(.2,.7,.2,1), filter 600ms ease; }
 .portfolio-media > video { background: #111814; }
 .portfolio-video-placeholder { position: absolute; z-index: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; inset: 0; background: radial-gradient(circle at 50% 42%, #2f5e48 0, #193b2a 38%, #101b14 100%); color: rgba(255,255,255,.72); }
@@ -251,7 +248,7 @@ img { max-width: 100%; }
 .portfolio-media > .portfolio-video-element.has-poster, .portfolio-media > .portfolio-video-element.is-ready { opacity: 1; }
 .portfolio-media-shade { position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, rgba(7,13,9,.02) 45%, rgba(7,13,9,.72)); pointer-events: none; }
 .portfolio-tile:hover .portfolio-media > img, .portfolio-tile:hover .portfolio-media > video { filter: saturate(1.05); transform: scale(1.025); }
-.portfolio-kind { position: absolute; top: 18px; right: 18px; z-index: 2; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(8,16,11,.28); padding: 7px 10px; color: white; backdrop-filter: blur(10px); font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.portfolio-orientation { position: absolute; top: 18px; right: 18px; z-index: 2; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(255,255,255,.32); border-radius: 50%; background: rgba(8,16,11,.34); color: white; backdrop-filter: blur(10px); }
 .portfolio-expand-button { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: inline-flex; min-height: 36px; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(8,16,11,.36); padding: 0 13px; color: white; backdrop-filter: blur(10px); cursor: pointer; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; transition: background 180ms ease, color 180ms ease, transform 180ms ease; }
 .portfolio-expand-button:hover { background: white; color: var(--green); transform: translateY(-1px); }
 .portfolio-expand-button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
@@ -278,7 +275,8 @@ img { max-width: 100%; }
 .portfolio-lightbox { position: fixed; z-index: 1000; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; inset: 0; min-width: 0; min-height: 100svh; background: rgba(5,8,6,.97); color: white; padding: clamp(16px, 2.4vw, 34px); }
 .portfolio-lightbox-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: clamp(14px, 2vw, 24px); }
 .portfolio-lightbox-toolbar > div { display: flex; align-items: center; gap: 10px; }
-.portfolio-lightbox-toolbar > div:first-child span, .portfolio-lightbox-toolbar small { font-family: ui-monospace, monospace; font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.portfolio-lightbox-toolbar small { font-family: ui-monospace, monospace; font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.portfolio-lightbox-toolbar .portfolio-orientation { position: static; width: 34px; height: 34px; background: rgba(255,255,255,.07); }
 .portfolio-lightbox-toolbar small { color: #859189; }
 .portfolio-lightbox-toolbar button, .portfolio-lightbox-navigation button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.06); padding: 0 15px; color: white; cursor: pointer; font-size: 10px; font-weight: 800; }
 .portfolio-lightbox-toolbar button:last-child { width: 42px; padding: 0; }
@@ -307,7 +305,7 @@ img { max-width: 100%; }
   .process-grid { grid-template-columns: 1fr 1fr; }
   .process-grid article:nth-child(2) { border-right: 0; }
   .process-grid article:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.18); }
-  .portfolio-gallery { columns: 2; }
+  .portfolio-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -363,8 +361,8 @@ img { max-width: 100%; }
   .portfolio-category-heading { grid-template-columns: 1fr; gap: 30px; margin: 0 8px 35px; }
   .portfolio-category-heading h2 { font-size: clamp(45px, 14vw, 72px); }
   .portfolio-category-heading > div:last-child { align-items: flex-start; flex-direction: column; }
-  .portfolio-gallery { --portfolio-collage-gap: 9px; columns: 2; }
-  .portfolio-kind { top: 10px; right: 10px; }
+  .portfolio-gallery { --portfolio-grid-gap: 9px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portfolio-orientation { top: 10px; right: 10px; width: 30px; height: 30px; }
   .portfolio-expand-button { right: 10px; bottom: 10px; min-height: 34px; padding: 0 11px; }
   .portfolio-expand-button span { display: none; }
   .portfolio-lightbox { padding: 12px; }
