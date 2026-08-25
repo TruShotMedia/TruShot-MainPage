@@ -7,7 +7,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useDroppable,
 import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, ImagePlus, Images, LoaderCircle, Pencil, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
+import { createPortfolioCategory, createPortfolioItems, deletePortfolioCategory, deletePortfolioItem, movePortfolioItemToCategory, removePortfolioCategoryLogo, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioCategoryLogo, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { getImageDimensions } from "@/lib/media-dimensions";
@@ -19,6 +19,8 @@ import { createVideoPoster, createVideoPosterWithDimensions } from "@/lib/video-
 import { validateWebsiteMediaFile, WEBSITE_MEDIA_ACCEPT } from "@/lib/website-media";
 
 const MAX_BATCH_FILES = 20;
+const MAX_CATEGORY_LOGO_SIZE = 10 * 1024 * 1024;
+const CATEGORY_LOGO_ACCEPT = "image/png,image/jpeg,image/webp";
 const CATEGORY_DRAG_PREFIX = "portfolio-category:";
 const CATEGORY_DROP_PREFIX = "portfolio-category-drop:";
 
@@ -50,6 +52,21 @@ type DeleteRequest = {
   id: string;
   kind: "category" | "item";
 };
+
+type LogoFeedback = {
+  categoryId: string;
+  status: "saving" | "saved" | "error";
+  message: string;
+};
+
+function getCategoryLogoExtension(file: File) {
+  if (file.size === 0) throw new Error("That logo file is empty.");
+  if (file.size > MAX_CATEGORY_LOGO_SIZE) throw new Error("Category logos can be up to 10 MB.");
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/jpeg") return "jpg";
+  if (file.type === "image/webp") return "webp";
+  throw new Error("Choose a PNG, JPG or WebP logo.");
+}
 
 type RemoveControlsProps = {
   confirming: boolean;
@@ -190,6 +207,63 @@ function PortfolioCategoryDropTarget({ category, children }: { category: Portfol
   );
 }
 
+function CategoryLogoControl({
+  category,
+  disabled,
+  feedback,
+  onRemove,
+  onUpload,
+}: {
+  category: PortfolioCategory;
+  disabled: boolean;
+  feedback: LogoFeedback | null;
+  onRemove: () => void;
+  onUpload: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="portfolio-category-logo-control">
+      <div className={`portfolio-category-logo-preview ${category.logo_url ? "has-logo" : ""}`}>
+        {category.logo_url ? (
+          <Image src={category.logo_url} alt={`${category.name} logo`} fill sizes="96px" />
+        ) : (
+          <ImageIcon size={20} aria-hidden="true" />
+        )}
+      </div>
+      <div className="portfolio-category-logo-copy">
+        <strong>Category logo</strong>
+        <small>Optional · appears in the scrolling logo banner beneath Selected work</small>
+        {feedback ? <p className={feedback.status} role="status" aria-live="polite">{feedback.status === "saving" ? <LoaderCircle className="spin" size={12} /> : feedback.status === "saved" ? <Check size={12} /> : null}{feedback.message}</p> : null}
+      </div>
+      <div className="portfolio-category-logo-actions">
+        <input
+          ref={inputRef}
+          className="sr-only"
+          type="file"
+          accept={CATEGORY_LOGO_ACCEPT}
+          aria-label={`Choose a logo for ${category.name}`}
+          disabled={disabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) onUpload(file);
+          }}
+        />
+        <button type="button" className="portfolio-category-logo-button" onClick={() => inputRef.current?.click()} disabled={disabled}>
+          {disabled ? <LoaderCircle className="spin" size={14} /> : <ImagePlus size={14} />}
+          {category.logo_url ? "Replace logo" : "Add logo"}
+        </button>
+        {category.logo_url ? (
+          <button type="button" className="portfolio-category-logo-remove" onClick={onRemove} disabled={disabled} aria-label={`Remove ${category.name} logo`}>
+            <Trash2 size={14} /> Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SortableCategoryOrderRow({
   category,
   index,
@@ -234,9 +308,13 @@ function PortfolioAdminCategory({
   children,
   confirmingDelete,
   isDeleting,
+  isSavingLogo,
   itemOrderFeedback,
+  logoFeedback,
   onCancelDelete,
   onConfirmDelete,
+  onLogoRemove,
+  onLogoUpload,
   onRequestDelete,
 }: {
   category: PortfolioCategory;
@@ -244,9 +322,13 @@ function PortfolioAdminCategory({
   children: ReactNode;
   confirmingDelete: boolean;
   isDeleting: boolean;
+  isSavingLogo: boolean;
   itemOrderFeedback: { status: "saving" | "saved" | "error"; message: string } | null;
+  logoFeedback: LogoFeedback | null;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  onLogoRemove: () => void;
+  onLogoUpload: (file: File) => void;
   onRequestDelete: () => void;
 }) {
   return (
@@ -293,6 +375,13 @@ function PortfolioAdminCategory({
           </div>
         </div>
       </header>
+      <CategoryLogoControl
+        category={category}
+        disabled={isSavingLogo || isDeleting}
+        feedback={logoFeedback}
+        onRemove={onLogoRemove}
+        onUpload={onLogoUpload}
+      />
       {children}
     </section>
   );
@@ -319,6 +408,8 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
   const [categorySaving, setCategorySaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [buildingPosterId, setBuildingPosterId] = useState<string | null>(null);
+  const [savingLogoCategoryId, setSavingLogoCategoryId] = useState<string | null>(null);
+  const [logoFeedback, setLogoFeedback] = useState<LogoFeedback | null>(null);
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
   const [portfolioCategories, setPortfolioCategories] = useState(categories);
   const [serverCategories, setServerCategories] = useState(categories);
@@ -515,6 +606,67 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
       setMessage(error instanceof Error ? error.message : "The video thumbnail could not be created.");
     } finally {
       setBuildingPosterId(null);
+    }
+  }
+
+  async function handleCategoryLogoUpload(category: PortfolioCategory, file: File) {
+    const supabase = createClient();
+    let logoPath = "";
+    setSavingLogoCategoryId(category.id);
+    setLogoFeedback({ categoryId: category.id, status: "saving", message: "Uploading logo…" });
+    try {
+      const extension = getCategoryLogoExtension(file);
+      logoPath = `${workspaceId}/portfolio/logos/${crypto.randomUUID()}.${extension}`;
+      const uploadedLogo = await uploadWebsiteMediaResumable({
+        file,
+        storagePath: logoPath,
+        cacheControl: "31536000",
+        onProgress: ({ percentage }) => setLogoFeedback({
+          categoryId: category.id,
+          status: "saving",
+          message: `Uploading logo · ${percentage}%`,
+        }),
+      });
+      const saved = await savePortfolioCategoryLogo({
+        categoryId: category.id,
+        logoUrl: uploadedLogo.publicUrl,
+        logoPath,
+      });
+      setPortfolioCategories((current) => current.map((candidate) => candidate.id === category.id
+        ? { ...candidate, logo_url: saved.logo_url, logo_path: saved.logo_path }
+        : candidate));
+      setLogoFeedback({ categoryId: category.id, status: "saved", message: "Logo published to the portfolio banner." });
+      router.refresh();
+    } catch (error) {
+      if (logoPath) await supabase.storage.from("website-media").remove([logoPath]);
+      setLogoFeedback({
+        categoryId: category.id,
+        status: "error",
+        message: error instanceof Error ? error.message : "The category logo could not be uploaded.",
+      });
+    } finally {
+      setSavingLogoCategoryId(null);
+    }
+  }
+
+  async function handleCategoryLogoRemove(category: PortfolioCategory) {
+    setSavingLogoCategoryId(category.id);
+    setLogoFeedback({ categoryId: category.id, status: "saving", message: "Removing logo…" });
+    try {
+      await removePortfolioCategoryLogo(category.id);
+      setPortfolioCategories((current) => current.map((candidate) => candidate.id === category.id
+        ? { ...candidate, logo_url: null, logo_path: null }
+        : candidate));
+      setLogoFeedback({ categoryId: category.id, status: "saved", message: "Logo removed from the portfolio banner." });
+      router.refresh();
+    } catch (error) {
+      setLogoFeedback({
+        categoryId: category.id,
+        status: "error",
+        message: error instanceof Error ? error.message : "The category logo could not be removed.",
+      });
+    } finally {
+      setSavingLogoCategoryId(null);
     }
   }
 
@@ -787,9 +939,13 @@ export function PortfolioManager({ categories, workspaceId }: { categories: Port
                     categoryIndex={categoryIndex}
                     confirmingDelete={deleteRequest?.kind === "category" && deleteRequest.id === category.id}
                     isDeleting={deletingId === category.id}
+                    isSavingLogo={savingLogoCategoryId === category.id}
                     itemOrderFeedback={orderFeedback?.categoryId === category.id ? orderFeedback : null}
+                    logoFeedback={logoFeedback?.categoryId === category.id ? logoFeedback : null}
                     onCancelDelete={() => setDeleteRequest(null)}
                     onConfirmDelete={() => handleDeleteCategory(category)}
+                    onLogoRemove={() => void handleCategoryLogoRemove(category)}
+                    onLogoUpload={(file) => void handleCategoryLogoUpload(category, file)}
                     onRequestDelete={() => setDeleteRequest({ id: category.id, kind: "category" })}
                   >
                     <SortableContext items={category.items.map((item) => item.id)} strategy={rectSortingStrategy}>

@@ -63,6 +63,8 @@ export type PortfolioCategory = {
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  logo_path: string | null;
   position: number;
   is_published: boolean;
   items: PortfolioItem[];

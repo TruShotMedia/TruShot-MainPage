@@ -14,6 +14,8 @@ const actionMocks = vi.hoisted(() => ({
       name: "New collection",
       slug: "new-collection",
       description: null,
+      logo_url: null,
+      logo_path: null,
       position: 30,
       is_published: true,
     },
@@ -22,8 +24,10 @@ const actionMocks = vi.hoisted(() => ({
   deletePortfolioCategory: vi.fn(async () => ({ ok: true })),
   deletePortfolioItem: vi.fn(async () => ({ ok: true })),
   movePortfolioItemToCategory: vi.fn(async () => ({ ok: true, updated: 1 })),
+  removePortfolioCategoryLogo: vi.fn(async () => ({ ok: true })),
   reorderPortfolioCategories: vi.fn(async () => ({ ok: true, updated: 1 })),
   reorderPortfolioItems: vi.fn(async () => ({ ok: true, updated: 1 })),
+  savePortfolioCategoryLogo: vi.fn(async () => ({ ok: true, logo_url: "https://example.com/category-logo.png", logo_path: "11111111-1111-4111-8111-111111111111/portfolio/logos/33333333-3333-4333-8333-333333333333.png" })),
   savePortfolioVideoPoster: vi.fn(async () => ({ ok: true })),
   updatePortfolioCategory: vi.fn(async () => ({ ok: true })),
 }));
@@ -41,6 +45,8 @@ const categories: PortfolioCategory[] = [{
   name: "Campaigns",
   slug: "campaigns",
   description: null,
+  logo_url: "https://example.com/campaign-logo.png",
+  logo_path: "11111111-1111-4111-8111-111111111111/portfolio/logos/22222222-2222-4222-8222-222222222222.png",
   position: 10,
   is_published: true,
   items: [{
@@ -62,6 +68,8 @@ const sortableCategories: PortfolioCategory[] = [
     name: "Brand stories",
     slug: "brand-stories",
     description: "Long-form brand work",
+    logo_url: null,
+    logo_path: null,
     position: 20,
     is_published: true,
     items: [],
@@ -75,6 +83,7 @@ describe("PortfolioManager media removal", () => {
   beforeEach(() => {
     actionMocks.createPortfolioCategory.mockClear();
     actionMocks.deletePortfolioItem.mockClear();
+    actionMocks.removePortfolioCategoryLogo.mockClear();
     routerMocks.refresh.mockClear();
     container = document.createElement("div");
     document.body.append(container);
@@ -147,6 +156,20 @@ describe("PortfolioManager media removal", () => {
     expect(container.textContent).toContain("Drag a row to set the category order shown on your portfolio.");
   });
 
+  it("removes a category logo and keeps the category intact", async () => {
+    await renderManager();
+    const removeLogoButton = container.querySelector<HTMLButtonElement>('[aria-label="Remove Campaigns logo"]')!;
+
+    await act(async () => {
+      removeLogoButton.click();
+      await Promise.resolve();
+    });
+
+    expect(actionMocks.removePortfolioCategoryLogo).toHaveBeenCalledWith(categories[0].id);
+    expect(container.textContent).toContain("Logo removed from the portfolio banner.");
+    expect(container.textContent).toContain("Campaigns");
+  });
+
   it("keeps a newly created category selected instead of falling back to the first category", async () => {
     await renderManager();
     const form = container.querySelector<HTMLFormElement>(".portfolio-category-form")!;
@@ -170,6 +193,8 @@ describe("PortfolioManager media removal", () => {
         name: "New collection",
         slug: "new-collection",
         description: null,
+        logo_url: null,
+        logo_path: null,
         position: 30,
         is_published: true,
         items: [],

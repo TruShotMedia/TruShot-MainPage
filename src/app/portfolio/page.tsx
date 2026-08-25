@@ -5,6 +5,34 @@ import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react";
 import { PortfolioGallery } from "@/components/public/portfolio-gallery";
 import { PortfolioProtection } from "@/components/public/portfolio-protection";
 import { getPublishedPortfolioCategories } from "@/lib/data/public";
+import type { PortfolioCategory } from "@/lib/types";
+
+const MINIMUM_LOGO_TILES = 12;
+
+function PortfolioLogoMarquee({ categories }: { categories: PortfolioCategory[] }) {
+  const logoCategories = categories.filter((category) => category.logo_url);
+  if (logoCategories.length === 0) return null;
+
+  const repetitions = Math.ceil(MINIMUM_LOGO_TILES / logoCategories.length);
+  const logoTiles = Array.from({ length: repetitions }, () => logoCategories).flat();
+
+  return (
+    <section className="portfolio-logo-marquee" aria-label="Featured portfolio collaborators">
+      <span className="sr-only">Featured collaborators: {logoCategories.map((category) => category.name).join(", ")}</span>
+      <div className="portfolio-logo-marquee-track" aria-hidden="true">
+        {[0, 1].map((group) => (
+          <div className="portfolio-logo-marquee-group" key={group}>
+            {logoTiles.map((category, index) => (
+              <span className="portfolio-logo-marquee-tile" key={`${group}-${category.id}-${index}`}>
+                <Image src={category.logo_url!} alt="" fill sizes="(max-width: 700px) 130px, 210px" />
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export const metadata: Metadata = {
   title: "Selected Work",
@@ -50,6 +78,8 @@ export default async function PortfolioPage() {
           <p className="section-label">Selected work</p>
           <p>Motion leads. Stills hold the detail. Together, each frame is part of a bigger growth story.</p>
         </div>
+
+        <PortfolioLogoMarquee categories={categories} />
 
         {categories.length > 0 ? (
           <>

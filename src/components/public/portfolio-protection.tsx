@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
-const protectedMediaSelector = ".portfolio-gallery img, .portfolio-gallery video, .portfolio-lightbox img, .portfolio-lightbox video, .portfolio-media, .portfolio-lightbox-media";
+const protectedMediaSelector = ".portfolio-gallery img, .portfolio-gallery video, .portfolio-lightbox img, .portfolio-lightbox video, .portfolio-logo-marquee img, .portfolio-media, .portfolio-lightbox-media";
 
 function isProtectedMediaTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(protectedMediaSelector));

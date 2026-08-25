@@ -47,6 +47,8 @@ describe("movePortfolioItemBetweenCategories", () => {
       name: "Campaigns",
       slug: "campaigns",
       description: null,
+      logo_url: null,
+      logo_path: null,
       position: 10,
       is_published: true,
       items: [
@@ -59,6 +61,8 @@ describe("movePortfolioItemBetweenCategories", () => {
       name: "Brand stories",
       slug: "brand-stories",
       description: null,
+      logo_url: null,
+      logo_path: null,
       position: 20,
       is_published: true,
       items: [

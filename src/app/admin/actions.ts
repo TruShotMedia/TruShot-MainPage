@@ -1206,10 +1206,39 @@ function validatePortfolioUpload(input: z.infer<typeof portfolioUploadSchema>) {
   };
 }
 
+const portfolioCategoryLogoSchema = z.object({
+  categoryId: z.string().uuid(),
+  logoUrl: z.string().trim().url().max(2_000),
+  logoPath: z.string().trim().max(500),
+});
+
+function validatePortfolioCategoryLogo(input: z.infer<typeof portfolioCategoryLogoSchema>) {
+  const expectedPathPattern = new RegExp(
+    `^${TRUSHOT_WORKSPACE_ID}/portfolio/logos/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(jpe?g|png|webp)$`,
+    "i",
+  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || !expectedPathPattern.test(input.logoPath)) {
+    throw new Error("The category logo path is not valid.");
+  }
+
+  const parsedLogoUrl = new URL(input.logoUrl);
+  const parsedSupabaseUrl = new URL(supabaseUrl);
+  if (
+    parsedLogoUrl.protocol !== "https:"
+    || parsedLogoUrl.hostname !== parsedSupabaseUrl.hostname
+    || parsedLogoUrl.pathname !== `/storage/v1/object/public/website-media/${input.logoPath}`
+  ) {
+    throw new Error("The category logo URL is not valid.");
+  }
+
+  return { ...input, logoUrl: parsedLogoUrl.toString() };
+}
+
 async function requirePortfolioCategory(context: AdminContext, categoryId: string) {
   const { data, error } = await context.supabase
     .from("website-portfolio-categories")
-    .select("id,name")
+    .select("id,name,logo_path")
     .eq("id", categoryId)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .single();
@@ -1269,6 +1298,8 @@ export async function createPortfolioCategory(formData: FormData) {
       name: input.name,
       slug,
       description: input.description || null,
+      logo_url: null,
+      logo_path: null,
       position,
       is_published: true,
     },
@@ -1294,6 +1325,56 @@ export async function updatePortfolioCategory(formData: FormData) {
     .single();
   if (error || !data) throw new Error(error?.message ?? "The category could not be updated.");
 
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true };
+}
+
+export async function savePortfolioCategoryLogo(inputValue: {
+  categoryId: string;
+  logoUrl: string;
+  logoPath: string;
+}) {
+  const input = validatePortfolioCategoryLogo(portfolioCategoryLogoSchema.parse(inputValue));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const category = await requirePortfolioCategory(context, input.categoryId);
+
+  const { data, error } = await context.supabase
+    .from("website-portfolio-categories")
+    .update({ logo_url: input.logoUrl, logo_path: input.logoPath })
+    .eq("id", category.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "The category logo could not be saved.");
+
+  if (category.logo_path && category.logo_path !== input.logoPath) {
+    await context.supabase.storage.from("website-media").remove([category.logo_path]);
+  }
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, logo_url: input.logoUrl, logo_path: input.logoPath };
+}
+
+export async function removePortfolioCategoryLogo(categoryIdValue: string) {
+  const categoryId = z.string().uuid().parse(categoryIdValue);
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const category = await requirePortfolioCategory(context, categoryId);
+
+  const { data, error } = await context.supabase
+    .from("website-portfolio-categories")
+    .update({ logo_url: null, logo_path: null })
+    .eq("id", category.id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "The category logo could not be removed.");
+
+  if (category.logo_path) {
+    await context.supabase.storage.from("website-media").remove([category.logo_path]);
+  }
   revalidatePath("/portfolio");
   revalidatePath("/admin/portfolio");
   return { ok: true };
@@ -1518,7 +1599,7 @@ export async function deletePortfolioCategory(id: string) {
   const categoryId = z.string().uuid().parse(id);
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  await requirePortfolioCategory(context, categoryId);
+  const category = await requirePortfolioCategory(context, categoryId);
 
   const { count, error: countError } = await context.supabase
     .from("website-portfolio-items")
@@ -1534,6 +1615,10 @@ export async function deletePortfolioCategory(id: string) {
     .eq("id", categoryId)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
   if (error) throw new Error(error.message);
+
+  if (category.logo_path) {
+    await context.supabase.storage.from("website-media").remove([category.logo_path]);
+  }
 
   revalidatePath("/portfolio");
   revalidatePath("/admin/portfolio");

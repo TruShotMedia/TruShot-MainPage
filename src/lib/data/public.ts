@@ -230,7 +230,7 @@ export async function getPublishedPortfolioCategories(): Promise<PortfolioCatego
     const [categoriesResult, itemsResult] = await Promise.all([
       supabase
         .from("website-portfolio-categories")
-        .select("id,name,slug,description,position,is_published")
+        .select("id,name,slug,description,logo_url,logo_path,position,is_published")
         .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
         .eq("is_published", true)
         .order("position")
