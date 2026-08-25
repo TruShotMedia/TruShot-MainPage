@@ -76,11 +76,6 @@ export default async function PortfolioPage() {
       <section className="portfolio-collection">
         <PortfolioLogoMarquee categories={categories} />
 
-        <div className="portfolio-collection-heading">
-          <p className="section-label">Selected work</p>
-          <p>Motion leads. Stills hold the detail. Together, each frame is part of a bigger growth story.</p>
-        </div>
-
         {categories.length > 0 ? (
           <>
             <nav className="portfolio-category-nav" aria-label="Portfolio collections">
