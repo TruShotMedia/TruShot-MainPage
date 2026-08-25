@@ -91,6 +91,20 @@ export type SelectOption = {
   name: string;
 };
 
+export type InvoiceOption = {
+  id: string;
+  invoice_number: string;
+  client_id: string | null;
+  client_name: string | null;
+  status: string;
+  total_cents: number;
+  issue_date: string;
+};
+
+export type JobInvoiceRelation = InvoiceOption & {
+  is_locked: boolean;
+};
+
 export type JobRecord = {
   id: string;
   title: string;
@@ -112,6 +126,7 @@ export type JobRecord = {
   updated_at: string;
   client: { id: string; name: string } | null;
   status: JobStatus | null;
+  related_invoices: JobInvoiceRelation[];
 };
 
 export type PipelineTask = {

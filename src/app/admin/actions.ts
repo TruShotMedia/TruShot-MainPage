@@ -6,6 +6,7 @@ import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
@@ -14,6 +15,7 @@ import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
 
 const recordIdsSchema = z.array(z.string().uuid()).min(1).max(250).transform((ids) => [...new Set(ids)]);
+const optionalRecordIdsSchema = z.array(z.string().uuid()).max(250).transform((ids) => [...new Set(ids)]);
 
 async function getNextTaskPosition(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
@@ -94,6 +96,54 @@ async function requireJob(context: AdminContext, jobId: string) {
     .is("archived_at", null)
     .single();
   if (error || !data) throw new Error("That job is no longer available.");
+}
+
+async function requireInvoices(context: AdminContext, invoiceIds: string[]) {
+  if (!invoiceIds.length) return;
+  const { data, error } = await context.supabase
+    .from("website-invoices")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", invoiceIds);
+  if (error || data?.length !== invoiceIds.length) throw new Error("One or more invoices are no longer available.");
+}
+
+async function syncJobInvoiceRelations(context: AdminContext, jobId: string, invoiceIds: string[]) {
+  const { data: existing, error: readError } = await context.supabase
+    .from("website-invoice-job-allocations")
+    .select("invoice_id,is_locked")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("job_id", jobId);
+  if (readError) throw new Error(readError.message);
+
+  const changes = getInvoiceRelationChanges(existing ?? [], invoiceIds);
+  if (changes.lockedRemovals.length) throw new Error("A locked invoice allocation cannot be removed from this job.");
+
+  if (changes.additions.length) {
+    const { error: addError } = await context.supabase
+      .from("website-invoice-job-allocations")
+      .upsert(changes.additions.map((invoiceId) => ({
+        workspace_id: TRUSHOT_WORKSPACE_ID,
+        invoice_id: invoiceId,
+        job_id: jobId,
+        allocated_cents: 0,
+      })), { onConflict: "invoice_id,job_id", ignoreDuplicates: true });
+    if (addError) throw new Error(addError.message);
+  }
+
+  if (changes.removals.length) {
+    const { data: removed, error: removeError } = await context.supabase
+      .from("website-invoice-job-allocations")
+      .delete()
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("job_id", jobId)
+      .in("invoice_id", changes.removals)
+      .select("invoice_id");
+    if (removeError || removed?.length !== changes.removals.length) {
+      throw new Error(removeError?.message ?? "The invoice relation could not be removed.");
+    }
+  }
 }
 
 export async function signIn(formData: FormData) {
@@ -308,6 +358,7 @@ export async function createJob(formData: FormData) {
 }
 
 export async function updateJob(formData: FormData) {
+  const invoiceIds = optionalRecordIdsSchema.parse(formData.getAll("invoice_ids"));
   const input = z.object({
     id: z.string().uuid(),
     title: z.string().trim().min(2).max(200),
@@ -324,7 +375,11 @@ export async function updateJob(formData: FormData) {
   if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) throw new Error("Due date cannot be before the shoot date.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  await Promise.all([requireJobStatus(context, input.status_id), requireClient(context, input.client_id)]);
+  await Promise.all([
+    requireJobStatus(context, input.status_id),
+    requireClient(context, input.client_id),
+    requireInvoices(context, invoiceIds),
+  ]);
   const { data, error } = await context.supabase.from("website-jobs").update({
     title: input.title,
     job_number: input.job_number || null,
@@ -339,11 +394,15 @@ export async function updateJob(formData: FormData) {
     updated_by: context.claims.sub,
   }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Job could not be updated.");
+  await syncJobInvoiceRelations(context, input.id, invoiceIds);
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/clients");
   revalidatePath("/tablet");
 }
 
@@ -530,6 +589,46 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
   return { ok: true, updated: data.length };
+}
+
+export async function linkJobsToInvoice(jobIds: string[], invoiceId: string) {
+  const parsed = z.object({ jobIds: recordIdsSchema, invoiceId: z.string().uuid() }).parse({ jobIds, invoiceId });
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  await requireInvoices(context, [parsed.invoiceId]);
+
+  const { data: jobs, error: readError } = await context.supabase
+    .from("website-jobs")
+    .select("id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .in("id", parsed.jobIds);
+  if (readError || jobs?.length !== parsed.jobIds.length) throw new Error("One or more selected jobs are no longer available.");
+
+  const { error } = await context.supabase
+    .from("website-invoice-job-allocations")
+    .upsert(parsed.jobIds.map((jobId) => ({
+      workspace_id: TRUSHOT_WORKSPACE_ID,
+      invoice_id: parsed.invoiceId,
+      job_id: jobId,
+      allocated_cents: 0,
+    })), { onConflict: "invoice_id,job_id", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+
+  const { count, error: verifyError } = await context.supabase
+    .from("website-invoice-job-allocations")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("invoice_id", parsed.invoiceId)
+    .in("job_id", parsed.jobIds);
+  if (verifyError || count !== parsed.jobIds.length) throw new Error("The invoice relation could not be verified.");
+
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/overview");
+  return { ok: true, linked: parsed.jobIds.length };
 }
 
 export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) {

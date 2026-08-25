@@ -2,7 +2,7 @@ import { cache } from "react";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarJob, CalendarTask, ClientEnquiry, PipelineTask, PortfolioCategory, PortfolioItem, TaskStatus } from "@/lib/types";
+import type { CalendarJob, CalendarTask, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -117,15 +117,33 @@ export async function getClients() {
 export async function getJobs() {
   const context = await getAdminContext();
   if (!context) return [];
-  const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }] = await Promise.all([
+  const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }, { data: allocations }, { data: invoices }] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
     context.supabase.from("website-jobs").select("id,location,description,notes,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
+    context.supabase
+      .from("website-invoice-job-allocations")
+      .select("job_id,invoice_id,is_locked")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-invoices")
+      .select("id,invoice_number,client_id,status,total_cents,issue_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("issue_date", { ascending: false }),
   ]);
   const baseById = new Map((baseJobs ?? []).map((job) => [job.id, job]));
   const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
   const statusById = new Map((statuses ?? []).map((status) => [status.id, status]));
+  const invoiceById = new Map<string, InvoiceOption>((invoices ?? []).map((invoice) => [invoice.id, {
+    ...invoice,
+    client_name: invoice.client_id ? clientById.get(invoice.client_id)?.name ?? null : null,
+  }]));
+  const allocationsByJobId = new Map<string, Array<{ invoice_id: string; is_locked: boolean }>>();
+  for (const allocation of allocations ?? []) {
+    allocationsByJobId.set(allocation.job_id, [...(allocationsByJobId.get(allocation.job_id) ?? []), allocation]);
+  }
   return (metrics ?? []).flatMap((job) => {
     const baseJob = baseById.get(job.id);
     if (!baseJob) return [];
@@ -134,6 +152,10 @@ export async function getJobs() {
       ...baseJob,
       client: job.client_id ? clientById.get(job.client_id) ?? null : null,
       status: statusById.get(job.status_id) ?? null,
+      related_invoices: (allocationsByJobId.get(job.id) ?? []).flatMap((allocation) => {
+        const invoice = invoiceById.get(allocation.invoice_id);
+        return invoice ? [{ ...invoice, is_locked: allocation.is_locked }] : [];
+      }),
     }];
   });
 }

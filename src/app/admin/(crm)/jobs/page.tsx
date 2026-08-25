@@ -5,19 +5,31 @@ import { EmptyState } from "@/components/admin/empty-state";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusGroupedTable } from "@/components/admin/status-grouped-table";
 import { SubmitButton } from "@/components/admin/submit-button";
+import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext, getJobs } from "@/lib/data/admin";
-import type { JobRecord, JobStatus, SelectOption } from "@/lib/types";
+import type { InvoiceOption, JobRecord, JobStatus, SelectOption } from "@/lib/types";
 
 export default async function JobsPage() {
   const [jobs, context] = await Promise.all([getJobs(), getAdminContext()]);
   if (!context) return null;
-  const [{ data: clients }, { data: statuses }] = await Promise.all([
+  const [{ data: clients }, { data: statuses }, { data: invoices }] = await Promise.all([
     context.supabase.from("website-clients").select("id,name").is("archived_at", null).order("name"),
     context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
+    context.supabase
+      .from("website-invoices")
+      .select("id,invoice_number,client_id,status,total_cents,issue_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("issue_date", { ascending: false }),
   ]);
+  const clientById = new Map((clients ?? []).map((client) => [client.id, client.name]));
+  const invoiceOptions: InvoiceOption[] = (invoices ?? []).map((invoice) => ({
+    ...invoice,
+    client_name: invoice.client_id ? clientById.get(invoice.client_id) ?? null : null,
+  }));
   return (
     <>
-      <PageHeader eyebrow="Production" title="Jobs" description="Every job is grouped by status. Select rows for bulk updates, or drag a row directly into its next stage." actions={
+      <PageHeader eyebrow="Production" title="Jobs" description="Every job is grouped by status. Select rows for the floating status and invoice actions, or drag a row directly into its next stage." actions={
         <ActionPopover action={createJob} summary={<><Plus size={16} /> New job</>} title="Create a job" formClassName="quick-form wide">
           <label>Job title<input name="title" required /></label>
           <label>Client<select name="client_id"><option value="">No client yet</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
@@ -36,6 +48,7 @@ export default async function JobsPage() {
           records={jobs as JobRecord[]}
           statuses={(statuses ?? []) as JobStatus[]}
           clients={(clients ?? []) as SelectOption[]}
+          invoices={invoiceOptions}
         />
       ) : <EmptyState title="No jobs yet" description="Create the first job now, or continue to the CSV import once the base workflows are confirmed." />}
     </>

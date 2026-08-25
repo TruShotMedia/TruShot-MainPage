@@ -3,19 +3,20 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil } from "lucide-react";
-import { bulkUpdateJobStatus, bulkUpdateTaskStatus, updateJob, updateTask } from "@/app/admin/actions";
+import { GripVertical, Link2, Pencil, X } from "lucide-react";
+import { bulkUpdateJobStatus, bulkUpdateTaskStatus, linkJobsToInvoice, updateJob, updateTask } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
+import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admin/invoice-relation-picker";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { changeWorkflowStatus, getGroupSelectionState, sortWorkflowStatuses } from "@/lib/status-workflow";
-import type { JobRecord, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
+import type { InvoiceOption, JobRecord, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
 
 type WorkflowStatus = JobStatus | TaskStatus;
 type WorkflowRecord = JobRecord | PipelineTask;
 
 type StatusGroupedTableProps =
-  | { kind: "jobs"; statuses: JobStatus[]; records: JobRecord[]; clients: SelectOption[] }
+  | { kind: "jobs"; statuses: JobStatus[]; records: JobRecord[]; clients: SelectOption[]; invoices: InvoiceOption[] }
   | { kind: "tasks"; statuses: TaskStatus[]; records: PipelineTask[]; jobs: SelectOption[] };
 
 function SelectionCheckbox({
@@ -66,7 +67,7 @@ function DraggableRow({
   );
 }
 
-function JobCells({ job, clients, statuses }: { job: JobRecord; clients: SelectOption[]; statuses: JobStatus[] }) {
+function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; clients: SelectOption[]; statuses: JobStatus[]; invoices: InvoiceOption[] }) {
   return (
     <>
       <td><strong>{job.title}</strong><small>{job.client?.name ?? "No client"}</small></td>
@@ -96,6 +97,7 @@ function JobCells({ job, clients, statuses }: { job: JobRecord; clients: SelectO
           <label>Location<input name="location" defaultValue={job.location ?? ""} /></label>
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={job.description ?? ""} /></label>
           <label className="form-span">Internal notes<textarea name="notes" rows={3} defaultValue={job.notes ?? ""} /></label>
+          <JobInvoiceRelationsField invoices={invoices} relations={job.related_invoices} />
           <SubmitButton pendingLabel="Saving…">Save job</SubmitButton>
         </ActionPopover>
       </td>
@@ -155,6 +157,7 @@ function StatusGroup({
   onToggleGroup,
   clients,
   jobs,
+  invoices,
   statuses,
 }: {
   kind: "jobs" | "tasks";
@@ -166,6 +169,7 @@ function StatusGroup({
   onToggleGroup: (ids: string[], allSelected: boolean) => void;
   clients: SelectOption[];
   jobs: SelectOption[];
+  invoices: InvoiceOption[];
   statuses: WorkflowStatus[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-group-${status.id}` });
@@ -200,7 +204,7 @@ function StatusGroup({
                   onToggle={() => onToggle(record.id)}
                 >
                   {kind === "jobs"
-                    ? <JobCells job={record as JobRecord} clients={clients} statuses={statuses as JobStatus[]} />
+                    ? <JobCells job={record as JobRecord} clients={clients} statuses={statuses as JobStatus[]} invoices={invoices} />
                     : <TaskCells task={record as PipelineTask} jobs={jobs} statuses={statuses as TaskStatus[]} />}
                 </DraggableRow>
               ))}
@@ -231,6 +235,7 @@ export function StatusGroupedTable(props: StatusGroupedTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(() => new Set());
   const [targetStatusId, setTargetStatusId] = useState("");
+  const [targetInvoiceId, setTargetInvoiceId] = useState("");
   const [message, setMessage] = useState("");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
@@ -310,21 +315,74 @@ export function StatusGroupedTable(props: StatusGroupedTableProps) {
     void saveStatusChange([...selectedIds], targetStatusId);
   }
 
+  async function linkSelectedJobs() {
+    if (kind !== "jobs" || !targetInvoiceId || !selectedIds.size || savingIds.size) {
+      if (kind === "jobs" && !targetInvoiceId) setMessage("Choose an invoice to relate first.");
+      return;
+    }
+    const invoice = props.invoices.find((option) => option.id === targetInvoiceId);
+    if (!invoice) {
+      setMessage("That invoice is no longer available.");
+      return;
+    }
+
+    const jobIds = [...selectedIds];
+    const selectedJobIds = new Set(jobIds);
+    setMessage("");
+    setSavingIds(new Set(jobIds));
+    try {
+      await linkJobsToInvoice(jobIds, targetInvoiceId);
+      setRecords((current) => current.map((record) => {
+        if (!selectedJobIds.has(record.id)) return record;
+        const job = record as JobRecord;
+        if (job.related_invoices.some((relation) => relation.id === invoice.id)) return job;
+        return { ...job, related_invoices: [...job.related_invoices, { ...invoice, is_locked: false }] };
+      }));
+      setMessage(`${invoice.invoice_number} linked to ${jobIds.length} ${jobIds.length === 1 ? "job" : "jobs"}.`);
+      setTargetInvoiceId("");
+    } catch {
+      setMessage("The invoice link could not be saved or confirmed. Existing links were not removed; refresh before retrying.");
+    } finally {
+      setSavingIds(new Set());
+    }
+  }
+
   const clients = props.kind === "jobs" ? props.clients : [];
   const jobs = props.kind === "tasks" ? props.jobs : [];
+  const invoices = props.kind === "jobs" ? props.invoices : [];
   return (
     <>
-      <div className={`status-bulk-toolbar ${selectedIds.size ? "is-active" : ""}`}>
-        {selectedIds.size ? (
-          <form onSubmit={submitBulkChange}>
-            <strong>{selectedIds.size} selected</strong>
-            <label><span className="sr-only">New status</span><select value={targetStatusId} onChange={(event) => setTargetStatusId(event.target.value)} aria-label={`New status for selected ${kind}`}><option value="">Choose status…</option>{orderedStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
-            <button type="submit" className="admin-primary-button" disabled={Boolean(savingIds.size)}>Change status</button>
-            <button type="button" className="status-selection-clear" onClick={() => setSelectedIds(new Set())}>Clear</button>
-          </form>
-        ) : <p>Select individual rows or a status heading, then update them together. Drag any row into another group for a single status change.</p>}
-        {message ? <span role="status">{message}</span> : null}
-      </div>
+      {selectedIds.size ? (
+        <aside className="status-bulk-toolbar is-active" aria-label={`Actions for selected ${kind}`}>
+          <div className="status-bulk-summary">
+            <span><strong>{selectedIds.size}</strong><small>{kind === "jobs" ? "jobs selected" : "assets selected"}</small></span>
+            <button type="button" className="status-selection-clear" aria-label="Clear selection" onClick={() => setSelectedIds(new Set())}><X size={17} /></button>
+          </div>
+          <div className="status-bulk-actions">
+            <form className="status-bulk-action" onSubmit={submitBulkChange}>
+              <span>Status</span>
+              <label><span className="sr-only">New status</span><select value={targetStatusId} onChange={(event) => setTargetStatusId(event.target.value)} aria-label={`New status for selected ${kind}`}><option value="">Choose status…</option>{orderedStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
+              <button type="submit" className="admin-primary-button" disabled={Boolean(savingIds.size)}>Change</button>
+            </form>
+            {kind === "jobs" ? (
+              <div className="status-bulk-action status-bulk-invoice-action">
+                <span>Invoice</span>
+                <InvoiceSearchPicker
+                  key={targetInvoiceId || "bulk-invoice-empty"}
+                  invoices={invoices}
+                  selectedId={targetInvoiceId}
+                  onSelect={setTargetInvoiceId}
+                  label="Search invoice for selected jobs"
+                  compact
+                  disabled={Boolean(savingIds.size)}
+                />
+                <button type="button" className="admin-secondary-button" disabled={!targetInvoiceId || Boolean(savingIds.size)} onClick={() => { void linkSelectedJobs(); }}><Link2 size={15} /> Link</button>
+              </div>
+            ) : null}
+          </div>
+          {message ? <p className="status-bulk-message" role="status">{message}</p> : null}
+        </aside>
+      ) : message ? <p className="status-action-toast" role="status">{message}</p> : null}
       <DndContext sensors={sensors} onDragEnd={(event) => { void onDragEnd(event); }}>
         <div className="status-table-groups">
           {orderedStatuses.map((status) => (
@@ -339,6 +397,7 @@ export function StatusGroupedTable(props: StatusGroupedTableProps) {
               onToggleGroup={toggleGroup}
               clients={clients}
               jobs={jobs}
+              invoices={invoices}
               statuses={orderedStatuses}
             />
           ))}
