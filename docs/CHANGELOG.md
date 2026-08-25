@@ -3,7 +3,7 @@
 ## 2026-08-25 — Portfolio category logo banner
 
 - Added an optional PNG, JPG or WebP logo to every portfolio category, with upload, replacement and removal controls in the Portfolio admin page.
-- Added a seamless, responsive logo marquee beneath the public portfolio's Selected work introduction. It only renders when at least one published, visible category has a logo.
+- Added a seamless, responsive logo marquee immediately before the public portfolio's Selected work introduction. It only renders when at least one published, visible category has a logo.
 - Added database-backed logo paths and public URLs with paired-value validation, unique replacement paths to avoid stale CDN content, and storage cleanup when a logo or empty category is removed.
 - Extended the portfolio's view-only interaction barrier to cover displayed client logos.
 

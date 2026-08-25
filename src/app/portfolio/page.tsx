@@ -74,12 +74,12 @@ export default async function PortfolioPage() {
       </section>
 
       <section className="portfolio-collection">
+        <PortfolioLogoMarquee categories={categories} />
+
         <div className="portfolio-collection-heading">
           <p className="section-label">Selected work</p>
           <p>Motion leads. Stills hold the detail. Together, each frame is part of a bigger growth story.</p>
         </div>
-
-        <PortfolioLogoMarquee categories={categories} />
 
         {categories.length > 0 ? (
           <>
