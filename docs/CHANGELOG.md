@@ -1,5 +1,12 @@
 # TruShot CRM changelog
 
+## 2026-09-11 — iPhone Home Screen app
+
+- Turned the existing web manifest into an admin-first install experience that launches directly into `/admin` in standalone mode.
+- Rebuilt the Apple touch icon and install icon set using the full white TruShot Media wordmark on the brand green, including a mask-safe variant.
+- Added iPhone safe-area handling for the login screen, mobile CRM header, workspace content, sidebar and menus around the notch and Home indicator.
+- Added a manifest regression test covering the CRM launch target, brand colours and required icon sizes.
+
 ## 2026-08-25 — Portrait full-screen containment
 
 - Fixed portrait portfolio videos expanding and cropping when the dedicated full-screen action was used.

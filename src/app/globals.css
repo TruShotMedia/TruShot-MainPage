@@ -1261,6 +1261,48 @@ img { max-width: 100%; }
   .pricing-direct-hero > div { align-items: flex-start; flex-direction: column; margin-top: 45px; }
 }
 
+@supports (padding: env(safe-area-inset-top)) {
+  @media (display-mode: standalone) {
+    html, body { min-height: 100%; background: #f3f2ec; }
+    .login-page, .admin-shell { min-height: 100dvh; }
+    .login-panel {
+      padding-top: max(80px, calc(env(safe-area-inset-top) + 48px));
+      padding-right: max(22px, env(safe-area-inset-right));
+      padding-bottom: max(40px, env(safe-area-inset-bottom));
+      padding-left: max(22px, env(safe-area-inset-left));
+    }
+    .login-back { top: max(25px, env(safe-area-inset-top)); }
+    .admin-sidebar {
+      height: 100dvh;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .admin-topbar {
+      height: calc(68px + env(safe-area-inset-top));
+      padding-top: env(safe-area-inset-top);
+      padding-right: max(clamp(20px, 3vw, 43px), env(safe-area-inset-right));
+      padding-left: max(clamp(20px, 3vw, 43px), env(safe-area-inset-left));
+    }
+    .admin-main {
+      padding-right: max(clamp(20px, 3.2vw, 50px), env(safe-area-inset-right));
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      padding-left: max(clamp(20px, 3.2vw, 50px), env(safe-area-inset-left));
+    }
+  }
+
+  @media (display-mode: standalone) and (max-width: 850px) {
+    .admin-topbar { height: calc(58px + env(safe-area-inset-top)); }
+    .mobile-admin-menu > div { top: calc(58px + env(safe-area-inset-top)); }
+  }
+
+  @media (display-mode: standalone) and (max-width: 620px) {
+    .admin-main {
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-left: max(16px, env(safe-area-inset-left));
+    }
+  }
+}
+
 /* Protected tablet production kiosk */
 .tablet-kiosk { position: fixed; z-index: 200; display: flex; min-width: 680px; min-height: 520px; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 92% -10%, rgba(31,94,65,.14), transparent 27%), #eeece5; inset: 0; }
 .tablet-kiosk-header { display: grid; flex: 0 0 auto; grid-template-columns: auto minmax(230px, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; border-bottom: 1px solid rgba(31,94,65,.16); background: rgba(248,247,242,.94); padding: 9px 16px; box-shadow: 0 8px 30px rgba(23,31,25,.04); backdrop-filter: blur(16px); }

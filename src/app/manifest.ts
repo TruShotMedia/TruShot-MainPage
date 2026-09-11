@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "TruShot Media",
-    short_name: "TruShot",
-    description: "TruShot Media website and private business CRM.",
-    id: "/",
-    start_url: "/",
+    name: "TruShot Media CRM",
+    short_name: "TruShot CRM",
+    description: "The private TruShot Media workspace for clients, jobs, assets and finance.",
+    id: "/admin",
+    start_url: "/admin",
     scope: "/",
     display: "standalone",
     orientation: "any",
