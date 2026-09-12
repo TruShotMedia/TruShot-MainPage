@@ -71,6 +71,6 @@ create trigger "website-push-subscriptions-updated-at"
 before update on public."website-push-subscriptions"
 for each row execute function "website-private"."website-set-updated-at"();
 
-revoke all on public."website-push-subscriptions" from anon, authenticated;
+revoke all on public."website-push-subscriptions" from anon, authenticated, service_role;
 grant select, insert, update, delete on public."website-push-subscriptions" to authenticated;
 grant select, delete on public."website-push-subscriptions" to service_role;
