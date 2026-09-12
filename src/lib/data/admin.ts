@@ -118,7 +118,7 @@ export async function getClients() {
 export async function getJobs() {
   const context = await getAdminContext();
   if (!context) return [];
-  const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }, { data: allocations }, { data: invoices }] = await Promise.all([
+  const [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
     context.supabase.from("website-jobs").select("id,location,description,notes,shoot_time,due_time,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
@@ -134,6 +134,15 @@ export async function getJobs() {
       .is("archived_at", null)
       .order("issue_date", { ascending: false }),
   ]);
+  const queryError = [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Jobs could not be loaded: ${queryError.message}`);
+  const metrics = metricsResult.data;
+  const baseJobs = baseJobsResult.data;
+  const clients = clientsResult.data;
+  const statuses = statusesResult.data;
+  const allocations = allocationsResult.data;
+  const invoices = invoicesResult.data;
   const baseById = new Map((baseJobs ?? []).map((job) => [job.id, job]));
   const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
   const statusById = new Map((statuses ?? []).map((status) => [status.id, status]));
@@ -164,17 +173,23 @@ export async function getJobs() {
 export async function getPipeline() {
   const context = await getAdminContext();
   if (!context) return { statuses: [], tasks: [] };
-  const [statuses, tasks, jobs, clients] = await Promise.all([
+  const [statusesResult, tasksResult, jobsResult, clientsResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
     context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
+  const queryError = [statusesResult, tasksResult, jobsResult, clientsResult].find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Tasks could not be loaded: ${queryError.message}`);
+  const statuses = statusesResult.data ?? [];
+  const tasks = tasksResult.data ?? [];
+  const jobs = jobsResult.data ?? [];
+  const clients = clientsResult.data ?? [];
   return {
-    statuses: statuses.data ?? [],
-    tasks: (tasks.data ?? []).map((task) => {
-      const job = (jobs.data ?? []).find((entry) => entry.id === task.job_id);
-      return { ...task, job: job ? { ...job, client: (clients.data ?? []).find((client) => client.id === job.client_id) ?? null } : null };
+    statuses,
+    tasks: tasks.map((task) => {
+      const job = jobs.find((entry) => entry.id === task.job_id);
+      return { ...task, job: job ? { ...job, client: clients.find((client) => client.id === job.client_id) ?? null } : null };
     }),
   };
 }
@@ -649,6 +664,10 @@ export async function getCalendarData() {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .maybeSingle(),
   ]);
+  const queryError = [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Calendar data could not be loaded: ${queryError.message}`);
+  if (reminderSettingsResult.error) throw new Error(`Calendar reminder settings could not be loaded: ${reminderSettingsResult.error.message}`);
 
   const clients = new Map((clientsResult.data ?? []).map((client) => [client.id, client.name]));
   const jobStatuses = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));

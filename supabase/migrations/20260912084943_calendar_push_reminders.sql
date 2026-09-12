@@ -3,17 +3,17 @@
 -- reminder precision does not depend on the Vercel Hobby cron restrictions.
 
 alter table public."website-jobs"
-  add column shoot_time time without time zone,
-  add column due_time time without time zone;
+  add column if not exists shoot_time time without time zone,
+  add column if not exists due_time time without time zone;
 
 alter table public."website-job-tasks"
-  add column due_time time without time zone;
+  add column if not exists due_time time without time zone;
 
 alter table public."website-campaign-assets"
-  add column start_time time without time zone,
-  add column due_time time without time zone;
+  add column if not exists start_time time without time zone,
+  add column if not exists due_time time without time zone;
 
-create table public."website-calendar-reminder-settings" (
+create table if not exists public."website-calendar-reminder-settings" (
   workspace_id uuid primary key,
   enabled boolean not null default true,
   default_event_time time without time zone not null default '09:00',
@@ -34,7 +34,7 @@ create table public."website-calendar-reminder-settings" (
     check (timezone = 'Australia/Brisbane')
 );
 
-create table public."website-calendar-reminder-deliveries" (
+create table if not exists public."website-calendar-reminder-deliveries" (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
   event_kind text not null,
@@ -63,21 +63,22 @@ create table public."website-calendar-reminder-deliveries" (
     unique (workspace_id, event_kind, entity_id, occurrence_at, reminder_offset_minutes)
 );
 
-create index "website-calendar-reminder-deliveries-recent-idx"
+create index if not exists "website-calendar-reminder-deliveries-recent-idx"
   on public."website-calendar-reminder-deliveries" (workspace_id, created_at desc);
 
-create index "website-jobs-reminder-dates-idx"
+create index if not exists "website-jobs-reminder-dates-idx"
   on public."website-jobs" (workspace_id, shoot_date, due_date)
   where archived_at is null and (shoot_date is not null or due_date is not null);
 
-create index "website-job-tasks-reminder-due-idx"
+create index if not exists "website-job-tasks-reminder-due-idx"
   on public."website-job-tasks" (workspace_id, due_date)
   where archived_at is null and due_date is not null;
 
-create index "website-campaign-assets-reminder-dates-idx"
+create index if not exists "website-campaign-assets-reminder-dates-idx"
   on public."website-campaign-assets" (workspace_id, start_date, due_date)
   where archived_at is null and (start_date is not null or due_date is not null);
 
+drop trigger if exists "website-calendar-reminder-settings-updated-at" on public."website-calendar-reminder-settings";
 create trigger "website-calendar-reminder-settings-updated-at"
 before update on public."website-calendar-reminder-settings"
 for each row execute function "website-private"."website-set-updated-at"();
@@ -85,17 +86,20 @@ for each row execute function "website-private"."website-set-updated-at"();
 alter table public."website-calendar-reminder-settings" enable row level security;
 alter table public."website-calendar-reminder-deliveries" enable row level security;
 
+drop policy if exists "website-calendar-reminder-settings-member-select" on public."website-calendar-reminder-settings";
 create policy "website-calendar-reminder-settings-member-select"
 on public."website-calendar-reminder-settings"
 for select to authenticated
 using ((select "website-private"."website-has-workspace-access"(workspace_id)));
 
+drop policy if exists "website-calendar-reminder-settings-member-update" on public."website-calendar-reminder-settings";
 create policy "website-calendar-reminder-settings-member-update"
 on public."website-calendar-reminder-settings"
 for update to authenticated
 using ((select "website-private"."website-has-workspace-access"(workspace_id)))
 with check ((select "website-private"."website-has-workspace-access"(workspace_id)));
 
+drop policy if exists "website-calendar-reminder-deliveries-member-select" on public."website-calendar-reminder-deliveries";
 create policy "website-calendar-reminder-deliveries-member-select"
 on public."website-calendar-reminder-deliveries"
 for select to authenticated
