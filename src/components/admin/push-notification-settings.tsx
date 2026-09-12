@@ -158,8 +158,8 @@ export function PushNotificationSettings({
     <section className="admin-card settings-section push-settings-section">
       <div>
         <p className="card-label">Notifications</p>
-        <h2>Native client alerts</h2>
-        <p>Receive a native alert when a new client request reaches the CRM. Each phone, tablet or computer is enabled separately.</p>
+        <h2>Native business alerts</h2>
+        <p>Receive native alerts for client requests and production reminders. Each phone, tablet or computer is enabled separately.</p>
       </div>
       <div className="push-settings-panel">
         <header>
@@ -173,8 +173,8 @@ export function PushNotificationSettings({
         <div className="push-settings-copy">
           <BellRing size={20} />
           <div>
-            <strong>Client requests only</strong>
-            <p>Alerts open the Client Requests page. They do not add background polling, so the installed app stays light on Supabase and Vercel usage.</p>
+            <strong>Requests and calendar reminders</strong>
+            <p>Request alerts open the Client Requests page; timed production alerts open the exact calendar item. Delivery is server scheduled, so the installed app stays light on Supabase and Vercel usage.</p>
           </div>
         </div>
 

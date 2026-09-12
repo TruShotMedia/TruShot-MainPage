@@ -29,6 +29,7 @@ const readyTask: PipelineTask = {
   asset_type: "video",
   hours: 2,
   due_date: "2026-08-26",
+  due_time: null,
   priority: "high",
   description: null,
   position: 10,

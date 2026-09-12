@@ -123,7 +123,9 @@ export type JobRecord = {
   client_id: string | null;
   status_id: string;
   shoot_date: string | null;
+  shoot_time: string | null;
   due_date: string | null;
+  due_time: string | null;
   photos_delivered: number;
   hours: number;
   created_assets: number;
@@ -148,6 +150,7 @@ export type PipelineTask = {
   asset_type: string | null;
   hours: number | null;
   due_date: string | null;
+  due_time: string | null;
   priority: string;
   description: string | null;
   position: number;
@@ -161,7 +164,9 @@ export type CalendarJob = {
   title: string;
   client_name: string | null;
   shoot_date: string | null;
+  shoot_time: string | null;
   due_date: string | null;
+  due_time: string | null;
   status_label: string;
   status_color: string;
   is_complete: boolean;
@@ -174,6 +179,7 @@ export type CalendarTask = {
   job_title: string;
   client_name: string | null;
   due_date: string | null;
+  due_time: string | null;
   priority: "low" | "normal" | "high" | "urgent";
   status_label: string;
   status_color: string;
@@ -187,7 +193,9 @@ export type CalendarCampaignAsset = {
   campaign_title: string;
   client_name: string | null;
   start_date: string | null;
+  start_time: string | null;
   due_date: string | null;
+  due_time: string | null;
   priority: "low" | "normal" | "high" | "urgent";
   status_label: string;
   status_color: string;
@@ -219,7 +227,9 @@ export type CampaignAsset = {
   asset_type: string | null;
   priority: "low" | "normal" | "high" | "urgent";
   start_date: string | null;
+  start_time: string | null;
   due_date: string | null;
+  due_time: string | null;
   location: string | null;
   contact_name: string | null;
   contact_email: string | null;

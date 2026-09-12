@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar-reminder-logic";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
@@ -119,7 +120,7 @@ export async function getJobs() {
   if (!context) return [];
   const [{ data: metrics }, { data: baseJobs }, { data: clients }, { data: statuses }, { data: allocations }, { data: invoices }] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
-    context.supabase.from("website-jobs").select("id,location,description,notes,updated_at").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,location,description,notes,shoot_time,due_time,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
     context.supabase
@@ -165,7 +166,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [] };
   const [statuses, tasks, jobs, clients] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position,updated_at").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
@@ -198,13 +199,13 @@ export async function getTabletKioskData(): Promise<{
       .order("position"),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,priority,description,position,updated_at")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,client_id,status_id,shoot_date,due_date")
+      .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -214,7 +215,7 @@ export async function getTabletKioskData(): Promise<{
       .is("archived_at", null),
     supabase
       .from("website-campaign-assets")
-      .select("id,campaign_id,status_id,title,start_date,due_date,priority")
+      .select("id,campaign_id,status_id,title,start_date,start_time,due_date,due_time,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -261,7 +262,9 @@ export async function getTabletKioskData(): Promise<{
       title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
       shoot_date: job.shoot_date,
+      shoot_time: job.shoot_time,
       due_date: job.due_date,
+      due_time: job.due_time,
       status_label: status?.label ?? "Unknown",
       status_color: status?.color ?? "#777d76",
       is_complete: status?.is_closed ?? false,
@@ -279,6 +282,7 @@ export async function getTabletKioskData(): Promise<{
       job_title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
       due_date: task.due_date,
+      due_time: task.due_time,
       priority: task.priority as CalendarTask["priority"],
       status_label: status?.label ?? "Unknown",
       status_color: status?.color ?? "#777d76",
@@ -297,7 +301,9 @@ export async function getTabletKioskData(): Promise<{
       campaign_title: campaign.title,
       client_name: campaign.client_id ? clientsById.get(campaign.client_id)?.name ?? null : null,
       start_date: asset.start_date,
+      start_time: asset.start_time,
       due_date: asset.due_date,
+      due_time: asset.due_time,
       priority: asset.priority as CalendarCampaignAsset["priority"],
       status_label: status?.label ?? "Unknown",
       status_color: status?.color ?? "#777d76",
@@ -494,7 +500,7 @@ export async function getCampaigns(): Promise<{
       .order("updated_at", { ascending: false }),
     supabase
       .from("website-campaign-assets")
-      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,due_date,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
+      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,start_time,due_date,due_time,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -590,17 +596,29 @@ export async function getCampaigns(): Promise<{
 
 export async function getCalendarData() {
   const context = await getAdminContext();
-  if (!context) return { jobs: [], tasks: [], campaignAssets: [] };
+  const defaultReminderSettings: CalendarReminderSettings = {
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    enabled: true,
+    default_event_time: "09:00:00",
+    lead_minutes: 120,
+    send_at_event_time: true,
+    notify_job_starts: true,
+    notify_job_deadlines: true,
+    notify_task_deadlines: true,
+    notify_campaign_assets: true,
+    timezone: BRISBANE_TIMEZONE,
+  };
+  if (!context) return { jobs: [], tasks: [], campaignAssets: [], reminderSettings: defaultReminderSettings };
 
-  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
+  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
-      .select("id,title,client_id,status_id,shoot_date,due_date")
+      .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,due_date,priority")
+      .select("id,title,job_id,status_id,due_date,due_time,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
@@ -610,7 +628,7 @@ export async function getCalendarData() {
       .is("archived_at", null),
     context.supabase
       .from("website-campaign-assets")
-      .select("id,campaign_id,status_id,title,start_date,due_date,priority")
+      .select("id,campaign_id,status_id,title,start_date,start_time,due_date,due_time,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
@@ -625,6 +643,11 @@ export async function getCalendarData() {
       .from("website-task-statuses")
       .select("id,label,color,is_open")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-calendar-reminder-settings")
+      .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,timezone")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .maybeSingle(),
   ]);
 
   const clients = new Map((clientsResult.data ?? []).map((client) => [client.id, client.name]));
@@ -642,7 +665,9 @@ export async function getCalendarData() {
         title: job.title,
         client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
         shoot_date: job.shoot_date,
+        shoot_time: job.shoot_time,
         due_date: job.due_date,
+        due_time: job.due_time,
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
         is_complete: status?.is_closed ?? false,
@@ -659,6 +684,7 @@ export async function getCalendarData() {
         job_title: job.title,
         client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
         due_date: task.due_date,
+        due_time: task.due_time,
         priority: task.priority as "low" | "normal" | "high" | "urgent",
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
@@ -676,13 +702,16 @@ export async function getCalendarData() {
         campaign_title: campaign.title,
         client_name: campaign.client_id ? clients.get(campaign.client_id) ?? null : null,
         start_date: asset.start_date,
+        start_time: asset.start_time,
         due_date: asset.due_date,
+        due_time: asset.due_time,
         priority: asset.priority as CalendarCampaignAsset["priority"],
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
         is_complete: !(status?.is_open ?? true),
       }];
     }),
+    reminderSettings: (reminderSettingsResult.data ?? defaultReminderSettings) as CalendarReminderSettings,
   };
 }
 

@@ -168,7 +168,9 @@ function AssetFields({
       <label>Priority<select name="priority" defaultValue={asset?.priority ?? "normal"}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
       <label>Invoice (optional)<select name="invoice_id" defaultValue={asset?.invoice_id ?? ""}><option value="">Not linked</option>{invoiceOptions.map((invoice) => <option value={invoice.id} key={invoice.id}>{invoice.invoice_number} · {invoice.client_name ?? "No client"} · {formatMoney(invoice.total_cents)}</option>)}</select></label>
       <label>Start date<input type="date" name="start_date" defaultValue={asset?.start_date ?? ""} /></label>
+      <label>Start time<input type="time" name="start_time" defaultValue={asset?.start_time?.slice(0, 5) ?? ""} /></label>
       <label>Deadline<input type="date" name="due_date" defaultValue={asset?.due_date ?? ""} /></label>
+      <label>Deadline time<input type="time" name="due_time" defaultValue={asset?.due_time?.slice(0, 5) ?? ""} /></label>
       <label className="form-span">Description<textarea name="description" rows={3} defaultValue={asset?.description ?? ""} placeholder="What needs to be created and why it matters." /></label>
       <label className="form-span">Location<input name="location" defaultValue={asset?.location ?? ""} placeholder="Studio, venue, suburb or call link" /></label>
       <label>Best contact<input name="contact_name" list={`campaign-contacts-${campaign.id}`} defaultValue={asset?.contact_name ?? ""} placeholder="Contact name" /><datalist id={`campaign-contacts-${campaign.id}`}>{campaignContacts.map((contact) => <option value={contact.name} key={contact.id}>{[contact.email, contact.phone].filter(Boolean).join(" · ")}</option>)}</datalist></label>

@@ -79,7 +79,7 @@ export async function sendTestPushNotification(endpoint: string) {
 
   const result = await sendPushNotifications(data as StoredPushSubscription[], {
     title: "TruShot notifications are ready",
-    body: "Native client-request alerts are enabled on this device.",
+    body: "Client-request and calendar alerts are enabled on this device.",
     url: "/admin/settings",
     tag: `notification-test-${Date.now()}`,
   });

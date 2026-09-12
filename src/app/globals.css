@@ -940,6 +940,29 @@ img { max-width: 100%; }
 .portfolio-category-empty p { margin: 0; font-size: 10px; }
 .portfolio-empty-state { min-height: 330px; }
 .calendar-page-badge { display: inline-flex; min-height: 38px; align-items: center; gap: 8px; border: 1px solid #cbd8cf; border-radius: 10px; background: #e8efe9; padding: 0 13px; color: var(--green); font-size: 9px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.calendar-reminder-settings { display: grid; grid-template-columns: minmax(250px,.68fr) minmax(0,1.5fr); gap: clamp(28px,4vw,64px); margin-bottom: 16px; overflow: hidden; padding: clamp(22px,3vw,34px); background: linear-gradient(125deg, #f8f7f2 0 40%, #eef3ee 100%); }
+.calendar-reminder-intro > span { display: inline-flex; align-items: center; gap: 7px; color: var(--green); font-size: 8px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
+.calendar-reminder-intro h2 { max-width: 390px; margin: 12px 0 0; font-size: clamp(23px,2.3vw,34px); line-height: 1.02; letter-spacing: -.05em; }
+.calendar-reminder-intro p { max-width: 440px; margin: 14px 0 0; color: #70776f; font-size: 10px; line-height: 1.62; }
+.calendar-reminder-intro small { display: flex; align-items: center; gap: 6px; margin-top: 18px; color: #49705a; font-size: 7px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.calendar-reminder-form { display: flex; min-width: 0; flex-direction: column; gap: 13px; }
+.calendar-reminder-master { display: flex; min-height: 59px; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #cad9ce; border-radius: 13px; background: #e4eee6; padding: 13px 15px; }
+.calendar-reminder-master span, .calendar-reminder-options span { min-width: 0; }
+.calendar-reminder-master strong, .calendar-reminder-master small, .calendar-reminder-options strong, .calendar-reminder-options small { display: block; }
+.calendar-reminder-master strong { color: #214e35; font-size: 10px; }
+.calendar-reminder-master small { margin-top: 4px; color: #718278; font-size: 7px; }
+.calendar-reminder-master > input { width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--green); }
+.calendar-reminder-timing { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.calendar-reminder-timing label { display: grid; min-height: 48px; grid-template-columns: 17px minmax(74px,1fr) 86px auto; align-items: center; gap: 6px; border: 1px solid #d7dad4; border-radius: 11px; background: rgba(255,255,255,.82); padding: 8px 10px; color: #626a63; font-size: 8px; font-weight: 900; }
+.calendar-reminder-timing input { min-width: 0; height: 31px; border: 1px solid #d9dcd6; border-radius: 7px; background: white; padding: 0 7px; color: #303731; font-size: 10px; }
+.calendar-reminder-timing small { color: #899088; font-size: 7px; }
+.calendar-reminder-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.calendar-reminder-options label { display: flex; min-height: 50px; align-items: center; gap: 10px; border: 1px solid #e0e1dc; border-radius: 10px; background: rgba(255,255,255,.64); padding: 10px 12px; cursor: pointer; }
+.calendar-reminder-options label:first-child { grid-column: 1 / -1; }
+.calendar-reminder-options input { width: 15px; height: 15px; flex: 0 0 auto; accent-color: var(--green); }
+.calendar-reminder-options strong { color: #4c544e; font-size: 8px; }
+.calendar-reminder-options small { margin-top: 3px; color: #90958f; font-size: 7px; line-height: 1.35; }
+.calendar-reminder-form > .admin-primary-button { align-self: flex-end; }
 .calendar-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .calendar-kpis article { display: flex; min-height: 92px; align-items: center; gap: 14px; border: 1px solid #deddd6; border-radius: 14px; background: #faf9f5; padding: 18px 20px; color: var(--green); }
 .calendar-kpis article > svg { width: 35px; height: 35px; border-radius: 10px; background: #e4ece6; padding: 9px; }
@@ -1261,6 +1284,7 @@ img { max-width: 100%; }
   .pipeline-column { min-height: 360px; }
   .task-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .portfolio-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calendar-reminder-settings { grid-template-columns: 1fr; }
   .calendar-layout { grid-template-columns: 1fr; }
   .calendar-sidebar { display: grid; grid-template-columns: 1fr 1fr; }
   .campaign-kpis { grid-template-columns: repeat(3, 1fr); }
@@ -1404,6 +1428,11 @@ img { max-width: 100%; }
   .portfolio-poster-button { flex: 1; justify-content: center; }
   .portfolio-category-editor .quick-form { top: 70px; right: 16px; left: 16px; width: auto; }
   .calendar-kpis { grid-template-columns: 1fr 1fr; }
+  .calendar-reminder-settings { padding: 20px; }
+  .calendar-reminder-timing, .calendar-reminder-options { grid-template-columns: 1fr; }
+  .calendar-reminder-options label:first-child { grid-column: auto; }
+  .calendar-reminder-timing label { grid-template-columns: 17px minmax(0,1fr) 90px auto; }
+  .calendar-reminder-form > .admin-primary-button { width: 100%; }
   .calendar-kpis article { min-height: 78px; padding: 14px; }
   .calendar-month-controls { width: 100%; flex-wrap: wrap; }
   .calendar-month-controls > div { min-width: 0; flex: 1; }

@@ -35,7 +35,9 @@ export default async function JobsPage() {
           <label>Client<select name="client_id"><option value="">No client yet</option>{(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
           <label>Status<select name="status_id" required>{(statuses ?? []).map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
           <label>Shoot date<input name="shoot_date" type="date" /></label>
+          <label>Shoot time<input name="shoot_time" type="time" /></label>
           <label>Due date<input name="due_date" type="date" /></label>
+          <label>Due time<input name="due_time" type="time" /></label>
           <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>
           <SubmitButton pendingLabel="Creating…">Create job</SubmitButton>
         </ActionPopover>

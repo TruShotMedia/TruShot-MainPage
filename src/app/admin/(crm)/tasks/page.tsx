@@ -23,6 +23,7 @@ export default async function TasksPage() {
           <label>Asset type<input name="asset_type" placeholder="Reel, photo set, edit…" /></label>
           <label>Hours<input name="hours" type="number" min="0" step="0.25" /></label>
           <label>Due date<input name="due_date" type="date" /></label>
+          <label>Due time<input name="due_time" type="time" /></label>
           <label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           <label className="form-span">Description<textarea name="description" rows={3} /></label>
           <SubmitButton pendingLabel="Creating…">Create asset</SubmitButton>

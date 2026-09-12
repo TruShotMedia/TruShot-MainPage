@@ -16,6 +16,7 @@ type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
 
 const recordIdsSchema = z.array(z.string().uuid()).min(1).max(250).transform((ids) => [...new Set(ids)]);
 const optionalRecordIdsSchema = z.array(z.string().uuid()).max(250).transform((ids) => [...new Set(ids)]);
+const optionalTimeSchema = z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), z.literal("")]);
 
 async function getNextTaskPosition(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
@@ -333,7 +334,9 @@ export async function createJob(formData: FormData) {
     client_id: z.string().uuid().or(z.literal("")),
     status_id: z.string().uuid(),
     shoot_date: z.string().or(z.literal("")),
+    shoot_time: optionalTimeSchema,
     due_date: z.string().or(z.literal("")),
+    due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
@@ -345,7 +348,9 @@ export async function createJob(formData: FormData) {
     client_id: input.client_id || null,
     status_id: input.status_id,
     shoot_date: input.shoot_date || null,
+    shoot_time: input.shoot_time || null,
     due_date: input.due_date || null,
+    due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
@@ -366,7 +371,9 @@ export async function updateJob(formData: FormData) {
     client_id: z.string().uuid().or(z.literal("")),
     status_id: z.string().uuid(),
     shoot_date: z.string().or(z.literal("")),
+    shoot_time: optionalTimeSchema,
     due_date: z.string().or(z.literal("")),
+    due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
     location: z.string().trim().max(300),
     description: z.string().trim().max(2_000),
@@ -386,7 +393,9 @@ export async function updateJob(formData: FormData) {
     client_id: input.client_id || null,
     status_id: input.status_id,
     shoot_date: input.shoot_date || null,
+    shoot_time: input.shoot_time || null,
     due_date: input.due_date || null,
+    due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
     location: input.location || null,
     description: input.description || null,
@@ -414,6 +423,7 @@ export async function createTask(formData: FormData) {
     asset_type: z.string().trim().max(100),
     hours: z.string().or(z.literal("")),
     due_date: z.string().or(z.literal("")),
+    due_time: optionalTimeSchema,
     priority: z.enum(["low", "normal", "high", "urgent"]),
     description: z.string().trim().max(2_000),
   }).parse(Object.fromEntries(formData));
@@ -429,6 +439,7 @@ export async function createTask(formData: FormData) {
     asset_type: input.asset_type || null,
     hours: input.hours ? Number(input.hours) : null,
     due_date: input.due_date || null,
+    due_time: input.due_time || null,
     priority: input.priority,
     description: input.description || null,
     created_by: context.claims.sub,
@@ -451,6 +462,7 @@ export async function updateTask(formData: FormData) {
     asset_type: z.string().trim().max(100),
     hours: z.string().or(z.literal("")),
     due_date: z.string().or(z.literal("")),
+    due_time: optionalTimeSchema,
     priority: z.enum(["low", "normal", "high", "urgent"]),
     description: z.string().trim().max(2_000),
   }).parse(Object.fromEntries(formData));
@@ -466,6 +478,7 @@ export async function updateTask(formData: FormData) {
     asset_type: input.asset_type || null,
     hours,
     due_date: input.due_date || null,
+    due_time: input.due_time || null,
     priority: input.priority,
     description: input.description || null,
     completed_at: status.key === "posted_done" ? new Date().toISOString() : null,
@@ -490,7 +503,9 @@ export async function updateCalendarItem(formData: FormData) {
       entity_type: z.literal("job"),
       id: z.string().uuid(),
       shoot_date: z.string().or(z.literal("")),
+      shoot_time: optionalTimeSchema,
       due_date: z.string().or(z.literal("")),
+      due_time: optionalTimeSchema,
     }).parse(raw);
     if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) {
       throw new Error("The deadline cannot be before the shoot date.");
@@ -499,7 +514,9 @@ export async function updateCalendarItem(formData: FormData) {
       .from("website-jobs")
       .update({
         shoot_date: input.shoot_date || null,
+        shoot_time: input.shoot_time || null,
         due_date: input.due_date || null,
+        due_time: input.due_time || null,
         updated_by: context.claims.sub,
       })
       .eq("id", input.id)
@@ -513,12 +530,14 @@ export async function updateCalendarItem(formData: FormData) {
       entity_type: z.literal("task"),
       id: z.string().uuid(),
       due_date: z.string().or(z.literal("")),
+      due_time: optionalTimeSchema,
       priority: z.enum(["low", "normal", "high", "urgent"]),
     }).parse(raw);
     const { data, error } = await context.supabase
       .from("website-job-tasks")
       .update({
         due_date: input.due_date || null,
+        due_time: input.due_time || null,
         priority: input.priority,
         updated_by: context.claims.sub,
       })
@@ -533,7 +552,9 @@ export async function updateCalendarItem(formData: FormData) {
       entity_type: z.literal("campaign-asset"),
       id: z.string().uuid(),
       start_date: z.string().or(z.literal("")),
+      start_time: optionalTimeSchema,
       due_date: z.string().or(z.literal("")),
+      due_time: optionalTimeSchema,
       priority: z.enum(["low", "normal", "high", "urgent"]),
     }).parse(raw);
     if (input.start_date && input.due_date && input.due_date < input.start_date) {
@@ -543,7 +564,9 @@ export async function updateCalendarItem(formData: FormData) {
       .from("website-campaign-assets")
       .update({
         start_date: input.start_date || null,
+        start_time: input.start_time || null,
         due_date: input.due_date || null,
+        due_time: input.due_time || null,
         priority: input.priority,
         updated_by: context.claims.sub,
       })
@@ -563,6 +586,36 @@ export async function updateCalendarItem(formData: FormData) {
   revalidatePath("/admin/overview");
   revalidatePath("/tablet");
   return { ok: true };
+}
+
+export async function updateCalendarReminderSettings(formData: FormData) {
+  const input = z.object({
+    default_event_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    lead_hours: z.coerce.number().min(0.25).max(168),
+  }).parse(Object.fromEntries(formData));
+  const leadMinutes = Math.round(input.lead_hours * 60);
+  if (leadMinutes < 15 || leadMinutes > 10_080) throw new Error("Reminder lead time must be between 15 minutes and 7 days.");
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase
+    .from("website-calendar-reminder-settings")
+    .update({
+      enabled: formData.get("enabled") === "on",
+      default_event_time: input.default_event_time,
+      lead_minutes: leadMinutes,
+      send_at_event_time: formData.get("send_at_event_time") === "on",
+      notify_job_starts: formData.get("notify_job_starts") === "on",
+      notify_job_deadlines: formData.get("notify_job_deadlines") === "on",
+      notify_task_deadlines: formData.get("notify_task_deadlines") === "on",
+      notify_campaign_assets: formData.get("notify_campaign_assets") === "on",
+    })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .select("workspace_id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Calendar reminder settings could not be saved.");
+
+  revalidatePath("/admin/calendar");
 }
 
 export async function movePipelineTask(taskId: string, statusId: string) {

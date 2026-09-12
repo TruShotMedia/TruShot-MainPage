@@ -71,7 +71,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
   return (
     <>
       <td><strong>{job.title}</strong><small>{job.client?.name ?? "No client"}</small></td>
-      <td><small>Shoot {formatDate(job.shoot_date)}</small><small>Due {formatDate(job.due_date)}</small></td>
+      <td><small>Shoot {formatDate(job.shoot_date)}{job.shoot_time ? ` · ${job.shoot_time.slice(0, 5)}` : ""}</small><small>Due {formatDate(job.due_date)}{job.due_time ? ` · ${job.due_time.slice(0, 5)}` : ""}</small></td>
       <td><strong>{Number(job.hours ?? 0).toFixed(2)}</strong>{job.has_unset_task_hours ? <small className="warning-text">Unset task hours</small> : null}</td>
       <td>{String(job.created_assets ?? 0)}</td>
       <td>{String(job.photos_delivered ?? 0)}</td>
@@ -92,7 +92,9 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
           <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
           <label>Status<select name="status_id" required defaultValue={job.status_id}>{statuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
           <label>Shoot date<input name="shoot_date" type="date" defaultValue={job.shoot_date ?? ""} /></label>
+          <label>Shoot time<input name="shoot_time" type="time" defaultValue={job.shoot_time?.slice(0, 5) ?? ""} /></label>
           <label>Due date<input name="due_date" type="date" defaultValue={job.due_date ?? ""} /></label>
+          <label>Due time<input name="due_time" type="time" defaultValue={job.due_time?.slice(0, 5) ?? ""} /></label>
           <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={Number(job.photos_delivered ?? 0)} /></label>
           <label>Location<input name="location" defaultValue={job.location ?? ""} /></label>
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={job.description ?? ""} /></label>
@@ -111,7 +113,7 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectO
       <td><strong>{task.title}</strong><small>{task.job?.client?.name ?? "No client"}</small></td>
       <td><strong>{task.job?.title ?? "Unlinked job"}</strong></td>
       <td>{task.hours == null ? <span className="warning-text">Unset</span> : `${Number(task.hours).toFixed(2)}h`}</td>
-      <td>{formatDate(task.due_date)}</td>
+      <td>{formatDate(task.due_date)}{task.due_time ? <small>{task.due_time.slice(0, 5)}</small> : null}</td>
       <td>{task.asset_type ?? "—"}</td>
       <td><span className={`task-priority priority-${task.priority}`}>{task.priority}</span></td>
       <td>
@@ -130,6 +132,7 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectO
           <label>Asset type<input name="asset_type" defaultValue={task.asset_type ?? ""} /></label>
           <label>Hours<input name="hours" type="number" min="0" step="0.25" defaultValue={task.hours ?? ""} /></label>
           <label>Due date<input name="due_date" type="date" defaultValue={task.due_date ?? ""} /></label>
+          <label>Due time<input name="due_time" type="time" defaultValue={task.due_time?.slice(0, 5) ?? ""} /></label>
           <label>Priority<select name="priority" defaultValue={task.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={task.description ?? ""} /></label>
           <SubmitButton pendingLabel="Saving…">Save asset</SubmitButton>

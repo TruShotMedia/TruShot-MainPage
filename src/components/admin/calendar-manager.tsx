@@ -26,6 +26,7 @@ type CalendarEvent = {
   date: string;
   kind: "shoot" | "job-due" | "task-due" | "campaign-due";
   label: string;
+  time: string | null;
   item: CalendarItem;
 };
 
@@ -40,8 +41,8 @@ function getCalendarEvents(items: CalendarItem[]): CalendarEvent[] {
   return items.flatMap((item) => {
     if (item.entity_type === "job") {
       const events: CalendarEvent[] = [];
-      if (item.shoot_date) events.push({ id: `${item.id}-shoot`, date: item.shoot_date, kind: "shoot", label: "Shoot", item });
-      if (item.due_date) events.push({ id: `${item.id}-due`, date: item.due_date, kind: "job-due", label: "Job due", item });
+      if (item.shoot_date) events.push({ id: `${item.id}-shoot`, date: item.shoot_date, kind: "shoot", label: "Shoot", time: item.shoot_time, item });
+      if (item.due_date) events.push({ id: `${item.id}-due`, date: item.due_date, kind: "job-due", label: "Job due", time: item.due_time, item });
       return events;
     }
     if (!item.due_date) return [];
@@ -50,9 +51,18 @@ function getCalendarEvents(items: CalendarItem[]): CalendarEvent[] {
       date: item.due_date,
       kind: item.entity_type === "task" ? "task-due" as const : "campaign-due" as const,
       label: item.entity_type === "task" ? "Task due" : "Campaign asset",
+      time: item.due_time,
       item,
     }];
   });
+}
+
+function displayTime(value: string | null) {
+  if (!value) return "";
+  const [hours, minutes] = value.split(":").map(Number);
+  const suffix = hours >= 12 ? "pm" : "am";
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${String(minutes).padStart(2, "0")}${suffix}`;
 }
 
 function dueLabel(date: string, today: string) {
@@ -73,9 +83,9 @@ function formatJobWindow(range: CalendarJobRange) {
 
 function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: (item: CalendarItem) => void }) {
   return (
-    <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
+    <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}${event.time ? ` at ${displayTime(event.time)}` : ""}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
       <span />
-      <strong>{event.label}</strong>
+      <strong>{event.label}{event.time ? ` · ${displayTime(event.time)}` : ""}</strong>
       <em>{event.item.title}</em>
     </button>
   );
@@ -114,13 +124,14 @@ function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange; onOp
   );
 }
 
-export function CalendarManager({ jobs, tasks, campaignAssets = [] }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[] }) {
+export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemId }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; initialItemId?: string }) {
   const router = useRouter();
-  const [items, setItems] = useState<CalendarItem[]>([...jobs, ...tasks, ...campaignAssets]);
+  const initialItems = [...jobs, ...tasks, ...campaignAssets];
+  const [items, setItems] = useState<CalendarItem[]>(initialItems);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [filter, setFilter] = useState<CalendarFilter>("all");
   const [showCompleted, setShowCompleted] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(() => initialItems.find((entry) => entry.id === initialItemId) ?? null);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const today = format(new Date(), "yyyy-MM-dd");
@@ -205,13 +216,16 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [] }: { jobs: Ca
       await updateCalendarItem(formData);
       const dueDate = String(formData.get("due_date") ?? "") || null;
       const startDate = String(formData.get("start_date") ?? "") || null;
+      const startTime = String(formData.get("start_time") ?? "") || null;
       const shootDate = String(formData.get("shoot_date") ?? "") || null;
+      const shootTime = String(formData.get("shoot_time") ?? "") || null;
+      const dueTime = String(formData.get("due_time") ?? "") || null;
       const priority = String(formData.get("priority") ?? "normal") as CalendarTask["priority"];
       setItems((current) => current.map((item) => {
         if (item.id !== selectedItem.id || item.entity_type !== selectedItem.entity_type) return item;
-        if (item.entity_type === "job") return { ...item, shoot_date: shootDate, due_date: dueDate };
-        if (item.entity_type === "campaign-asset") return { ...item, start_date: startDate, due_date: dueDate, priority };
-        return { ...item, due_date: dueDate, priority };
+        if (item.entity_type === "job") return { ...item, shoot_date: shootDate, shoot_time: shootTime, due_date: dueDate, due_time: dueTime };
+        if (item.entity_type === "campaign-asset") return { ...item, start_date: startDate, start_time: startTime, due_date: dueDate, due_time: dueTime, priority };
+        return { ...item, due_date: dueDate, due_time: dueTime, priority };
       }));
       closeEditor();
       router.refresh();
@@ -322,17 +336,22 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [] }: { jobs: Ca
             {selectedItem.entity_type === "job" ? (
               <div className="calendar-editor-fields">
                 <label>Job start / production date<input type="date" name="shoot_date" defaultValue={selectedItem.shoot_date ?? ""} /></label>
+                <label>Start time<input type="time" name="shoot_time" defaultValue={selectedItem.shoot_time?.slice(0, 5) ?? ""} /></label>
                 <label>Job deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+                <label>Deadline time<input type="time" name="due_time" defaultValue={selectedItem.due_time?.slice(0, 5) ?? ""} /></label>
               </div>
             ) : selectedItem.entity_type === "campaign-asset" ? (
               <div className="calendar-editor-fields">
                 <label>Asset start date<input type="date" name="start_date" defaultValue={selectedItem.start_date ?? ""} /></label>
+                <label>Start time<input type="time" name="start_time" defaultValue={selectedItem.start_time?.slice(0, 5) ?? ""} /></label>
                 <label>Asset deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+                <label>Deadline time<input type="time" name="due_time" defaultValue={selectedItem.due_time?.slice(0, 5) ?? ""} /></label>
                 <label>Priority<select name="priority" defaultValue={selectedItem.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
               </div>
             ) : (
               <div className="calendar-editor-fields">
                 <label>Task deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+                <label>Deadline time<input type="time" name="due_time" defaultValue={selectedItem.due_time?.slice(0, 5) ?? ""} /></label>
                 <label>Priority<select name="priority" defaultValue={selectedItem.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
               </div>
             )}

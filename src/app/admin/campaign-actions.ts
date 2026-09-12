@@ -8,6 +8,7 @@ import { getAdminContext } from "@/lib/data/admin";
 
 const optionalUuid = z.union([z.string().uuid(), z.literal("")]);
 const optionalDate = z.union([z.iso.date(), z.literal("")]);
+const optionalTime = z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), z.literal("")]);
 const prioritySchema = z.enum(["low", "normal", "high", "urgent"]);
 const campaignStatusSchema = z.enum(["planning", "active", "paused", "complete"]);
 const attachmentMimeTypes = new Set([
@@ -196,7 +197,9 @@ const campaignAssetFormSchema = z.object({
   asset_type: z.string().trim().max(100),
   priority: prioritySchema,
   start_date: optionalDate,
+  start_time: optionalTime,
   due_date: optionalDate,
+  due_time: optionalTime,
   location: z.string().trim().max(300),
   contact_name: z.string().trim().max(160),
   contact_email: z.union([z.email().max(254), z.literal("")]),
@@ -236,7 +239,9 @@ export async function createCampaignAsset(formData: FormData) {
       asset_type: input.asset_type || null,
       priority: input.priority,
       start_date: input.start_date || null,
+      start_time: input.start_time || null,
       due_date: input.due_date || null,
+      due_time: input.due_time || null,
       location: input.location || null,
       contact_name: input.contact_name || null,
       contact_email: input.contact_email || null,
@@ -277,7 +282,9 @@ export async function updateCampaignAsset(formData: FormData) {
       asset_type: input.asset_type || null,
       priority: input.priority,
       start_date: input.start_date || null,
+      start_time: input.start_time || null,
       due_date: input.due_date || null,
+      due_time: input.due_time || null,
       location: input.location || null,
       contact_name: input.contact_name || null,
       contact_email: input.contact_email || null,
