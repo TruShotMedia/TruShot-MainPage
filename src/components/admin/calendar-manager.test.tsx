@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { format } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarJob, CalendarTask } from "@/lib/types";
 import { CalendarManager } from "./calendar-manager";
 
 const navigationMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -95,5 +95,29 @@ describe("CalendarManager completed work", () => {
     expect(container.querySelectorAll(".calendar-event-shoot")).toHaveLength(0);
     expect(container.querySelectorAll(".calendar-event-job-due")).toHaveLength(0);
     expect(container.querySelector(".calendar-mobile-job-range")?.textContent).toContain("14–16");
+  });
+
+  it("shows a dated campaign asset as a calendar range and filterable campaign item", async () => {
+    const month = format(new Date(), "yyyy-MM");
+    const campaignAssets: CalendarCampaignAsset[] = [{
+      id: "44444444-4444-4444-8444-444444444444",
+      entity_type: "campaign-asset",
+      title: "Launch film",
+      campaign_title: "Spring campaign",
+      client_name: "Ravish Media",
+      start_date: `${month}-10`,
+      due_date: `${month}-13`,
+      priority: "high",
+      status_label: "In Progress",
+      status_color: "#4B78A8",
+      is_complete: false,
+    }];
+
+    await act(async () => root.render(<CalendarManager jobs={[]} tasks={[]} campaignAssets={campaignAssets} />));
+
+    expect(container.querySelector('.calendar-job-range.is-campaign[title*="Launch film"]')).not.toBeNull();
+    const campaignsFilter = [...container.querySelectorAll<HTMLButtonElement>(".calendar-filters button")].find((button) => button.textContent === "campaigns")!;
+    await act(async () => campaignsFilter.click());
+    expect(container.textContent).toContain("Launch film");
   });
 });

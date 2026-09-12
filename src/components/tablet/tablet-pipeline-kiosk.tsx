@@ -9,7 +9,7 @@ import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TABLET_VIEW_COOKIE_NAME, type TabletView } from "@/lib/tablet-view";
-import type { CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
@@ -30,6 +30,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
 export function TabletPipelineKiosk({
   calendarJobs,
   calendarTasks,
+  calendarCampaignAssets = [],
   initialNow,
   initialStatuses,
   initialTasks,
@@ -43,6 +44,7 @@ export function TabletPipelineKiosk({
 }: {
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
+  calendarCampaignAssets?: CalendarCampaignAsset[];
   initialNow: string;
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
@@ -128,7 +130,7 @@ export function TabletPipelineKiosk({
             variant="tablet"
             visibleStatusKeys={tabletPipelineStatusKeys}
           />
-        ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} today={today} />}
+        ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} campaignAssets={calendarCampaignAssets} today={today} />}
       </section>
     </main>
   );

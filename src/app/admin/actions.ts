@@ -508,7 +508,7 @@ export async function updateCalendarItem(formData: FormData) {
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "The job schedule could not be saved.");
-  } else {
+  } else if (raw.entity_type === "task") {
     const input = z.object({
       entity_type: z.literal("task"),
       id: z.string().uuid(),
@@ -528,9 +528,35 @@ export async function updateCalendarItem(formData: FormData) {
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "The task deadline could not be saved.");
+  } else {
+    const input = z.object({
+      entity_type: z.literal("campaign-asset"),
+      id: z.string().uuid(),
+      start_date: z.string().or(z.literal("")),
+      due_date: z.string().or(z.literal("")),
+      priority: z.enum(["low", "normal", "high", "urgent"]),
+    }).parse(raw);
+    if (input.start_date && input.due_date && input.due_date < input.start_date) {
+      throw new Error("The deadline cannot be before the campaign asset start date.");
+    }
+    const { data, error } = await context.supabase
+      .from("website-campaign-assets")
+      .update({
+        start_date: input.start_date || null,
+        due_date: input.due_date || null,
+        priority: input.priority,
+        updated_by: context.claims.sub,
+      })
+      .eq("id", input.id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "The campaign asset schedule could not be saved.");
   }
 
   revalidatePath("/admin/calendar");
+  revalidatePath("/admin/campaigns");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");

@@ -1117,6 +1117,127 @@ img { max-width: 100%; }
 .notion-sync-message.is-success { border: 1px solid #bed2c3; background: #eaf2ec; color: #286044; }
 .notion-sync-message.is-error { border: 1px solid #e4c0b6; background: #f7e7e2; color: #964b3b; }
 .notion-sync-setup-note { border: 1px solid #dfd8c5; background: #f5f0e2; color: #776b4e; }
+
+/* Campaign command centre */
+.campaign-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, .72fr)) minmax(280px, 1.45fr); gap: 12px; margin-bottom: 17px; }
+.campaign-kpis article { display: flex; min-height: 94px; flex-direction: column; justify-content: center; border: 1px solid #deddd6; border-radius: 15px; background: #faf9f5; padding: 17px 19px; }
+.campaign-kpis article > span { color: #82877f; font-size: 8px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.campaign-kpis article > strong { margin-top: 5px; color: #252b25; font-size: 27px; letter-spacing: -.05em; line-height: 1; }
+.campaign-kpis article > small { margin-top: 7px; color: #92968f; font-size: 8px; }
+.campaign-kpis article.is-alert { border-color: #e5c7bd; background: #f8ece8; }
+.campaign-kpis article.is-alert > strong { color: #9b493b; }
+.campaign-kpis .campaign-kpi-accent { flex-direction: row; align-items: center; gap: 14px; background: var(--green); color: white; }
+.campaign-kpi-accent > svg { flex: 0 0 auto; }
+.campaign-kpi-accent > div { min-width: 0; }
+.campaign-kpis .campaign-kpi-accent strong { display: block; color: white; font-size: 12px; letter-spacing: -.01em; }
+.campaign-kpis .campaign-kpi-accent small { display: block; margin-top: 6px; color: #b7d2c0; font-size: 8px; }
+.campaign-workspace { display: grid; grid-template-columns: minmax(245px, .62fr) minmax(0, 2.38fr); align-items: start; gap: 17px; }
+.campaign-index { position: sticky; top: 88px; max-height: calc(100vh - 110px); overflow: hidden; }
+.campaign-index > header { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid #e3e2dc; padding: 16px 17px; }
+.campaign-index > header span, .campaign-progress-copy > span, .campaign-notes > span { display: block; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.campaign-index > header h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.04em; }
+.campaign-index > header > svg { color: var(--green); }
+.campaign-search { display: flex; min-height: 39px; align-items: center; gap: 8px; margin: 12px 12px 7px; border: 1px solid #deddd6; border-radius: 10px; background: white; padding: 0 10px; color: #92968f; }
+.campaign-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #343a34; font-size: 9px; }
+.campaign-status-filters { display: flex; gap: 4px; overflow-x: auto; padding: 0 12px 11px; scrollbar-width: none; }
+.campaign-status-filters::-webkit-scrollbar { display: none; }
+.campaign-status-filters button { min-height: 27px; flex: 0 0 auto; border: 0; border-radius: 999px; background: #eeede8; padding: 0 9px; color: #7d837c; font-size: 6px; font-weight: 900; text-transform: uppercase; cursor: pointer; }
+.campaign-status-filters button.is-active { background: var(--green); color: white; }
+.campaign-index-list { display: flex; max-height: calc(100vh - 282px); flex-direction: column; overflow-y: auto; border-top: 1px solid #e6e5df; scrollbar-color: #c9d2ca transparent; scrollbar-width: thin; }
+.campaign-index-list > button { position: relative; display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) 38px 14px; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid #e9e8e2; background: transparent; padding: 14px 12px 14px 16px; text-align: left; cursor: pointer; }
+.campaign-index-list > button:hover { background: #f3f4ef; }
+.campaign-index-list > button.is-active { background: #e7eee9; box-shadow: inset 3px 0 0 var(--green); }
+.campaign-index-copy { min-width: 0; }
+.campaign-index-copy > span { display: flex; align-items: center; gap: 4px; color: var(--green); font-size: 6px; font-weight: 900; text-transform: uppercase; }
+.campaign-index-copy > strong, .campaign-index-copy > small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-index-copy > strong { margin-top: 6px; color: #343a34; font-size: 10px; }
+.campaign-index-copy > small { margin-top: 4px; color: #8c918a; font-size: 7px; }
+.campaign-index-progress { position: relative; width: 38px; height: 4px; border-radius: 4px; background: #d9ddd8; }
+.campaign-index-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--green); }
+.campaign-index-progress > em { position: absolute; top: 7px; right: 0; color: #858b84; font-size: 6px; font-style: normal; font-weight: 850; }
+.campaign-index-list > button > svg { color: #a4a8a2; }
+.campaign-no-results { margin: 0; padding: 28px 17px; color: #8c918a; font-size: 9px; text-align: center; }
+.campaign-detail { min-width: 0; }
+.campaign-hero { position: relative; display: flex; min-height: 255px; align-items: flex-end; justify-content: space-between; gap: 35px; overflow: hidden; padding: 31px; background: radial-gradient(circle at 87% 20%, rgba(153,203,174,.17), transparent 30%), linear-gradient(145deg, #18281e, #1f5e41 72%); color: white; }
+.campaign-hero::after { position: absolute; top: -120px; right: -110px; width: 310px; height: 310px; border: 1px solid rgba(255,255,255,.09); border-radius: 50%; content: ""; }
+.campaign-hero-copy { position: relative; z-index: 1; max-width: 790px; }
+.campaign-hero-eyebrow { display: flex; align-items: center; gap: 9px; color: #bad5c3; font-size: 8px; font-weight: 850; text-transform: uppercase; }
+.campaign-status { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.1); padding: 6px 8px; color: white; }
+.campaign-status-paused { background: rgba(178,117,47,.35); }
+.campaign-status-complete { background: rgba(163,185,170,.24); }
+.campaign-hero h1 { max-width: 860px; margin: 18px 0 0; font-size: clamp(36px, 4.6vw, 66px); letter-spacing: -.065em; line-height: .94; }
+.campaign-hero-copy > p { max-width: 760px; margin: 17px 0 0; color: #c9dacf; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
+.campaign-hero-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; color: #b8cdbf; font-size: 8px; font-weight: 750; }
+.campaign-hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.campaign-hero-actions { position: relative; z-index: 2; display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+.campaign-hero-actions .admin-secondary-button, .campaign-remove-button { display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; background: rgba(255,255,255,.09); padding: 0 12px; color: white; font-size: 8px; font-weight: 850; cursor: pointer; }
+.campaign-hero-actions .admin-secondary-button:hover { background: rgba(255,255,255,.15); }
+.campaign-remove-button { color: #e8c4bc; }
+.campaign-progress-panel { display: grid; grid-template-columns: minmax(180px,.72fr) minmax(180px,1fr) auto; align-items: center; gap: 18px; margin: 12px 0 20px; border: 1px solid #deddd6; border-radius: 14px; background: #faf9f5; padding: 13px 14px 13px 18px; }
+.campaign-progress-copy > strong { display: block; margin-top: 5px; color: #404640; font-size: 9px; }
+.campaign-progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #e1e3de; }
+.campaign-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1f5e41, #70a884); transition: width 320ms ease; }
+.campaign-flow { position: relative; display: flex; flex-direction: column; gap: 13px; padding-left: 51px; }
+.campaign-flow::before { position: absolute; top: 25px; bottom: 25px; left: 22px; width: 1px; background: #cbd7ce; content: ""; }
+.campaign-asset-card { position: relative; display: grid; grid-template-columns: 1fr; border: 1px solid #deddd6; border-radius: 16px; background: #faf9f5; box-shadow: 0 7px 25px rgba(26,35,28,.035); }
+.campaign-asset-card.is-complete { background: #f1f1ec; }
+.campaign-flow-node { --asset-status-color: var(--green); position: absolute; top: 22px; left: -50px; z-index: 2; display: grid; width: 42px; height: 42px; place-items: center; border: 4px solid #f3f2ec; border-radius: 50%; background: var(--asset-status-color); color: white; font-size: 7px; font-weight: 950; box-shadow: 0 4px 12px rgba(29,40,32,.15); }
+.campaign-asset-card.is-complete .campaign-flow-node { background: #868c86; }
+.campaign-asset-main { min-width: 0; padding: 21px 23px 19px; }
+.campaign-asset-main > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.campaign-asset-title { min-width: 0; }
+.campaign-asset-title > div { display: flex; align-items: center; gap: 7px; color: #8b9089; font-size: 7px; font-weight: 850; text-transform: uppercase; }
+.campaign-priority { border-radius: 999px; background: #e7ebe7; padding: 5px 7px; color: #657067; }
+.campaign-priority.priority-high, .campaign-priority.priority-urgent { background: #f2dfda; color: #9a4b3c; }
+.campaign-priority.priority-low { background: #e7e8e3; color: #858a84; }
+.campaign-asset-title h3 { margin: 11px 0 0; color: #252b25; font-size: 23px; letter-spacing: -.045em; }
+.campaign-asset-title p { max-width: 780px; margin: 8px 0 0; color: #747a73; font-size: 10px; line-height: 1.55; white-space: pre-wrap; }
+.campaign-asset-card.is-complete .campaign-asset-title h3 { color: #737872; text-decoration: line-through; }
+.campaign-asset-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.campaign-icon-button, .campaign-complete-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #d9d8d1; border-radius: 9px; background: white; padding: 0; color: #6f756e; cursor: pointer; }
+.campaign-icon-button:hover { border-color: #afbeb2; color: var(--green); }
+.campaign-icon-button.is-danger:hover { border-color: #dfbdb4; background: #f8ece8; color: #9b493b; }
+.campaign-complete-button { border-color: #a9c3b0; background: #e8f0ea; color: var(--green); }
+.campaign-asset-schedule { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 19px; border-top: 1px solid #e5e4de; border-bottom: 1px solid #e5e4de; padding: 11px 0; }
+.campaign-asset-schedule > span { display: inline-flex; align-items: center; gap: 7px; color: #525a53; font-size: 9px; font-weight: 800; }
+.campaign-asset-schedule label { display: flex; align-items: center; gap: 5px; border: 1px solid #dbdad3; border-radius: 9px; background: white; padding-left: 8px; }
+.campaign-asset-schedule label > i { width: 7px; height: 7px; border-radius: 50%; }
+.campaign-asset-schedule select { min-height: 33px; border: 0; outline: 0; background: transparent; padding-right: 7px; color: #565d57; font-size: 8px; font-weight: 850; }
+.campaign-asset-details { display: flex; flex-wrap: wrap; gap: 7px 13px; margin-top: 13px; color: #737a73; font-size: 8px; }
+.campaign-asset-details span, .campaign-asset-details a { display: inline-flex; align-items: center; gap: 5px; }
+.campaign-asset-details a:hover { color: var(--green); }
+.campaign-asset-notes { margin: 13px 0 0; border-left: 2px solid #a9c5b1; background: #edf2ee; padding: 10px 12px; color: #59635b; font-size: 9px; line-height: 1.55; white-space: pre-wrap; }
+.campaign-attachments { margin-top: 15px; border: 1px solid #e1e0d9; border-radius: 11px; background: rgba(255,255,255,.5); padding: 10px; }
+.campaign-attachments > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.campaign-attachments > header > div { display: flex; align-items: center; gap: 6px; color: #5f675f; font-size: 8px; }
+.campaign-attachments > header > span { display: grid; min-width: 20px; height: 20px; place-items: center; border-radius: 999px; background: #e6ece7; color: var(--green); font-size: 7px; font-weight: 900; }
+.campaign-attachment-list { display: flex; flex-direction: column; margin-bottom: 8px; }
+.campaign-attachment-list article { display: grid; min-width: 0; grid-template-columns: 20px minmax(0,1fr) 29px; align-items: center; gap: 7px; border-top: 1px solid #e8e7e1; padding: 8px 3px; color: #788078; }
+.campaign-attachment-list article > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.campaign-attachment-list a, .campaign-attachment-list strong { overflow: hidden; color: #485048; font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-attachment-list a:hover { color: var(--green); text-decoration: underline; }
+.campaign-attachment-list span { color: #989c96; font-size: 6px; }
+.campaign-attachment-list button { display: grid; width: 27px; height: 27px; place-items: center; border: 0; border-radius: 8px; background: #f0efea; color: #858a84; cursor: pointer; }
+.campaign-attachment-list button:hover { background: #f4e5e1; color: #994b3d; }
+.campaign-attachment-drop { display: flex; min-height: 48px; align-items: center; gap: 8px; border: 1px dashed #c9d2ca; border-radius: 9px; background: #f3f5f1; padding: 8px 10px; color: var(--green); cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
+.campaign-attachment-drop.is-dragging, .campaign-attachment-drop:hover { border-color: var(--green); background: #e8f0ea; }
+.campaign-attachment-drop span { color: #4d574f; font-size: 8px; font-weight: 850; }
+.campaign-attachment-drop small { margin-left: auto; color: #8e938d; font-size: 6px; }
+.campaign-attachment-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.campaign-attachment-message, .campaign-action-message { margin: 8px 0 0; color: var(--green); font-size: 8px; font-weight: 750; }
+.campaign-assets-empty, .campaign-empty { display: grid; min-height: 270px; place-items: center; align-content: center; padding: 35px; text-align: center; }
+.campaign-assets-empty > div, .campaign-empty > svg { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 15px; background: #e4ece6; color: var(--green); padding: 13px; }
+.campaign-assets-empty > span, .campaign-empty > span { margin-top: 16px; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.campaign-assets-empty h2, .campaign-empty h2 { margin: 7px 0 0; font-size: 22px; letter-spacing: -.04em; }
+.campaign-assets-empty p, .campaign-empty p { max-width: 440px; margin: 9px 0 0; color: #858a83; font-size: 10px; line-height: 1.55; }
+.campaign-notes { margin-top: 14px; padding: 19px; }
+.campaign-notes p { margin: 9px 0 0; color: #626962; font-size: 10px; line-height: 1.65; white-space: pre-wrap; }
+.campaign-asset-form { width: min(700px, calc(100vw - 42px)); max-height: calc(100vh - 120px); overflow-y: auto; }
+
+.calendar-legend .legend-campaign-due { background: #26704c; box-shadow: 0 0 0 2px #c6dacd; }
+.calendar-event-campaign-due { background: #e2eee6; }.calendar-event-campaign-due > span { background: #26704c; }
+.calendar-job-range.is-campaign { background: color-mix(in srgb, var(--calendar-range-color) 22%, #eef4ef); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--calendar-range-color) 22%, transparent); }
+
 .admin-page-loading { display: flex; flex-direction: column; gap: 17px; }
 .loading-copy { display: flex; width: min(620px, 100%); flex-direction: column; gap: 12px; margin-bottom: 14px; }
 .loading-copy span, .loading-copy strong, .loading-copy i, .loading-metrics span, .loading-panel { display: block; overflow: hidden; border-radius: 10px; background: linear-gradient(90deg, #e4e3dd 25%, #efeee8 45%, #e4e3dd 65%); background-size: 300% 100%; animation: admin-shimmer 1.25s ease-in-out infinite; }
@@ -1142,6 +1263,9 @@ img { max-width: 100%; }
   .portfolio-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .calendar-layout { grid-template-columns: 1fr; }
   .calendar-sidebar { display: grid; grid-template-columns: 1fr 1fr; }
+  .campaign-kpis { grid-template-columns: repeat(3, 1fr); }
+  .campaign-kpis .campaign-kpi-accent { grid-column: 1 / -1; }
+  .campaign-workspace { grid-template-columns: minmax(230px,.62fr) minmax(0,1.8fr); }
 }
 
 @media (max-width: 850px) {
@@ -1191,6 +1315,14 @@ img { max-width: 100%; }
   .calendar-mobile-agenda .calendar-event strong { font-size: 7px; }
   .calendar-mobile-agenda .calendar-event em { font-size: 9px; }
   .calendar-mobile-agenda > p { margin: 0; padding: 35px 20px; color: #8b9089; font-size: 10px; text-align: center; }
+  .campaign-workspace { grid-template-columns: 1fr; }
+  .campaign-index { position: static; max-height: none; }
+  .campaign-index-list { display: grid; max-height: none; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .campaign-index-list > button { border-right: 1px solid #e9e8e2; }
+  .campaign-hero { min-height: 225px; align-items: flex-start; flex-direction: column; }
+  .campaign-hero-actions { width: 100%; }
+  .campaign-progress-panel { grid-template-columns: 1fr auto; }
+  .campaign-progress-track { grid-row: 2; grid-column: 1 / -1; }
   .pricing-direct-hero { min-height: 65vh; }
 }
 
@@ -1283,6 +1415,25 @@ img { max-width: 100%; }
   .calendar-sidebar { display: flex; }
   .calendar-editor { padding: 20px; }
   .calendar-editor-fields { grid-template-columns: 1fr; }
+  .campaign-kpis { grid-template-columns: 1fr 1fr; }
+  .campaign-kpis .campaign-kpi-accent { grid-column: 1 / -1; }
+  .campaign-index-list { grid-template-columns: 1fr; }
+  .campaign-hero { padding: 23px 20px; }
+  .campaign-hero h1 { font-size: 38px; }
+  .campaign-hero-actions { align-items: stretch; flex-direction: column; }
+  .campaign-hero-actions .action-popover, .campaign-hero-actions .admin-secondary-button, .campaign-remove-button { width: 100%; }
+  .campaign-progress-panel { grid-template-columns: 1fr; }
+  .campaign-progress-track { grid-row: auto; grid-column: auto; }
+  .campaign-progress-panel .action-popover, .campaign-progress-panel .admin-primary-button { width: 100%; }
+  .campaign-flow { padding-left: 37px; }
+  .campaign-flow::before { left: 16px; }
+  .campaign-flow-node { left: -38px; width: 34px; height: 34px; border-width: 3px; }
+  .campaign-asset-main { padding: 18px 16px 16px; }
+  .campaign-asset-main > header { flex-direction: column; }
+  .campaign-asset-actions { align-self: flex-end; }
+  .campaign-asset-schedule { align-items: flex-start; flex-direction: column; }
+  .campaign-attachment-drop { align-items: flex-start; flex-direction: column; }
+  .campaign-attachment-drop small { margin-left: 0; }
   .pricing-direct-hero { min-height: 78vh; padding: 165px 20px 90px; }
   .pricing-direct-hero h1 { margin-top: 35px; font-size: clamp(58px, 18vw, 86px); }
   .pricing-direct-hero > div { align-items: flex-start; flex-direction: column; margin-top: 45px; }
@@ -1391,6 +1542,7 @@ img { max-width: 100%; }
 .tablet-calendar-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .tablet-calendar-legend i { display: block; width: 16px; height: 5px; border-radius: 999px; background: var(--green); }
 .tablet-calendar-legend i.is-task { width: 7px; height: 7px; background: #597cad; }
+.tablet-calendar-legend i.is-campaign { width: 11px; background: #7a5b91; }
 .tablet-calendar-legend i.is-complete { background: #aeb2ad; }
 .tablet-calendar-scroll { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-color: rgba(31,94,65,.22) transparent; scrollbar-width: thin; }
 .tablet-calendar-weekdays { position: sticky; top: 0; z-index: 6; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); border-bottom: 1px solid #dedfd9; background: rgba(244,243,237,.97); }
@@ -1417,6 +1569,7 @@ img { max-width: 100%; }
 .tablet-calendar-day-events > small { color: #808680; font-size: 6px; font-weight: 850; }
 .tablet-calendar-range-layer { position: absolute; z-index: 2; top: 29px; right: 0; left: 0; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); grid-auto-rows: 21px; gap: 3px 0; pointer-events: none; }
 .tablet-calendar-job-range { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 7px; overflow: hidden; border: 0; border-radius: 6px; background: var(--tablet-calendar-color); padding: 0 8px; color: white; box-shadow: 0 3px 8px rgba(31,42,34,.13); }
+.tablet-calendar-event.is-campaign { background: #eee8f2; }
 .tablet-calendar-job-range.continues-before { border-radius: 0 6px 6px 0; }
 .tablet-calendar-job-range.continues-after { border-radius: 6px 0 0 6px; }
 .tablet-calendar-job-range.continues-before.continues-after { border-radius: 0; }

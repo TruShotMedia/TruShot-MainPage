@@ -1,11 +1,13 @@
-import type { CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarJob } from "@/lib/types";
+
+export type CalendarRangeItem = CalendarJob | CalendarCampaignAsset;
 
 export type CalendarJobRange = {
   id: string;
   start: string;
   end: string;
   durationDays: number;
-  item: CalendarJob;
+  item: CalendarRangeItem;
 };
 
 export type CalendarRangeSegment = CalendarJobRange & {
@@ -28,15 +30,22 @@ function calendarDayNumber(date: string) {
 }
 
 export function getCalendarJobRanges(jobs: CalendarJob[]) {
-  return jobs
-    .filter((job) => job.shoot_date && job.due_date && job.shoot_date <= job.due_date)
-    .map((job): CalendarJobRange => ({
-      id: job.id,
-      start: job.shoot_date!,
-      end: job.due_date!,
-      durationDays: calendarDayNumber(job.due_date!) - calendarDayNumber(job.shoot_date!) + 1,
-      item: job,
-    }))
+  return getCalendarScheduleRanges(jobs);
+}
+
+export function getCalendarScheduleRanges(items: CalendarRangeItem[]) {
+  return items
+    .flatMap((item): CalendarJobRange[] => {
+      const start = item.entity_type === "job" ? item.shoot_date : item.start_date;
+      if (!start || !item.due_date || start > item.due_date) return [];
+      return [{
+        id: `${item.entity_type}-${item.id}`,
+        start,
+        end: item.due_date,
+        durationDays: calendarDayNumber(item.due_date) - calendarDayNumber(start) + 1,
+        item,
+      }];
+    })
     .sort((left, right) => left.start.localeCompare(right.start) || right.end.localeCompare(left.end) || left.item.title.localeCompare(right.item.title));
 }
 

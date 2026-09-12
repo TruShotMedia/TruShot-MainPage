@@ -15,6 +15,8 @@ type UploadProgress = {
 type ResumableUploadOptions = {
   file: File;
   storagePath: string;
+  bucketName?: string;
+  contentType?: string;
   cacheControl?: string;
   onProgress?: (progress: UploadProgress) => void;
 };
@@ -25,9 +27,11 @@ function getResumableEndpoint(supabaseUrl: string) {
   return `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`;
 }
 
-export async function uploadWebsiteMediaResumable({
+export async function uploadSupabaseFileResumable({
   file,
   storagePath,
+  bucketName = WEBSITE_MEDIA_BUCKET,
+  contentType = file.type,
   cacheControl = "31536000",
   onProgress,
 }: ResumableUploadOptions) {
@@ -53,16 +57,17 @@ export async function uploadWebsiteMediaResumable({
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_SIZE,
       metadata: {
-        bucketName: WEBSITE_MEDIA_BUCKET,
+        bucketName,
         objectName: storagePath,
-        contentType: file.type,
+        contentType,
         cacheControl,
       },
       fingerprint: () => Promise.resolve([
-        "trushot-website-media",
+        "trushot-supabase-file",
+        bucketName,
         storagePath,
         file.name,
-        file.type,
+        contentType,
         file.size,
         file.lastModified,
       ].join("-")),
@@ -87,6 +92,10 @@ export async function uploadWebsiteMediaResumable({
       });
   });
 
-  const { data: publicUrlData } = supabase.storage.from(WEBSITE_MEDIA_BUCKET).getPublicUrl(storagePath);
+  const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
   return { publicUrl: publicUrlData.publicUrl, storagePath };
+}
+
+export async function uploadWebsiteMediaResumable(options: ResumableUploadOptions) {
+  return uploadSupabaseFileResumable({ ...options, bucketName: WEBSITE_MEDIA_BUCKET });
 }

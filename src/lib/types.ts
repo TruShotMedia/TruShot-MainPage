@@ -180,7 +180,72 @@ export type CalendarTask = {
   is_complete: boolean;
 };
 
-export type CalendarItem = CalendarJob | CalendarTask;
+export type CalendarCampaignAsset = {
+  id: string;
+  entity_type: "campaign-asset";
+  title: string;
+  campaign_title: string;
+  client_name: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  priority: "low" | "normal" | "high" | "urgent";
+  status_label: string;
+  status_color: string;
+  is_complete: boolean;
+};
+
+export type CalendarItem = CalendarJob | CalendarTask | CalendarCampaignAsset;
+
+export type CampaignStatus = "planning" | "active" | "paused" | "complete";
+
+export type CampaignAttachment = {
+  id: string;
+  campaign_asset_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size_bytes: number;
+  signed_url: string | null;
+  created_at: string;
+};
+
+export type CampaignAsset = {
+  id: string;
+  campaign_id: string;
+  invoice_id: string | null;
+  status_id: string;
+  title: string;
+  description: string | null;
+  asset_type: string | null;
+  priority: "low" | "normal" | "high" | "urgent";
+  start_date: string | null;
+  due_date: string | null;
+  location: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+  position: number;
+  completed_at: string | null;
+  updated_at: string;
+  status: TaskStatus | null;
+  invoice: InvoiceOption | null;
+  attachments: CampaignAttachment[];
+};
+
+export type Campaign = {
+  id: string;
+  client_id: string | null;
+  title: string;
+  objective: string | null;
+  status: CampaignStatus;
+  start_date: string | null;
+  due_date: string | null;
+  notes: string | null;
+  updated_at: string;
+  client: SelectOption | null;
+  assets: CampaignAsset[];
+};
 
 export type EnquiryStatus = "new" | "reviewing" | "approved" | "declined" | "archived";
 

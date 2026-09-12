@@ -14,13 +14,13 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { buildCalendarRangeWeeks, getCalendarJobRanges, type CalendarRangeSegment } from "@/lib/calendar-layout";
-import type { CalendarJob, CalendarTask } from "@/lib/types";
+import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment } from "@/lib/calendar-layout";
+import type { CalendarCampaignAsset, CalendarJob, CalendarTask } from "@/lib/types";
 
 type TabletCalendarEvent = {
   id: string;
   date: string;
-  kind: "job" | "task";
+  kind: "job" | "task" | "campaign";
   label: string;
   title: string;
   detail: string;
@@ -52,24 +52,24 @@ function JobRange({ segment }: { segment: CalendarRangeSegment }) {
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
-      <em>{segment.item.client_name ?? "No client"}</em>
+      <em>{segment.item.entity_type === "campaign-asset" ? segment.item.campaign_title : segment.item.client_name ?? "No client"}</em>
       <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
     </article>
   );
 }
 
-export function TabletCalendar({ jobs, tasks, today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; today: string }) {
+export function TabletCalendar({ jobs, tasks, campaignAssets = [], today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; today: string }) {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(parseISO(today)));
-  const jobRanges = useMemo(() => getCalendarJobRanges(jobs), [jobs]);
-  const rangedJobIds = useMemo(() => new Set(jobRanges.map((range) => range.id)), [jobRanges]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets]), [campaignAssets, jobs]);
+  const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarDays = useMemo(() => eachDayOfInterval({
     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
   }), [currentMonth]);
-  const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), jobRanges), [calendarDays, jobRanges]);
+  const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const events = useMemo(() => {
     const jobEvents = jobs.flatMap((job): TabletCalendarEvent[] => {
-      if (rangedJobIds.has(job.id)) return [];
+      if (rangedItemKeys.has(`job:${job.id}`)) return [];
       const eventsForJob: TabletCalendarEvent[] = [];
       if (job.shoot_date) eventsForJob.push({
         id: `${job.id}-shoot`,
@@ -103,8 +103,21 @@ export function TabletCalendar({ jobs, tasks, today }: { jobs: CalendarJob[]; ta
       color: task.status_color,
       isComplete: task.is_complete,
     }] : []);
-    return [...jobEvents, ...taskEvents];
-  }, [jobs, rangedJobIds, tasks]);
+    const campaignEvents = campaignAssets.flatMap((asset): TabletCalendarEvent[] => {
+      if (!asset.due_date || rangedItemKeys.has(`campaign-asset:${asset.id}`)) return [];
+      return [{
+        id: `${asset.id}-campaign-due`,
+        date: asset.due_date,
+        kind: "campaign",
+        label: "Campaign asset",
+        title: asset.title,
+        detail: asset.campaign_title,
+        color: asset.status_color,
+        isComplete: asset.is_complete,
+      }];
+    });
+    return [...jobEvents, ...taskEvents, ...campaignEvents];
+  }, [campaignAssets, jobs, rangedItemKeys, tasks]);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, TabletCalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
@@ -123,6 +136,7 @@ export function TabletCalendar({ jobs, tasks, today }: { jobs: CalendarJob[]; ta
         <div className="tablet-calendar-legend" aria-label="Calendar legend">
           <span><i className="is-job" /> Job window</span>
           <span><i className="is-task" /> Deadline</span>
+          <span><i className="is-campaign" /> Campaign</span>
           <span><i className="is-complete" /> Completed</span>
         </div>
       </header>

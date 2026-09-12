@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCalendarRangeWeeks, getCalendarJobRanges } from "@/lib/calendar-layout";
-import type { CalendarJob } from "@/lib/types";
+import { buildCalendarRangeWeeks, getCalendarJobRanges, getCalendarScheduleRanges } from "@/lib/calendar-layout";
+import type { CalendarCampaignAsset, CalendarJob } from "@/lib/types";
 
 function job(id: string, title: string, start: string | null, end: string | null): CalendarJob {
   return {
@@ -54,5 +54,30 @@ describe("calendar range layout", () => {
 
     expect(ranges).toHaveLength(1);
     expect(ranges[0]).toMatchObject({ item: { title: "One day" }, durationDays: 1 });
+  });
+
+  it("lays campaign assets into the same staggered date lanes as jobs", () => {
+    const campaignAsset: CalendarCampaignAsset = {
+      id: "77777777-7777-4777-8777-777777777777",
+      entity_type: "campaign-asset",
+      title: "Launch film",
+      campaign_title: "Spring launch",
+      client_name: "Ravish Media",
+      start_date: "2026-08-14",
+      due_date: "2026-08-18",
+      priority: "high",
+      status_label: "In Progress",
+      status_color: "#4B78A8",
+      is_complete: false,
+    };
+    const ranges = getCalendarScheduleRanges([
+      job("88888888-8888-4888-8888-888888888888", "Production job", "2026-08-15", "2026-08-16"),
+      campaignAsset,
+    ]);
+    const weeks = buildCalendarRangeWeeks(dayKeys, ranges);
+
+    expect(ranges.find((range) => range.item.entity_type === "campaign-asset")).toMatchObject({ durationDays: 5 });
+    expect(weeks[0].laneCount).toBe(2);
+    expect(weeks[1].segments.find((segment) => segment.item.entity_type === "campaign-asset")).toMatchObject({ startsBeforeWeek: true, span: 2 });
   });
 });

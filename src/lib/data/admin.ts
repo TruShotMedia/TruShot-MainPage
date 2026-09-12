@@ -2,7 +2,7 @@ import { cache } from "react";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarJob, CalendarTask, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarJob, CalendarTask, Campaign, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -183,13 +183,14 @@ export async function getTabletKioskData(): Promise<{
   pipelineTasks: PipelineTask[];
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
+  calendarCampaignAssets: CalendarCampaignAsset[];
   pendingRequestCount: number;
 }> {
   const context = await getAdminContext();
-  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], pendingRequestCount: 0 };
+  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -204,6 +205,16 @@ export async function getTabletKioskData(): Promise<{
     supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,due_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    supabase
+      .from("website-campaigns")
+      .select("id,title,client_id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    supabase
+      .from("website-campaign-assets")
+      .select("id,campaign_id,status_id,title,start_date,due_date,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -223,7 +234,7 @@ export async function getTabletKioskData(): Promise<{
       .is("archived_at", null),
   ]);
 
-  const queryError = [taskStatusesResult, tasksResult, jobsResult, clientsResult, jobStatusesResult, enquiriesResult]
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, enquiriesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error("The tablet workspace could not be refreshed.");
 
@@ -232,6 +243,7 @@ export async function getTabletKioskData(): Promise<{
   const jobs = jobsResult.data ?? [];
   const clientsById = new Map((clientsResult.data ?? []).map((client) => [client.id, client]));
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const campaignsById = new Map((campaignsResult.data ?? []).map((campaign) => [campaign.id, campaign]));
   const taskStatusesById = new Map(allTaskStatuses.map((status) => [status.id, status]));
   const jobStatusesById = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));
 
@@ -274,6 +286,25 @@ export async function getTabletKioskData(): Promise<{
     }];
   });
 
+  const calendarCampaignAssets = (campaignAssetsResult.data ?? []).flatMap((asset): CalendarCampaignAsset[] => {
+    const campaign = campaignsById.get(asset.campaign_id);
+    if (!campaign) return [];
+    const status = taskStatusesById.get(asset.status_id);
+    return [{
+      id: asset.id,
+      entity_type: "campaign-asset",
+      title: asset.title,
+      campaign_title: campaign.title,
+      client_name: campaign.client_id ? clientsById.get(campaign.client_id)?.name ?? null : null,
+      start_date: asset.start_date,
+      due_date: asset.due_date,
+      priority: asset.priority as CalendarCampaignAsset["priority"],
+      status_label: status?.label ?? "Unknown",
+      status_color: status?.color ?? "#777d76",
+      is_complete: !(status?.is_open ?? true),
+    }];
+  });
+
   return {
     statuses: allTaskStatuses.filter((status) => status.is_active).map((status) => ({
       id: status.id,
@@ -286,6 +317,7 @@ export async function getTabletKioskData(): Promise<{
     pipelineTasks,
     calendarJobs,
     calendarTasks,
+    calendarCampaignAssets,
     pendingRequestCount: enquiriesResult.count ?? 0,
   };
 }
@@ -441,11 +473,126 @@ export async function getPortfolioMiscLogosAdmin(): Promise<PortfolioMiscLogo[]>
   return (data ?? []) as PortfolioMiscLogo[];
 }
 
+export async function getCampaigns(): Promise<{
+  campaigns: Campaign[];
+  clients: Array<{ id: string; name: string }>;
+  contacts: Array<{ id: string; client_id: string; name: string; email: string | null; phone: string | null; is_primary: boolean }>;
+  statuses: TaskStatus[];
+  invoices: InvoiceOption[];
+}> {
+  const context = await getAdminContext();
+  if (!context) return { campaigns: [], clients: [], contacts: [], statuses: [], invoices: [] };
+
+  const { supabase } = context;
+  const [campaignsResult, assetsResult, attachmentsResult, clientsResult, contactsResult, statusesResult, invoicesResult] = await Promise.all([
+    supabase
+      .from("website-campaigns")
+      .select("id,client_id,title,objective,status,start_date,due_date,notes,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("website-campaign-assets")
+      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,due_date,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("start_date", { ascending: true, nullsFirst: false })
+      .order("position"),
+    supabase
+      .from("website-campaign-attachments")
+      .select("id,campaign_asset_id,storage_path,file_name,mime_type,file_size_bytes,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("created_at"),
+    supabase
+      .from("website-clients")
+      .select("id,name")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("name"),
+    supabase
+      .from("website-client-contacts")
+      .select("id,client_id,name,email,phone,is_primary")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("is_primary", { ascending: false })
+      .order("name"),
+    supabase
+      .from("website-task-statuses")
+      .select("id,key,label,color,position,is_open")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_active", true)
+      .order("position"),
+    supabase
+      .from("website-invoices")
+      .select("id,invoice_number,client_id,status,total_cents,issue_date")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("issue_date", { ascending: false }),
+  ]);
+
+  const queryError = [campaignsResult, assetsResult, attachmentsResult, clientsResult, contactsResult, statusesResult, invoicesResult]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Campaign planning could not be loaded: ${queryError.message}`);
+
+  const clients = clientsResult.data ?? [];
+  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const statuses = (statusesResult.data ?? []) as TaskStatus[];
+  const statusById = new Map(statuses.map((status) => [status.id, status]));
+  const invoices: InvoiceOption[] = (invoicesResult.data ?? []).map((invoice) => ({
+    ...invoice,
+    client_name: invoice.client_id ? clientById.get(invoice.client_id)?.name ?? null : null,
+  }));
+  const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const attachments = attachmentsResult.data ?? [];
+  const paths = attachments.map((attachment) => attachment.storage_path);
+  const signedUrlByPath = new Map<string, string>();
+  if (paths.length) {
+    const { data: signedUrls } = await supabase.storage
+      .from("website-campaign-attachments")
+      .createSignedUrls(paths, 60 * 60);
+    for (const signed of signedUrls ?? []) {
+      if (signed.path && signed.signedUrl) signedUrlByPath.set(signed.path, signed.signedUrl);
+    }
+  }
+
+  const attachmentsByAssetId = new Map<string, typeof attachments>();
+  for (const attachment of attachments) {
+    attachmentsByAssetId.set(attachment.campaign_asset_id, [...(attachmentsByAssetId.get(attachment.campaign_asset_id) ?? []), attachment]);
+  }
+
+  const assets = (assetsResult.data ?? []).map((asset) => ({
+    ...asset,
+    priority: asset.priority as "low" | "normal" | "high" | "urgent",
+    status: statusById.get(asset.status_id) ?? null,
+    invoice: asset.invoice_id ? invoiceById.get(asset.invoice_id) ?? null : null,
+    attachments: (attachmentsByAssetId.get(asset.id) ?? [])
+      .map((attachment) => ({ ...attachment, signed_url: signedUrlByPath.get(attachment.storage_path) ?? null })),
+  }));
+  const assetsByCampaignId = new Map<string, typeof assets>();
+  for (const asset of assets) {
+    assetsByCampaignId.set(asset.campaign_id, [...(assetsByCampaignId.get(asset.campaign_id) ?? []), asset]);
+  }
+
+  return {
+    campaigns: (campaignsResult.data ?? []).map((campaign) => ({
+      ...campaign,
+      status: campaign.status as Campaign["status"],
+      client: campaign.client_id ? clientById.get(campaign.client_id) ?? null : null,
+      assets: assetsByCampaignId.get(campaign.id) ?? [],
+    })) as Campaign[],
+    clients,
+    contacts: contactsResult.data ?? [],
+    statuses,
+    invoices,
+  };
+}
+
 export async function getCalendarData() {
   const context = await getAdminContext();
-  if (!context) return { jobs: [], tasks: [] };
+  if (!context) return { jobs: [], tasks: [], campaignAssets: [] };
 
-  const [jobsResult, tasksResult, clientsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
+  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,due_date")
@@ -454,6 +601,16 @@ export async function getCalendarData() {
     context.supabase
       .from("website-job-tasks")
       .select("id,title,job_id,status_id,due_date,priority")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-campaigns")
+      .select("id,title,client_id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null),
+    context.supabase
+      .from("website-campaign-assets")
+      .select("id,campaign_id,status_id,title,start_date,due_date,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
@@ -474,6 +631,7 @@ export async function getCalendarData() {
   const jobStatuses = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));
   const taskStatuses = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
   const jobsById = new Map((jobsResult.data ?? []).map((job) => [job.id, job]));
+  const campaignsById = new Map((campaignsResult.data ?? []).map((campaign) => [campaign.id, campaign]));
 
   return {
     jobs: (jobsResult.data ?? []).map((job) => {
@@ -502,6 +660,24 @@ export async function getCalendarData() {
         client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
         due_date: task.due_date,
         priority: task.priority as "low" | "normal" | "high" | "urgent",
+        status_label: status?.label ?? "Unknown",
+        status_color: status?.color ?? "#777d76",
+        is_complete: !(status?.is_open ?? true),
+      }];
+    }),
+    campaignAssets: (campaignAssetsResult.data ?? []).flatMap((asset): CalendarCampaignAsset[] => {
+      const campaign = campaignsById.get(asset.campaign_id);
+      if (!campaign) return [];
+      const status = taskStatuses.get(asset.status_id);
+      return [{
+        id: asset.id,
+        entity_type: "campaign-asset",
+        title: asset.title,
+        campaign_title: campaign.title,
+        client_name: campaign.client_id ? clients.get(campaign.client_id) ?? null : null,
+        start_date: asset.start_date,
+        due_date: asset.due_date,
+        priority: asset.priority as CalendarCampaignAsset["priority"],
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
         is_complete: !(status?.is_open ?? true),

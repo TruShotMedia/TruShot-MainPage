@@ -17,12 +17,13 @@ import {
   PackageOpen,
   PanelsTopLeft,
   ReceiptText,
+  Rocket,
   UsersRound,
 } from "lucide-react";
 
 const groups = [
   { label: "Workspace", links: [["/admin/overview", "Overview", LayoutDashboard], ["/admin/requests", "Requests", Bell], ["/admin/pipeline", "Pipeline", KanbanSquare]] },
-  { label: "Operations", links: [["/admin/calendar", "Calendar", CalendarDays], ["/admin/clients", "Clients", UsersRound], ["/admin/jobs", "Jobs", BriefcaseBusiness], ["/admin/tasks", "Tasks / Assets", ClipboardList]] },
+  { label: "Operations", links: [["/admin/calendar", "Calendar", CalendarDays], ["/admin/campaigns", "Campaigns", Rocket], ["/admin/clients", "Clients", UsersRound], ["/admin/jobs", "Jobs", BriefcaseBusiness], ["/admin/tasks", "Tasks / Assets", ClipboardList]] },
   { label: "Website", links: [["/admin/website", "Website Elements", PanelsTopLeft], ["/admin/portfolio", "Portfolio", Images], ["/admin/pricing", "Pricing", PackageOpen], ["/admin/analytics", "Analytics", BarChart3]] },
   { label: "Business", links: [["/admin/invoices", "Invoices", ReceiptText], ["/admin/finance", "Finance & Tax", CircleDollarSign]] },
 ] as const;

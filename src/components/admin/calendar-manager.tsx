@@ -15,16 +15,16 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, X } from "lucide-react";
 import { updateCalendarItem } from "@/app/admin/actions";
-import { buildCalendarRangeWeeks, getCalendarJobRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
-import type { CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
+import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeItem, type CalendarRangeSegment } from "@/lib/calendar-layout";
+import type { CalendarCampaignAsset, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
-type CalendarFilter = "all" | "jobs" | "tasks";
+type CalendarFilter = "all" | "jobs" | "tasks" | "campaigns";
 type CalendarEvent = {
   id: string;
   date: string;
-  kind: "shoot" | "job-due" | "task-due";
+  kind: "shoot" | "job-due" | "task-due" | "campaign-due";
   label: string;
   item: CalendarItem;
 };
@@ -44,7 +44,14 @@ function getCalendarEvents(items: CalendarItem[]): CalendarEvent[] {
       if (item.due_date) events.push({ id: `${item.id}-due`, date: item.due_date, kind: "job-due", label: "Job due", item });
       return events;
     }
-    return item.due_date ? [{ id: `${item.id}-due`, date: item.due_date, kind: "task-due" as const, label: "Asset due", item }] : [];
+    if (!item.due_date) return [];
+    return [{
+      id: `${item.entity_type}-${item.id}-due`,
+      date: item.due_date,
+      kind: item.entity_type === "task" ? "task-due" as const : "campaign-due" as const,
+      label: item.entity_type === "task" ? "Task due" : "Campaign asset",
+      item,
+    }];
   });
 }
 
@@ -74,13 +81,13 @@ function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: 
   );
 }
 
-function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment; onOpen: (item: CalendarJob) => void }) {
+function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment; onOpen: (item: CalendarRangeItem) => void }) {
   const windowLabel = formatJobWindow(segment);
   return (
     <button
       type="button"
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
-      className={`calendar-job-range ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${segment.item.is_complete ? "is-complete" : ""}`}
+      className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${segment.item.is_complete ? "is-complete" : ""}`}
       onClick={() => onOpen(segment.item)}
       title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${segment.item.is_complete ? " · completed" : ""}`}
       style={{
@@ -90,26 +97,26 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
-      <em>{segment.item.client_name ?? "No client"}</em>
+      <em>{segment.item.entity_type === "campaign-asset" ? segment.item.campaign_title : segment.item.client_name ?? "No client"}</em>
       <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
     </button>
   );
 }
 
-function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange; onOpen: (item: CalendarJob) => void }) {
+function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange; onOpen: (item: CalendarRangeItem) => void }) {
   const windowLabel = formatJobWindow(range);
   return (
     <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${range.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
       <span style={{ background: range.item.status_color }} />
-      <strong>Job window</strong>
+      <strong>{range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong>
       <div><em>{range.item.title}</em><small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small></div>
     </button>
   );
 }
 
-export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: CalendarTask[] }) {
+export function CalendarManager({ jobs, tasks, campaignAssets = [] }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[] }) {
   const router = useRouter();
-  const [items, setItems] = useState<CalendarItem[]>([...jobs, ...tasks]);
+  const [items, setItems] = useState<CalendarItem[]>([...jobs, ...tasks, ...campaignAssets]);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [filter, setFilter] = useState<CalendarFilter>("all");
   const [showCompleted, setShowCompleted] = useState(true);
@@ -122,17 +129,18 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
     if (!showCompleted && item.is_complete) return false;
     if (filter === "jobs") return item.entity_type === "job";
     if (filter === "tasks") return item.entity_type === "task";
+    if (filter === "campaigns") return item.entity_type === "campaign-asset";
     return true;
   }), [filter, items, showCompleted]);
-  const visibleJobs = useMemo(() => visibleItems.filter((item): item is CalendarJob => item.entity_type === "job"), [visibleItems]);
-  const jobRanges = useMemo(() => getCalendarJobRanges(visibleJobs), [visibleJobs]);
-  const rangedJobIds = useMemo(() => new Set(jobRanges.map((range) => range.id)), [jobRanges]);
-  const events = useMemo(() => getCalendarEvents(visibleItems.filter((item) => item.entity_type === "task" || !rangedJobIds.has(item.id))), [rangedJobIds, visibleItems]);
+  const rangeItems = useMemo(() => visibleItems.filter((item): item is CalendarRangeItem => item.entity_type !== "task"), [visibleItems]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges(rangeItems), [rangeItems]);
+  const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
+  const events = useMemo(() => getCalendarEvents(visibleItems.filter((item) => !rangedItemKeys.has(`${item.entity_type}:${item.id}`))), [rangedItemKeys, visibleItems]);
   const calendarDays = useMemo(() => eachDayOfInterval({
     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
   }), [currentMonth]);
-  const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), jobRanges), [calendarDays, jobRanges]);
+  const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
@@ -142,13 +150,13 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
     const grouped = new Map<string, CalendarJobRange[]>();
     const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
-    for (const range of jobRanges) {
+    for (const range of scheduleRanges) {
       if (range.start > monthEnd || range.end < monthStart) continue;
       const displayDay = range.start < monthStart ? monthStart : range.start;
       grouped.set(displayDay, [...(grouped.get(displayDay) ?? []), range]);
     }
     return grouped;
-  }, [currentMonth, jobRanges]);
+  }, [currentMonth, scheduleRanges]);
 
   const activeItems = items.filter((item) => !item.is_complete);
   const overdueCount = activeItems.filter((item) => getDueDate(item) && getDueDate(item)! < today).length;
@@ -167,8 +175,8 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
       const leftOverdue = leftDue < today ? 1 : 0;
       const rightOverdue = rightDue < today ? 1 : 0;
       if (leftOverdue !== rightOverdue) return rightOverdue - leftOverdue;
-      const leftPriority = left.entity_type === "task" ? priorityWeight[left.priority] : 1;
-      const rightPriority = right.entity_type === "task" ? priorityWeight[right.priority] : 1;
+      const leftPriority = left.entity_type === "job" ? 1 : priorityWeight[left.priority];
+      const rightPriority = right.entity_type === "job" ? 1 : priorityWeight[right.priority];
       return rightPriority - leftPriority || leftDue.localeCompare(rightDue);
     })
     .slice(0, 8);
@@ -196,13 +204,14 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
     try {
       await updateCalendarItem(formData);
       const dueDate = String(formData.get("due_date") ?? "") || null;
+      const startDate = String(formData.get("start_date") ?? "") || null;
       const shootDate = String(formData.get("shoot_date") ?? "") || null;
       const priority = String(formData.get("priority") ?? "normal") as CalendarTask["priority"];
       setItems((current) => current.map((item) => {
         if (item.id !== selectedItem.id || item.entity_type !== selectedItem.entity_type) return item;
-        return item.entity_type === "job"
-          ? { ...item, shoot_date: shootDate, due_date: dueDate }
-          : { ...item, due_date: dueDate, priority };
+        if (item.entity_type === "job") return { ...item, shoot_date: shootDate, due_date: dueDate };
+        if (item.entity_type === "campaign-asset") return { ...item, start_date: startDate, due_date: dueDate, priority };
+        return { ...item, due_date: dueDate, priority };
       }));
       closeEditor();
       router.refresh();
@@ -218,7 +227,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
       <section className="calendar-kpis" aria-label="Deadline overview">
         <article className={overdueCount ? "calendar-kpi-alert" : ""}><AlertTriangle size={17} /><div><strong>{overdueCount}</strong><span>Overdue</span></div></article>
         <article><Clock3 size={17} /><div><strong>{dueThisWeekCount}</strong><span>Due next 7 days</span></div></article>
-        <article><CalendarCheck2 size={17} /><div><strong>{jobs.filter((job) => !job.is_complete && job.shoot_date).length}</strong><span>Production dates</span></div></article>
+        <article><CalendarCheck2 size={17} /><div><strong>{jobs.filter((job) => !job.is_complete && job.shoot_date).length + campaignAssets.filter((asset) => !asset.is_complete && asset.start_date).length}</strong><span>Production starts</span></div></article>
         <article><CircleDot size={17} /><div><strong>{unscheduledItems.length}</strong><span>Without deadline</span></div></article>
       </section>
 
@@ -232,7 +241,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
               <button type="button" className="calendar-today-button" onClick={() => setCurrentMonth(startOfMonth(new Date()))}>Today</button>
             </div>
             <div className="calendar-filters" role="group" aria-label="Calendar filters">
-              {(["all", "jobs", "tasks"] as const).map((option) => (
+              {(["all", "jobs", "tasks", "campaigns"] as const).map((option) => (
                 <button type="button" className={filter === option ? "is-active" : ""} onClick={() => setFilter(option)} key={option}>{option}</button>
               ))}
               <label><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} /> Completed visible</label>
@@ -244,6 +253,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
             <span><i className="legend-shoot" /> Single production date</span>
             <span><i className="legend-job-due" /> Job deadline</span>
             <span><i className="legend-task-due" /> Task deadline</span>
+            <span><i className="legend-campaign-due" /> Campaign asset</span>
           </div>
 
           <div className="calendar-weekdays" aria-hidden="true">{weekdays.map((day) => <span key={day}>{day}</span>)}</div>
@@ -284,8 +294,8 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
             <header><div><span>Focus now</span><h2>Priority radar</h2></div><AlertTriangle size={18} /></header>
             {priorityItems.length ? <div className="priority-radar-list">{priorityItems.map((item) => (
               <button type="button" onClick={() => setSelectedItem(item)} key={`${item.entity_type}-${item.id}`}>
-                <span className={`priority-radar-icon ${item.entity_type === "task" ? `priority-${item.priority}` : ""}`}>{item.entity_type === "job" ? <BriefcaseBusiness size={14} /> : <ListTodo size={14} />}</span>
-                <div><strong>{item.title}</strong><small>{item.entity_type === "task" ? item.job_title : item.client_name || "No client"}</small></div>
+                <span className={`priority-radar-icon ${item.entity_type !== "job" ? `priority-${item.priority}` : ""}`}>{item.entity_type === "job" ? <BriefcaseBusiness size={14} /> : item.entity_type === "campaign-asset" ? <Rocket size={14} /> : <ListTodo size={14} />}</span>
+                <div><strong>{item.title}</strong><small>{item.entity_type === "task" ? item.job_title : item.entity_type === "campaign-asset" ? item.campaign_title : item.client_name || "No client"}</small></div>
                 <em className={getDueDate(item)! < today ? "is-overdue" : ""}>{dueLabel(getDueDate(item)!, today)}</em>
               </button>
             ))}</div> : <p className="calendar-side-empty">No open deadlines yet.</p>}
@@ -294,7 +304,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
           <section className="admin-card unscheduled-queue">
             <header><div><span>Needs a date</span><h2>Unscheduled</h2></div><strong>{unscheduledItems.length}</strong></header>
             {unscheduledItems.length ? <div>{unscheduledItems.slice(0, 7).map((item) => (
-              <button type="button" onClick={() => setSelectedItem(item)} key={`${item.entity_type}-${item.id}`}><span>{item.entity_type === "job" ? "Job" : "Task"}</span><strong>{item.title}</strong></button>
+              <button type="button" onClick={() => setSelectedItem(item)} key={`${item.entity_type}-${item.id}`}><span>{item.entity_type === "job" ? "Job" : item.entity_type === "campaign-asset" ? "Campaign" : "Task"}</span><strong>{item.title}</strong></button>
             ))}</div> : <p className="calendar-side-empty">Everything open has a deadline.</p>}
           </section>
         </aside>
@@ -304,7 +314,7 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
         <div className="calendar-editor-backdrop" onClick={handleBackdropClick} role="presentation">
           <form className="calendar-editor" onSubmit={saveSchedule} role="dialog" aria-modal="true" aria-labelledby="calendar-editor-title">
             <header>
-              <div><span>{selectedItem.entity_type === "job" ? "Job schedule" : "Task deadline"}</span><h2 id="calendar-editor-title">{selectedItem.title}</h2><p>{selectedItem.status_label}{selectedItem.client_name ? ` · ${selectedItem.client_name}` : ""}</p></div>
+              <div><span>{selectedItem.entity_type === "job" ? "Job schedule" : selectedItem.entity_type === "campaign-asset" ? "Campaign asset schedule" : "Task deadline"}</span><h2 id="calendar-editor-title">{selectedItem.title}</h2><p>{selectedItem.status_label}{selectedItem.entity_type === "campaign-asset" ? ` · ${selectedItem.campaign_title}` : ""}{selectedItem.client_name ? ` · ${selectedItem.client_name}` : ""}</p></div>
               <button type="button" onClick={closeEditor} aria-label="Close schedule editor"><X size={17} /></button>
             </header>
             <input type="hidden" name="entity_type" value={selectedItem.entity_type} />
@@ -313,6 +323,12 @@ export function CalendarManager({ jobs, tasks }: { jobs: CalendarJob[]; tasks: C
               <div className="calendar-editor-fields">
                 <label>Job start / production date<input type="date" name="shoot_date" defaultValue={selectedItem.shoot_date ?? ""} /></label>
                 <label>Job deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+              </div>
+            ) : selectedItem.entity_type === "campaign-asset" ? (
+              <div className="calendar-editor-fields">
+                <label>Asset start date<input type="date" name="start_date" defaultValue={selectedItem.start_date ?? ""} /></label>
+                <label>Asset deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+                <label>Priority<select name="priority" defaultValue={selectedItem.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
               </div>
             ) : (
               <div className="calendar-editor-fields">
