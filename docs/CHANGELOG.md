@@ -1,5 +1,13 @@
 # TruShot CRM changelog
 
+## 2026-09-12 — Native client-request notifications
+
+- Added opt-in native Web Push for installed iPhone CRM devices, including Lock Screen and Notification Centre alerts for new client requests.
+- Added per-device enable, disable and test controls to Admin Settings, with clear iPhone Home Screen guidance.
+- Added protected `website-push-subscriptions` storage with per-user workspace RLS, server-only delivery credentials and automatic expired-device cleanup.
+- Added a root-scoped service worker that opens the relevant Client Requests view when an alert is tapped, without adding background polling or offline caches.
+- Updated Next.js and its ESLint config to 16.3.5 and resolved the package audit to remove known security advisories.
+
 ## 2026-09-11 — iPhone Home Screen app
 
 - Turned the existing web manifest into an admin-first install experience that launches directly into `/admin` in standalone mode.

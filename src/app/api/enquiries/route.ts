@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
+import { notifyNewClientRequest } from "@/lib/push-notifications";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export const runtime = "nodejs";
@@ -63,7 +64,9 @@ export async function POST(request: Request) {
     pricingVersionId = selectedPackage.version_id;
   }
 
+  const enquiryId = crypto.randomUUID();
   const { error } = await supabase.from("website-enquiries").insert({
+    id: enquiryId,
     workspace_id: TRUSHOT_WORKSPACE_ID,
     package_id: packageId,
     pricing_version_id: pricingVersionId,
@@ -79,5 +82,11 @@ export async function POST(request: Request) {
   });
 
   if (error) return NextResponse.json({ error: "Unable to save enquiry" }, { status: 500 });
+  after(() => notifyNewClientRequest({
+    workspaceId: TRUSHOT_WORKSPACE_ID,
+    enquiryId,
+    name: parsed.data.name,
+    businessName: parsed.data.businessName || null,
+  }));
   return NextResponse.json({ ok: true }, { status: 201 });
 }

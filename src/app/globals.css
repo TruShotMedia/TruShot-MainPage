@@ -1081,6 +1081,23 @@ img { max-width: 100%; }
 .toggle-field small { color: #939790; font-size: 9px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .settings-save { display: flex; justify-content: flex-end; }
 .notion-sync-section { margin-top: 22px; }
+.push-settings-section { margin-top: 22px; }
+.push-settings-panel { display: flex; min-width: 0; flex-direction: column; gap: 17px; }
+.push-settings-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.push-device-status, .push-device-count { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 8px 11px; font-size: 9px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.push-device-status { border: 1px solid #c9d3cc; background: #eef2ef; color: #58645b; }
+.push-device-status.is-enabled { border-color: #b9d0bf; background: #e8f0e9; color: var(--green); }
+.push-device-status.is-attention { border-color: #e2c9ad; background: #f5ebdc; color: #946528; }
+.push-device-count { color: #777e77; }
+.push-settings-copy { display: flex; align-items: flex-start; gap: 12px; border: 1px solid #deded7; border-radius: 12px; background: rgba(255,255,255,.55); padding: 16px; color: var(--green); }
+.push-settings-copy > svg { flex: 0 0 auto; margin-top: 1px; }
+.push-settings-copy strong { color: #3d443e; font-size: 12px; }
+.push-settings-copy p { margin: 5px 0 0; color: #747b74; font-size: 11px; line-height: 1.55; }
+.push-guidance { margin: 0; border: 1px solid #dfd8c5; border-radius: 9px; background: #f5f0e2; padding: 11px 13px; color: #776b4e; font-size: 11px; line-height: 1.55; }
+.push-settings-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.push-settings-message { margin: 0; border-radius: 9px; padding: 10px 12px; font-size: 11px; line-height: 1.5; }
+.push-settings-message.is-success { border: 1px solid #bed2c3; background: #eaf2ec; color: #286044; }
+.push-settings-message.is-error { border: 1px solid #e4c0b6; background: #f7e7e2; color: #964b3b; }
 .notion-sync-panel { display: flex; min-width: 0; flex-direction: column; gap: 17px; }
 .notion-sync-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .notion-sync-panel > header .admin-primary-button { min-width: 118px; }
@@ -1197,6 +1214,9 @@ img { max-width: 100%; }
   .quick-form h3, .quick-form.wide button, .form-span { grid-column: auto; }
   .settings-section { padding: 22px; }
   .notion-sync-panel > header { align-items: flex-start; flex-direction: column; }
+  .push-settings-panel > header { align-items: flex-start; flex-direction: column; }
+  .push-settings-actions { display: grid; grid-template-columns: 1fr; }
+  .push-settings-actions button { width: 100%; }
   .notion-sync-panel > header .admin-primary-button { width: 100%; }
   .notion-sync-metrics { grid-template-columns: 1fr; }
   .notion-sync-metrics > div { border-right: 0; }
