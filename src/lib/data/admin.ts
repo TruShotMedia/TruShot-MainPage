@@ -505,6 +505,37 @@ export async function getCampaigns(): Promise<{
   if (!context) return { campaigns: [], clients: [], contacts: [], statuses: [], invoices: [] };
 
   const { supabase } = context;
+  const assetsPromise = (async () => {
+    const currentResult = await supabase
+      .from("website-campaign-assets")
+      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,start_time,due_date,due_time,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("start_date", { ascending: true, nullsFirst: false })
+      .order("position");
+
+    const missingTimeColumn = currentResult.error
+      && ["42703", "PGRST204"].includes(currentResult.error.code)
+      && /(?:start_time|due_time)/i.test(currentResult.error.message);
+    if (!missingTimeColumn) return currentResult;
+
+    // Keep campaign planning available while a newly deployed time field is
+    // still propagating through PostgREST's schema cache.
+    const legacyResult = await supabase
+      .from("website-campaign-assets")
+      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,due_date,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .is("archived_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("start_date", { ascending: true, nullsFirst: false })
+      .order("position");
+
+    return {
+      ...legacyResult,
+      data: legacyResult.data?.map((asset) => ({ ...asset, start_time: null, due_time: null })) ?? null,
+    };
+  })();
   const [campaignsResult, assetsResult, attachmentsResult, clientsResult, contactsResult, statusesResult, invoicesResult] = await Promise.all([
     supabase
       .from("website-campaigns")
@@ -513,14 +544,7 @@ export async function getCampaigns(): Promise<{
       .is("archived_at", null)
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("updated_at", { ascending: false }),
-    supabase
-      .from("website-campaign-assets")
-      .select("id,campaign_id,invoice_id,status_id,title,description,asset_type,priority,start_date,start_time,due_date,due_time,location,contact_name,contact_email,contact_phone,notes,position,completed_at,updated_at")
-      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-      .is("archived_at", null)
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .order("start_date", { ascending: true, nullsFirst: false })
-      .order("position"),
+    assetsPromise,
     supabase
       .from("website-campaign-attachments")
       .select("id,campaign_asset_id,storage_path,file_name,mime_type,file_size_bytes,created_at")
