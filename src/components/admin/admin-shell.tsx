@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Bell, LogOut, Menu, Search, Settings } from "lucide-react";
+import { Bell, LogOut, Search, Settings } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
+import { MobileAdminMenu } from "@/components/admin/mobile-admin-menu";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 
 export function AdminShell({
@@ -37,10 +38,7 @@ export function AdminShell({
 
       <div className="admin-workspace">
         <header className="admin-topbar">
-          <details className="mobile-admin-menu">
-            <summary><Menu size={21} /> Menu</summary>
-            <div><AdminNavigation /></div>
-          </details>
+          <MobileAdminMenu />
           <div className="admin-search"><Search size={17} /><span>Search workspace</span><kbd>⌘ K</kbd></div>
           <div className="topbar-actions">
             <Link href="/admin/requests" className="notification-button" aria-label={`${pendingRequestCount} client ${pendingRequestCount === 1 ? "request" : "requests"} awaiting review`}>

@@ -32,12 +32,12 @@ function PendingIndicator() {
   return pending ? <LoaderCircle className="nav-pending" size={14} aria-label="Loading page" /> : <ChevronRight className="nav-chevron" size={14} />;
 }
 
-export function AdminNavigation() {
+export function AdminNavigation({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
   return <nav className="admin-nav" aria-label="CRM navigation">
     {groups.map((group) => <div className="admin-nav-group" key={group.label}>
       <p>{group.label}</p>
-      {group.links.map(([href, label, Icon]) => <Link key={href} href={href} className={pathname === href ? "is-active" : undefined}>
+      {group.links.map(([href, label, Icon]) => <Link key={href} href={href} className={pathname === href ? "is-active" : undefined} onClick={onNavigate}>
         <Icon size={17} strokeWidth={1.8} /><span>{label}</span><PendingIndicator />
       </Link>)}
     </div>)}

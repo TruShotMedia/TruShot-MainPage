@@ -438,6 +438,7 @@ img { max-width: 100%; }
 .topbar-actions > a { position: relative; display: grid; width: 37px; height: 37px; place-items: center; border: 1px solid #dcdbd4; border-radius: 9px; background: #faf9f5; color: #5f655e; }
 .notification-button span { position: absolute; top: -5px; right: -5px; display: grid; min-width: 17px; height: 17px; place-items: center; border: 2px solid #f3f2ec; border-radius: 9px; background: #b76645; color: white; font-size: 8px; font-weight: 900; }
 .mobile-admin-menu { display: none; }
+.mobile-admin-menu-trigger, .mobile-admin-menu-backdrop { border: 0; font: inherit; }
 .admin-main { width: min(1540px, 100%); margin: 0 auto; padding: 45px clamp(20px, 3.2vw, 50px) 80px; }
 .admin-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 35px; margin-bottom: 38px; }
 .admin-page-header h1 { margin: 0; font-size: clamp(38px, 4vw, 58px); letter-spacing: -.06em; line-height: .95; }
@@ -1148,9 +1149,15 @@ img { max-width: 100%; }
   .login-brand { display: none; }
   .admin-shell { display: block; }
   .admin-sidebar { display: none; }
-  .mobile-admin-menu { display: block; }
-  .mobile-admin-menu summary { display: flex; align-items: center; gap: 7px; color: #4e544d; font-size: 12px; font-weight: 800; cursor: pointer; list-style: none; }
-  .mobile-admin-menu > div { position: absolute; top: 58px; left: 12px; z-index: 70; width: 240px; max-height: 75vh; overflow-y: auto; border-radius: 12px; background: #101612; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+  .mobile-admin-menu { position: relative; z-index: 80; display: block; }
+  .mobile-admin-menu-trigger { position: relative; z-index: 73; display: flex; min-width: 84px; min-height: 42px; align-items: center; justify-content: center; gap: 7px; border-radius: 10px; background: transparent; color: #4e544d; font-size: 12px; font-weight: 800; cursor: pointer; transition: background 180ms ease, color 180ms ease, transform 180ms ease; }
+  .mobile-admin-menu-trigger:active { transform: scale(.97); }
+  .mobile-admin-menu.is-open .mobile-admin-menu-trigger { background: var(--green); color: white; }
+  .mobile-admin-menu-backdrop { position: fixed; z-index: 71; visibility: hidden; background: rgba(9,14,11,.24); cursor: default; opacity: 0; inset: 0; transition: opacity 180ms ease, visibility 0s linear 180ms; backdrop-filter: blur(2px); }
+  .mobile-admin-menu-panel { position: fixed; top: 66px; left: 12px; z-index: 72; visibility: hidden; width: min(290px, calc(100vw - 24px)); max-height: calc(100dvh - 78px); overflow-y: auto; border: 1px solid rgba(255,255,255,.08); border-radius: 15px; background: #101612; box-shadow: 0 24px 70px rgba(0,0,0,.3); opacity: 0; transform: translateY(-8px) scale(.985); transform-origin: top left; transition: opacity 180ms ease, transform 180ms cubic-bezier(.22,.8,.25,1), visibility 0s linear 180ms; }
+  .mobile-admin-menu.is-open .mobile-admin-menu-backdrop, .mobile-admin-menu.is-open .mobile-admin-menu-panel { visibility: visible; opacity: 1; transition-delay: 0s; }
+  .mobile-admin-menu.is-open .mobile-admin-menu-panel { transform: translateY(0) scale(1); }
+  .mobile-admin-menu-panel .admin-nav { padding: 18px 13px 10px; }
   .admin-search { display: none; }
   .admin-topbar { height: 58px; }
   .admin-main { padding-top: 30px; }
@@ -1312,7 +1319,7 @@ img { max-width: 100%; }
 
   @media (display-mode: standalone) and (max-width: 850px) {
     .admin-topbar { height: calc(58px + env(safe-area-inset-top)); }
-    .mobile-admin-menu > div { top: calc(58px + env(safe-area-inset-top)); }
+    .mobile-admin-menu-panel { top: calc(66px + env(safe-area-inset-top)); max-height: calc(100dvh - 78px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   }
 
   @media (display-mode: standalone) and (max-width: 620px) {
@@ -1321,6 +1328,10 @@ img { max-width: 100%; }
       padding-left: max(16px, env(safe-area-inset-left));
     }
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-admin-menu-trigger, .mobile-admin-menu-backdrop, .mobile-admin-menu-panel { transition-duration: 0.01ms; }
 }
 
 /* Protected tablet production kiosk */
