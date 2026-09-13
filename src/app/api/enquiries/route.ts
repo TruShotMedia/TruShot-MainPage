@@ -15,6 +15,15 @@ const schema = z.object({
   message: z.string().trim().max(5000).optional().default(""),
   consent: z.literal("true"),
   company_website: z.string().max(0).optional().default(""),
+  analyticsAnonymousId: z.string().uuid().or(z.literal("")).optional().default(""),
+  sourcePath: z.string().startsWith("/").max(300).optional().default("/"),
+  attribution: z.object({
+    landing_path: z.string().max(300).optional(),
+    referrer_domain: z.string().max(253).nullable().optional(),
+    device_class: z.enum(["mobile", "tablet", "desktop"]).optional(),
+    first_seen_at: z.string().datetime().optional(),
+    utm: z.object({ source: z.string().max(180).optional(), medium: z.string().max(180).optional(), campaign: z.string().max(180).optional(), term: z.string().max(180).optional(), content: z.string().max(180).optional() }).optional(),
+  }).optional().default({}),
 });
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -64,24 +73,22 @@ export async function POST(request: Request) {
     pricingVersionId = selectedPackage.version_id;
   }
 
-  const enquiryId = crypto.randomUUID();
-  const { error } = await supabase.from("website-enquiries").insert({
-    id: enquiryId,
-    workspace_id: TRUSHOT_WORKSPACE_ID,
-    package_id: packageId,
-    pricing_version_id: pricingVersionId,
-    name: parsed.data.name,
-    business_name: parsed.data.businessName || null,
-    email: parsed.data.email.toLowerCase(),
-    phone: parsed.data.phone || null,
-    message: parsed.data.message || null,
-    source_path: "/",
-    attribution: {},
-    consent_at: new Date().toISOString(),
-    status: "new",
+  const { data: enquiryId, error } = await supabase.rpc("website-create-public-enquiry", {
+    p_workspace_id: TRUSHOT_WORKSPACE_ID,
+    p_name: parsed.data.name,
+    p_business_name: parsed.data.businessName || null,
+    p_email: parsed.data.email,
+    p_phone: parsed.data.phone || null,
+    p_package_id: packageId,
+    p_pricing_version_id: pricingVersionId,
+    p_message: parsed.data.message || null,
+    p_source_path: parsed.data.sourcePath,
+    p_attribution: parsed.data.attribution,
+    p_analytics_anonymous_id: parsed.data.analyticsAnonymousId || null,
+    p_consent_at: new Date().toISOString(),
   });
 
-  if (error) return NextResponse.json({ error: "Unable to save enquiry" }, { status: 500 });
+  if (error || !enquiryId) return NextResponse.json({ error: "Unable to save enquiry" }, { status: 500 });
   after(() => notifyNewClientRequest({
     workspaceId: TRUSHOT_WORKSPACE_ID,
     enquiryId,

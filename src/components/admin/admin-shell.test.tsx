@@ -7,6 +7,7 @@ import { AdminShell } from "./admin-shell";
 
 vi.mock("next/image", () => ({ default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} /> }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/admin/actions", () => ({ signOut: vi.fn() }));
 vi.mock("@/components/admin/admin-navigation", () => ({ AdminNavigation: () => <nav>Admin navigation</nav> }));
 vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => null }));

@@ -6,12 +6,13 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getCampaigns } from "@/lib/data/admin";
+import { todayDateInput } from "@/lib/format";
 
 export default async function CampaignsPage() {
   const data = await getCampaigns();
   const openAssets = data.campaigns.flatMap((campaign) => campaign.assets).filter((asset) => asset.status?.is_open !== false);
   const datedAssets = openAssets.filter((asset) => asset.due_date);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateInput();
   const overdue = datedAssets.filter((asset) => asset.due_date! < today).length;
 
   return (

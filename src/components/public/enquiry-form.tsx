@@ -22,7 +22,10 @@ export function EnquiryForm({ packages, showPackages = true }: { packages: Prici
     event.preventDefault();
     setState("sending");
     const form = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(form.entries());
+    const payload: Record<string, unknown> = Object.fromEntries(form.entries());
+    payload.analyticsAnonymousId = window.localStorage.getItem("trushot_analytics_id") ?? "";
+    payload.sourcePath = window.location.pathname;
+    try { payload.attribution = JSON.parse(window.localStorage.getItem("trushot_attribution") ?? "{}"); } catch { payload.attribution = {}; }
     const response = await fetch("/api/enquiries", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -66,9 +69,9 @@ export function EnquiryForm({ packages, showPackages = true }: { packages: Prici
         {showPackages && (
           <label className="form-wide">
             <span>Package</span>
-            <select name="packageId" value={selected} onChange={(event) => setSelected(event.target.value)}>
+            <select name="packageId" value={selected} onChange={(event) => setSelected(event.target.value)} data-analytics-package>
               <option value="">I’m not sure yet</option>
-              {packages.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              {packages.map((item) => <option key={item.id} value={item.id} data-package-slug={item.slug}>{item.title}</option>)}
             </select>
           </label>
         )}

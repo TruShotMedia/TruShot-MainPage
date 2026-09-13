@@ -3,7 +3,7 @@ import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarCampaignAsset, CalendarJob, CalendarTask, Campaign, ClientEnquiry, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -380,13 +380,62 @@ export async function getEnquiries() {
 export async function getFinanceData() {
   const context = await getAdminContext();
   if (!context) return null;
-  const [overview, invoices, expenses, taxSettings] = await Promise.all([
+  const [overview, invoices, payments, expenses, categories, clients, jobs, campaigns, campaignAssets, packages, taxSettings] = await Promise.all([
     context.supabase.from("website-finance-overview").select("*").maybeSingle(),
-    context.supabase.from("website-invoices").select("id,total_cents,gst_cents,status,issue_date,due_date").neq("status", "void").order("issue_date"),
-    context.supabase.from("website-expenses").select("id,amount_cents,gst_credit_cents,deductible_percent,incurred_on,vendor").is("archived_at", null).order("incurred_on"),
+    context.supabase.from("website-invoices").select("id,client_id,invoice_number,total_cents,gst_cents,status,issue_date,due_date").neq("status", "void").is("archived_at", null).order("issue_date"),
+    context.supabase.from("website-payments").select("id,invoice_id,amount_cents,paid_at,method,reference").order("paid_at"),
+    context.supabase.from("website-expenses").select("id,category_id,job_id,client_id,campaign_id,vendor,description,incurred_on,amount_cents,gst_credit_cents,deductible_percent,receipt_path,receipt_file_name,receipt_mime_type,receipt_size_bytes,receipt_extraction").is("archived_at", null).order("incurred_on", { ascending: false }),
+    context.supabase.from("website-expense-categories").select("id,name,tax_category").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("is_active", true).order("name"),
+    context.supabase.from("website-clients").select("id,name,package_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("name"),
+    context.supabase.from("website-jobs").select("id,title,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
+    context.supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
+    context.supabase.from("website-campaign-assets").select("id,campaign_id,invoice_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null),
+    context.supabase.from("website-pricing-packages").select("id,title").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     context.supabase.from("website-tax-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
   ]);
-  return { overview: overview.data, invoices: invoices.data ?? [], expenses: expenses.data ?? [], taxSettings: taxSettings.data };
+  const queryError = [overview, invoices, payments, expenses, categories, clients, jobs, campaigns, campaignAssets, packages, taxSettings]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Finance data could not be loaded: ${queryError.message}`);
+
+  const categoryById = new Map((categories.data ?? []).map((item) => [item.id, item]));
+  const clientById = new Map((clients.data ?? []).map((item) => [item.id, item]));
+  const jobById = new Map((jobs.data ?? []).map((item) => [item.id, item]));
+  const campaignById = new Map((campaigns.data ?? []).map((item) => [item.id, item]));
+  const receiptPaths = (expenses.data ?? []).flatMap((expense) => expense.receipt_path ? [expense.receipt_path] : []);
+  const signedUrlByPath = new Map<string, string>();
+  if (receiptPaths.length) {
+    const { data: signedUrls, error: signedError } = await context.supabase.storage
+      .from("website-expense-receipts")
+      .createSignedUrls(receiptPaths, 60 * 15);
+    if (signedError) throw new Error(`Receipt previews could not be signed: ${signedError.message}`);
+    for (const item of signedUrls ?? []) if (item.path && item.signedUrl) signedUrlByPath.set(item.path, item.signedUrl);
+  }
+  const enrichedExpenses: ExpenseRecord[] = (expenses.data ?? []).map((expense) => ({
+    ...expense,
+    amount_cents: Number(expense.amount_cents),
+    gst_credit_cents: Number(expense.gst_credit_cents),
+    deductible_percent: Number(expense.deductible_percent),
+    receipt_size_bytes: expense.receipt_size_bytes === null ? null : Number(expense.receipt_size_bytes),
+    receipt_extraction: (expense.receipt_extraction ?? {}) as Record<string, unknown>,
+    receipt_signed_url: expense.receipt_path ? signedUrlByPath.get(expense.receipt_path) ?? null : null,
+    category: expense.category_id ? categoryById.get(expense.category_id) ?? null : null,
+    client: expense.client_id ? clientById.get(expense.client_id) ?? null : null,
+    job: expense.job_id && jobById.get(expense.job_id) ? { id: expense.job_id, name: jobById.get(expense.job_id)!.title } : null,
+    campaign: expense.campaign_id && campaignById.get(expense.campaign_id) ? { id: expense.campaign_id, name: campaignById.get(expense.campaign_id)!.title } : null,
+  }));
+  return {
+    overview: overview.data,
+    invoices: invoices.data ?? [],
+    payments: payments.data ?? [],
+    expenses: enrichedExpenses,
+    categories: categories.data ?? [],
+    clients: clients.data ?? [],
+    jobs: jobs.data ?? [],
+    campaigns: campaigns.data ?? [],
+    campaignAssets: campaignAssets.data ?? [],
+    packages: packages.data ?? [],
+    taxSettings: taxSettings.data,
+  };
 }
 
 export async function getPricingAdmin() {
@@ -758,13 +807,72 @@ export async function getCalendarData() {
   };
 }
 
-export async function getAnalyticsData() {
+export async function getGlobalSearchIndex(): Promise<GlobalSearchItem[]> {
+  const context = await getAdminContext();
+  if (!context) return [];
+  const [clientsResult, jobsResult, tasksResult, invoicesResult, campaignsResult, enquiriesResult] = await Promise.all([
+    context.supabase.from("website-clients").select("id,name,status,industry").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("name"),
+    context.supabase.from("website-jobs").select("id,title,job_number,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("updated_at", { ascending: false }),
+    context.supabase.from("website-job-tasks").select("id,title,asset_type,job_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("updated_at", { ascending: false }),
+    context.supabase.from("website-invoices").select("id,invoice_number,status,total_cents,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("issue_date", { ascending: false }),
+    context.supabase.from("website-campaigns").select("id,title,status,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("updated_at", { ascending: false }),
+    context.supabase.from("website-enquiries").select("id,name,business_name,email,status").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("created_at", { ascending: false }),
+  ]);
+  const queryError = [clientsResult, jobsResult, tasksResult, invoicesResult, campaignsResult, enquiriesResult]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Workspace search could not be prepared: ${queryError.message}`);
+  const clients = new Map((clientsResult.data ?? []).map((client) => [client.id, client.name]));
+  const jobs = new Map((jobsResult.data ?? []).map((job) => [job.id, job.title]));
+  return [
+    ...(clientsResult.data ?? []).map((client): GlobalSearchItem => ({ id: client.id, kind: "client", title: client.name, subtitle: `${client.status} client${client.industry ? ` · ${client.industry}` : ""}`, href: "/admin/clients", keywords: `${client.name} ${client.status} ${client.industry ?? ""}` })),
+    ...(jobsResult.data ?? []).map((job): GlobalSearchItem => ({ id: job.id, kind: "job", title: job.title, subtitle: `${job.job_number ?? "Job"}${job.client_id ? ` · ${clients.get(job.client_id) ?? "Client"}` : ""}`, href: "/admin/jobs", keywords: `${job.title} ${job.job_number ?? ""} ${job.client_id ? clients.get(job.client_id) ?? "" : ""}` })),
+    ...(tasksResult.data ?? []).map((task): GlobalSearchItem => ({ id: task.id, kind: "task", title: task.title, subtitle: `${task.asset_type ?? "Asset"} · ${jobs.get(task.job_id) ?? "Job"}`, href: "/admin/tasks", keywords: `${task.title} ${task.asset_type ?? ""} ${jobs.get(task.job_id) ?? ""}` })),
+    ...(invoicesResult.data ?? []).map((invoice): GlobalSearchItem => ({ id: invoice.id, kind: "invoice", title: invoice.invoice_number, subtitle: `${invoice.status} · $${(Number(invoice.total_cents) / 100).toLocaleString("en-AU", { minimumFractionDigits: 2 })}${invoice.client_id ? ` · ${clients.get(invoice.client_id) ?? "Client"}` : ""}`, href: "/admin/invoices", keywords: `${invoice.invoice_number} ${invoice.status} ${invoice.client_id ? clients.get(invoice.client_id) ?? "" : ""}` })),
+    ...(campaignsResult.data ?? []).map((campaign): GlobalSearchItem => ({ id: campaign.id, kind: "campaign", title: campaign.title, subtitle: `${campaign.status}${campaign.client_id ? ` · ${clients.get(campaign.client_id) ?? "Client"}` : ""}`, href: "/admin/campaigns", keywords: `${campaign.title} ${campaign.status} ${campaign.client_id ? clients.get(campaign.client_id) ?? "" : ""}` })),
+    ...(enquiriesResult.data ?? []).map((enquiry): GlobalSearchItem => ({ id: enquiry.id, kind: "request", title: enquiry.business_name || enquiry.name, subtitle: `${enquiry.status} request · ${enquiry.email}`, href: "/admin/requests", keywords: `${enquiry.name} ${enquiry.business_name ?? ""} ${enquiry.email} ${enquiry.status}` })),
+  ];
+}
+
+export async function getAnalyticsData({ rangeDays = 30, comparisonMode = "previous_period" }: { rangeDays?: number; comparisonMode?: "previous_period" | "previous_year" } = {}) {
   const context = await getAdminContext();
   if (!context) return null;
-  const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [events, sessions] = await Promise.all([
-    context.supabase.from("website-analytics-events").select("anonymous_id,event_name,page_path,analytics_key,package_slug,properties,occurred_at").gte("occurred_at", since).order("occurred_at"),
-    context.supabase.from("website-analytics-sessions").select("anonymous_id,active_seconds,landing_path,device_class,started_at").gte("started_at", since),
+  const safeDays = Math.min(730, Math.max(1, Math.round(rangeDays)));
+  const currentTo = new Date();
+  const currentFrom = new Date(currentTo.getTime() - safeDays * 86_400_000);
+  const previousTo = comparisonMode === "previous_year"
+    ? new Date(new Date(currentTo).setFullYear(currentTo.getFullYear() - 1))
+    : new Date(currentFrom.getTime() - 1);
+  const previousFrom = comparisonMode === "previous_year"
+    ? new Date(new Date(currentFrom).setFullYear(currentFrom.getFullYear() - 1))
+    : new Date(previousTo.getTime() - safeDays * 86_400_000);
+
+  const [events, sessions, enquiries, invoices, payments, packages, marketingSpend, savedViews, alertSettings] = await Promise.all([
+    context.supabase.from("website-analytics-events").select("anonymous_id,event_name,page_path,analytics_key,package_slug,properties,occurred_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID).gte("occurred_at", previousFrom.toISOString()).lte("occurred_at", currentTo.toISOString()).order("occurred_at"),
+    context.supabase.from("website-analytics-sessions").select("id,anonymous_id,active_seconds,landing_path,referrer_domain,utm,device_class,started_at,last_seen_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-enquiries").select("id,analytics_anonymous_id,analytics_session_id,converted_client_id,package_id,status,attribution,created_at,reviewed_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID).gte("created_at", previousFrom.toISOString()).lte("created_at", currentTo.toISOString()),
+    context.supabase.from("website-invoices").select("id,client_id,status,total_cents,issue_date").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null),
+    context.supabase.from("website-payments").select("invoice_id,amount_cents,paid_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-pricing-packages").select("id,title").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-marketing-spend").select("id,spend_on,source,campaign,amount_cents,notes").eq("workspace_id", TRUSHOT_WORKSPACE_ID).gte("spend_on", previousFrom.toISOString().slice(0, 10)).lte("spend_on", currentTo.toISOString().slice(0, 10)).is("archived_at", null).order("spend_on", { ascending: false }),
+    context.supabase.from("website-analytics-saved-views").select("id,name,range_days,comparison_mode,is_default").eq("workspace_id", TRUSHOT_WORKSPACE_ID).order("created_at"),
+    context.supabase.from("website-analytics-alert-settings").select("enabled,sensitivity_percent,minimum_visitors").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
   ]);
-  return { events: events.data ?? [], sessions: sessions.data ?? [] };
+  const queryError = [events, sessions, enquiries, invoices, payments, packages, marketingSpend, savedViews, alertSettings]
+    .find((result) => result.error)?.error;
+  if (queryError) throw new Error(`Revenue analytics could not be loaded: ${queryError.message}`);
+  return {
+    events: events.data ?? [],
+    sessions: sessions.data ?? [],
+    enquiries: enquiries.data ?? [],
+    invoices: invoices.data ?? [],
+    payments: payments.data ?? [],
+    packages: packages.data ?? [],
+    marketingSpend: marketingSpend.data ?? [],
+    savedViews: savedViews.data ?? [],
+    alertSettings: alertSettings.data ?? { enabled: true, sensitivity_percent: 30, minimum_visitors: 10 },
+    currentPeriod: { from: currentFrom.toISOString(), to: currentTo.toISOString() },
+    previousPeriod: { from: previousFrom.toISOString(), to: previousTo.toISOString() },
+    rangeDays: safeDays,
+    comparisonMode,
+  };
 }

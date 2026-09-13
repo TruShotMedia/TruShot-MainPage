@@ -842,24 +842,159 @@ export async function updateInvoice(formData: FormData) {
 
 export async function createExpense(formData: FormData) {
   const input = z.object({
+    id: z.string().uuid(),
     vendor: z.string().trim().min(1).max(160),
     amount_dollars: z.coerce.number().min(0),
-    incurred_on: z.string().min(1),
+    incurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     description: z.string().trim().max(500),
     gst_credit_dollars: z.coerce.number().min(0),
+    deductible_percent: z.coerce.number().min(0).max(100),
+    category_id: z.string().uuid().or(z.literal("")),
+    client_id: z.string().uuid().or(z.literal("")),
+    job_id: z.string().uuid().or(z.literal("")),
+    campaign_id: z.string().uuid().or(z.literal("")),
+    receipt_path: z.string().trim().max(600),
+    receipt_file_name: z.string().trim().max(255),
+    receipt_mime_type: z.string().trim().max(100),
+    receipt_size_bytes: z.coerce.number().int().min(0).max(20 * 1024 * 1024),
+    receipt_extraction: z.string().max(8_000),
   }).parse(Object.fromEntries(formData));
+  const amountCents = Math.round(input.amount_dollars * 100);
+  const gstCreditCents = Math.round(input.gst_credit_dollars * 100);
+  if (gstCreditCents > amountCents) throw new Error("The GST credit cannot exceed the expense amount.");
+  const expectedReceiptPrefix = `${TRUSHOT_WORKSPACE_ID}/expenses/${input.id}/`;
+  const hasReceipt = Boolean(input.receipt_path);
+  if (hasReceipt && !input.receipt_path.startsWith(expectedReceiptPrefix)) throw new Error("That receipt path is invalid.");
+  if (hasReceipt && (!input.receipt_file_name || !input.receipt_mime_type || !input.receipt_size_bytes)) throw new Error("Receipt metadata is incomplete.");
+  if (!hasReceipt && (input.receipt_file_name || input.receipt_mime_type || input.receipt_size_bytes)) throw new Error("Receipt metadata is invalid.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
+  const [category, job, campaign] = await Promise.all([
+    input.category_id ? context.supabase.from("website-expense-categories").select("id").eq("id", input.category_id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("is_active", true).maybeSingle() : null,
+    input.job_id ? context.supabase.from("website-jobs").select("id,client_id").eq("id", input.job_id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).maybeSingle() : null,
+    input.campaign_id ? context.supabase.from("website-campaigns").select("id,client_id").eq("id", input.campaign_id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).maybeSingle() : null,
+  ]);
+  if (input.category_id && (!category || category.error || !category.data)) throw new Error("That expense category is unavailable.");
+  if (input.job_id && (!job || job.error || !job.data)) throw new Error("That job is unavailable.");
+  if (input.campaign_id && (!campaign || campaign.error || !campaign.data)) throw new Error("That campaign is unavailable.");
+  if (input.client_id) await requireClient(context, input.client_id);
+  const relationClientId = input.client_id || job?.data?.client_id || campaign?.data?.client_id || null;
+  let extraction: Record<string, unknown> = {};
+  try { extraction = input.receipt_extraction ? JSON.parse(input.receipt_extraction) as Record<string, unknown> : {}; } catch { throw new Error("Receipt extraction data is invalid."); }
   const { error } = await context.supabase.from("website-expenses").insert({
+    id: input.id,
     workspace_id: TRUSHOT_WORKSPACE_ID,
+    category_id: input.category_id || null,
+    client_id: relationClientId,
+    job_id: input.job_id || null,
+    campaign_id: input.campaign_id || null,
     vendor: input.vendor,
     description: input.description || null,
     incurred_on: input.incurred_on,
-    amount_cents: Math.round(input.amount_dollars * 100),
-    gst_credit_cents: Math.round(input.gst_credit_dollars * 100),
+    amount_cents: amountCents,
+    gst_credit_cents: gstCreditCents,
+    deductible_percent: input.deductible_percent,
+    receipt_path: hasReceipt ? input.receipt_path : null,
+    receipt_file_name: hasReceipt ? input.receipt_file_name : null,
+    receipt_mime_type: hasReceipt ? input.receipt_mime_type : null,
+    receipt_size_bytes: hasReceipt ? input.receipt_size_bytes : null,
+    receipt_extraction: extraction,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/finance");
+  revalidatePath("/admin/finance/reports");
+  return { ok: true };
+}
+
+export async function archiveExpense(formData: FormData) {
+  const id = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data, error } = await context.supabase.from("website-expenses")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That expense could not be archived.");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/finance/reports");
+}
+
+export async function createMarketingSpend(formData: FormData) {
+  const input = z.object({
+    spend_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    source: z.string().trim().min(1).max(100),
+    campaign: z.string().trim().max(180),
+    amount_dollars: z.coerce.number().min(0).max(10_000_000),
+    notes: z.string().trim().max(1000),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { error } = await context.supabase.from("website-marketing-spend").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    spend_on: input.spend_on,
+    source: input.source,
+    campaign: input.campaign || null,
+    amount_cents: Math.round(input.amount_dollars * 100),
+    notes: input.notes || null,
+    created_by: context.claims.sub,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/analytics");
+}
+
+export async function createAnalyticsSavedView(formData: FormData) {
+  const input = z.object({
+    name: z.string().trim().min(1).max(80),
+    range_days: z.coerce.number().int().min(1).max(730),
+    comparison_mode: z.enum(["previous_period", "previous_year"]),
+    is_default: z.string().optional(),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  if (input.is_default === "on") {
+    const { error } = await context.supabase.from("website-analytics-saved-views").update({ is_default: false }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("is_default", true);
+    if (error) throw new Error(error.message);
+  }
+  const { error } = await context.supabase.from("website-analytics-saved-views").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    name: input.name,
+    range_days: input.range_days,
+    comparison_mode: input.comparison_mode,
+    is_default: input.is_default === "on",
+    created_by: context.claims.sub,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/analytics");
+}
+
+export async function deleteAnalyticsSavedView(formData: FormData) {
+  const id = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { error } = await context.supabase.from("website-analytics-saved-views").delete().eq("id", id).eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/analytics");
+}
+
+export async function updateAnalyticsAlertSettings(formData: FormData) {
+  const input = z.object({
+    enabled: z.string().optional(),
+    sensitivity_percent: z.coerce.number().int().min(10).max(200),
+    minimum_visitors: z.coerce.number().int().min(1).max(10_000),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { error } = await context.supabase.from("website-analytics-alert-settings").upsert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    enabled: input.enabled === "on",
+    sensitivity_percent: input.sensitivity_percent,
+    minimum_visitors: input.minimum_visitors,
+  }, { onConflict: "workspace_id" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/analytics");
 }
 
 export async function updatePricingPackage(formData: FormData) {

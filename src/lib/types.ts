@@ -280,3 +280,36 @@ export type ClientEnquiry = {
   package: { id: string; title: string } | null;
   converted_client: { id: string; name: string } | null;
 };
+
+export type GlobalSearchItem = {
+  id: string;
+  kind: "client" | "job" | "task" | "invoice" | "campaign" | "request";
+  title: string;
+  subtitle: string;
+  href: string;
+  keywords: string;
+};
+
+export type ExpenseRecord = {
+  id: string;
+  category_id: string | null;
+  job_id: string | null;
+  client_id: string | null;
+  campaign_id: string | null;
+  vendor: string;
+  description: string | null;
+  incurred_on: string;
+  amount_cents: number;
+  gst_credit_cents: number;
+  deductible_percent: number;
+  receipt_path: string | null;
+  receipt_file_name: string | null;
+  receipt_mime_type: string | null;
+  receipt_size_bytes: number | null;
+  receipt_extraction: Record<string, unknown>;
+  receipt_signed_url: string | null;
+  category: { id: string; name: string; tax_category: string | null } | null;
+  client: SelectOption | null;
+  job: SelectOption | null;
+  campaign: SelectOption | null;
+};
