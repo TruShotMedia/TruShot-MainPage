@@ -1219,6 +1219,7 @@ export async function updateSettings(formData: FormData) {
     seo_title: z.string().trim().min(20).max(70),
     seo_description: z.string().trim().min(50).max(170),
     is_gst_registered: z.string().optional(),
+    estimate_basis: z.enum(["cash", "accrual"]),
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
@@ -1232,10 +1233,15 @@ export async function updateSettings(formData: FormData) {
       seo_title: input.seo_title,
       seo_description: input.seo_description,
     }).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
-    context.supabase.from("website-tax-settings").update({ is_gst_registered: input.is_gst_registered === "on" }).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-tax-settings").update({
+      is_gst_registered: input.is_gst_registered === "on",
+      estimate_basis: input.estimate_basis,
+    }).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
   if (settingsError || taxError) throw new Error(settingsError?.message ?? taxError?.message);
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/finance/reports");
   revalidatePath("/");
 }
 
