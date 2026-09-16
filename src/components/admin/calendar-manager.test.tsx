@@ -127,4 +127,29 @@ describe("CalendarManager completed work", () => {
     await act(async () => campaignsFilter.click());
     expect(container.textContent).toContain("Launch film");
   });
+
+  it("shows task deadlines as inherited from their job rather than editable dates", async () => {
+    const date = format(new Date(), "yyyy-MM-dd");
+    const tasks: CalendarTask[] = [{
+      id: "55555555-5555-4555-8555-555555555555",
+      entity_type: "task",
+      title: "Hero video",
+      job_title: "Brand launch",
+      client_name: "Ravish Media",
+      due_date: date,
+      due_time: null,
+      priority: "high",
+      status_label: "In Progress",
+      status_color: "#4B78A8",
+      is_complete: false,
+    }];
+    await act(async () => root.render(<CalendarManager jobs={[]} tasks={tasks} />));
+    const taskEvent = [...container.querySelectorAll<HTMLButtonElement>(".calendar-event")]
+      .find((button) => button.textContent?.includes("Hero video"))!;
+    await act(async () => taskEvent.click());
+    const inheritedDate = container.querySelector<HTMLInputElement>('input[type="date"]')!;
+    expect(inheritedDate.disabled).toBe(true);
+    expect(inheritedDate.value).toBe(date);
+    expect(container.textContent).toContain("Change the job deadline to update every related task.");
+  });
 });

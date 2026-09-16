@@ -27,7 +27,6 @@ type TaskReminderRow = {
   title: string;
   job_id: string;
   status_id: string;
-  due_date: string | null;
   due_time: string | null;
 };
 
@@ -127,11 +126,9 @@ async function processWorkspace(
       .or(`and(shoot_date.gte.${bounds.start},shoot_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,due_date,due_time")
+      .select("id,title,job_id,status_id,due_time")
       .eq("workspace_id", settings.workspace_id)
-      .is("archived_at", null)
-      .gte("due_date", bounds.start)
-      .lte("due_date", bounds.end),
+      .is("archived_at", null),
     supabase
       .from("website-campaign-assets")
       .select("id,campaign_id,status_id,title,start_date,start_time,due_date,due_time")
@@ -139,7 +136,7 @@ async function processWorkspace(
       .is("archived_at", null)
       .or(`and(start_date.gte.${bounds.start},start_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase.from("website-clients").select("id,name").eq("workspace_id", settings.workspace_id),
-    supabase.from("website-jobs").select("id,title,client_id").eq("workspace_id", settings.workspace_id).is("archived_at", null),
+    supabase.from("website-jobs").select("id,title,client_id,due_date").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-job-statuses").select("id,is_closed").eq("workspace_id", settings.workspace_id),
     supabase.from("website-task-statuses").select("id,is_open").eq("workspace_id", settings.workspace_id),
@@ -178,7 +175,7 @@ async function processWorkspace(
         entityId: task.id,
         title: task.title,
         context,
-      }, "task_due", task.due_date, task.due_time);
+      }, "task_due", job?.due_date ?? null, task.due_time);
     }
   }
 

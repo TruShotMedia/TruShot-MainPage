@@ -2,27 +2,24 @@ import { Plus } from "lucide-react";
 import { createTask } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { EmptyState } from "@/components/admin/empty-state";
+import { JobSearchField } from "@/components/admin/job-search-field";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusGroupedTable } from "@/components/admin/status-grouped-table";
 import { SubmitButton } from "@/components/admin/submit-button";
-import { getAdminContext, getPipeline } from "@/lib/data/admin";
-import type { PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
+import { getPipeline } from "@/lib/data/admin";
+import type { PipelineTask, TaskStatus } from "@/lib/types";
 
 export default async function TasksPage() {
-  const [data, context] = await Promise.all([getPipeline(), getAdminContext()]);
-  if (!context) return null;
-  const { data: jobs } = await context.supabase.from("website-jobs").select("id,title").is("archived_at", null).order("title");
-  const jobOptions = (jobs ?? []).map((job) => ({ id: job.id, name: job.title }));
+  const data = await getPipeline();
   return (
     <>
       <PageHeader eyebrow="Created assets" title="Tasks / Assets" description="Assets use the same grouped row workflow as jobs: select, update in bulk, edit, or drag between stages." actions={
         <ActionPopover action={createTask} summary={<><Plus size={16} /> New asset</>} title="Create a task / asset" formClassName="quick-form wide">
           <label>Title<input name="title" required /></label>
-          <label>Job<select name="job_id" required><option value="">Choose job</option>{(jobs ?? []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></label>
+          <JobSearchField jobs={data.jobOptions} />
           <label>Status<select name="status_id" required>{data.statuses.map((status: TaskStatus) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
-          <label>Asset type<input name="asset_type" placeholder="Reel, photo set, edit…" /></label>
+          <label>Asset type<select name="asset_type" defaultValue="Asset" required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>
           <label>Hours<input name="hours" type="number" min="0" step="0.25" /></label>
-          <label>Due date<input name="due_date" type="date" /></label>
           <label>Due time<input name="due_time" type="time" /></label>
           <label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           <label className="form-span">Description<textarea name="description" rows={3} /></label>
@@ -35,7 +32,7 @@ export default async function TasksPage() {
           kind="tasks"
           records={data.tasks as PipelineTask[]}
           statuses={data.statuses as TaskStatus[]}
-          jobs={jobOptions as SelectOption[]}
+          jobs={data.jobOptions}
         />
       ) : <EmptyState title="No created assets yet" description="Add a task to a job. It will appear here and on the drag-and-drop pipeline." />}
     </>

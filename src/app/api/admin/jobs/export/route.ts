@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       if (result.error) throw new Error("Selected asset data could not be loaded.");
       tasks.push(...(result.data ?? []).map((task) => ({
         ...task,
+        asset_type: task.asset_type === "Other" ? "Other" : "Asset",
         position: Number(task.position ?? 0),
         hours: task.hours == null ? null : Number(task.hours),
       })));

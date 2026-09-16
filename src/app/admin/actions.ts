@@ -91,12 +91,13 @@ async function requirePublishedPricingPackage(context: AdminContext, packageId: 
 async function requireJob(context: AdminContext, jobId: string) {
   const { data, error } = await context.supabase
     .from("website-jobs")
-    .select("id")
+    .select("id,due_date")
     .eq("id", jobId)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
     .single();
   if (error || !data) throw new Error("That job is no longer available.");
+  return data;
 }
 
 async function requireInvoices(context: AdminContext, invoiceIds: string[]) {
@@ -108,6 +109,19 @@ async function requireInvoices(context: AdminContext, invoiceIds: string[]) {
     .is("archived_at", null)
     .in("id", invoiceIds);
   if (error || data?.length !== invoiceIds.length) throw new Error("One or more invoices are no longer available.");
+}
+
+async function syncTasksToJobDeadline(context: AdminContext, jobId: string, dueDate: string | null) {
+  const { error } = await context.supabase
+    .from("website-job-tasks")
+    .update({
+      due_date: dueDate,
+      updated_by: context.claims.sub,
+    })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("job_id", jobId)
+    .is("archived_at", null);
+  if (error) throw new Error("The job was saved, but its task deadlines could not be synchronised.");
 }
 
 async function syncJobInvoiceRelations(context: AdminContext, jobId: string, invoiceIds: string[]) {
@@ -456,7 +470,10 @@ export async function updateJob(formData: FormData) {
     updated_by: context.claims.sub,
   }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Job could not be updated.");
-  await syncJobInvoiceRelations(context, input.id, invoiceIds);
+  await Promise.all([
+    syncJobInvoiceRelations(context, input.id, invoiceIds),
+    syncTasksToJobDeadline(context, input.id, input.due_date || null),
+  ]);
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
@@ -473,25 +490,24 @@ export async function createTask(formData: FormData) {
     title: z.string().trim().min(2).max(220),
     job_id: z.string().uuid(),
     status_id: z.string().uuid(),
-    asset_type: z.string().trim().max(100),
+    asset_type: z.enum(["Asset", "Other"]),
     hours: z.string().or(z.literal("")),
-    due_date: z.string().or(z.literal("")),
     due_time: optionalTimeSchema,
     priority: z.enum(["low", "normal", "high", "urgent"]),
     description: z.string().trim().max(2_000),
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
+  const [, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const position = await getNextTaskPosition(context, input.status_id);
   const { error } = await context.supabase.from("website-job-tasks").insert({
     workspace_id: TRUSHOT_WORKSPACE_ID,
     title: input.title,
     job_id: input.job_id,
     status_id: input.status_id,
-    asset_type: input.asset_type || null,
+    asset_type: input.asset_type,
     hours: input.hours ? Number(input.hours) : null,
-    due_date: input.due_date || null,
+    due_date: job.due_date,
     due_time: input.due_time || null,
     priority: input.priority,
     description: input.description || null,
@@ -512,13 +528,13 @@ export async function duplicateTask(formData: FormData) {
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-job-tasks")
-    .select("title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,external_url")
+    .select("title,job_id,status_id,asset_type,hours,due_time,priority,description,external_url")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
     .single();
   if (sourceError || !source) throw new Error("That asset is no longer available to duplicate.");
-  await requireJob(context, source.job_id);
+  const job = await requireJob(context, source.job_id);
   const status = await requireTaskStatus(context, source.status_id);
   let statusId = source.status_id;
   if (status.key === "posted_done") {
@@ -538,9 +554,9 @@ export async function duplicateTask(formData: FormData) {
     title: `${source.title.slice(0, 213).trimEnd()} (copy)`,
     job_id: source.job_id,
     status_id: statusId,
-    asset_type: source.asset_type,
+    asset_type: source.asset_type === "Other" ? "Other" : "Asset",
     hours: source.hours,
-    due_date: source.due_date,
+    due_date: job.due_date,
     due_time: source.due_time,
     priority: source.priority,
     description: source.description,
@@ -564,9 +580,8 @@ export async function updateTask(formData: FormData) {
     title: z.string().trim().min(2).max(220),
     job_id: z.string().uuid(),
     status_id: z.string().uuid(),
-    asset_type: z.string().trim().max(100),
+    asset_type: z.enum(["Asset", "Other"]),
     hours: z.string().or(z.literal("")),
-    due_date: z.string().or(z.literal("")),
     due_time: optionalTimeSchema,
     priority: z.enum(["low", "normal", "high", "urgent"]),
     description: z.string().trim().max(2_000),
@@ -575,14 +590,14 @@ export async function updateTask(formData: FormData) {
   if (hours !== null && (!Number.isFinite(hours) || hours < 0)) throw new Error("Task hours are not valid.");
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  const [status] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
+  const [status, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const { data, error } = await context.supabase.from("website-job-tasks").update({
     title: input.title,
     job_id: input.job_id,
     status_id: input.status_id,
-    asset_type: input.asset_type || null,
+    asset_type: input.asset_type,
     hours,
-    due_date: input.due_date || null,
+    due_date: job.due_date,
     due_time: input.due_time || null,
     priority: input.priority,
     description: input.description || null,
@@ -630,18 +645,17 @@ export async function updateCalendarItem(formData: FormData) {
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "The job schedule could not be saved.");
+    await syncTasksToJobDeadline(context, input.id, input.due_date || null);
   } else if (raw.entity_type === "task") {
     const input = z.object({
       entity_type: z.literal("task"),
       id: z.string().uuid(),
-      due_date: z.string().or(z.literal("")),
       due_time: optionalTimeSchema,
       priority: z.enum(["low", "normal", "high", "urgent"]),
     }).parse(raw);
     const { data, error } = await context.supabase
       .from("website-job-tasks")
       .update({
-        due_date: input.due_date || null,
         due_time: input.due_time || null,
         priority: input.priority,
         updated_by: context.claims.sub,

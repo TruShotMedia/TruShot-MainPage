@@ -172,11 +172,11 @@ export async function getJobs() {
 
 export async function getPipeline() {
   const context = await getAdminContext();
-  if (!context) return { statuses: [], tasks: [] };
+  if (!context) return { statuses: [], tasks: [], jobOptions: [] };
   const [statusesResult, tasksResult, jobsResult, clientsResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
     context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at").is("archived_at", null).order("position"),
-    context.supabase.from("website-jobs").select("id,title,client_id").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,title,client_id,job_number,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
   const queryError = [statusesResult, tasksResult, jobsResult, clientsResult].find((result) => result.error)?.error;
@@ -187,9 +187,21 @@ export async function getPipeline() {
   const clients = clientsResult.data ?? [];
   return {
     statuses,
+    jobOptions: jobs.map((job) => ({
+      id: job.id,
+      name: job.title,
+      jobNumber: job.job_number,
+      clientName: job.client_id ? clients.find((client) => client.id === job.client_id)?.name ?? null : null,
+      dueDate: job.due_date,
+    })).sort((left, right) => left.name.localeCompare(right.name)),
     tasks: tasks.map((task) => {
       const job = jobs.find((entry) => entry.id === task.job_id);
-      return { ...task, job: job ? { ...job, client: clients.find((client) => client.id === job.client_id) ?? null } : null };
+      return {
+        ...task,
+        asset_type: task.asset_type === "Other" ? "Other" : "Asset",
+        due_date: job?.due_date ?? null,
+        job: job ? { ...job, client: clients.find((client) => client.id === job.client_id) ?? null } : null,
+      };
     }),
   };
 }
@@ -266,7 +278,12 @@ export async function getTabletKioskData(): Promise<{
   const pipelineTasks = tasks.map((task) => {
     const job = jobsById.get(task.job_id);
     const client = job?.client_id ? clientsById.get(job.client_id) ?? null : null;
-    return { ...task, job: job ? { id: job.id, title: job.title, client } : null };
+    return {
+      ...task,
+      asset_type: task.asset_type === "Other" ? "Other" : "Asset",
+      due_date: job?.due_date ?? null,
+      job: job ? { id: job.id, title: job.title, client } : null,
+    };
   }) as PipelineTask[];
 
   const calendarJobs = jobs.map((job): CalendarJob => {
@@ -296,7 +313,7 @@ export async function getTabletKioskData(): Promise<{
       title: task.title,
       job_title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
-      due_date: task.due_date,
+      due_date: job.due_date,
       due_time: task.due_time,
       priority: task.priority as CalendarTask["priority"],
       status_label: status?.label ?? "Unknown",
@@ -775,7 +792,7 @@ export async function getCalendarData() {
         title: task.title,
         job_title: job.title,
         client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
-        due_date: task.due_date,
+        due_date: job.due_date,
         due_time: task.due_time,
         priority: task.priority as "low" | "normal" | "high" | "urgent",
         status_label: status?.label ?? "Unknown",
@@ -826,7 +843,10 @@ export async function getGlobalSearchIndex(): Promise<GlobalSearchItem[]> {
   return [
     ...(clientsResult.data ?? []).map((client): GlobalSearchItem => ({ id: client.id, kind: "client", title: client.name, subtitle: `${client.status} client${client.industry ? ` · ${client.industry}` : ""}`, href: "/admin/clients", keywords: `${client.name} ${client.status} ${client.industry ?? ""}` })),
     ...(jobsResult.data ?? []).map((job): GlobalSearchItem => ({ id: job.id, kind: "job", title: job.title, subtitle: `${job.job_number ?? "Job"}${job.client_id ? ` · ${clients.get(job.client_id) ?? "Client"}` : ""}`, href: "/admin/jobs", keywords: `${job.title} ${job.job_number ?? ""} ${job.client_id ? clients.get(job.client_id) ?? "" : ""}` })),
-    ...(tasksResult.data ?? []).map((task): GlobalSearchItem => ({ id: task.id, kind: "task", title: task.title, subtitle: `${task.asset_type ?? "Asset"} · ${jobs.get(task.job_id) ?? "Job"}`, href: "/admin/tasks", keywords: `${task.title} ${task.asset_type ?? ""} ${jobs.get(task.job_id) ?? ""}` })),
+    ...(tasksResult.data ?? []).map((task): GlobalSearchItem => {
+      const assetType = task.asset_type === "Other" ? "Other" : "Asset";
+      return { id: task.id, kind: "task", title: task.title, subtitle: `${assetType} · ${jobs.get(task.job_id) ?? "Job"}`, href: "/admin/tasks", keywords: `${task.title} ${assetType} ${jobs.get(task.job_id) ?? ""}` };
+    }),
     ...(invoicesResult.data ?? []).map((invoice): GlobalSearchItem => ({ id: invoice.id, kind: "invoice", title: invoice.invoice_number, subtitle: `${invoice.status} · $${(Number(invoice.total_cents) / 100).toLocaleString("en-AU", { minimumFractionDigits: 2 })}${invoice.client_id ? ` · ${clients.get(invoice.client_id) ?? "Client"}` : ""}`, href: "/admin/invoices", keywords: `${invoice.invoice_number} ${invoice.status} ${invoice.client_id ? clients.get(invoice.client_id) ?? "" : ""}` })),
     ...(campaignsResult.data ?? []).map((campaign): GlobalSearchItem => ({ id: campaign.id, kind: "campaign", title: campaign.title, subtitle: `${campaign.status}${campaign.client_id ? ` · ${clients.get(campaign.client_id) ?? "Client"}` : ""}`, href: "/admin/campaigns", keywords: `${campaign.title} ${campaign.status} ${campaign.client_id ? clients.get(campaign.client_id) ?? "" : ""}` })),
     ...(enquiriesResult.data ?? []).map((enquiry): GlobalSearchItem => ({ id: enquiry.id, kind: "request", title: enquiry.business_name || enquiry.name, subtitle: `${enquiry.status} request · ${enquiry.email}`, href: "/admin/requests", keywords: `${enquiry.name} ${enquiry.business_name ?? ""} ${enquiry.email} ${enquiry.status}` })),

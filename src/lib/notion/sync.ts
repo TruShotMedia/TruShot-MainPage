@@ -140,6 +140,7 @@ async function importNotionPages(
   const linkByPageId = new Map(links.map((link) => [link.notion_page_id, link]));
   const activeClientIds = new Set(clients.filter((client) => !client.archived_at).map((client) => client.id));
   const activeJobIds = new Set(jobs.filter((job) => !job.archived_at).map((job) => job.id));
+  const jobDueDateById = new Map(jobs.map((job) => [job.id, job.due_date]));
   const claimedClientIds = new Set(links.filter((link) => link.entity_type === "client").map((link) => link.entity_id));
   const claimedJobIds = new Set(links.filter((link) => link.entity_type === "job").map((link) => link.entity_id));
   const claimedTaskIds = new Set(links.filter((link) => link.entity_type === "task").map((link) => link.entity_id));
@@ -279,7 +280,7 @@ async function importNotionPages(
   }
 
   if (newJobRows.length) {
-    const { data, error } = await context.supabase.from("website-jobs").insert(newJobRows.map((item) => item.row)).select("id,job_number");
+    const { data, error } = await context.supabase.from("website-jobs").insert(newJobRows.map((item) => item.row)).select("id,job_number,due_date");
     if (error) throw new Error(error.message);
     const createdByNumber = new Map((data ?? []).map((job) => [job.job_number, job.id]));
     for (const item of newJobRows) {
@@ -287,6 +288,7 @@ async function importNotionPages(
       if (!entityId) throw new Error("A Notion job was created without a returned ID.");
       created.jobs += 1;
       activeJobIds.add(entityId);
+      jobDueDateById.set(entityId, item.row.due_date as string | null);
       claimedJobIds.add(entityId);
       jobIdByNotionPage.set(item.page.id, entityId);
       pendingJobLinks.push({ page: item.page, entityId, matchedExisting: false });
@@ -316,6 +318,7 @@ async function importNotionPages(
     }).select("id").single();
     if (error || !data) throw new Error(error?.message ?? "The unassigned Notion job could not be created.");
     unassignedJobId = data.id;
+    jobDueDateById.set(data.id, null);
     activeJobIds.add(data.id);
     created.jobs += 1;
   }
@@ -349,6 +352,7 @@ async function importNotionPages(
     const sourceLinks = stableNotionLinks(page);
     const shootDate = notionDate(page, ["Shoot Date"]);
     const effort = notionSelect(page, ["Effort Level"]);
+    const capturedBy = notionSelect(page, ["Captured By"]);
     newTaskRows.push({
       page,
       row: {
@@ -360,13 +364,14 @@ async function importNotionPages(
           notionText(page, ["Description"]),
           notionText(page, ["Notes"]),
           effort ? `Effort: ${effort}` : null,
+          capturedBy ? `Captured by: ${capturedBy}` : null,
           shootDate ? `Shoot date: ${shootDate}` : null,
           sourceLinks.length ? `Files / links:\n${sourceLinks.join("\n")}` : null,
         ], 2_000),
-        asset_type: notionSelect(page, ["Captured By"]) || null,
+        asset_type: "Asset",
         priority: notionPriority(notionSelect(page, ["Priority"])),
         hours: notionNumber(page, ["Hours"]),
-        due_date: notionDate(page, ["Due Date"]),
+        due_date: jobDueDateById.get(jobId) ?? null,
         completed_at: statusKey === "posted_done" ? new Date().toISOString() : null,
         position,
         external_url: page.url,

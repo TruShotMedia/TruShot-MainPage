@@ -102,6 +102,12 @@ export type SelectOption = {
   name: string;
 };
 
+export type JobSearchOption = SelectOption & {
+  jobNumber?: string | null;
+  clientName?: string | null;
+  dueDate?: string | null;
+};
+
 export type InvoiceOption = {
   id: string;
   invoice_number: string;

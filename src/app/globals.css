@@ -637,6 +637,13 @@ img { max-width: 100%; }
 .invoice-search-results strong { overflow: hidden; color: #2d342e; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .invoice-search-results small { overflow: hidden; color: #858b85; font-size: 8px; font-weight: 700; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
 .invoice-search-results > p { margin: 0; padding: 18px 12px; color: #8b918b; font-size: 10px; text-align: center; }
+.job-search-field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.job-search-field > label { color: #5f655d; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.job-search-picker input[type="search"] { width: 100%; }
+.job-search-results > button { margin-top: 0; }
+.job-search-results > button[data-active="true"] { background: #edf3ef; }
+.job-search-deadline { color: #788178; font-size: 10px; font-weight: 600; line-height: 1.4; text-transform: none; }
+.job-search-deadline strong { color: var(--green); }
 .invoice-search-picker.is-compact input { width: 100%; height: 37px; min-height: 37px; border: 1px solid #ccd5ce; border-radius: 9px; outline: 0; background: white; padding-top: 0; padding-bottom: 0; color: #4e554f; font-size: 10px; }
 .invoice-search-picker.is-compact input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,94,65,.09); }
 .status-bulk-toolbar .invoice-search-results { top: auto; bottom: calc(100% + 8px); }
@@ -1119,6 +1126,8 @@ img { max-width: 100%; }
 .calendar-editor-fields label { display: flex; flex-direction: column; gap: 7px; color: #5f665f; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
 .calendar-editor-fields input, .calendar-editor-fields select { min-height: 43px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 10px; color: #303631; font-size: 12px; text-transform: none; }
 .calendar-editor-fields input:focus, .calendar-editor-fields select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,94,65,.1); }
+.calendar-editor-fields input:disabled { border-color: #dfe3dc; background: #eef1eb; color: #536156; opacity: 1; }
+.calendar-editor-fields label small { color: #7d857c; font-size: 8px; font-weight: 600; letter-spacing: 0; line-height: 1.4; text-transform: none; }
 .calendar-editor-error { border: 1px solid #e8c8c0; border-radius: 9px; background: #f9e9e4; padding: 10px 12px; color: #984a3b; font-size: 9px; }
 .calendar-editor > footer { display: flex; justify-content: flex-end; gap: 8px; }
 .calendar-editor > footer > button:first-child { min-height: 39px; border: 1px solid #dad9d3; border-radius: 9px; background: white; padding: 0 14px; color: #686e67; font-size: 9px; font-weight: 850; cursor: pointer; }

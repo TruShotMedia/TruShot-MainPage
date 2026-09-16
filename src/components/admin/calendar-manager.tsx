@@ -350,7 +350,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
               </div>
             ) : (
               <div className="calendar-editor-fields">
-                <label>Task deadline<input type="date" name="due_date" defaultValue={selectedItem.due_date ?? ""} /></label>
+                <label>Inherited job deadline<input type="date" value={selectedItem.due_date ?? ""} readOnly disabled /><small>Change the job deadline to update every related task.</small></label>
                 <label>Deadline time<input type="time" name="due_time" defaultValue={selectedItem.due_time?.slice(0, 5) ?? ""} /></label>
                 <label>Priority<select name="priority" defaultValue={selectedItem.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
               </div>

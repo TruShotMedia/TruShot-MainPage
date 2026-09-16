@@ -8,17 +8,18 @@ import { bulkUpdateJobStatus, bulkUpdateTaskStatus, duplicateJob, duplicateTask,
 import { ActionPopover } from "@/components/admin/action-popover";
 import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admin/invoice-relation-picker";
 import { JobExportDialog } from "@/components/admin/job-export-dialog";
+import { JobSearchField } from "@/components/admin/job-search-field";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { changeWorkflowStatus, getGroupSelectionState, sortWorkflowStatuses } from "@/lib/status-workflow";
-import type { InvoiceOption, JobRecord, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
+import type { InvoiceOption, JobRecord, JobSearchOption, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
 
 type WorkflowStatus = JobStatus | TaskStatus;
 type WorkflowRecord = JobRecord | PipelineTask;
 
 type StatusGroupedTableProps =
   | { kind: "jobs"; statuses: JobStatus[]; records: JobRecord[]; clients: SelectOption[]; invoices: InvoiceOption[] }
-  | { kind: "tasks"; statuses: TaskStatus[]; records: PipelineTask[]; jobs: SelectOption[] };
+  | { kind: "tasks"; statuses: TaskStatus[]; records: PipelineTask[]; jobs: JobSearchOption[] };
 
 function SelectionCheckbox({
   checked,
@@ -132,7 +133,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
   );
 }
 
-function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectOption[]; statuses: TaskStatus[] }) {
+function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: JobSearchOption[]; statuses: TaskStatus[] }) {
   return (
     <>
       <td><strong>{task.title}</strong><small>{task.job?.client?.name ?? "No client"}</small></td>
@@ -153,11 +154,10 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectO
         >
           <input type="hidden" name="id" value={task.id} />
           <label>Title<input name="title" required defaultValue={task.title} /></label>
-          <label>Job<select name="job_id" required defaultValue={task.job_id}>{jobs.map((job) => <option key={job.id} value={job.id}>{job.name}</option>)}</select></label>
+          <JobSearchField jobs={jobs} defaultJobId={task.job_id} />
           <label>Status<select name="status_id" required defaultValue={task.status_id}>{statuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
-          <label>Asset type<input name="asset_type" defaultValue={task.asset_type ?? ""} /></label>
+          <label>Asset type<select name="asset_type" defaultValue={task.asset_type === "Other" ? "Other" : "Asset"} required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>
           <label>Hours<input name="hours" type="number" min="0" step="0.25" defaultValue={task.hours ?? ""} /></label>
-          <label>Due date<input name="due_date" type="date" defaultValue={task.due_date ?? ""} /></label>
           <label>Due time<input name="due_time" type="time" defaultValue={task.due_time?.slice(0, 5) ?? ""} /></label>
           <label>Priority<select name="priority" defaultValue={task.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={task.description ?? ""} /></label>
@@ -199,7 +199,7 @@ function StatusGroup({
   onToggle: (id: string) => void;
   onToggleGroup: (ids: string[], allSelected: boolean) => void;
   clients: SelectOption[];
-  jobs: SelectOption[];
+  jobs: JobSearchOption[];
   invoices: InvoiceOption[];
   statuses: WorkflowStatus[];
 }) {
