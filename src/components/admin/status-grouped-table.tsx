@@ -7,6 +7,7 @@ import { Copy, GripVertical, Link2, Pencil, X } from "lucide-react";
 import { bulkUpdateJobStatus, bulkUpdateTaskStatus, duplicateJob, duplicateTask, linkJobsToInvoice, updateJob, updateTask } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admin/invoice-relation-picker";
+import { JobExportDialog } from "@/components/admin/job-export-dialog";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { changeWorkflowStatus, getGroupSelectionState, sortWorkflowStatuses } from "@/lib/status-workflow";
@@ -407,6 +408,17 @@ export function StatusGroupedTable(props: StatusGroupedTableProps) {
                   disabled={Boolean(savingIds.size)}
                 />
                 <button type="button" className="admin-secondary-button" disabled={!targetInvoiceId || Boolean(savingIds.size)} onClick={() => { void linkSelectedJobs(); }}><Link2 size={15} /> Link</button>
+              </div>
+            ) : null}
+            {kind === "jobs" ? (
+              <div className="status-bulk-export-action">
+                <JobExportDialog
+                  jobs={records.filter((record) => selectedIds.has(record.id)).map((record) => {
+                    const job = record as JobRecord;
+                    return { id: job.id, clientId: job.client_id, clientName: job.client?.name ?? null };
+                  })}
+                  disabled={Boolean(savingIds.size)}
+                />
               </div>
             ) : null}
           </div>

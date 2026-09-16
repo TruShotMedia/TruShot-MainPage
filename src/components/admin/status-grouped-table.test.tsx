@@ -95,6 +95,8 @@ describe("StatusGroupedTable", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("selects a complete status group and applies one bulk status change", async () => {
@@ -161,5 +163,51 @@ describe("StatusGroupedTable", () => {
     expect(actionMocks.duplicateTask).toHaveBeenCalledOnce();
     expect((actionMocks.duplicateTask.mock.calls[0][0] as FormData).get("id")).toBe(task.id);
     expect(actionMocks.updateTask).not.toHaveBeenCalled();
+  });
+
+  it("exports selected jobs as a downloadable PDF with optional pricing", async () => {
+    const fetchMock = vi.fn(async () => new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }), {
+      status: 200,
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="trushot-work-report.pdf"' },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const objectUrl = vi.fn(() => "blob:test-report");
+    const revokeUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: objectUrl });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeUrl });
+    const downloads: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push(this.download);
+    });
+
+    await act(async () => root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={[job]} clients={[]} invoices={invoices} />));
+    await act(async () => container.querySelector<HTMLInputElement>('[aria-label="Select Campaign shoot"]')!.click());
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Export PDF"))!;
+    expect(open).toBeTruthy();
+    await act(async () => open.click());
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-labelledby="job-export-title"]')!;
+    expect(dialog.textContent).toContain("Without pricing");
+    expect(dialog.textContent).toContain("Include allocated pricing");
+    const includePricing = dialog.querySelectorAll<HTMLInputElement>('input[name="job-export-pricing"]')[1];
+    await act(async () => includePricing.click());
+    const download = Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Download report"))!;
+    await act(async () => download.click());
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({
+      jobIds: [job.id], includePricing: true,
+    });
+    expect(downloads).toEqual(["trushot-work-report.pdf"]);
+    expect(objectUrl).toHaveBeenCalledOnce();
+    expect(document.querySelector('[aria-labelledby="job-export-title"]')).toBeNull();
+  });
+
+  it("does not offer the jobs PDF export while selecting tasks", async () => {
+    await act(async () => root.render(<StatusGroupedTable kind="tasks" statuses={taskStatuses} records={[task]} jobs={[{ id: job.id, name: job.title }]} />));
+    await act(async () => container.querySelector<HTMLInputElement>('[aria-label="Select Social cut"]')!.click());
+    expect(container.textContent).not.toContain("Export PDF");
   });
 });
