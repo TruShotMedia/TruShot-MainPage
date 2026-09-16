@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Link2, Pencil, X } from "lucide-react";
-import { bulkUpdateJobStatus, bulkUpdateTaskStatus, linkJobsToInvoice, updateJob, updateTask } from "@/app/admin/actions";
+import { Copy, GripVertical, Link2, Pencil, X } from "lucide-react";
+import { bulkUpdateJobStatus, bulkUpdateTaskStatus, duplicateJob, duplicateTask, linkJobsToInvoice, updateJob, updateTask } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admin/invoice-relation-picker";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -67,6 +67,27 @@ function DraggableRow({
   );
 }
 
+function DuplicateRowAction({ id, kind }: { id: string; kind: "jobs" | "tasks" }) {
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function duplicate(formData: FormData) {
+    setErrorMessage("");
+    try {
+      await (kind === "jobs" ? duplicateJob : duplicateTask)(formData);
+    } catch {
+      setErrorMessage(`This ${kind === "jobs" ? "job" : "asset"} could not be duplicated. Please try again.`);
+    }
+  }
+
+  return (
+    <form action={duplicate} title={kind === "jobs" ? "Copy job details without its tasks, invoices, or completed counts" : "Copy this asset as a new, editable task"}>
+      <input type="hidden" name="id" value={id} />
+      <SubmitButton className="status-row-duplicate" pendingLabel="Copying…"><Copy size={14} /> Duplicate</SubmitButton>
+      {errorMessage ? <small className="warning-text" role="alert">{errorMessage}</small> : null}
+    </form>
+  );
+}
+
 function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; clients: SelectOption[]; statuses: JobStatus[]; invoices: InvoiceOption[] }) {
   return (
     <>
@@ -78,6 +99,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
       <td><span className="count-pill">{String(job.open_tasks ?? 0)}</span></td>
       <td><strong>{formatCurrency(Number(job.value_cents ?? 0))}</strong>{job.allocation_needs_hours ? <small className="warning-text">Needs hours</small> : null}</td>
       <td>
+        <div className="status-row-actions">
         <ActionPopover
           action={updateJob}
           summary={<><Pencil size={14} /> Edit</>}
@@ -102,6 +124,8 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
           <JobInvoiceRelationsField invoices={invoices} relations={job.related_invoices} />
           <SubmitButton pendingLabel="Saving…">Save job</SubmitButton>
         </ActionPopover>
+        <DuplicateRowAction id={job.id} kind="jobs" />
+        </div>
       </td>
     </>
   );
@@ -117,6 +141,7 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectO
       <td>{task.asset_type ?? "—"}</td>
       <td><span className={`task-priority priority-${task.priority}`}>{task.priority}</span></td>
       <td>
+        <div className="status-row-actions">
         <ActionPopover
           action={updateTask}
           summary={<><Pencil size={14} /> Edit</>}
@@ -137,6 +162,8 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: SelectO
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={task.description ?? ""} /></label>
           <SubmitButton pendingLabel="Saving…">Save asset</SubmitButton>
         </ActionPopover>
+        <DuplicateRowAction id={task.id} kind="tasks" />
+        </div>
       </td>
     </>
   );

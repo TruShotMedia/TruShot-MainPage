@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvoiceOption, JobRecord, JobStatus } from "@/lib/types";
+import type { InvoiceOption, JobRecord, JobStatus, PipelineTask, TaskStatus } from "@/lib/types";
 import { StatusGroupedTable } from "./status-grouped-table";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -12,6 +12,8 @@ const actionMocks = vi.hoisted(() => ({
   bulkUpdateJobStatus: vi.fn(async () => ({ ok: true, updated: 1 })),
   bulkUpdateTaskStatus: vi.fn(async () => ({ ok: true, updated: 1 })),
   linkJobsToInvoice: vi.fn(async () => ({ ok: true, linked: 1 })),
+  duplicateJob: vi.fn(async (formData: FormData) => { void formData; }),
+  duplicateTask: vi.fn(async (formData: FormData) => { void formData; }),
   updateJob: vi.fn(async () => undefined),
   updateTask: vi.fn(async () => undefined),
 }));
@@ -59,6 +61,23 @@ const job: JobRecord = {
   related_invoices: [],
 };
 
+const taskStatuses: TaskStatus[] = [{ id: "66666666-6666-4666-8666-666666666666", key: "not_started", label: "Not Started", color: "#777773", position: 10, is_open: true }];
+const task: PipelineTask = {
+  id: "77777777-7777-4777-8777-777777777777",
+  title: "Social cut",
+  job_id: job.id,
+  status_id: taskStatuses[0].id,
+  asset_type: "Video",
+  hours: 2,
+  due_date: null,
+  due_time: null,
+  priority: "normal",
+  description: null,
+  position: 1000,
+  updated_at: "2026-08-19T00:00:00.000Z",
+  job: { title: job.title },
+};
+
 describe("StatusGroupedTable", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -66,6 +85,8 @@ describe("StatusGroupedTable", () => {
   beforeEach(() => {
     actionMocks.bulkUpdateJobStatus.mockClear();
     actionMocks.linkJobsToInvoice.mockClear();
+    actionMocks.duplicateJob.mockClear();
+    actionMocks.duplicateTask.mockClear();
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -120,5 +141,25 @@ describe("StatusGroupedTable", () => {
 
     expect(actionMocks.linkJobsToInvoice).toHaveBeenCalledWith([job.id], invoices[0].id);
     expect(container.textContent).toContain("INV-204 linked to 1 job");
+  });
+
+  it("duplicates a job from its row without submitting the edit form", async () => {
+    await act(async () => root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={[job]} clients={[]} invoices={invoices} />));
+    const duplicate = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Duplicate"))!;
+    await act(async () => duplicate.closest("form")!.requestSubmit());
+    expect(actionMocks.duplicateJob).toHaveBeenCalledOnce();
+    expect((actionMocks.duplicateJob.mock.calls[0][0] as FormData).get("id")).toBe(job.id);
+    expect(actionMocks.updateJob).not.toHaveBeenCalled();
+  });
+
+  it("duplicates an asset from its own row", async () => {
+    await act(async () => root.render(<StatusGroupedTable kind="tasks" statuses={taskStatuses} records={[task]} jobs={[{ id: job.id, name: job.title }]} />));
+    const duplicate = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Duplicate"))!;
+    await act(async () => duplicate.closest("form")!.requestSubmit());
+    expect(actionMocks.duplicateTask).toHaveBeenCalledOnce();
+    expect((actionMocks.duplicateTask.mock.calls[0][0] as FormData).get("id")).toBe(task.id);
+    expect(actionMocks.updateTask).not.toHaveBeenCalled();
   });
 });

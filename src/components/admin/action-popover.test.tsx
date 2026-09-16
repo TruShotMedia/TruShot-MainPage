@@ -74,4 +74,26 @@ describe("ActionPopover", () => {
     expect(details.open).toBe(true);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("could not be saved");
   });
+
+  it("places row editors above scrolling tables and closes on an outside tap", async () => {
+    await act(async () => {
+      root.render(
+        <ActionPopover action={vi.fn(async () => undefined)} summary="Edit" title="Edit job" detailsClassName="row-editor">
+          <label>Title<input name="title" defaultValue="Test job" /></label>
+          <button type="submit">Save</button>
+        </ActionPopover>,
+      );
+    });
+    const details = container.querySelector("details")!;
+    await act(async () => {
+      container.querySelector("summary")!.click();
+      details.dispatchEvent(new Event("toggle"));
+    });
+    expect(details.open).toBe(true);
+    expect(container.querySelector("form")).toBeNull();
+    expect(document.body.querySelector(".row-editor-layer form")?.getAttribute("aria-label")).toBe("Edit job");
+    await act(async () => document.body.querySelector<HTMLButtonElement>(".row-editor-backdrop")!.click());
+    expect(details.open).toBe(false);
+    expect(document.body.querySelector(".row-editor-layer")).toBeNull();
+  });
 });

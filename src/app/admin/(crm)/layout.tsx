@@ -1,9 +1,19 @@
 import { redirect } from "next/navigation";
+import type { Viewport } from "next";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext } from "@/lib/data/admin";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#1f5e41",
+};
 
 export default async function CrmLayout({ children }: { children: React.ReactNode }) {
   const context = await getAdminContext();

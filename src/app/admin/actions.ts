@@ -46,7 +46,7 @@ async function requireTaskStatus(context: AdminContext, statusId: string) {
 async function requireJobStatus(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
     .from("website-job-statuses")
-    .select("id")
+    .select("id,is_closed")
     .eq("id", statusId)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .eq("is_active", true)
@@ -362,6 +362,59 @@ export async function createJob(formData: FormData) {
   revalidatePath("/tablet");
 }
 
+export async function duplicateJob(formData: FormData) {
+  const id = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data: source, error: sourceError } = await context.supabase
+    .from("website-jobs")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,shoot_date,shoot_time,due_date,due_time,location,notes")
+    .eq("id", id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .single();
+  if (sourceError || !source) throw new Error("That job is no longer available to duplicate.");
+  const status = await requireJobStatus(context, source.status_id);
+  let statusId = source.status_id;
+  if (status.is_closed) {
+    const { data: firstOpen, error } = await context.supabase
+      .from("website-job-statuses")
+      .select("id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_active", true)
+      .eq("is_closed", false)
+      .order("position")
+      .limit(1)
+      .maybeSingle();
+    if (error || !firstOpen) throw new Error("An open job status is required to duplicate a completed job.");
+    statusId = firstOpen.id;
+  }
+  const { error } = await context.supabase.from("website-jobs").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    title: `${source.title.slice(0, 193).trimEnd()} (copy)`,
+    client_id: source.client_id,
+    status_id: statusId,
+    package_id: source.package_id,
+    package_snapshot: source.package_snapshot,
+    description: source.description,
+    shoot_date: source.shoot_date,
+    shoot_time: source.shoot_time,
+    due_date: source.due_date,
+    due_time: source.due_time,
+    location: source.location,
+    notes: source.notes,
+    photos_delivered: 0,
+    created_by: context.claims.sub,
+    updated_by: context.claims.sub,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
+  revalidatePath("/admin/clients");
+  revalidatePath("/tablet");
+}
+
 export async function updateJob(formData: FormData) {
   const invoiceIds = optionalRecordIdsSchema.parse(formData.getAll("invoice_ids"));
   const input = z.object({
@@ -449,6 +502,58 @@ export async function createTask(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
+  revalidatePath("/admin/calendar");
+  revalidatePath("/tablet");
+}
+
+export async function duplicateTask(formData: FormData) {
+  const id = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+  const { data: source, error: sourceError } = await context.supabase
+    .from("website-job-tasks")
+    .select("title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,external_url")
+    .eq("id", id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .single();
+  if (sourceError || !source) throw new Error("That asset is no longer available to duplicate.");
+  await requireJob(context, source.job_id);
+  const status = await requireTaskStatus(context, source.status_id);
+  let statusId = source.status_id;
+  if (status.key === "posted_done") {
+    const { data: notStarted, error } = await context.supabase
+      .from("website-task-statuses")
+      .select("id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("is_active", true)
+      .eq("key", "not_started")
+      .maybeSingle();
+    if (error || !notStarted) throw new Error("Not Started status is required to duplicate a completed asset.");
+    statusId = notStarted.id;
+  }
+  const position = await getNextTaskPosition(context, statusId);
+  const { error } = await context.supabase.from("website-job-tasks").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    title: `${source.title.slice(0, 213).trimEnd()} (copy)`,
+    job_id: source.job_id,
+    status_id: statusId,
+    asset_type: source.asset_type,
+    hours: source.hours,
+    due_date: source.due_date,
+    due_time: source.due_time,
+    priority: source.priority,
+    description: source.description,
+    external_url: source.external_url,
+    position,
+    created_by: context.claims.sub,
+    updated_by: context.claims.sub,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
 }
