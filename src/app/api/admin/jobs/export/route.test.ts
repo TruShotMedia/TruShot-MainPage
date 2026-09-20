@@ -20,7 +20,7 @@ const job = {
 };
 const results: Record<string, { data: unknown; error: null }> = {
   "website-job-metrics": { data: [job], error: null },
-  "website-jobs": { data: [{ id: jobId }], error: null },
+  "website-jobs": { data: [{ id: jobId, delivery_url: "https://files.example.com/campaign-shoot" }], error: null },
   "website-job-tasks": { data: [{
     id: "77777777-7777-4777-8777-777777777777", job_id: jobId, title: "Hero reel",
     asset_type: "Video", status_id: "66666666-6666-4666-8666-666666666666", hours: 2,
@@ -84,6 +84,7 @@ describe("POST /api/admin/jobs/export", () => {
     expect(from).not.toHaveBeenCalledWith("website-invoice-allocation-metrics");
     expect(mocks.renderPdf.mock.calls[0][0]).toMatchObject({
       clientName: "Sample Client", includePricing: false,
+      jobs: [{ deliveryUrl: "https://files.example.com/campaign-shoot" }],
       totals: { assetCount: 1, recordedHours: 2 },
     });
   });
@@ -100,11 +101,11 @@ describe("POST /api/admin/jobs/export", () => {
   it("refuses a mixed-client selection before generating a report", async () => {
     const secondJobId = "88888888-8888-4888-8888-888888888888";
     results["website-job-metrics"].data = [job, { ...job, id: secondJobId, client_id: "99999999-9999-4999-8999-999999999999" }];
-    results["website-jobs"].data = [{ id: jobId }, { id: secondJobId }];
+    results["website-jobs"].data = [{ id: jobId, delivery_url: null }, { id: secondJobId, delivery_url: null }];
     const response = await POST(request([jobId, secondJobId], false));
     expect(response.status).toBe(422);
     expect((await response.json()).error).toContain("one client");
     expect(mocks.renderPdf).not.toHaveBeenCalled();
-    results["website-jobs"].data = [{ id: jobId }];
+    results["website-jobs"].data = [{ id: jobId, delivery_url: "https://files.example.com/campaign-shoot" }];
   });
 });

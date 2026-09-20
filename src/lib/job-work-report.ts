@@ -5,6 +5,7 @@ export type JobWorkSource = {
   job_number: string | null;
   shoot_date: string | null;
   due_date: string | null;
+  delivery_url: string | null;
   photos_delivered: number;
   task_hours: number;
   created_assets: number;
@@ -44,6 +45,7 @@ export type JobWorkReport = {
     jobNumber: string | null;
     shootDate: string | null;
     dueDate: string | null;
+    deliveryUrl: string | null;
     assetCount: number;
     recordedHours: number;
     unloggedHoursCount: number;
@@ -72,6 +74,16 @@ export type JobWorkReport = {
 
 function roundedHours(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function safeDeliveryUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
 export function buildJobWorkReport(input: {
@@ -125,6 +137,7 @@ export function buildJobWorkReport(input: {
       jobNumber: job.job_number,
       shootDate: job.shoot_date,
       dueDate: job.due_date,
+      deliveryUrl: safeDeliveryUrl(job.delivery_url),
       assetCount: taskSources.length,
       recordedHours,
       unloggedHoursCount,

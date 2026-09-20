@@ -140,6 +140,7 @@ export type JobRecord = {
   has_unset_task_hours: boolean;
   allocation_needs_hours: boolean;
   location: string | null;
+  delivery_url: string | null;
   description: string | null;
   notes: string | null;
   updated_at: string;

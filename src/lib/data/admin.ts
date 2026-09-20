@@ -120,7 +120,7 @@ export async function getJobs() {
   if (!context) return [];
   const [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
-    context.supabase.from("website-jobs").select("id,location,description,notes,shoot_time,due_time,updated_at").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,location,delivery_url,description,notes,shoot_time,due_time,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
     context.supabase

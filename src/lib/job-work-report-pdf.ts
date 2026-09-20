@@ -122,6 +122,23 @@ function drawTaskRow(doc: PDFKit.PDFDocument, task: JobWorkReport["jobs"][number
   doc.moveTo(MARGIN + 13, y + height - 1).lineTo(PAGE_WIDTH - MARGIN - 13, y + height - 1).lineWidth(0.5).strokeColor(LINE).stroke();
 }
 
+function drawDeliveryButton(doc: PDFKit.PDFDocument, url: string, y: number) {
+  const x = MARGIN + 16;
+  const width = 126;
+  const height = 27;
+  doc.roundedRect(x, y, width, height, 6).fill(GREEN);
+  doc.link(x, y, width, height, url);
+  text(doc, "ACCESS JOB FILES", x + 12, y + 9, {
+    font: "Helvetica-Bold",
+    size: 8,
+    color: "#FFFFFF",
+    width: width - 24,
+    align: "center",
+    characterSpacing: 0.45,
+    lineBreak: false,
+  });
+}
+
 export async function renderJobWorkReportPdf(report: JobWorkReport): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 0, left: 0, right: 0 }, bufferPages: true, compress: true });
   doc.info.Title = `TruShot Media - Work summary for ${printable(report.clientName)}`;
@@ -153,7 +170,8 @@ export async function renderJobWorkReportPdf(report: JobWorkReport): Promise<Buf
   for (const [index, job] of report.jobs.entries()) {
     const titleHeight = doc.font("Helvetica-Bold").fontSize(18).heightOfString(printable(job.title), { width: CONTENT_WIDTH - 30, lineGap: 1 });
     const warningHeight = job.unloggedHoursCount ? 18 : 0;
-    const blockHeight = 42 + titleHeight + 22 + 52 + warningHeight + (job.tasks.length ? 31 + taskRowHeight(doc, job.tasks[0].title) : 42);
+    const deliveryButtonHeight = job.deliveryUrl ? 35 : 0;
+    const blockHeight = 42 + titleHeight + 22 + deliveryButtonHeight + 52 + warningHeight + (job.tasks.length ? 31 + taskRowHeight(doc, job.tasks[0].title) : 42);
     ensureSpace(blockHeight);
     doc.rect(MARGIN, y, 4, 34 + titleHeight).fill(GREEN);
     text(doc, `JOB ${String(index + 1).padStart(2, "0")}${job.jobNumber ? `  |  ${job.jobNumber}` : ""}`, MARGIN + 16, y, { font: "Helvetica-Bold", size: 8.5, color: GREEN, width: CONTENT_WIDTH - 25, characterSpacing: 0.6 });
@@ -161,6 +179,11 @@ export async function renderJobWorkReportPdf(report: JobWorkReport): Promise<Buf
     y += 24 + titleHeight;
     text(doc, `Shoot ${displayDate(job.shootDate)}  |  Due ${displayDate(job.dueDate)}`, MARGIN + 16, y + 2, { size: 8.5, color: MUTED, width: CONTENT_WIDTH - 30 });
     y += 23;
+
+    if (job.deliveryUrl) {
+      drawDeliveryButton(doc, job.deliveryUrl, y);
+      y += 35;
+    }
 
     doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 52, 7).fill(PALE_GREEN);
     const stats: Array<[string, string]> = [

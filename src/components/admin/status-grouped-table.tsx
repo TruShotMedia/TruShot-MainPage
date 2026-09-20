@@ -121,6 +121,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
           <label>Due time<input name="due_time" type="time" defaultValue={job.due_time?.slice(0, 5) ?? ""} /></label>
           <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={Number(job.photos_delivered ?? 0)} /></label>
           <label>Location<input name="location" defaultValue={job.location ?? ""} /></label>
+          <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={job.description ?? ""} /></label>
           <label className="form-span">Internal notes<textarea name="notes" rows={3} defaultValue={job.notes ?? ""} /></label>
           <JobInvoiceRelationsField invoices={invoices} relations={job.related_invoices} />

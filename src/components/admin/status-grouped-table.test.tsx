@@ -53,6 +53,7 @@ const job: JobRecord = {
   has_unset_task_hours: false,
   allocation_needs_hours: false,
   location: null,
+  delivery_url: "https://files.example.com/campaign-shoot",
   description: null,
   notes: null,
   updated_at: "2026-08-19T00:00:00.000Z",
@@ -153,6 +154,20 @@ describe("StatusGroupedTable", () => {
     expect(actionMocks.duplicateJob).toHaveBeenCalledOnce();
     expect((actionMocks.duplicateJob.mock.calls[0][0] as FormData).get("id")).toBe(job.id);
     expect(actionMocks.updateJob).not.toHaveBeenCalled();
+  });
+
+  it("shows the saved client delivery link in the job editor", async () => {
+    await act(async () => root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={[job]} clients={[]} invoices={invoices} />));
+    const edit = Array.from(container.querySelectorAll<HTMLElement>("summary"))
+      .find((summary) => summary.textContent?.includes("Edit"))!;
+    const details = edit.closest("details")!;
+    await act(async () => {
+      edit.click();
+      details.dispatchEvent(new Event("toggle"));
+    });
+    const input = document.querySelector<HTMLInputElement>('input[name="delivery_url"]');
+    expect(input?.type).toBe("url");
+    expect(input?.value).toBe(job.delivery_url);
   });
 
   it("duplicates an asset from its own row", async () => {

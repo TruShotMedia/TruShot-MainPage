@@ -17,6 +17,14 @@ type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
 const recordIdsSchema = z.array(z.string().uuid()).min(1).max(250).transform((ids) => [...new Set(ids)]);
 const optionalRecordIdsSchema = z.array(z.string().uuid()).max(250).transform((ids) => [...new Set(ids)]);
 const optionalTimeSchema = z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), z.literal("")]);
+const optionalHttpUrlSchema = z.string().trim().max(2_048).refine((value) => {
+  if (!value) return true;
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}, "Enter a complete link beginning with http:// or https://.");
 
 async function getNextTaskPosition(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
@@ -382,7 +390,7 @@ export async function duplicateJob(formData: FormData) {
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-jobs")
-    .select("title,client_id,status_id,package_id,package_snapshot,description,shoot_date,shoot_time,due_date,due_time,location,notes")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
@@ -416,6 +424,7 @@ export async function duplicateJob(formData: FormData) {
     due_date: source.due_date,
     due_time: source.due_time,
     location: source.location,
+    delivery_url: source.delivery_url,
     notes: source.notes,
     photos_delivered: 0,
     created_by: context.claims.sub,
@@ -443,6 +452,7 @@ export async function updateJob(formData: FormData) {
     due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
     location: z.string().trim().max(300),
+    delivery_url: optionalHttpUrlSchema,
     description: z.string().trim().max(2_000),
     notes: z.string().trim().max(4_000),
   }).parse(Object.fromEntries(formData));
@@ -465,6 +475,7 @@ export async function updateJob(formData: FormData) {
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
     location: input.location || null,
+    delivery_url: input.delivery_url || null,
     description: input.description || null,
     notes: input.notes || null,
     updated_by: context.claims.sub,

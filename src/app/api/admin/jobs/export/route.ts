@@ -44,12 +44,15 @@ export async function POST(request: Request) {
       supabase.from("website-job-metrics")
         .select("id,client_id,title,job_number,shoot_date,due_date,photos_delivered,task_hours,created_assets")
         .eq("workspace_id", TRUSHOT_WORKSPACE_ID).in("id", jobIds),
-      supabase.from("website-jobs").select("id")
+      supabase.from("website-jobs").select("id,delivery_url")
         .eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).in("id", jobIds),
     ]);
     if (metricsResult.error || activeJobsResult.error) throw new Error("Selected jobs could not be loaded.");
-    const activeIds = new Set((activeJobsResult.data ?? []).map((job) => job.id));
-    const jobs = (metricsResult.data ?? []).filter((job) => activeIds.has(job.id));
+    const activeJobsById = new Map((activeJobsResult.data ?? []).map((job) => [job.id, job]));
+    const jobs = (metricsResult.data ?? []).flatMap((job) => {
+      const activeJob = activeJobsById.get(job.id);
+      return activeJob ? [{ ...job, delivery_url: activeJob.delivery_url }] : [];
+    });
     if (jobs.length !== jobIds.length) {
       return jsonError("One or more selected jobs are no longer available. Refresh and try again.", 422);
     }

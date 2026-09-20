@@ -11,6 +11,7 @@ function sample(includePricing: boolean) {
     job_number: `TS-${String(index + 1).padStart(3, "0")}`,
     shoot_date: `2026-09-${String(index * 3 + 1).padStart(2, "0")}`,
     due_date: `2026-09-${String(index * 3 + 8).padStart(2, "0")}`,
+    delivery_url: index === 0 ? "https://files.example.com/brand-story" : null,
     photos_delivered: index === 0 ? 30 : 0,
     task_hours: 17.5,
     created_assets: 12,
@@ -44,6 +45,7 @@ describe("renderJobWorkReportPdf", () => {
     const unpriced = await renderJobWorkReportPdf(sample(false));
     expect(priced.subarray(0, 5).toString()).toBe("%PDF-");
     expect(unpriced.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(priced.toString()).toContain("/URI (https://files.example.com/brand-story)");
     expect(priced.length).toBeGreaterThan(10_000);
     expect(unpriced.length).toBeGreaterThan(10_000);
     if (process.env.TRUSHOT_JOB_REPORT_PREVIEW_PATH) writeFileSync(process.env.TRUSHOT_JOB_REPORT_PREVIEW_PATH, priced);

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildJobWorkReport, type JobWorkSource, type TaskWorkSource } from "./job-work-report";
 
 const jobs: JobWorkSource[] = [
-  { id: "job-a", client_id: "client-a", title: "Brand shoot", job_number: "JOB-1", shoot_date: "2026-09-01", due_date: "2026-09-08", photos_delivered: 20, task_hours: 3.5, created_assets: 2 },
-  { id: "job-b", client_id: "client-a", title: "Social cut", job_number: null, shoot_date: "2026-09-10", due_date: null, photos_delivered: 0, task_hours: 1, created_assets: 1 },
+  { id: "job-a", client_id: "client-a", title: "Brand shoot", job_number: "JOB-1", shoot_date: "2026-09-01", due_date: "2026-09-08", delivery_url: "https://files.example.com/brand-shoot", photos_delivered: 20, task_hours: 3.5, created_assets: 2 },
+  { id: "job-b", client_id: "client-a", title: "Social cut", job_number: null, shoot_date: "2026-09-10", due_date: null, delivery_url: null, photos_delivered: 0, task_hours: 1, created_assets: 1 },
 ];
 const tasks: TaskWorkSource[] = [
   { id: "asset-2", job_id: "job-a", title: "Photo set", asset_type: "Photography", status_id: "done", hours: 1.5, due_date: null, position: 2000 },
@@ -32,6 +32,7 @@ describe("buildJobWorkReport", () => {
     const report = buildJobWorkReport({ ...base, includePricing: false });
     expect(report.jobs.map((job) => job.title)).toEqual(["Brand shoot", "Social cut"]);
     expect(report.jobs[0].tasks.map((task) => task.title)).toEqual(["Hero reel", "Photo set"]);
+    expect(report.jobs.map((job) => job.deliveryUrl)).toEqual(["https://files.example.com/brand-shoot", null]);
     expect(report.totals).toMatchObject({ assetCount: 3, recordedHours: 4.5, photosDelivered: 20, valueCents: 0 });
     expect(report.jobs.every((job) => job.valueCents === null)).toBe(true);
   });
@@ -60,5 +61,10 @@ describe("buildJobWorkReport", () => {
     expect(() => buildJobWorkReport({ ...base, jobs: [jobs[0], { ...jobs[1], client_id: "client-b" }], includePricing: false })).toThrow(/one client/);
     expect(() => buildJobWorkReport({ ...base, jobs: [jobs[0]], includePricing: false })).toThrow(/no longer available/);
     expect(() => buildJobWorkReport({ ...base, tasks: tasks.slice(1), includePricing: false })).toThrow(/Task data was incomplete/);
+  });
+
+  it("drops unsafe delivery-link protocols before PDF rendering", () => {
+    const report = buildJobWorkReport({ ...base, jobs: [{ ...jobs[0], delivery_url: "javascript:alert(1)" }, jobs[1]], includePricing: false });
+    expect(report.jobs[0].deliveryUrl).toBeNull();
   });
 });
