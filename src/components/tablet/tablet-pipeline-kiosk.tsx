@@ -132,48 +132,50 @@ export function TabletPipelineKiosk({
   }, [refresh, refreshIntervalMs]);
 
   return (
-    <main className={`tablet-kiosk ${isCssRotated ? "is-css-rotated" : ""}`} data-orientation={effectiveOrientation}>
-      <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
-      <header className="tablet-kiosk-header">
-        <div className="tablet-kiosk-identity">
-          <Image src="/brand/logo-green.png" alt="TruShot Media" width={230} height={84} priority />
-          <div className="tablet-kiosk-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
-            <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
-            <span suppressHydrationWarning>{dateFormatter.format(now)}</span>
+    <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`}>
+      <div className="tablet-kiosk" data-orientation={effectiveOrientation}>
+        <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
+        <header className="tablet-kiosk-header">
+          <div className="tablet-kiosk-identity">
+            <Image src="/brand/logo-green.png" alt="TruShot Media" width={230} height={84} priority />
+            <div className="tablet-kiosk-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
+              <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
+              <span suppressHydrationWarning>{dateFormatter.format(now)}</span>
+            </div>
           </div>
-        </div>
 
-        <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
-          <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Pipeline</button>
-          <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
-        </nav>
+          <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
+            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Pipeline</button>
+            <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
+          </nav>
 
-        <div className="tablet-kiosk-actions">
-          <Link className="tablet-notification-button" href="/admin/requests" aria-label={`${pendingRequestCount} client ${pendingRequestCount === 1 ? "request" : "requests"} awaiting review`} title="Client requests">
-            <Bell size={15} />
-            {pendingRequestCount ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
-          </Link>
-          <button type="button" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
-            {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
-          </button>
-          <button type="button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
-          <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
-        </div>
-      </header>
+          <div className="tablet-kiosk-actions">
+            <Link className="tablet-notification-button" href="/admin/requests" aria-label={`${pendingRequestCount} client ${pendingRequestCount === 1 ? "request" : "requests"} awaiting review`} title="Client requests">
+              <Bell size={15} />
+              {pendingRequestCount ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
+            </Link>
+            <button type="button" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
+              {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
+            </button>
+            <button type="button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
+            <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
+          </div>
+        </header>
 
-      <section className="tablet-kiosk-main" aria-label={activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
-        {activeView === "pipeline" ? (
-          <PipelineBoard
-            key={pipelineVersion}
-            completionStatusKey="final_draft_notes"
-            initialStatuses={initialStatuses}
-            initialTasks={initialTasks}
-            statusAliases={tabletPipelineStatusAliases}
-            variant="tablet"
-            visibleStatusKeys={tabletPipelineStatusKeys}
-          />
-        ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} campaignAssets={calendarCampaignAssets} today={today} />}
-      </section>
+        <section className="tablet-kiosk-main" aria-label={activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
+          {activeView === "pipeline" ? (
+            <PipelineBoard
+              key={pipelineVersion}
+              completionStatusKey="final_draft_notes"
+              initialStatuses={initialStatuses}
+              initialTasks={initialTasks}
+              statusAliases={tabletPipelineStatusAliases}
+              variant="tablet"
+              visibleStatusKeys={tabletPipelineStatusKeys}
+            />
+          ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} campaignAssets={calendarCampaignAssets} today={today} />}
+        </section>
+      </div>
     </main>
   );
 }
