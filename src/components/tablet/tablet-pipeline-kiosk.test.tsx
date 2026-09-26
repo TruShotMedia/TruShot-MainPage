@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
+import { TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -22,6 +22,7 @@ describe("TabletPipelineKiosk", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     routerMocks.refresh.mockClear();
+    window.localStorage.clear();
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=; Path=/; Max-Age=0`;
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
@@ -92,5 +93,36 @@ describe("TabletPipelineKiosk", () => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
     expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("rotates the kiosk UI and remembers the preferred orientation", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 768 });
+
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-08-25T00:00:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="pipeline"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        today="2026-08-25"
+      />,
+    ));
+
+    const rotateButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to portrait"]')!;
+    await act(async () => rotateButton.click());
+
+    const kiosk = container.querySelector(".tablet-kiosk")!;
+    expect(kiosk.classList.contains("is-css-rotated")).toBe(true);
+    expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
+    expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("portrait");
+    expect(container.querySelector('button[aria-label="Switch kiosk to landscape"]')).not.toBeNull();
   });
 });

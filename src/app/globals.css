@@ -1585,7 +1585,8 @@ img { max-width: 100%; }
 }
 
 /* Protected tablet production kiosk */
-.tablet-kiosk { position: fixed; z-index: 200; display: flex; min-width: 680px; min-height: 520px; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 92% -10%, rgba(31,94,65,.14), transparent 27%), #eeece5; inset: 0; }
+.tablet-kiosk { position: fixed; z-index: 200; display: flex; min-width: 680px; min-height: 520px; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 92% -10%, rgba(31,94,65,.14), transparent 27%), #eeece5; transform: none; transform-origin: top left; transition: transform 220ms ease; inset: 0; }
+.tablet-kiosk.is-css-rotated { width: 100vh; width: 100dvh; height: 100vw; height: 100dvw; inset: auto; top: 0; left: 100vw; left: 100dvw; transform: rotate(90deg); }
 .tablet-kiosk-header { display: grid; flex: 0 0 auto; grid-template-columns: auto minmax(230px, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; border-bottom: 1px solid rgba(31,94,65,.16); background: rgba(248,247,242,.94); padding: 9px 16px; box-shadow: 0 8px 30px rgba(23,31,25,.04); backdrop-filter: blur(16px); }
 .tablet-kiosk-identity { display: flex; align-items: center; gap: 15px; }
 .tablet-kiosk-identity img { width: 118px; height: auto; }

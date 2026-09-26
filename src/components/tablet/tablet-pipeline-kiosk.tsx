@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarDays, LayoutDashboard, RefreshCw, Rows3 } from "lucide-react";
+import { Bell, CalendarDays, LayoutDashboard, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
-import { TABLET_VIEW_COOKIE_NAME, type TabletView } from "@/lib/tablet-view";
+import { parseTabletOrientation, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
 import type { CalendarCampaignAsset, CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
@@ -26,6 +26,10 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   timeZone: "Australia/Brisbane",
   weekday: "short",
 });
+
+function viewportOrientation(): TabletOrientation {
+  return window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+}
 
 export function TabletPipelineKiosk({
   calendarJobs,
@@ -59,8 +63,12 @@ export function TabletPipelineKiosk({
   const router = useRouter();
   const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [now, setNow] = useState(() => new Date(initialNow));
+  const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
+  const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
+  const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
+  const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
 
   const refresh = useCallback(() => {
     lastRefreshAt.current = Date.now();
@@ -70,6 +78,37 @@ export function TabletPipelineKiosk({
   const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, []);
+
+  const rotateOrientation = useCallback(async () => {
+    const nextOrientation: TabletOrientation = effectiveOrientation === "landscape" ? "portrait" : "landscape";
+    setPreferredOrientation(nextOrientation);
+    window.localStorage.setItem(TABLET_ORIENTATION_STORAGE_KEY, nextOrientation);
+
+    const orientation = window.screen.orientation as ScreenOrientation & {
+      lock?: (orientation: TabletOrientation) => Promise<void>;
+    };
+    try {
+      await orientation?.lock?.(nextOrientation);
+    } catch {
+      // Kiosk browsers commonly restrict native locks. The CSS rotation below
+      // provides the same usable orientation without requiring browser support.
+    } finally {
+      setCurrentViewportOrientation(viewportOrientation());
+    }
+  }, [effectiveOrientation]);
+
+  useEffect(() => {
+    const updateViewportOrientation = () => setCurrentViewportOrientation(viewportOrientation());
+    const restoreOrientation = window.requestAnimationFrame(() => {
+      setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
+      updateViewportOrientation();
+    });
+    window.addEventListener("resize", updateViewportOrientation);
+    return () => {
+      window.cancelAnimationFrame(restoreOrientation);
+      window.removeEventListener("resize", updateViewportOrientation);
+    };
   }, []);
 
   useEffect(() => {
@@ -93,7 +132,7 @@ export function TabletPipelineKiosk({
   }, [refresh, refreshIntervalMs]);
 
   return (
-    <main className="tablet-kiosk">
+    <main className={`tablet-kiosk ${isCssRotated ? "is-css-rotated" : ""}`} data-orientation={effectiveOrientation}>
       <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
       <header className="tablet-kiosk-header">
         <div className="tablet-kiosk-identity">
@@ -114,6 +153,9 @@ export function TabletPipelineKiosk({
             <Bell size={15} />
             {pendingRequestCount ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
           </Link>
+          <button type="button" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
+            {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
+          </button>
           <button type="button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
           <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
         </div>
