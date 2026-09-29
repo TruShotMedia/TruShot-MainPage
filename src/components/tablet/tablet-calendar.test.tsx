@@ -81,13 +81,12 @@ describe("TabletCalendar", () => {
     expect(completedDeadline?.classList.contains("is-complete")).toBe(true);
   });
 
-  it("shows custom events with the event title taking priority over its location", async () => {
+  it("shows custom event cards with only their title", async () => {
     await act(async () => root.render(<TabletCalendar jobs={[]} tasks={[]} customEvents={customEvents} today="2026-08-25" />));
 
     const calendarEvent = container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event");
     expect(calendarEvent).not.toBeNull();
-    expect(calendarEvent?.querySelector("strong")?.textContent).toBe("First day AUTOPACIFIC");
-    expect(calendarEvent?.textContent).not.toContain("Geebung");
+    expect(calendarEvent?.textContent).toBe("First day AUTOPACIFIC");
     expect(calendarEvent?.title).toContain("Geebung");
   });
 });

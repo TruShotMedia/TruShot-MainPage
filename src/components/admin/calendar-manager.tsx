@@ -117,7 +117,7 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
     >
       <strong>{segment.item.title}</strong>
       {!isCalendarEvent ? <em>{contextLabel}</em> : null}
-      <span>{segment.endsAfterWeek ? "Continues" : isCalendarEvent ? `Ends ${format(parseISO(segment.end), "d MMM")}` : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
+      {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </button>
   );
 }
@@ -130,8 +130,11 @@ function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<Calen
   return (
     <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
       <span style={{ background: rangeColor }} />
-      <strong>{isCalendarEvent ? "Event" : range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong>
-      <div><em>{range.item.title}</em><small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small></div>
+      {!isCalendarEvent ? <strong>{range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong> : null}
+      <div>
+        <em>{range.item.title}</em>
+        {!isCalendarEvent ? <small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small> : null}
+      </div>
     </button>
   );
 }

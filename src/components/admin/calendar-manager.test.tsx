@@ -153,7 +153,7 @@ describe("CalendarManager completed work", () => {
     expect(container.textContent).toContain("Change the job deadline to update every related task.");
   });
 
-  it("keeps a calendar event title visible instead of giving its location chip priority", async () => {
+  it("renders calendar event cards with only their title", async () => {
     const month = format(new Date(), "yyyy-MM");
     const events: CalendarCustomEvent[] = [{
       id: "66666666-6666-4666-8666-666666666666",
@@ -176,7 +176,10 @@ describe("CalendarManager completed work", () => {
 
     const calendarEvent = container.querySelector<HTMLButtonElement>(".calendar-job-range.is-calendar-event");
     expect(calendarEvent).not.toBeNull();
-    expect(calendarEvent?.querySelector("strong")?.textContent).toBe("First day AUTOPACIFIC");
-    expect(calendarEvent?.textContent).not.toContain("Geebung");
+    expect(calendarEvent?.textContent).toBe("First day AUTOPACIFIC");
+
+    const mobileCalendarEvent = container.querySelector<HTMLButtonElement>(".calendar-mobile-job-range.is-calendar-event");
+    expect(mobileCalendarEvent).not.toBeNull();
+    expect(mobileCalendarEvent?.textContent).toBe("First day AUTOPACIFIC");
   });
 });

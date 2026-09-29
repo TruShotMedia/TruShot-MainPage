@@ -62,7 +62,7 @@ function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleR
     >
       <strong>{segment.item.title}</strong>
       {!isCalendarEvent ? <em>{context}</em> : null}
-      <span>{segment.endsAfterWeek ? "Continues" : `${isCalendarEvent ? "Ends" : "Due"} ${format(parseISO(segment.end), "d MMM")}`}</span>
+      {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </article>
   );
 }
