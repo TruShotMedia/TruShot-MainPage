@@ -97,11 +97,11 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
   const rangeColor = segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color;
-  const contextLabel = segment.item.entity_type === "calendar-event"
-    ? (segment.item.location || (segment.item.is_all_day ? "All day" : displayTime(segment.item.start_time)))
-    : segment.item.entity_type === "campaign-asset"
-      ? segment.item.campaign_title
-      : segment.item.client_name ?? "No client";
+  const contextLabel = segment.item.entity_type === "campaign-asset"
+    ? segment.item.campaign_title
+    : segment.item.entity_type === "job"
+      ? segment.item.client_name ?? "No client"
+      : "";
   return (
     <button
       type="button"
@@ -116,7 +116,7 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
-      <em>{contextLabel}</em>
+      {!isCalendarEvent ? <em>{contextLabel}</em> : null}
       <span>{segment.endsAfterWeek ? "Continues" : isCalendarEvent ? `Ends ${format(parseISO(segment.end), "d MMM")}` : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
     </button>
   );

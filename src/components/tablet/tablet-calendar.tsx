@@ -14,8 +14,8 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarJob, CalendarTask } from "@/lib/types";
+import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
 
 type TabletCalendarEvent = {
   id: string;
@@ -38,29 +38,38 @@ function dateWindowLabel(startDate: string, endDate: string) {
   return `${format(start, "d")}–${format(end, "d MMM")}`;
 }
 
-function JobRange({ segment }: { segment: CalendarRangeSegment }) {
+function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleRangeItem> }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
+  const isCalendarEvent = segment.item.entity_type === "calendar-event";
+  const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
+  const rangeColor = segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color;
+  const context = segment.item.entity_type === "calendar-event"
+    ? segment.item.location
+    : segment.item.entity_type === "campaign-asset"
+      ? segment.item.campaign_title
+      : segment.item.client_name ?? "No client";
+  const statusLabel = segment.item.entity_type === "calendar-event" ? "Calendar event" : segment.item.status_label;
   return (
     <article
-      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${segment.item.is_complete ? ", completed" : ""}`}
-      className={`tablet-calendar-job-range ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${segment.item.is_complete ? "is-complete" : ""}`}
-      title={`${segment.item.title} · ${windowLabel} · ${segment.item.status_label}`}
+      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isComplete ? ", completed" : ""}`}
+      className={`tablet-calendar-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}`}
       style={{
-        "--tablet-calendar-color": segment.item.status_color,
+        "--tablet-calendar-color": rangeColor,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
         gridRow: segment.lane + 1,
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
-      <em>{segment.item.entity_type === "campaign-asset" ? segment.item.campaign_title : segment.item.client_name ?? "No client"}</em>
-      <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
+      {!isCalendarEvent ? <em>{context}</em> : null}
+      <span>{segment.endsAfterWeek ? "Continues" : `${isCalendarEvent ? "Ends" : "Due"} ${format(parseISO(segment.end), "d MMM")}`}</span>
     </article>
   );
 }
 
-export function TabletCalendar({ jobs, tasks, campaignAssets = [], today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; today: string }) {
+export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; today: string }) {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(parseISO(today)));
-  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets]), [campaignAssets, jobs]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents]), [campaignAssets, customEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarDays = useMemo(() => eachDayOfInterval({
     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
@@ -137,6 +146,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], today }: { jo
           <span><i className="is-job" /> Job window</span>
           <span><i className="is-task" /> Deadline</span>
           <span><i className="is-campaign" /> Campaign</span>
+          <span><i className="is-calendar-event" /> Event</span>
           <span><i className="is-complete" /> Completed</span>
         </div>
       </header>

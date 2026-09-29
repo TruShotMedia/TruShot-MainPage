@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
 import { TabletCalendar } from "./tablet-calendar";
 
 const jobs: CalendarJob[] = [{
@@ -34,6 +34,23 @@ const tasks: CalendarTask[] = [{
   is_complete: true,
 }];
 
+const customEvents: CalendarCustomEvent[] = [{
+  id: "33333333-3333-4333-8333-333333333333",
+  entity_type: "calendar-event",
+  title: "First day AUTOPACIFIC",
+  description: null,
+  location: "Geebung",
+  start_date: "2026-08-12",
+  start_time: null,
+  end_date: "2026-08-12",
+  end_time: null,
+  is_all_day: true,
+  color: "#b74f44",
+  reminder_offsets_minutes: [0],
+  created_at: "2026-08-01T00:00:00.000Z",
+  updated_at: "2026-08-01T00:00:00.000Z",
+}];
+
 describe("TabletCalendar", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -62,5 +79,15 @@ describe("TabletCalendar", () => {
     const completedDeadline = container.querySelector<HTMLElement>('[title^="Asset due: Published reel"]');
     expect(completedDeadline).not.toBeNull();
     expect(completedDeadline?.classList.contains("is-complete")).toBe(true);
+  });
+
+  it("shows custom events with the event title taking priority over its location", async () => {
+    await act(async () => root.render(<TabletCalendar jobs={[]} tasks={[]} customEvents={customEvents} today="2026-08-25" />));
+
+    const calendarEvent = container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event");
+    expect(calendarEvent).not.toBeNull();
+    expect(calendarEvent?.querySelector("strong")?.textContent).toBe("First day AUTOPACIFIC");
+    expect(calendarEvent?.textContent).not.toContain("Geebung");
+    expect(calendarEvent?.title).toContain("Geebung");
   });
 });

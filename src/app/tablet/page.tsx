@@ -28,6 +28,7 @@ export default async function TabletPage() {
       calendarJobs={data.calendarJobs}
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}
+      calendarEvents={data.calendarEvents}
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
       initialTasks={data.pipelineTasks}

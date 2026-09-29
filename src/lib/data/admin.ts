@@ -212,13 +212,14 @@ export async function getTabletKioskData(): Promise<{
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
   calendarCampaignAssets: CalendarCampaignAsset[];
+  calendarEvents: CalendarCustomEvent[];
   pendingRequestCount: number;
 }> {
   const context = await getAdminContext();
-  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], pendingRequestCount: 0 };
+  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -246,6 +247,12 @@ export async function getTabletKioskData(): Promise<{
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
+      .from("website-calendar-events")
+      .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("start_date")
+      .order("start_time"),
+    supabase
       .from("website-clients")
       .select("id,name")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
@@ -262,7 +269,7 @@ export async function getTabletKioskData(): Promise<{
       .is("archived_at", null),
   ]);
 
-  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, enquiriesResult]
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, enquiriesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error("The tablet workspace could not be refreshed.");
 
@@ -343,6 +350,14 @@ export async function getTabletKioskData(): Promise<{
     }];
   });
 
+  const calendarEvents = (calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
+    ...event,
+    entity_type: "calendar-event",
+    reminder_offsets_minutes: Array.isArray(event.reminder_offsets_minutes)
+      ? event.reminder_offsets_minutes.map(Number).filter(Number.isFinite)
+      : [],
+  }));
+
   return {
     statuses: allTaskStatuses.filter((status) => status.is_active).map((status) => ({
       id: status.id,
@@ -356,6 +371,7 @@ export async function getTabletKioskData(): Promise<{
     calendarJobs,
     calendarTasks,
     calendarCampaignAssets,
+    calendarEvents,
     pendingRequestCount: enquiriesResult.count ?? 0,
   };
 }

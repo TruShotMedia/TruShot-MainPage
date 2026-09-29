@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { format } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarCampaignAsset, CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
 import { CalendarManager } from "./calendar-manager";
 
 const navigationMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -151,5 +151,32 @@ describe("CalendarManager completed work", () => {
     expect(inheritedDate.disabled).toBe(true);
     expect(inheritedDate.value).toBe(date);
     expect(container.textContent).toContain("Change the job deadline to update every related task.");
+  });
+
+  it("keeps a calendar event title visible instead of giving its location chip priority", async () => {
+    const month = format(new Date(), "yyyy-MM");
+    const events: CalendarCustomEvent[] = [{
+      id: "66666666-6666-4666-8666-666666666666",
+      entity_type: "calendar-event",
+      title: "First day AUTOPACIFIC",
+      description: null,
+      location: "Geebung",
+      start_date: `${month}-12`,
+      start_time: null,
+      end_date: `${month}-12`,
+      end_time: null,
+      is_all_day: true,
+      color: "#b74f44",
+      reminder_offsets_minutes: [0],
+      created_at: `${month}-01T00:00:00.000Z`,
+      updated_at: `${month}-01T00:00:00.000Z`,
+    }];
+
+    await act(async () => root.render(<CalendarManager jobs={[]} tasks={[]} events={events} />));
+
+    const calendarEvent = container.querySelector<HTMLButtonElement>(".calendar-job-range.is-calendar-event");
+    expect(calendarEvent).not.toBeNull();
+    expect(calendarEvent?.querySelector("strong")?.textContent).toBe("First day AUTOPACIFIC");
+    expect(calendarEvent?.textContent).not.toContain("Geebung");
   });
 });
