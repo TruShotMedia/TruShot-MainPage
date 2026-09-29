@@ -2,7 +2,9 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import {
+  addDays,
   addMonths,
+  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -29,6 +31,28 @@ type TabletCalendarEvent = {
 };
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const calendarWindowDays = 42;
+const visibleRangeLanes = 2;
+
+function getCalendarWindow(month: Date, today: Date) {
+  const monthStart = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
+  const standardEnd = addDays(monthStart, calendarWindowDays - 1);
+  const daysUntilMonthEnd = differenceInCalendarDays(endOfMonth(month), today);
+  const isNearCurrentMonthEnd = isSameMonth(month, today) && daysUntilMonthEnd >= 0 && daysUntilMonthEnd <= 14;
+
+  if (!isNearCurrentMonthEnd) return { start: monthStart, end: standardEnd, isRolling: false };
+
+  const rollingEnd = endOfWeek(addDays(today, 14), { weekStartsOn: 1 });
+  if (differenceInCalendarDays(rollingEnd, standardEnd) <= 0) {
+    return { start: monthStart, end: standardEnd, isRolling: true };
+  }
+
+  return {
+    start: addDays(rollingEnd, -(calendarWindowDays - 1)),
+    end: rollingEnd,
+    isRolling: true,
+  };
+}
 
 function dateWindowLabel(startDate: string, endDate: string) {
   const start = parseISO(startDate);
@@ -68,13 +92,12 @@ function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleR
 }
 
 export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; today: string }) {
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(parseISO(today)));
+  const todayDate = useMemo(() => parseISO(today), [today]);
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(todayDate));
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents]), [campaignAssets, customEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
-  const calendarDays = useMemo(() => eachDayOfInterval({
-    start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
-    end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
-  }), [currentMonth]);
+  const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate), [currentMonth, todayDate]);
+  const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const events = useMemo(() => {
     const jobEvents = jobs.flatMap((job): TabletCalendarEvent[] => {
@@ -138,9 +161,9 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
       <header className="tablet-calendar-toolbar">
         <div className="tablet-calendar-month-controls">
           <button type="button" onClick={() => setCurrentMonth((month) => subMonths(month, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
-          <div><span>Production schedule</span><h1>{format(currentMonth, "MMMM yyyy")}</h1></div>
+          <div><span>{calendarWindow.isRolling ? `Rolling · through ${format(calendarWindow.end, "d MMM")}` : "Six-week schedule"}</span><h1>{format(currentMonth, "MMMM yyyy")}</h1></div>
           <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, 1))} aria-label="Next month"><ChevronRight size={16} /></button>
-          <button type="button" className="tablet-calendar-today" onClick={() => setCurrentMonth(startOfMonth(parseISO(today)))}>Today</button>
+          <button type="button" className="tablet-calendar-today" onClick={() => setCurrentMonth(startOfMonth(todayDate))}>Today</button>
         </div>
         <div className="tablet-calendar-legend" aria-label="Calendar legend">
           <span><i className="is-job" /> Job window</span>
@@ -153,37 +176,46 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
 
       <div className="tablet-calendar-scroll">
         <div className="tablet-calendar-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
-        <div className="tablet-calendar-grid">
-          {calendarWeeks.map((week) => (
-            <section className="tablet-calendar-week" style={{ "--tablet-calendar-range-space": `${week.laneCount * 24}px` } as CSSProperties} key={week.dayKeys[0]}>
-              <div className="tablet-calendar-days">
-                {week.dayKeys.map((dateKey) => {
-                  const day = parseISO(dateKey);
-                  const dayEvents = eventsByDay.get(dateKey) ?? [];
-                  return (
-                    <div className={`tablet-calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
-                      <time dateTime={dateKey}>{format(day, "d")}</time>
-                      <div className="tablet-calendar-day-events">
-                        {dayEvents.slice(0, 3).map((event) => (
-                          <article
-                            className={`tablet-calendar-event is-${event.kind} ${event.isComplete ? "is-complete" : ""}`}
-                            style={{ "--tablet-calendar-color": event.color } as CSSProperties}
-                            title={`${event.label}: ${event.title} · ${event.detail}`}
-                            key={event.id}
-                          >
-                            <i />
-                            <div><strong>{event.title}</strong><span>{event.label}</span></div>
-                          </article>
-                        ))}
-                        {dayEvents.length > 3 ? <small>+{dayEvents.length - 3} more</small> : null}
+        <div className="tablet-calendar-grid" style={{ "--tablet-calendar-week-count": calendarWeeks.length } as CSSProperties}>
+          {calendarWeeks.map((week) => {
+            const displayedRangeLanes = Math.min(week.laneCount, visibleRangeLanes);
+            const displayedSegments = week.segments.filter((segment) => segment.lane < visibleRangeLanes);
+            const displayedEventLimit = Math.max(1, 3 - displayedRangeLanes);
+
+            return (
+              <section className="tablet-calendar-week" style={{ "--tablet-calendar-range-space": `${displayedRangeLanes * 18}px` } as CSSProperties} key={week.dayKeys[0]}>
+                <div className="tablet-calendar-days">
+                  {week.dayKeys.map((dateKey, dayIndex) => {
+                    const day = parseISO(dateKey);
+                    const dayEvents = eventsByDay.get(dateKey) ?? [];
+                    const hiddenRangeSegments = week.segments.filter((segment) => segment.lane >= visibleRangeLanes && segment.startColumn <= dayIndex && segment.startColumn + segment.span > dayIndex);
+                    const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
+                    const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
+                    return (
+                      <div className={`tablet-calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
+                        <time dateTime={dateKey}>{format(day, "d")}</time>
+                        <div className="tablet-calendar-day-events">
+                          {dayEvents.slice(0, displayedEventLimit).map((event) => (
+                            <article
+                              className={`tablet-calendar-event is-${event.kind} ${event.isComplete ? "is-complete" : ""}`}
+                              style={{ "--tablet-calendar-color": event.color } as CSSProperties}
+                              title={`${event.label}: ${event.title} · ${event.detail}`}
+                              key={event.id}
+                            >
+                              <i />
+                              <div><strong>{event.title}</strong><span>{event.label}</span></div>
+                            </article>
+                          ))}
+                        </div>
+                        {hiddenItems.length ? <small className="tablet-calendar-overflow" title={hiddenItems.join(" · ")}>+{hiddenItems.length} more</small> : null}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {week.segments.length ? <div className="tablet-calendar-range-layer">{week.segments.map((segment) => <JobRange segment={segment} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
-            </section>
-          ))}
+                    );
+                  })}
+                </div>
+                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => <JobRange segment={segment} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+              </section>
+            );
+          })}
         </div>
       </div>
     </section>

@@ -71,6 +71,11 @@ describe("TabletCalendar", () => {
     await act(async () => root.render(<TabletCalendar jobs={jobs} tasks={tasks} today="2026-08-25" />));
 
     expect(container.querySelector("h1")?.textContent).toBe("August 2026");
+    const calendarDays = [...container.querySelectorAll<HTMLTimeElement>(".tablet-calendar-day > time")];
+    expect(calendarDays).toHaveLength(42);
+    expect(calendarDays[0]?.dateTime).toBe("2026-08-03");
+    expect(calendarDays.at(-1)?.dateTime).toBe("2026-09-13");
+    expect(container.textContent).toContain("Rolling · through 13 Sep");
     const range = container.querySelector<HTMLElement>('[aria-label*="scheduled 14–16 Aug"]');
     expect(range).not.toBeNull();
     expect(range?.getAttribute("aria-label")).toContain("3 days");
@@ -88,5 +93,22 @@ describe("TabletCalendar", () => {
     expect(calendarEvent).not.toBeNull();
     expect(calendarEvent?.textContent).toBe("First day AUTOPACIFIC");
     expect(calendarEvent?.title).toContain("Geebung");
+  });
+
+  it("summarises busy days instead of overflowing their calendar cell", async () => {
+    const busyTasks = Array.from({ length: 6 }, (_, index): CalendarTask => ({
+      ...tasks[0],
+      id: `22222222-2222-4222-8222-22222222222${index}`,
+      title: `Asset ${index + 1}`,
+      due_date: "2026-08-14",
+      is_complete: false,
+    }));
+
+    await act(async () => root.render(<TabletCalendar jobs={jobs} tasks={busyTasks} today="2026-08-25" />));
+
+    const busyDay = container.querySelector<HTMLTimeElement>('time[datetime="2026-08-14"]')?.parentElement;
+    expect(busyDay?.querySelectorAll(".tablet-calendar-event")).toHaveLength(2);
+    expect(busyDay?.querySelector(".tablet-calendar-overflow")?.textContent).toBe("+4 more");
+    expect(busyDay?.querySelector(".tablet-calendar-overflow")?.getAttribute("title")).toContain("Asset 6");
   });
 });
