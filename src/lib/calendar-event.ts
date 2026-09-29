@@ -6,6 +6,14 @@ export type CalendarEventWindow = {
   isAllDay: boolean;
 };
 
+export function calendarEventFormEntries(formData: FormData) {
+  return {
+    ...Object.fromEntries(formData),
+    start_time: formData.get("start_time") ?? "",
+    end_time: formData.get("end_time") ?? "",
+  };
+}
+
 export function calendarEventWindowError(window: CalendarEventWindow) {
   if (window.endDate < window.startDate) return "The event cannot finish before it starts.";
   if (window.isAllDay) return null;

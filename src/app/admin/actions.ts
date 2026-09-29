@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
-import { calendarEventWindowError } from "@/lib/calendar-event";
+import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
@@ -733,7 +733,7 @@ function parseCalendarEvent(formData: FormData) {
     end_date: calendarDateSchema,
     end_time: optionalTimeSchema,
     color: calendarEventColorSchema,
-  }).safeParse(Object.fromEntries(formData));
+  }).safeParse(calendarEventFormEntries(formData));
   if (!parsedInput.success) {
     return { ok: false as const, error: "Check the event title, dates and times, then try again." };
   }

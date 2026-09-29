@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { calendarEventWindowError } from "@/lib/calendar-event";
+import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
 
 describe("calendar event windows", () => {
+  it("normalizes the hidden time fields for an all-day event", () => {
+    const formData = new FormData();
+    formData.set("title", "All-day shoot");
+
+    expect(calendarEventFormEntries(formData)).toMatchObject({
+      title: "All-day shoot",
+      start_time: "",
+      end_time: "",
+    });
+  });
+
   it("rejects an end date before the start date", () => {
     expect(calendarEventWindowError({
       startDate: "2026-10-12",
