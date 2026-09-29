@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
+import { calendarEventWindowError } from "@/lib/calendar-event";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
@@ -11,6 +12,7 @@ import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext } from "@/lib/data/admin";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import type { CalendarEventDeleteResult, CalendarEventSaveResult } from "@/lib/types";
 
 type AdminContext = NonNullable<Awaited<ReturnType<typeof getAdminContext>>>;
 
@@ -722,7 +724,7 @@ export async function updateCalendarItem(formData: FormData) {
 }
 
 function parseCalendarEvent(formData: FormData) {
-  const input = z.object({
+  const parsedInput = z.object({
     title: z.string().trim().min(2).max(180),
     description: z.string().trim().max(4_000),
     location: z.string().trim().max(300),
@@ -731,79 +733,96 @@ function parseCalendarEvent(formData: FormData) {
     end_date: calendarDateSchema,
     end_time: optionalTimeSchema,
     color: calendarEventColorSchema,
-  }).parse(Object.fromEntries(formData));
-  const isAllDay = formData.get("is_all_day") === "on";
-  if (input.end_date < input.start_date) throw new Error("The event cannot finish before it starts.");
-  if (!isAllDay && (!input.start_time || !input.end_time)) throw new Error("Timed events need both a start and finish time.");
-  if (!isAllDay && input.end_date === input.start_date && input.end_time <= input.start_time) {
-    throw new Error("The event must finish after its start time.");
+  }).safeParse(Object.fromEntries(formData));
+  if (!parsedInput.success) {
+    return { ok: false as const, error: "Check the event title, dates and times, then try again." };
   }
-  const reminderOffsets = z.array(calendarReminderOffsetSchema).max(6)
-    .parse(formData.getAll("reminder_offsets_minutes"));
+  const input = parsedInput.data;
+  const isAllDay = formData.get("is_all_day") === "on";
+  const windowError = calendarEventWindowError({
+    startDate: input.start_date,
+    startTime: input.start_time,
+    endDate: input.end_date,
+    endTime: input.end_time,
+    isAllDay,
+  });
+  if (windowError) return { ok: false as const, error: windowError };
+  const parsedReminderOffsets = z.array(calendarReminderOffsetSchema).max(6)
+    .safeParse(formData.getAll("reminder_offsets_minutes"));
+  if (!parsedReminderOffsets.success) {
+    return { ok: false as const, error: "Choose up to six valid push reminders." };
+  }
   return {
-    title: input.title,
-    description: input.description || null,
-    location: input.location || null,
-    start_date: input.start_date,
-    start_time: isAllDay ? null : input.start_time,
-    end_date: input.end_date,
-    end_time: isAllDay ? null : input.end_time,
-    is_all_day: isAllDay,
-    color: input.color.toLowerCase(),
-    reminder_offsets_minutes: [...new Set(reminderOffsets)].sort((left, right) => right - left),
+    ok: true as const,
+    data: {
+      title: input.title,
+      description: input.description || null,
+      location: input.location || null,
+      start_date: input.start_date,
+      start_time: isAllDay ? null : input.start_time,
+      end_date: input.end_date,
+      end_time: isAllDay ? null : input.end_time,
+      is_all_day: isAllDay,
+      color: input.color.toLowerCase(),
+      reminder_offsets_minutes: [...new Set(parsedReminderOffsets.data)].sort((left, right) => right - left),
+    },
   };
 }
 
-export async function createCalendarEvent(formData: FormData) {
-  const input = parseCalendarEvent(formData);
+export async function createCalendarEvent(formData: FormData): Promise<CalendarEventSaveResult> {
+  const parsed = parseCalendarEvent(formData);
+  if (!parsed.ok) return parsed;
   const context = await getAdminContext();
-  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
     .insert({
-      ...input,
+      ...parsed.data,
       workspace_id: TRUSHOT_WORKSPACE_ID,
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
     .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
     .single();
-  if (error || !data) throw new Error(error?.message ?? "The calendar event could not be created.");
+  if (error || !data) return { ok: false, error: "The calendar event could not be created. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
-  return { ...data, entity_type: "calendar-event" as const };
+  return { ok: true, event: { ...data, entity_type: "calendar-event" as const } };
 }
 
-export async function updateCalendarEvent(formData: FormData) {
-  const id = z.string().uuid().parse(formData.get("id"));
-  const input = parseCalendarEvent(formData);
+export async function updateCalendarEvent(formData: FormData): Promise<CalendarEventSaveResult> {
+  const parsedId = z.string().uuid().safeParse(formData.get("id"));
+  if (!parsedId.success) return { ok: false, error: "That calendar event is no longer available." };
+  const parsed = parseCalendarEvent(formData);
+  if (!parsed.ok) return parsed;
   const context = await getAdminContext();
-  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
-    .update({ ...input, updated_by: context.claims.sub })
-    .eq("id", id)
+    .update({ ...parsed.data, updated_by: context.claims.sub })
+    .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
     .single();
-  if (error || !data) throw new Error(error?.message ?? "The calendar event could not be updated.");
+  if (error || !data) return { ok: false, error: "The calendar event could not be updated. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
-  return { ...data, entity_type: "calendar-event" as const };
+  return { ok: true, event: { ...data, entity_type: "calendar-event" as const } };
 }
 
-export async function deleteCalendarEvent(formData: FormData) {
-  const id = z.string().uuid().parse(formData.get("id"));
+export async function deleteCalendarEvent(formData: FormData): Promise<CalendarEventDeleteResult> {
+  const parsedId = z.string().uuid().safeParse(formData.get("id"));
+  if (!parsedId.success) return { ok: false, error: "That calendar event is no longer available." };
   const context = await getAdminContext();
-  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
     .delete()
-    .eq("id", id)
+    .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .select("id")
     .single();
-  if (error || !data) throw new Error(error?.message ?? "The calendar event could not be deleted.");
+  if (error || !data) return { ok: false, error: "The calendar event could not be deleted. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
   return { ok: true };

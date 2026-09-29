@@ -228,6 +228,14 @@ export type CalendarCustomEvent = {
   updated_at: string;
 };
 
+export type CalendarEventSaveResult =
+  | { ok: true; event: CalendarCustomEvent }
+  | { ok: false; error: string };
+
+export type CalendarEventDeleteResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 export type CampaignStatus = "planning" | "active" | "paused" | "complete";
 
 export type CampaignAttachment = {

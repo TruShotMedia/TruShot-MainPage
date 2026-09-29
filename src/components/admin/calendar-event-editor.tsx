@@ -3,6 +3,7 @@
 import { useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide-react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
+import { calendarEventWindowError } from "@/lib/calendar-event";
 import type { CalendarCustomEvent } from "@/lib/types";
 
 const reminderOptions = [
@@ -31,6 +32,10 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
   const [errorMessage, setErrorMessage] = useState("");
   const defaultStartTime = event?.start_time?.slice(0, 5) ?? "09:00";
   const defaultEndTime = event?.end_time?.slice(0, 5) ?? "10:00";
+  const [startDate, setStartDate] = useState(event?.start_date ?? defaultDate);
+  const [endDate, setEndDate] = useState(event?.end_date ?? defaultDate);
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const [endTime, setEndTime] = useState(defaultEndTime);
 
   function handleBackdropClick(clickEvent: MouseEvent<HTMLDivElement>) {
     if (clickEvent.target === clickEvent.currentTarget) onClose();
@@ -42,8 +47,17 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
     setErrorMessage("");
     try {
       const formData = new FormData(submitEvent.currentTarget);
-      const saved = event ? await updateCalendarEvent(formData) : await createCalendarEvent(formData);
-      onSaved(saved as CalendarCustomEvent);
+      const windowError = calendarEventWindowError({ startDate, startTime, endDate, endTime, isAllDay: allDay });
+      if (windowError) {
+        setErrorMessage(windowError);
+        return;
+      }
+      const result = event ? await updateCalendarEvent(formData) : await createCalendarEvent(formData);
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        return;
+      }
+      onSaved(result.event);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "The event could not be saved.");
     } finally {
@@ -58,7 +72,11 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
     try {
       const formData = new FormData();
       formData.set("id", event.id);
-      await deleteCalendarEvent(formData);
+      const result = await deleteCalendarEvent(formData);
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        return;
+      }
       onDeleted(event.id);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "The event could not be deleted.");
@@ -89,10 +107,15 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
         <section className="calendar-event-time-panel">
           <label className="calendar-event-all-day"><span><strong>All-day event</strong><small>Hide times and reserve whole days.</small></span><input type="checkbox" name="is_all_day" checked={allDay} onChange={(changeEvent) => setAllDay(changeEvent.target.checked)} /></label>
           <div>
-            <label>Starts<input type="date" name="start_date" required defaultValue={event?.start_date ?? defaultDate} /></label>
-            {!allDay ? <label>Start time<input type="time" name="start_time" required defaultValue={defaultStartTime} /></label> : null}
-            <label>Finishes<input type="date" name="end_date" required defaultValue={event?.end_date ?? defaultDate} /></label>
-            {!allDay ? <label>Finish time<input type="time" name="end_time" required defaultValue={defaultEndTime} /></label> : null}
+            <label>Starts<input type="date" name="start_date" required value={startDate} onChange={(changeEvent) => {
+              const nextStartDate = changeEvent.target.value;
+              setStartDate(nextStartDate);
+              if (endDate < nextStartDate) setEndDate(nextStartDate);
+              setErrorMessage("");
+            }} /></label>
+            {!allDay ? <label>Start time<input type="time" name="start_time" required value={startTime} onChange={(changeEvent) => { setStartTime(changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
+            <label>Finishes<input type="date" name="end_date" required min={startDate} value={endDate} onChange={(changeEvent) => { setEndDate(changeEvent.target.value); setErrorMessage(""); }} /></label>
+            {!allDay ? <label>Finish time<input type="time" name="end_time" required value={endTime} onChange={(changeEvent) => { setEndTime(changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
           </div>
         </section>
 
