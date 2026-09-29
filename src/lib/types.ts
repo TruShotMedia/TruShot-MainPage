@@ -211,6 +211,23 @@ export type CalendarCampaignAsset = {
 
 export type CalendarItem = CalendarJob | CalendarTask | CalendarCampaignAsset;
 
+export type CalendarCustomEvent = {
+  id: string;
+  entity_type: "calendar-event";
+  title: string;
+  description: string | null;
+  location: string | null;
+  start_date: string;
+  start_time: string | null;
+  end_date: string;
+  end_time: string | null;
+  is_all_day: boolean;
+  color: string;
+  reminder_offsets_minutes: number[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type CampaignStatus = "planning" | "active" | "paused" | "complete";
 
 export type CampaignAttachment = {

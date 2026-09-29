@@ -3,7 +3,7 @@ import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarCampaignAsset, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -713,9 +713,9 @@ export async function getCalendarData() {
     notify_campaign_assets: true,
     timezone: BRISBANE_TIMEZONE,
   };
-  if (!context) return { jobs: [], tasks: [], campaignAssets: [], reminderSettings: defaultReminderSettings };
+  if (!context) return { jobs: [], tasks: [], campaignAssets: [], events: [], reminderSettings: defaultReminderSettings };
 
-  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult] = await Promise.all([
+  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
@@ -737,6 +737,12 @@ export async function getCalendarData() {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
+      .from("website-calendar-events")
+      .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("start_date")
+      .order("start_time"),
+    context.supabase
       .from("website-clients")
       .select("id,name")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
@@ -754,7 +760,7 @@ export async function getCalendarData() {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .maybeSingle(),
   ]);
-  const queryError = [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, clientsResult, jobStatusesResult, taskStatusesResult]
+  const queryError = [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error(`Calendar data could not be loaded: ${queryError.message}`);
   if (reminderSettingsResult.error) throw new Error(`Calendar reminder settings could not be loaded: ${reminderSettingsResult.error.message}`);
@@ -820,6 +826,13 @@ export async function getCalendarData() {
         is_complete: !(status?.is_open ?? true),
       }];
     }),
+    events: (calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
+      ...event,
+      entity_type: "calendar-event",
+      reminder_offsets_minutes: Array.isArray(event.reminder_offsets_minutes)
+        ? event.reminder_offsets_minutes.map(Number).filter(Number.isFinite)
+        : [],
+    })),
     reminderSettings: (reminderSettingsResult.data ?? defaultReminderSettings) as CalendarReminderSettings,
   };
 }

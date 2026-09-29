@@ -62,4 +62,27 @@ describe("calendar reminder timing", () => {
     expect(message.url).toContain("/admin/calendar?");
     expect(message.tag).toContain(event.entityId);
   });
+
+  it("uses an event's own reminder choices instead of the workspace defaults", () => {
+    const calendarEvent: CalendarReminderEvent = {
+      ...event,
+      kind: "calendar_event_start",
+      reminderOffsetsMinutes: [60, 0],
+    };
+    const due = getDueCalendarReminders({
+      events: [calendarEvent],
+      settings,
+      now: new Date("2026-09-13T22:00:00.000Z"),
+    });
+    expect(due.map((reminder) => reminder.offsetMinutes)).toEqual([60]);
+    expect(buildCalendarReminderPushMessage(due[0]).title).toBe("Calendar event in 1 hour");
+  });
+
+  it("does not schedule an event when no reminders were selected", () => {
+    expect(getDueCalendarReminders({
+      events: [{ ...event, kind: "calendar_event_start", reminderOffsetsMinutes: [] }],
+      settings,
+      now: new Date("2026-09-13T23:00:00.000Z"),
+    })).toEqual([]);
+  });
 });

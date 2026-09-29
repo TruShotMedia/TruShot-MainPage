@@ -41,6 +41,15 @@ type CampaignReminderRow = {
   due_time: string | null;
 };
 
+type CustomCalendarEventReminderRow = {
+  id: string;
+  title: string;
+  location: string | null;
+  start_date: string;
+  start_time: string | null;
+  reminder_offsets_minutes: number[];
+};
+
 export type CalendarReminderDispatchResult = {
   workspaces: number;
   candidates: number;
@@ -116,8 +125,8 @@ async function processWorkspace(
   now: Date,
   supabase: NonNullable<ReturnType<typeof createServiceClient>>,
 ) {
-  const bounds = dateBounds(now, settings.lead_minutes);
-  const [jobsResult, tasksResult, campaignAssetsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
+  const bounds = dateBounds(now, Math.max(settings.lead_minutes, 10_080));
+  const [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
     supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
@@ -135,13 +144,19 @@ async function processWorkspace(
       .eq("workspace_id", settings.workspace_id)
       .is("archived_at", null)
       .or(`and(start_date.gte.${bounds.start},start_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
+    supabase
+      .from("website-calendar-events")
+      .select("id,title,location,start_date,start_time,reminder_offsets_minutes")
+      .eq("workspace_id", settings.workspace_id)
+      .gte("start_date", bounds.start)
+      .lte("start_date", bounds.end),
     supabase.from("website-clients").select("id,name").eq("workspace_id", settings.workspace_id),
     supabase.from("website-jobs").select("id,title,client_id,due_date").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-job-statuses").select("id,is_closed").eq("workspace_id", settings.workspace_id),
     supabase.from("website-task-statuses").select("id,is_open").eq("workspace_id", settings.workspace_id),
   ]);
-  const queryError = [jobsResult, tasksResult, campaignAssetsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult]
+  const queryError = [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw queryError;
 
@@ -193,6 +208,17 @@ async function processWorkspace(
       addEvent(events, base, "campaign_start", asset.start_date, asset.start_time);
       addEvent(events, base, "campaign_due", asset.due_date, asset.due_time);
     }
+  }
+
+  for (const calendarEvent of (calendarEventsResult.data ?? []) as CustomCalendarEventReminderRow[]) {
+    if (!calendarEvent.reminder_offsets_minutes.length) continue;
+    addEvent(events, {
+      workspaceId: settings.workspace_id,
+      entityId: calendarEvent.id,
+      title: calendarEvent.title,
+      context: calendarEvent.location,
+      reminderOffsetsMinutes: calendarEvent.reminder_offsets_minutes,
+    }, "calendar_event_start", calendarEvent.start_date, calendarEvent.start_time);
   }
 
   const reminders = getDueCalendarReminders({ events, settings, now });

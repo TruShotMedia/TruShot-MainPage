@@ -16,7 +16,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         actions={<div className="calendar-page-badge"><CalendarDays size={16} /> Deadline command centre</div>}
       />
       <CalendarReminderSettingsPanel settings={data.reminderSettings} />
-      <CalendarManager jobs={data.jobs} tasks={data.tasks} campaignAssets={data.campaignAssets} initialItemId={item} />
+      <CalendarManager jobs={data.jobs} tasks={data.tasks} campaignAssets={data.campaignAssets} events={data.events} initialItemId={item} />
     </>
   );
 }

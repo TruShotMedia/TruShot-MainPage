@@ -1,16 +1,17 @@
-import type { CalendarCampaignAsset, CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob } from "@/lib/types";
 
 export type CalendarRangeItem = CalendarJob | CalendarCampaignAsset;
+export type CalendarScheduleRangeItem = CalendarRangeItem | CalendarCustomEvent;
 
-export type CalendarJobRange = {
+export type CalendarJobRange<T extends CalendarScheduleRangeItem = CalendarRangeItem> = {
   id: string;
   start: string;
   end: string;
   durationDays: number;
-  item: CalendarRangeItem;
+  item: T;
 };
 
-export type CalendarRangeSegment = CalendarJobRange & {
+export type CalendarRangeSegment<T extends CalendarScheduleRangeItem = CalendarRangeItem> = CalendarJobRange<T> & {
   startsBeforeWeek: boolean;
   endsAfterWeek: boolean;
   startColumn: number;
@@ -18,10 +19,10 @@ export type CalendarRangeSegment = CalendarJobRange & {
   lane: number;
 };
 
-export type CalendarRangeWeek = {
+export type CalendarRangeWeek<T extends CalendarScheduleRangeItem = CalendarRangeItem> = {
   dayKeys: string[];
   laneCount: number;
-  segments: CalendarRangeSegment[];
+  segments: CalendarRangeSegment<T>[];
 };
 
 function calendarDayNumber(date: string) {
@@ -33,24 +34,25 @@ export function getCalendarJobRanges(jobs: CalendarJob[]) {
   return getCalendarScheduleRanges(jobs);
 }
 
-export function getCalendarScheduleRanges(items: CalendarRangeItem[]) {
+export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(items: T[]): CalendarJobRange<T>[] {
   return items
-    .flatMap((item): CalendarJobRange[] => {
+    .flatMap((item): CalendarJobRange<T>[] => {
       const start = item.entity_type === "job" ? item.shoot_date : item.start_date;
-      if (!start || !item.due_date || start > item.due_date) return [];
+      const end = item.entity_type === "calendar-event" ? item.end_date : item.due_date;
+      if (!start || !end || start > end) return [];
       return [{
         id: `${item.entity_type}-${item.id}`,
         start,
-        end: item.due_date,
-        durationDays: calendarDayNumber(item.due_date) - calendarDayNumber(start) + 1,
+        end,
+        durationDays: calendarDayNumber(end) - calendarDayNumber(start) + 1,
         item,
       }];
     })
     .sort((left, right) => left.start.localeCompare(right.start) || right.end.localeCompare(left.end) || left.item.title.localeCompare(right.item.title));
 }
 
-export function buildCalendarRangeWeeks(dayKeys: string[], ranges: CalendarJobRange[]): CalendarRangeWeek[] {
-  const weeks: CalendarRangeWeek[] = [];
+export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(dayKeys: string[], ranges: CalendarJobRange<T>[]): CalendarRangeWeek<T>[] {
+  const weeks: CalendarRangeWeek<T>[] = [];
 
   for (let index = 0; index < dayKeys.length; index += 7) {
     const weekDays = dayKeys.slice(index, index + 7);

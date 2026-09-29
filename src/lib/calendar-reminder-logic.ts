@@ -3,7 +3,7 @@ import type { PushMessage } from "@/lib/push";
 export const BRISBANE_TIMEZONE = "Australia/Brisbane";
 const BRISBANE_OFFSET = "+10:00";
 
-export type CalendarReminderEventKind = "job_start" | "job_due" | "task_due" | "campaign_start" | "campaign_due";
+export type CalendarReminderEventKind = "job_start" | "job_due" | "task_due" | "campaign_start" | "campaign_due" | "calendar_event_start";
 
 export type CalendarReminderSettings = {
   workspace_id: string;
@@ -26,6 +26,7 @@ export type CalendarReminderEvent = {
   date: string;
   time: string | null;
   context: string | null;
+  reminderOffsetsMinutes?: number[];
 };
 
 export type DueCalendarReminder = CalendarReminderEvent & {
@@ -40,6 +41,7 @@ const reminderLabels: Record<CalendarReminderEventKind, { subject: string; atTim
   task_due: { subject: "Task", atTime: "due now" },
   campaign_start: { subject: "Campaign asset", atTime: "starting now" },
   campaign_due: { subject: "Campaign asset", atTime: "due now" },
+  calendar_event_start: { subject: "Calendar event", atTime: "starting now" },
 };
 
 const brisbaneTimeFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -83,9 +85,9 @@ export function getDueCalendarReminders({
   const due: DueCalendarReminder[] = [];
   const windowStart = now.getTime() - lookbackMinutes * 60_000;
   const windowEnd = now.getTime() + lookaheadMinutes * 60_000;
-  const offsets = settings.send_at_event_time ? [settings.lead_minutes, 0] : [settings.lead_minutes];
-
   for (const event of events) {
+    const offsets = event.reminderOffsetsMinutes
+      ?? (settings.send_at_event_time ? [settings.lead_minutes, 0] : [settings.lead_minutes]);
     const occurrenceAt = brisbaneOccurrence(event.date, event.time ?? settings.default_event_time);
     if (!occurrenceAt) continue;
     for (const offsetMinutes of offsets) {

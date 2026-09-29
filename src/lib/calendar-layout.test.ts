@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCalendarRangeWeeks, getCalendarJobRanges, getCalendarScheduleRanges } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob } from "@/lib/types";
 
 function job(id: string, title: string, start: string | null, end: string | null): CalendarJob {
   return {
@@ -83,5 +83,30 @@ describe("calendar range layout", () => {
     expect(ranges.find((range) => range.item.entity_type === "campaign-asset")).toMatchObject({ durationDays: 5 });
     expect(weeks[0].laneCount).toBe(2);
     expect(weeks[1].segments.find((segment) => segment.item.entity_type === "campaign-asset")).toMatchObject({ startsBeforeWeek: true, span: 2 });
+  });
+
+  it("draws calendar events across their complete start and finish window", () => {
+    const calendarEvent: CalendarCustomEvent = {
+      id: "99999999-9999-4999-8999-999999999999",
+      entity_type: "calendar-event",
+      title: "Interstate production",
+      description: null,
+      location: "Sydney",
+      start_date: "2026-08-14",
+      start_time: "09:00:00",
+      end_date: "2026-08-18",
+      end_time: "17:00:00",
+      is_all_day: false,
+      color: "#3975ad",
+      reminder_offsets_minutes: [60, 0],
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    };
+    const ranges = getCalendarScheduleRanges([calendarEvent]);
+    const weeks = buildCalendarRangeWeeks(dayKeys, ranges);
+
+    expect(ranges[0]).toMatchObject({ start: "2026-08-14", end: "2026-08-18", durationDays: 5 });
+    expect(weeks[0].segments[0]).toMatchObject({ startColumn: 4, span: 3, endsAfterWeek: true });
+    expect(weeks[1].segments[0]).toMatchObject({ startColumn: 0, span: 2, startsBeforeWeek: true });
   });
 });

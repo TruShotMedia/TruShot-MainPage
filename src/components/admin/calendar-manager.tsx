@@ -15,13 +15,14 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, X } from "lucide-react";
 import { updateCalendarItem } from "@/app/admin/actions";
-import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeItem, type CalendarRangeSegment } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
+import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
+import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
-type CalendarFilter = "all" | "jobs" | "tasks" | "campaigns";
-type CalendarEvent = {
+type CalendarFilter = "all" | "events" | "jobs" | "tasks" | "campaigns";
+type CalendarDisplayEvent = {
   id: string;
   date: string;
   kind: "shoot" | "job-due" | "task-due" | "campaign-due";
@@ -37,10 +38,10 @@ function getDueDate(item: CalendarItem) {
   return item.due_date;
 }
 
-function getCalendarEvents(items: CalendarItem[]): CalendarEvent[] {
+function getCalendarEvents(items: CalendarItem[]): CalendarDisplayEvent[] {
   return items.flatMap((item) => {
     if (item.entity_type === "job") {
-      const events: CalendarEvent[] = [];
+      const events: CalendarDisplayEvent[] = [];
       if (item.shoot_date) events.push({ id: `${item.id}-shoot`, date: item.shoot_date, kind: "shoot", label: "Shoot", time: item.shoot_time, item });
       if (item.due_date) events.push({ id: `${item.id}-due`, date: item.due_date, kind: "job-due", label: "Job due", time: item.due_time, item });
       return events;
@@ -73,7 +74,7 @@ function dueLabel(date: string, today: string) {
   return `Due in ${difference}d`;
 }
 
-function formatJobWindow(range: CalendarJobRange) {
+function formatJobWindow(range: CalendarJobRange<CalendarScheduleRangeItem>) {
   const start = parseISO(range.start);
   const end = parseISO(range.end);
   if (format(start, "yyyy") !== format(end, "yyyy")) return `${format(start, "d MMM yyyy")}–${format(end, "d MMM yyyy")}`;
@@ -81,7 +82,7 @@ function formatJobWindow(range: CalendarJobRange) {
   return `${format(start, "d")}–${format(end, "d MMM")}`;
 }
 
-function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: (item: CalendarItem) => void }) {
+function CalendarEventButton({ event, onOpen }: { event: CalendarDisplayEvent; onOpen: (item: CalendarItem) => void }) {
   return (
     <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}${event.time ? ` at ${displayTime(event.time)}` : ""}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
       <span />
@@ -91,47 +92,61 @@ function CalendarEventButton({ event, onOpen }: { event: CalendarEvent; onOpen: 
   );
 }
 
-function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment; onOpen: (item: CalendarRangeItem) => void }) {
+function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment<CalendarScheduleRangeItem>; onOpen: (item: CalendarScheduleRangeItem) => void }) {
   const windowLabel = formatJobWindow(segment);
+  const isCalendarEvent = segment.item.entity_type === "calendar-event";
+  const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
+  const rangeColor = segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color;
+  const contextLabel = segment.item.entity_type === "calendar-event"
+    ? (segment.item.location || (segment.item.is_all_day ? "All day" : displayTime(segment.item.start_time)))
+    : segment.item.entity_type === "campaign-asset"
+      ? segment.item.campaign_title
+      : segment.item.client_name ?? "No client";
   return (
     <button
       type="button"
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
-      className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${segment.item.is_complete ? "is-complete" : ""}`}
+      className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       onClick={() => onOpen(segment.item)}
-      title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${segment.item.is_complete ? " · completed" : ""}`}
+      title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${isComplete ? " · completed" : ""}`}
       style={{
-        "--calendar-range-color": segment.item.status_color,
+        "--calendar-range-color": rangeColor,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
         gridRow: segment.lane + 1,
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
-      <em>{segment.item.entity_type === "campaign-asset" ? segment.item.campaign_title : segment.item.client_name ?? "No client"}</em>
-      <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
+      <em>{contextLabel}</em>
+      <span>{segment.endsAfterWeek ? "Continues" : isCalendarEvent ? `Ends ${format(parseISO(segment.end), "d MMM")}` : `Due ${format(parseISO(segment.end), "d MMM")}`}</span>
     </button>
   );
 }
 
-function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange; onOpen: (item: CalendarRangeItem) => void }) {
+function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<CalendarScheduleRangeItem>; onOpen: (item: CalendarScheduleRangeItem) => void }) {
   const windowLabel = formatJobWindow(range);
+  const isCalendarEvent = range.item.entity_type === "calendar-event";
+  const isComplete = range.item.entity_type === "calendar-event" ? false : range.item.is_complete;
+  const rangeColor = range.item.entity_type === "calendar-event" ? range.item.color : range.item.status_color;
   return (
-    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${range.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
-      <span style={{ background: range.item.status_color }} />
-      <strong>{range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong>
+    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
+      <span style={{ background: rangeColor }} />
+      <strong>{isCalendarEvent ? "Event" : range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong>
       <div><em>{range.item.title}</em><small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small></div>
     </button>
   );
 }
 
-export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemId }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; initialItemId?: string }) {
+export function CalendarManager({ jobs, tasks, campaignAssets = [], events: initialCustomEvents = [], initialItemId }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; events?: CalendarCustomEvent[]; initialItemId?: string }) {
   const router = useRouter();
   const initialItems = [...jobs, ...tasks, ...campaignAssets];
   const [items, setItems] = useState<CalendarItem[]>(initialItems);
+  const [customEvents, setCustomEvents] = useState<CalendarCustomEvent[]>(initialCustomEvents);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [filter, setFilter] = useState<CalendarFilter>("all");
   const [showCompleted, setShowCompleted] = useState(true);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(() => initialItems.find((entry) => entry.id === initialItemId) ?? null);
+  const [selectedCustomEvent, setSelectedCustomEvent] = useState<CalendarCustomEvent | null>(() => initialCustomEvents.find((entry) => entry.id === initialItemId) ?? null);
+  const [eventEditorDate, setEventEditorDate] = useState<string | null>(() => initialCustomEvents.some((entry) => entry.id === initialItemId) ? initialCustomEvents.find((entry) => entry.id === initialItemId)?.start_date ?? null : null);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const today = format(new Date(), "yyyy-MM-dd");
@@ -141,9 +156,14 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
     if (filter === "jobs") return item.entity_type === "job";
     if (filter === "tasks") return item.entity_type === "task";
     if (filter === "campaigns") return item.entity_type === "campaign-asset";
+    if (filter === "events") return false;
     return true;
   }), [filter, items, showCompleted]);
-  const rangeItems = useMemo(() => visibleItems.filter((item): item is CalendarRangeItem => item.entity_type !== "task"), [visibleItems]);
+  const visibleCustomEvents = useMemo(() => filter === "all" || filter === "events" ? customEvents : [], [customEvents, filter]);
+  const rangeItems = useMemo(() => [
+    ...visibleItems.filter((item): item is CalendarJob | CalendarCampaignAsset => item.entity_type !== "task"),
+    ...visibleCustomEvents,
+  ], [visibleCustomEvents, visibleItems]);
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges(rangeItems), [rangeItems]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const events = useMemo(() => getCalendarEvents(visibleItems.filter((item) => !rangedItemKeys.has(`${item.entity_type}:${item.id}`))), [rangedItemKeys, visibleItems]);
@@ -153,12 +173,12 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
   }), [currentMonth]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const eventsByDay = useMemo(() => {
-    const grouped = new Map<string, CalendarEvent[]>();
+    const grouped = new Map<string, CalendarDisplayEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
     return grouped;
   }, [events]);
   const mobileRangesByDay = useMemo(() => {
-    const grouped = new Map<string, CalendarJobRange[]>();
+    const grouped = new Map<string, CalendarJobRange<CalendarScheduleRangeItem>[]>();
     const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
     for (const range of scheduleRanges) {
@@ -200,6 +220,39 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
   function closeEditor() {
     setSelectedItem(null);
     setErrorMessage("");
+  }
+
+  function openRangeItem(item: CalendarScheduleRangeItem) {
+    if (item.entity_type === "calendar-event") {
+      setSelectedCustomEvent(item);
+      setEventEditorDate(item.start_date);
+      return;
+    }
+    setSelectedItem(item);
+  }
+
+  function openNewEvent(date = today) {
+    setSelectedCustomEvent(null);
+    setEventEditorDate(date);
+  }
+
+  function closeEventEditor() {
+    setSelectedCustomEvent(null);
+    setEventEditorDate(null);
+  }
+
+  function handleEventSaved(saved: CalendarCustomEvent) {
+    setCustomEvents((current) => current.some((event) => event.id === saved.id)
+      ? current.map((event) => event.id === saved.id ? saved : event)
+      : [...current, saved]);
+    closeEventEditor();
+    router.refresh();
+  }
+
+  function handleEventDeleted(id: string) {
+    setCustomEvents((current) => current.filter((event) => event.id !== id));
+    closeEventEditor();
+    router.refresh();
   }
 
   function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
@@ -255,7 +308,8 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
               <button type="button" className="calendar-today-button" onClick={() => setCurrentMonth(startOfMonth(new Date()))}>Today</button>
             </div>
             <div className="calendar-filters" role="group" aria-label="Calendar filters">
-              {(["all", "jobs", "tasks", "campaigns"] as const).map((option) => (
+              <button type="button" className="calendar-add-event-button" onClick={() => openNewEvent()}><CalendarPlus2 size={14} /> New event</button>
+              {(["all", "events", "jobs", "tasks", "campaigns"] as const).map((option) => (
                 <button type="button" className={filter === option ? "is-active" : ""} onClick={() => setFilter(option)} key={option}>{option}</button>
               ))}
               <label><input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} /> Completed visible</label>
@@ -268,6 +322,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
             <span><i className="legend-job-due" /> Job deadline</span>
             <span><i className="legend-task-due" /> Task deadline</span>
             <span><i className="legend-campaign-due" /> Campaign asset</span>
+            <span><i className="legend-calendar-event" /> Calendar event</span>
           </div>
 
           <div className="calendar-weekdays" aria-hidden="true">{weekdays.map((day) => <span key={day}>{day}</span>)}</div>
@@ -280,14 +335,14 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
                     const dayEvents = eventsByDay.get(dateKey) ?? [];
                     return (
                       <div className={`calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
-                        <time dateTime={dateKey}>{format(day, "d")}</time>
+                        <div className="calendar-day-heading"><time dateTime={dateKey}>{format(day, "d")}</time><button type="button" onClick={() => openNewEvent(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`}>+</button></div>
                         <div>{dayEvents.slice(0, 4).map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div>
                         {dayEvents.length > 4 && <small>+{dayEvents.length - 4} more</small>}
                       </div>
                     );
                   })}
                 </div>
-                {week.segments.length ? <div className="calendar-range-layer">{week.segments.map((segment) => <CalendarJobRangeButton segment={segment} onOpen={setSelectedItem} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                {week.segments.length ? <div className="calendar-range-layer">{week.segments.map((segment) => <CalendarJobRangeButton segment={segment} onOpen={openRangeItem} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </div>
             ))}
           </div>
@@ -298,7 +353,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
               const dayEvents = eventsByDay.get(dateKey) ?? [];
               const dayRanges = mobileRangesByDay.get(dateKey) ?? [];
               if (!isSameMonth(day, currentMonth) || (!dayEvents.length && !dayRanges.length)) return null;
-              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span></time><div>{dayRanges.map((range) => <MobileJobRangeButton range={range} onOpen={setSelectedItem} key={range.id} />)}{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div></section>;
+              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span></time><div>{dayRanges.map((range) => <MobileJobRangeButton range={range} onOpen={openRangeItem} key={range.id} />)}{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}<button className="calendar-mobile-add-event" type="button" onClick={() => openNewEvent(dateKey)}><CalendarPlus2 size={13} /> Add event</button></div></section>;
             }) : <p>No dated work matches these filters this month.</p>}
           </div>
         </section>
@@ -360,6 +415,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], initialItemI
           </form>
         </div>
       ) : null}
+      {eventEditorDate ? <CalendarEventEditor key={selectedCustomEvent?.id ?? `new-${eventEditorDate}`} event={selectedCustomEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleEventDeleted} onSaved={handleEventSaved} /> : null}
     </>
   );
 }
