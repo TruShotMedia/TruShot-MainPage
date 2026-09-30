@@ -13,7 +13,10 @@ import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarT
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
-const tabletViewRotationIntervalMs = 15_000;
+const tabletViewRotationIntervals: Record<TabletView, number> = {
+  pipeline: 15_000,
+  calendar: 60_000,
+};
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
@@ -71,6 +74,7 @@ export function TabletPipelineKiosk({
   const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
+  const activeViewRotationIntervalMs = tabletViewRotationIntervals[activeView];
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
 
@@ -134,11 +138,11 @@ export function TabletPipelineKiosk({
           return;
         }
         selectView(activeView === "pipeline" ? "calendar" : "pipeline");
-      }, tabletViewRotationIntervalMs);
+      }, activeViewRotationIntervalMs);
     };
     scheduleRotation();
     return () => window.clearTimeout(rotation);
-  }, [activeView, isAutoRotationPaused, selectView]);
+  }, [activeView, activeViewRotationIntervalMs, isAutoRotationPaused, selectView]);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
@@ -189,7 +193,7 @@ export function TabletPipelineKiosk({
               onClick={toggleAutoRotation}
               aria-label={isAutoRotationPaused ? "Resume automatic tab rotation" : "Pause automatic tab rotation"}
               aria-pressed={isAutoRotationPaused}
-              title={isAutoRotationPaused ? "Resume 15-second rotation" : "Pause 15-second rotation"}
+              title={isAutoRotationPaused ? "Resume automatic rotation" : `Pause rotation · ${activeView === "calendar" ? "60s calendar" : "15s pipeline"}`}
             >
               {isAutoRotationPaused ? <Play size={14} /> : <Pause size={14} />}
             </button>

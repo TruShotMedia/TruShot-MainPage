@@ -32,7 +32,7 @@ describe("TabletPipelineKiosk", () => {
     root = createRoot(container);
   });
 
-  it("rotates views every 15 seconds and supports a persistent pause override", async () => {
+  it("shows pipeline for 15 seconds, calendar for 60 seconds, and supports a persistent pause override", async () => {
     await act(async () => root.render(
       <TabletPipelineKiosk
         calendarJobs={[]}
@@ -61,13 +61,15 @@ describe("TabletPipelineKiosk", () => {
     expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("true");
     expect(container.querySelector('button[aria-label="Resume automatic tab rotation"]')).not.toBeNull();
 
-    await act(async () => vi.advanceTimersByTime(30_000));
+    await act(async () => vi.advanceTimersByTime(70_000));
     expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
 
     const resumeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Resume automatic tab rotation"]')!;
     await act(async () => resumeButton.click());
     expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("false");
-    await act(async () => vi.advanceTimersByTime(15_000));
+    await act(async () => vi.advanceTimersByTime(59_999));
+    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(1));
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
   });
 
