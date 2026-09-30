@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,8 +31,20 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
 });
 
-function viewportOrientation(): TabletOrientation {
-  return window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+type TabletViewportMetrics = {
+  height: number;
+  orientation: TabletOrientation;
+  width: number;
+};
+
+function readViewportMetrics(): TabletViewportMetrics {
+  const width = Math.round(window.visualViewport?.width ?? window.innerWidth ?? document.documentElement.clientWidth);
+  const height = Math.round(window.visualViewport?.height ?? window.innerHeight ?? document.documentElement.clientHeight);
+  return {
+    height,
+    orientation: width >= height ? "landscape" : "portrait",
+    width,
+  };
 }
 
 export function TabletPipelineKiosk({
@@ -72,11 +84,26 @@ export function TabletPipelineKiosk({
   const [now, setNow] = useState(() => new Date(initialNow));
   const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
   const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
+  const [viewportSize, setViewportSize] = useState<{ height: number; width: number } | null>(null);
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const activeViewRotationIntervalMs = tabletViewRotationIntervals[activeView];
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
+  const viewportStyle = viewportSize ? {
+    "--tablet-viewport-height": `${viewportSize.height}px`,
+    "--tablet-viewport-width": `${viewportSize.width}px`,
+  } as CSSProperties : undefined;
+
+  const syncViewportMetrics = useCallback(() => {
+    const metrics = readViewportMetrics();
+    setCurrentViewportOrientation(metrics.orientation);
+    setViewportSize((current) => (
+      current?.height === metrics.height && current.width === metrics.width
+        ? current
+        : { height: metrics.height, width: metrics.width }
+    ));
+  }, []);
 
   const refresh = useCallback(() => {
     lastRefreshAt.current = Date.now();
@@ -96,37 +123,42 @@ export function TabletPipelineKiosk({
     });
   }, []);
 
-  const rotateOrientation = useCallback(async () => {
+  const rotateOrientation = useCallback(() => {
     const nextOrientation: TabletOrientation = effectiveOrientation === "landscape" ? "portrait" : "landscape";
     setPreferredOrientation(nextOrientation);
     window.localStorage.setItem(TABLET_ORIENTATION_STORAGE_KEY, nextOrientation);
+    syncViewportMetrics();
 
-    const orientation = window.screen.orientation as ScreenOrientation & {
-      lock?: (orientation: TabletOrientation) => Promise<void>;
-    };
+    const orientation = (window.screen as Screen & {
+      orientation?: ScreenOrientation & { lock?: (orientation: TabletOrientation) => Promise<void> };
+    }).orientation;
     try {
-      await orientation?.lock?.(nextOrientation);
+      const nativeLock = orientation?.lock?.(nextOrientation);
+      if (nativeLock) void nativeLock.then(syncViewportMetrics, syncViewportMetrics);
     } catch {
       // Kiosk browsers commonly restrict native locks. The CSS rotation below
       // provides the same usable orientation without requiring browser support.
-    } finally {
-      setCurrentViewportOrientation(viewportOrientation());
     }
-  }, [effectiveOrientation]);
+    window.requestAnimationFrame(syncViewportMetrics);
+    window.setTimeout(syncViewportMetrics, 250);
+  }, [effectiveOrientation, syncViewportMetrics]);
 
   useEffect(() => {
-    const updateViewportOrientation = () => setCurrentViewportOrientation(viewportOrientation());
     const restoreOrientation = window.requestAnimationFrame(() => {
       setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
       setIsAutoRotationPaused(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY) === "true");
-      updateViewportOrientation();
+      syncViewportMetrics();
     });
-    window.addEventListener("resize", updateViewportOrientation);
+    window.addEventListener("resize", syncViewportMetrics);
+    window.addEventListener("orientationchange", syncViewportMetrics);
+    window.visualViewport?.addEventListener("resize", syncViewportMetrics);
     return () => {
       window.cancelAnimationFrame(restoreOrientation);
-      window.removeEventListener("resize", updateViewportOrientation);
+      window.removeEventListener("resize", syncViewportMetrics);
+      window.removeEventListener("orientationchange", syncViewportMetrics);
+      window.visualViewport?.removeEventListener("resize", syncViewportMetrics);
     };
-  }, []);
+  }, [syncViewportMetrics]);
 
   useEffect(() => {
     if (isAutoRotationPaused) return;
@@ -165,7 +197,7 @@ export function TabletPipelineKiosk({
   }, [refresh, refreshIntervalMs]);
 
   return (
-    <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`}>
+    <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
       <div className="tablet-kiosk" data-orientation={effectiveOrientation}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">

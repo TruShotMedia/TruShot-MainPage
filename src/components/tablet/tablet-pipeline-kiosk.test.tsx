@@ -161,9 +161,13 @@ describe("TabletPipelineKiosk", () => {
     expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("rotates the kiosk UI and remembers the preferred orientation", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 768 });
+  it("rotates immediately with measured dimensions when an old kiosk browser cannot lock orientation", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1024 });
+    Object.defineProperty(window.screen, "orientation", {
+      configurable: true,
+      value: { lock: vi.fn(() => new Promise<void>(() => undefined)) },
+    });
 
     await act(async () => root.render(
       <TabletPipelineKiosk
@@ -181,20 +185,24 @@ describe("TabletPipelineKiosk", () => {
         today="2026-08-25"
       />,
     ));
+    await act(async () => vi.advanceTimersByTime(20));
 
-    const rotateButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to portrait"]')!;
+    const viewport = container.querySelector<HTMLElement>(".tablet-kiosk-viewport")!;
+    expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("600px");
+    expect(viewport.style.getPropertyValue("--tablet-viewport-height")).toBe("1024px");
+
+    const rotateButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to landscape"]')!;
     await act(async () => rotateButton.click());
 
-    const viewport = container.querySelector(".tablet-kiosk-viewport")!;
     const kiosk = container.querySelector(".tablet-kiosk")!;
     expect(viewport.classList.contains("is-css-rotated")).toBe(true);
-    expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
-    expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("portrait");
-    const restoreButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to landscape"]')!;
+    expect(kiosk.getAttribute("data-orientation")).toBe("landscape");
+    expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("landscape");
+    const restoreButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to portrait"]')!;
     await act(async () => restoreButton.click());
 
     expect(viewport.classList.contains("is-css-rotated")).toBe(false);
-    expect(kiosk.getAttribute("data-orientation")).toBe("landscape");
-    expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("landscape");
+    expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
+    expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("portrait");
   });
 });
