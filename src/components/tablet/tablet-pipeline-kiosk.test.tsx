@@ -63,6 +63,10 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => vi.advanceTimersByTime(1));
     const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
     expect(screensaver).not.toBeNull();
+    expect(screensaver?.querySelector(".tablet-screensaver-clock strong")).not.toBeNull();
+    expect(screensaver?.querySelector(".tablet-screensaver-clock time")).not.toBeNull();
+    expect(screensaver?.querySelector(".tablet-screensaver-hero strong")).toBeNull();
+    expect(screensaver?.querySelector('.tablet-screensaver-hero [role="img"]')).not.toBeNull();
     expect(screensaver?.textContent).toContain("Jobs outstanding1With open assets");
     expect(screensaver?.textContent).toContain("Tasks outstanding2Still in production");
     expect(container.querySelector('[data-testid="calendar-view"]')).toBeNull();

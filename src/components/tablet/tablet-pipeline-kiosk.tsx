@@ -279,6 +279,10 @@ export function TabletPipelineKiosk({
           <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label="TruShot Media studio overview">
             <div className="tablet-screensaver-topline">
               <span><i /> TruShot Media · Brisbane</span>
+              <div className="tablet-screensaver-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
+                <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
+                <time suppressHydrationWarning>{lockscreenDateFormatter.format(now)}</time>
+              </div>
               <button type="button" onClick={() => setIsScreensaverVisible(false)}>
                 Return to {activeView} <ArrowUpRight size={14} />
               </button>
@@ -286,9 +290,6 @@ export function TabletPipelineKiosk({
 
             <div className="tablet-screensaver-hero">
               <Image src="/brand/logo-white.png" alt="TruShot Media" width={2000} height={744} priority sizes="(max-width: 800px) 72vw, 680px" />
-              <p>Studio overview</p>
-              <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
-              <time suppressHydrationWarning>{lockscreenDateFormatter.format(now)}</time>
             </div>
 
             <div className="tablet-screensaver-summary" aria-label="Studio summary">

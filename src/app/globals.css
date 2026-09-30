@@ -1647,16 +1647,16 @@ img { max-width: 100%; }
 .tablet-kiosk-screensaver { position: absolute; z-index: 40; top: 0; right: 0; bottom: 0; left: 0; display: grid; min-width: 0; min-height: 0; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; background: radial-gradient(circle at 15% 18%, rgba(44,138,91,.24), transparent 32%), radial-gradient(circle at 88% 82%, rgba(31,94,65,.2), transparent 34%), #07100b; padding: clamp(22px,3.1vw,50px); color: white; isolation: isolate; inset: 0; animation: tablet-screensaver-enter 500ms cubic-bezier(.2,.78,.25,1) both; }
 .tablet-kiosk-screensaver::before { position: absolute; z-index: -2; background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 42px 42px; content: ""; inset: 0; -webkit-mask-image: linear-gradient(to bottom,rgba(0,0,0,.65),transparent 92%); mask-image: linear-gradient(to bottom,rgba(0,0,0,.65),transparent 92%); }
 .tablet-kiosk-screensaver::after { position: absolute; z-index: -1; width: 38vw; height: 38vw; border-radius: 50%; background: rgba(51,151,100,.13); content: ""; filter: blur(40px); transform: translate(-50%,-50%); animation: tablet-screensaver-drift 15s ease-in-out infinite alternate; }
-.tablet-screensaver-topline { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.tablet-screensaver-topline { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 18px; }
 .tablet-screensaver-topline > span { display: inline-flex; align-items: center; gap: 9px; color: rgba(255,255,255,.7); font-size: clamp(8px,.75vw,11px); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
 .tablet-screensaver-topline > span i { width: 7px; height: 7px; border-radius: 50%; background: #67cf96; box-shadow: 0 0 18px rgba(103,207,150,.75); }
-.tablet-screensaver-topline > button { display: inline-flex; min-height: 34px; align-items: center; gap: 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.065); padding: 0 13px; color: rgba(255,255,255,.78); font-size: 8px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(12px); }
+.tablet-screensaver-clock { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; background: rgba(255,255,255,.05); padding: 0 15px; box-shadow: inset 0 1px rgba(255,255,255,.035); backdrop-filter: blur(12px); }
+.tablet-screensaver-clock strong { color: #fff; font-size: clamp(17px,1.5vw,23px); font-weight: 780; letter-spacing: -.045em; line-height: 1; white-space: nowrap; }
+.tablet-screensaver-clock time { color: rgba(255,255,255,.48); font-size: clamp(7px,.58vw,9px); font-weight: 750; letter-spacing: .035em; white-space: nowrap; }
+.tablet-screensaver-topline > button { display: inline-flex; min-height: 34px; align-items: center; justify-self: end; gap: 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.065); padding: 0 13px; color: rgba(255,255,255,.78); font-size: 8px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(12px); }
 .tablet-screensaver-topline > button:hover { border-color: rgba(103,207,150,.6); background: rgba(103,207,150,.12); color: white; }
-.tablet-screensaver-hero { display: flex; min-height: 0; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
-.tablet-screensaver-hero img { width: min(680px,58vw); height: auto; margin: clamp(-58px,-5vh,-26px) 0 clamp(-62px,-5vh,-28px); }
-.tablet-screensaver-hero p { margin: 0 0 7px; color: #76d29f; font-size: clamp(8px,.7vw,10px); font-weight: 900; letter-spacing: .24em; text-transform: uppercase; }
-.tablet-screensaver-hero strong { font-size: clamp(64px,10.5vw,158px); font-weight: 760; letter-spacing: -.075em; line-height: .88; }
-.tablet-screensaver-hero time { margin-top: 14px; color: rgba(255,255,255,.58); font-size: clamp(11px,1.15vw,17px); font-weight: 720; letter-spacing: .03em; }
+.tablet-screensaver-hero { position: absolute; top: 50%; left: 50%; display: flex; width: min(680px,58vw); align-items: center; justify-content: center; transform: translate(-50%,-50%); }
+.tablet-screensaver-hero img { width: 100%; height: auto; }
 .tablet-screensaver-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(8px,1.1vw,17px); }
 .tablet-screensaver-summary article { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) auto; gap: 7px 14px; border: 1px solid rgba(255,255,255,.11); border-radius: 16px; background: rgba(255,255,255,.055); padding: clamp(14px,1.45vw,22px); box-shadow: inset 0 1px rgba(255,255,255,.045), 0 12px 40px rgba(0,0,0,.12); backdrop-filter: blur(15px); }
 .tablet-screensaver-summary article > span { display: inline-flex; min-width: 0; align-items: center; gap: 7px; color: rgba(255,255,255,.72); font-size: clamp(8px,.72vw,11px); font-weight: 850; text-transform: uppercase; }
@@ -1793,8 +1793,11 @@ img { max-width: 100%; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-legend { gap: 7px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-legend span { font-size: 6px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-screensaver { padding: 25px; }
-.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-hero img { width: min(590px,72vw); }
-.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-hero strong { font-size: clamp(58px,14vw,118px); }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-topline { gap: 9px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-clock { min-height: 32px; flex-direction: column; gap: 1px; padding: 3px 11px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-clock strong { font-size: clamp(15px,2.6vw,21px); }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-clock time { font-size: 6px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-hero { width: min(590px,72vw); }
 .tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-summary { gap: 8px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-summary article { grid-template-columns: minmax(0,1fr) auto; border-radius: 12px; padding: 12px; }
 @media (prefers-reduced-motion: reduce) {
