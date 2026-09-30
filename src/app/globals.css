@@ -1658,6 +1658,9 @@ img { max-width: 100%; }
 .tablet-kiosk-actions > button, .tablet-kiosk-actions > a { position: relative; display: inline-flex; min-height: 32px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d2d8d3; border-radius: 999px; background: rgba(255,255,255,.72); padding: 0 10px; color: #656c65; font-size: 8px; font-weight: 900; letter-spacing: .035em; white-space: nowrap; }
 .tablet-kiosk-actions > button { width: 31px; padding: 0; cursor: pointer; }
 .tablet-kiosk-actions > button:hover, .tablet-kiosk-actions > a:hover { border-color: #9fb9a8; background: #e5ede7; color: var(--green); }
+.tablet-kiosk-actions .tablet-rotation-toggle { transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease; }
+.tablet-kiosk-actions .tablet-rotation-toggle:hover { transform: translateY(-1px); }
+.tablet-kiosk-actions .tablet-rotation-toggle.is-paused { border-color: #c49157; background: #f4e8d9; color: #9a5d24; }
 .tablet-kiosk-actions .tablet-notification-button { width: 32px; padding: 0; }
 .tablet-notification-button > span { position: absolute; top: -5px; right: -4px; display: grid; min-width: 16px; height: 16px; place-items: center; border: 2px solid #f8f7f2; border-radius: 999px; background: #a24e3c; padding: 0 3px; color: white; font-size: 6px; font-weight: 950; }
 .tablet-kiosk-actions .tablet-crm-button { border-color: var(--green); background: var(--green); color: white; padding: 0 13px; }

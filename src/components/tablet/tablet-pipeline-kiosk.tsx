@@ -4,15 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarDays, LayoutDashboard, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
+import { Bell, CalendarDays, LayoutDashboard, Pause, Play, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
-import { parseTabletOrientation, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
+import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
+const tabletViewRotationIntervalMs = 15_000;
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
@@ -64,6 +65,7 @@ export function TabletPipelineKiosk({
 }) {
   const router = useRouter();
   const [activeView, setActiveView] = useState<TabletView>(initialView);
+  const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [now, setNow] = useState(() => new Date(initialNow));
   const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
   const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
@@ -80,6 +82,14 @@ export function TabletPipelineKiosk({
   const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, []);
+
+  const toggleAutoRotation = useCallback(() => {
+    setIsAutoRotationPaused((isPaused) => {
+      const nextPaused = !isPaused;
+      window.localStorage.setItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, String(nextPaused));
+      return nextPaused;
+    });
   }, []);
 
   const rotateOrientation = useCallback(async () => {
@@ -104,6 +114,7 @@ export function TabletPipelineKiosk({
     const updateViewportOrientation = () => setCurrentViewportOrientation(viewportOrientation());
     const restoreOrientation = window.requestAnimationFrame(() => {
       setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
+      setIsAutoRotationPaused(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY) === "true");
       updateViewportOrientation();
     });
     window.addEventListener("resize", updateViewportOrientation);
@@ -112,6 +123,22 @@ export function TabletPipelineKiosk({
       window.removeEventListener("resize", updateViewportOrientation);
     };
   }, []);
+
+  useEffect(() => {
+    if (isAutoRotationPaused) return;
+    let rotation = 0;
+    const scheduleRotation = () => {
+      rotation = window.setTimeout(() => {
+        if (document.visibilityState !== "visible") {
+          scheduleRotation();
+          return;
+        }
+        selectView(activeView === "pipeline" ? "calendar" : "pipeline");
+      }, tabletViewRotationIntervalMs);
+    };
+    scheduleRotation();
+    return () => window.clearTimeout(rotation);
+  }, [activeView, isAutoRotationPaused, selectView]);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
@@ -156,6 +183,16 @@ export function TabletPipelineKiosk({
               <Bell size={15} />
               {pendingRequestCount ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
             </Link>
+            <button
+              type="button"
+              className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
+              onClick={toggleAutoRotation}
+              aria-label={isAutoRotationPaused ? "Resume automatic tab rotation" : "Pause automatic tab rotation"}
+              aria-pressed={isAutoRotationPaused}
+              title={isAutoRotationPaused ? "Resume 15-second rotation" : "Pause 15-second rotation"}
+            >
+              {isAutoRotationPaused ? <Play size={14} /> : <Pause size={14} />}
+            </button>
             <button type="button" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
               {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
             </button>

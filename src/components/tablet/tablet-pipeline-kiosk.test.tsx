@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
+import { TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -30,6 +30,70 @@ describe("TabletPipelineKiosk", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
+  });
+
+  it("rotates views every 15 seconds and supports a persistent pause override", async () => {
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-08-25T00:00:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="pipeline"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        today="2026-08-25"
+      />,
+    ));
+
+    await act(async () => vi.advanceTimersByTime(14_999));
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+    expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=calendar`);
+
+    const pauseButton = container.querySelector<HTMLButtonElement>('button[aria-label="Pause automatic tab rotation"]')!;
+    await act(async () => pauseButton.click());
+    expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("true");
+    expect(container.querySelector('button[aria-label="Resume automatic tab rotation"]')).not.toBeNull();
+
+    await act(async () => vi.advanceTimersByTime(30_000));
+    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+
+    const resumeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Resume automatic tab rotation"]')!;
+    await act(async () => resumeButton.click());
+    expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("false");
+    await act(async () => vi.advanceTimersByTime(15_000));
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+  });
+
+  it("restores the paused rotation override after the kiosk reloads", async () => {
+    window.localStorage.setItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, "true");
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-08-25T00:00:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="pipeline"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        today="2026-08-25"
+      />,
+    ));
+
+    await act(async () => vi.advanceTimersByTime(20));
+    expect(container.querySelector('button[aria-label="Resume automatic tab rotation"]')).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(30_000));
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
   });
 
   afterEach(async () => {
@@ -88,7 +152,7 @@ describe("TabletPipelineKiosk", () => {
 
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
     expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="pipeline-view"], [data-testid="calendar-view"]')).not.toBeNull();
 
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     await act(async () => vi.advanceTimersByTime(15 * 60_000));

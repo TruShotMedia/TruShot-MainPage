@@ -1,5 +1,6 @@
 export const TABLET_VIEW_COOKIE_NAME = "trushot-tablet-view";
 export const TABLET_ORIENTATION_STORAGE_KEY = "trushot-tablet-orientation";
+export const TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY = "trushot-tablet-auto-rotation-paused";
 
 export type TabletView = "pipeline" | "calendar";
 export type TabletOrientation = "landscape" | "portrait";
