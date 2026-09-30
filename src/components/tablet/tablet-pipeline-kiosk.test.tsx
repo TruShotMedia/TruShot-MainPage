@@ -32,14 +32,21 @@ describe("TabletPipelineKiosk", () => {
     root = createRoot(container);
   });
 
-  it("shows pipeline for 15 seconds, calendar for 60 seconds, and supports a persistent pause override", async () => {
+  it("shows the selected page for 60 seconds, the lockscreen for 15 seconds, and supports a persistent pause override", async () => {
     await act(async () => root.render(
       <TabletPipelineKiosk
         calendarJobs={[]}
         calendarTasks={[]}
         initialNow="2026-08-25T00:00:00.000Z"
-        initialStatuses={[]}
-        initialTasks={[]}
+        initialStatuses={[
+          { id: "open", key: "in_progress", label: "In progress", color: "#3570a9", position: 1, is_open: true },
+          { id: "done", key: "posted_done", label: "Posted / Done", color: "#597a62", position: 2, is_open: false },
+        ]}
+        initialTasks={[
+          { id: "task-1", title: "First asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 1, updated_at: "2026-08-25T00:00:00.000Z" },
+          { id: "task-2", title: "Second asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 2, updated_at: "2026-08-25T00:00:00.000Z" },
+          { id: "task-3", title: "Complete asset", job_id: "job-2", status_id: "done", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 3, updated_at: "2026-08-25T00:00:00.000Z" },
+        ]}
         initialView="pipeline"
         pendingRequestCount={0}
         pipelineVersion="empty"
@@ -50,27 +57,38 @@ describe("TabletPipelineKiosk", () => {
       />,
     ));
 
-    await act(async () => vi.advanceTimersByTime(14_999));
+    await act(async () => vi.advanceTimersByTime(59_999));
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
     await act(async () => vi.advanceTimersByTime(1));
-    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
-    expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=calendar`);
+    const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
+    expect(screensaver).not.toBeNull();
+    expect(screensaver?.textContent).toContain("Jobs outstanding1With open assets");
+    expect(screensaver?.textContent).toContain("Tasks outstanding2Still in production");
+    expect(container.querySelector('[data-testid="calendar-view"]')).toBeNull();
 
-    const pauseButton = container.querySelector<HTMLButtonElement>('button[aria-label="Pause automatic tab rotation"]')!;
+    await act(async () => vi.advanceTimersByTime(14_999));
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+
+    const pauseButton = container.querySelector<HTMLButtonElement>('button[aria-label="Pause automatic slideshow"]')!;
     await act(async () => pauseButton.click());
     expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("true");
-    expect(container.querySelector('button[aria-label="Resume automatic tab rotation"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Resume automatic slideshow"]')).not.toBeNull();
 
     await act(async () => vi.advanceTimersByTime(70_000));
-    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
 
-    const resumeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Resume automatic tab rotation"]')!;
+    const resumeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Resume automatic slideshow"]')!;
     await act(async () => resumeButton.click());
     expect(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY)).toBe("false");
     await act(async () => vi.advanceTimersByTime(59_999));
-    expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
     await act(async () => vi.advanceTimersByTime(1));
-    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).not.toBeNull();
   });
 
   it("restores the paused rotation override after the kiosk reloads", async () => {
@@ -93,7 +111,7 @@ describe("TabletPipelineKiosk", () => {
     ));
 
     await act(async () => vi.advanceTimersByTime(20));
-    expect(container.querySelector('button[aria-label="Resume automatic tab rotation"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Resume automatic slideshow"]')).not.toBeNull();
     await act(async () => vi.advanceTimersByTime(30_000));
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
   });

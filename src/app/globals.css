@@ -1644,6 +1644,27 @@ img { max-width: 100%; }
 .tablet-kiosk-viewport { position: fixed; z-index: 200; top: 0; right: 0; bottom: 0; left: 0; display: flex; width: var(--tablet-viewport-width,100vw); height: var(--tablet-viewport-height,100vh); align-items: center; justify-content: center; overflow: hidden; background: #eeece5; inset: 0; }
 .tablet-kiosk { position: relative; display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 92% -10%, rgba(31,94,65,.14), transparent 27%), #eeece5; transform: rotate(0); transform-origin: center; transition: transform 220ms ease; will-change: transform; }
 .tablet-kiosk-viewport.is-css-rotated .tablet-kiosk { position: absolute; top: 50%; left: 50%; width: var(--tablet-viewport-height,100vh); height: var(--tablet-viewport-width,100vw); transform: translate(-50%,-50%) rotate(90deg); }
+.tablet-kiosk-screensaver { position: absolute; z-index: 40; top: 0; right: 0; bottom: 0; left: 0; display: grid; min-width: 0; min-height: 0; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; background: radial-gradient(circle at 15% 18%, rgba(44,138,91,.24), transparent 32%), radial-gradient(circle at 88% 82%, rgba(31,94,65,.2), transparent 34%), #07100b; padding: clamp(22px,3.1vw,50px); color: white; isolation: isolate; inset: 0; animation: tablet-screensaver-enter 500ms cubic-bezier(.2,.78,.25,1) both; }
+.tablet-kiosk-screensaver::before { position: absolute; z-index: -2; background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 42px 42px; content: ""; inset: 0; -webkit-mask-image: linear-gradient(to bottom,rgba(0,0,0,.65),transparent 92%); mask-image: linear-gradient(to bottom,rgba(0,0,0,.65),transparent 92%); }
+.tablet-kiosk-screensaver::after { position: absolute; z-index: -1; width: 38vw; height: 38vw; border-radius: 50%; background: rgba(51,151,100,.13); content: ""; filter: blur(40px); transform: translate(-50%,-50%); animation: tablet-screensaver-drift 15s ease-in-out infinite alternate; }
+.tablet-screensaver-topline { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.tablet-screensaver-topline > span { display: inline-flex; align-items: center; gap: 9px; color: rgba(255,255,255,.7); font-size: clamp(8px,.75vw,11px); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.tablet-screensaver-topline > span i { width: 7px; height: 7px; border-radius: 50%; background: #67cf96; box-shadow: 0 0 18px rgba(103,207,150,.75); }
+.tablet-screensaver-topline > button { display: inline-flex; min-height: 34px; align-items: center; gap: 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.065); padding: 0 13px; color: rgba(255,255,255,.78); font-size: 8px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(12px); }
+.tablet-screensaver-topline > button:hover { border-color: rgba(103,207,150,.6); background: rgba(103,207,150,.12); color: white; }
+.tablet-screensaver-hero { display: flex; min-height: 0; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
+.tablet-screensaver-hero img { width: min(680px,58vw); height: auto; margin: clamp(-58px,-5vh,-26px) 0 clamp(-62px,-5vh,-28px); }
+.tablet-screensaver-hero p { margin: 0 0 7px; color: #76d29f; font-size: clamp(8px,.7vw,10px); font-weight: 900; letter-spacing: .24em; text-transform: uppercase; }
+.tablet-screensaver-hero strong { font-size: clamp(64px,10.5vw,158px); font-weight: 760; letter-spacing: -.075em; line-height: .88; }
+.tablet-screensaver-hero time { margin-top: 14px; color: rgba(255,255,255,.58); font-size: clamp(11px,1.15vw,17px); font-weight: 720; letter-spacing: .03em; }
+.tablet-screensaver-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(8px,1.1vw,17px); }
+.tablet-screensaver-summary article { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) auto; gap: 7px 14px; border: 1px solid rgba(255,255,255,.11); border-radius: 16px; background: rgba(255,255,255,.055); padding: clamp(14px,1.45vw,22px); box-shadow: inset 0 1px rgba(255,255,255,.045), 0 12px 40px rgba(0,0,0,.12); backdrop-filter: blur(15px); }
+.tablet-screensaver-summary article > span { display: inline-flex; min-width: 0; align-items: center; gap: 7px; color: rgba(255,255,255,.72); font-size: clamp(8px,.72vw,11px); font-weight: 850; text-transform: uppercase; }
+.tablet-screensaver-summary article > span svg { color: #67cf96; }
+.tablet-screensaver-summary article > strong { grid-row: span 2; align-self: center; color: white; font-size: clamp(30px,3.4vw,52px); letter-spacing: -.055em; line-height: .8; }
+.tablet-screensaver-summary article > small { color: rgba(255,255,255,.36); font-size: clamp(7px,.58vw,9px); font-weight: 650; }
+@keyframes tablet-screensaver-enter { from { opacity: 0; transform: scale(1.018); } to { opacity: 1; transform: scale(1); } }
+@keyframes tablet-screensaver-drift { from { top: 18%; left: 18%; } to { top: 78%; left: 84%; } }
 .tablet-kiosk-header { display: grid; flex: 0 0 auto; grid-template-columns: auto minmax(230px, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; border-bottom: 1px solid rgba(31,94,65,.16); background: rgba(248,247,242,.94); padding: 9px 16px; box-shadow: 0 8px 30px rgba(23,31,25,.04); backdrop-filter: blur(16px); }
 .tablet-kiosk-identity { display: flex; align-items: center; gap: 15px; }
 .tablet-kiosk-identity img { width: 118px; height: auto; }
@@ -1771,6 +1792,14 @@ img { max-width: 100%; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-month-controls > div { min-width: 115px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-legend { gap: 7px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-legend span { font-size: 6px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-screensaver { padding: 25px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-hero img { width: min(590px,72vw); }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-hero strong { font-size: clamp(58px,14vw,118px); }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-summary { gap: 8px; }
+.tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-summary article { grid-template-columns: minmax(0,1fr) auto; border-radius: 12px; padding: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .tablet-kiosk-screensaver, .tablet-kiosk-screensaver::after { animation-duration: .01ms; animation-iteration-count: 1; }
+}
 
 /* CRM command centre, revenue intelligence and financial reporting */
 .admin-search { appearance: none; justify-content: flex-start; text-align: left; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease; }

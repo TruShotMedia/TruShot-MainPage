@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarDays, LayoutDashboard, Pause, Play, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, LayoutDashboard, ListChecks, Pause, Play, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
@@ -13,10 +13,8 @@ import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarT
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
-const tabletViewRotationIntervals: Record<TabletView, number> = {
-  pipeline: 15_000,
-  calendar: 60_000,
-};
+const tabletPageDurationMs = 60_000;
+const tabletScreensaverDurationMs = 15_000;
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
@@ -29,6 +27,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   month: "short",
   timeZone: "Australia/Brisbane",
   weekday: "short",
+});
+
+const lockscreenDateFormatter = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "long",
+  timeZone: "Australia/Brisbane",
+  weekday: "long",
+  year: "numeric",
 });
 
 type TabletViewportMetrics = {
@@ -81,15 +87,25 @@ export function TabletPipelineKiosk({
   const router = useRouter();
   const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
+  const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
+  const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
   const [now, setNow] = useState(() => new Date(initialNow));
   const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
   const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
   const [viewportSize, setViewportSize] = useState<{ height: number; width: number } | null>(null);
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
-  const activeViewRotationIntervalMs = tabletViewRotationIntervals[activeView];
+  const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
+  const kioskSummary = useMemo(() => {
+    const openStatusIds = new Set(initialStatuses.filter((status) => status.is_open).map((status) => status.id));
+    const outstandingTasks = liveTasks.filter((task) => openStatusIds.has(task.status_id));
+    return {
+      jobs: new Set(outstandingTasks.map((task) => task.job_id).filter(Boolean)).size,
+      tasks: outstandingTasks.length,
+    };
+  }, [initialStatuses, liveTasks]);
   const viewportStyle = viewportSize ? {
     "--tablet-viewport-height": `${viewportSize.height}px`,
     "--tablet-viewport-width": `${viewportSize.width}px`,
@@ -112,13 +128,19 @@ export function TabletPipelineKiosk({
 
   const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
+    setIsScreensaverVisible(false);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
+
+  const updateLiveTasks = useCallback((tasks: PipelineTask[]) => {
+    setLiveTaskSnapshot({ pipelineVersion, tasks });
+  }, [pipelineVersion]);
 
   const toggleAutoRotation = useCallback(() => {
     setIsAutoRotationPaused((isPaused) => {
       const nextPaused = !isPaused;
       window.localStorage.setItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, String(nextPaused));
+      if (nextPaused) setIsScreensaverVisible(false);
       return nextPaused;
     });
   }, []);
@@ -162,19 +184,20 @@ export function TabletPipelineKiosk({
 
   useEffect(() => {
     if (isAutoRotationPaused) return;
-    let rotation = 0;
-    const scheduleRotation = () => {
-      rotation = window.setTimeout(() => {
+    let slideshowTimer = 0;
+    const duration = isScreensaverVisible ? tabletScreensaverDurationMs : tabletPageDurationMs;
+    const scheduleSlideshow = () => {
+      slideshowTimer = window.setTimeout(() => {
         if (document.visibilityState !== "visible") {
-          scheduleRotation();
+          scheduleSlideshow();
           return;
         }
-        selectView(activeView === "pipeline" ? "calendar" : "pipeline");
-      }, activeViewRotationIntervalMs);
+        setIsScreensaverVisible((isVisible) => !isVisible);
+      }, duration);
     };
-    scheduleRotation();
-    return () => window.clearTimeout(rotation);
-  }, [activeView, activeViewRotationIntervalMs, isAutoRotationPaused, selectView]);
+    scheduleSlideshow();
+    return () => window.clearTimeout(slideshowTimer);
+  }, [activeView, isAutoRotationPaused, isScreensaverVisible]);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
@@ -223,9 +246,9 @@ export function TabletPipelineKiosk({
               type="button"
               className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
               onClick={toggleAutoRotation}
-              aria-label={isAutoRotationPaused ? "Resume automatic tab rotation" : "Pause automatic tab rotation"}
+              aria-label={isAutoRotationPaused ? "Resume automatic slideshow" : "Pause automatic slideshow"}
               aria-pressed={isAutoRotationPaused}
-              title={isAutoRotationPaused ? "Resume automatic rotation" : `Pause rotation · ${activeView === "calendar" ? "60s calendar" : "15s pipeline"}`}
+              title={isAutoRotationPaused ? "Resume automatic slideshow" : "Pause slideshow · 60s page / 15s lockscreen"}
             >
               {isAutoRotationPaused ? <Play size={14} /> : <Pause size={14} />}
             </button>
@@ -244,12 +267,49 @@ export function TabletPipelineKiosk({
               completionStatusKey="final_draft_notes"
               initialStatuses={initialStatuses}
               initialTasks={initialTasks}
+              onTasksChange={updateLiveTasks}
               statusAliases={tabletPipelineStatusAliases}
               variant="tablet"
               visibleStatusKeys={tabletPipelineStatusKeys}
             />
           ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} campaignAssets={calendarCampaignAssets} customEvents={calendarEvents} today={today} />}
         </section>
+
+        {isScreensaverVisible ? (
+          <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label="TruShot Media studio overview">
+            <div className="tablet-screensaver-topline">
+              <span><i /> TruShot Media · Brisbane</span>
+              <button type="button" onClick={() => setIsScreensaverVisible(false)}>
+                Return to {activeView} <ArrowUpRight size={14} />
+              </button>
+            </div>
+
+            <div className="tablet-screensaver-hero">
+              <Image src="/brand/logo-white.png" alt="TruShot Media" width={2000} height={744} priority sizes="(max-width: 800px) 72vw, 680px" />
+              <p>Studio overview</p>
+              <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
+              <time suppressHydrationWarning>{lockscreenDateFormatter.format(now)}</time>
+            </div>
+
+            <div className="tablet-screensaver-summary" aria-label="Studio summary">
+              <article>
+                <span><Bell size={15} /> Inbox</span>
+                <strong>{pendingRequestCount}</strong>
+                <small>Awaiting review</small>
+              </article>
+              <article>
+                <span><BriefcaseBusiness size={15} /> Jobs outstanding</span>
+                <strong>{kioskSummary.jobs}</strong>
+                <small>With open assets</small>
+              </article>
+              <article>
+                <span><ListChecks size={15} /> Tasks outstanding</span>
+                <strong>{kioskSummary.tasks}</strong>
+                <small>Still in production</small>
+              </article>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );
