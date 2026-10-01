@@ -61,3 +61,10 @@ export function getPortfolioDisplaySizeFromDimensions(width: number, height: num
   if (ratio <= 0.9) return "tall";
   return "standard";
 }
+
+/** Keeps the public portfolio order while selecting only films suited to a landscape display. */
+export function getLandscapePortfolioVideos(categories: PortfolioCategory[]): PortfolioItem[] {
+  return categories.flatMap((category) => (
+    category.items.filter((item) => item.media_kind === "video" && item.display_size === "wide")
+  ));
+}

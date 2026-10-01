@@ -47,4 +47,21 @@ describe("PortfolioProtection", () => {
     window.dispatchEvent(saveShortcut);
     expect(saveShortcut.defaultPrevented).toBe(true);
   });
+
+  it("also protects the dedicated portfolio kiosk player", async () => {
+    await act(async () => {
+      root.render(
+        <main className="portfolio-page portfolio-kiosk">
+          <PortfolioProtection />
+          <div className="portfolio-kiosk-media"><video /></div>
+        </main>,
+      );
+    });
+
+    const video = container.querySelector("video")!;
+    const contextMenu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    await act(async () => video.dispatchEvent(contextMenu));
+
+    expect(contextMenu.defaultPrevented).toBe(true);
+  });
 });

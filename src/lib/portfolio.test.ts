@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "./portfolio";
+import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -100,5 +100,42 @@ describe("getPortfolioDisplaySizeFromDimensions", () => {
 
   it("uses a stable square tile when dimensions are unavailable", () => {
     expect(getPortfolioDisplaySizeFromDimensions(0, 0)).toBe("standard");
+  });
+});
+
+describe("getLandscapePortfolioVideos", () => {
+  it("keeps category and media order while excluding photos and non-landscape films", () => {
+    const categories = [
+      {
+        id: "category-a",
+        name: "Campaigns",
+        slug: "campaigns",
+        description: null,
+        logo_url: null,
+        logo_path: null,
+        position: 10,
+        is_published: true,
+        items: [
+          { id: "film-a", category_id: "category-a", media_kind: "video" as const, alt_text: "Film A", public_url: "/film-a.mp4", poster_url: null, poster_path: null, display_size: "wide" as const },
+          { id: "portrait-film", category_id: "category-a", media_kind: "video" as const, alt_text: "Portrait film", public_url: "/portrait.mp4", poster_url: null, poster_path: null, display_size: "tall" as const },
+        ],
+      },
+      {
+        id: "category-b",
+        name: "Stories",
+        slug: "stories",
+        description: null,
+        logo_url: null,
+        logo_path: null,
+        position: 20,
+        is_published: true,
+        items: [
+          { id: "photo", category_id: "category-b", media_kind: "image" as const, alt_text: "Photo", public_url: "/photo.jpg", poster_url: null, poster_path: null, display_size: "wide" as const },
+          { id: "film-b", category_id: "category-b", media_kind: "video" as const, alt_text: "Film B", public_url: "/film-b.mp4", poster_url: null, poster_path: null, display_size: "wide" as const },
+        ],
+      },
+    ];
+
+    expect(getLandscapePortfolioVideos(categories).map((item) => item.id)).toEqual(["film-a", "film-b"]);
   });
 });

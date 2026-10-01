@@ -292,6 +292,22 @@ img { max-width: 100%; }
 .portfolio-lightbox-navigation button { width: 46px; height: 46px; padding: 0; background: rgba(5,8,6,.72); pointer-events: auto; backdrop-filter: blur(10px); }
 .portfolio-lightbox-label { max-width: min(720px, 80vw); margin: 0; padding-top: clamp(14px, 2vw, 24px); overflow: hidden; color: #aab3ad; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Full-screen portfolio film kiosk */
+.portfolio-kiosk { position: fixed; z-index: 1200; width: 100vw; height: 100vh; min-width: 0; min-height: 0; overflow: hidden; background: #000; color: white; inset: 0; }
+.portfolio-kiosk-media { position: absolute; display: grid; min-width: 0; min-height: 0; place-items: center; overflow: hidden; background: #000; inset: 0; }
+.portfolio-kiosk-media video { display: block; width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain; object-position: center center; background: #000; opacity: 0; transition: opacity 480ms ease; -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; }
+.portfolio-kiosk-media video.is-ready { opacity: 1; }
+.portfolio-kiosk-loading { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 15px; background: radial-gradient(circle at 50% 48%, #153c2a 0, #08100b 48%, #000 100%); color: rgba(255,255,255,.54); opacity: 1; pointer-events: none; inset: 0; transition: opacity 420ms ease, visibility 0s linear 0s; }
+.portfolio-kiosk-loading.is-hidden { visibility: hidden; opacity: 0; transition: opacity 420ms ease, visibility 0s linear 420ms; }
+.portfolio-kiosk-loading img { width: min(220px,34vw); height: auto; }
+.portfolio-kiosk-loading span { font-size: 8px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+.portfolio-kiosk-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px; background: radial-gradient(circle at 50% 45%, #153c2a 0, #08100b 52%, #000 100%); text-align: center; }
+.portfolio-kiosk-empty img { width: min(420px,58vw); height: auto; }
+.portfolio-kiosk-empty p { margin: 0; color: rgba(255,255,255,.58); font-size: clamp(11px,1.1vw,16px); }
+@supports (height: 100dvh) {
+  .portfolio-kiosk { height: 100dvh; }
+}
+
 @media (max-width: 1050px) {
   .public-header { grid-template-columns: 1fr 1fr; }
   .public-header nav { display: none; }
