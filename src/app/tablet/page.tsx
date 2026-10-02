@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { TabletPipelineKiosk } from "@/components/tablet/tablet-pipeline-kiosk";
@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: "Tablet Pipeline",
   description: "TruShot Media's protected tablet production pipeline.",
   robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#07100b",
 };
 
 export default async function TabletPage() {

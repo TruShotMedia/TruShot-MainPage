@@ -225,7 +225,7 @@ export function TabletPipelineKiosk({
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
-            <Image src="/brand/logo-green.png" alt="TruShot Media" width={230} height={84} priority />
+            <Image src="/brand/logo-white.png" alt="TruShot Media" width={230} height={84} priority />
             <div className="tablet-kiosk-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
               <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
               <span suppressHydrationWarning>{dateFormatter.format(now)}</span>
