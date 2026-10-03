@@ -29,6 +29,7 @@ const actionMocks = vi.hoisted(() => ({
   removePortfolioCategoryLogo: vi.fn(async () => ({ ok: true })),
   reorderPortfolioCategories: vi.fn(async () => ({ ok: true, updated: 1 })),
   reorderPortfolioItems: vi.fn(async () => ({ ok: true, updated: 1 })),
+  reorderPortfolioMiscLogos: vi.fn(async () => ({ ok: true, updated: 1 })),
   savePortfolioCategoryLogo: vi.fn(async () => ({ ok: true, logo_url: "https://example.com/category-logo.png", logo_path: "11111111-1111-4111-8111-111111111111/portfolio/logos/33333333-3333-4333-8333-333333333333.png" })),
   savePortfolioVideoPoster: vi.fn(async () => ({ ok: true })),
   updatePortfolioCategory: vi.fn(async () => ({ ok: true })),
@@ -86,6 +87,18 @@ const miscLogos: PortfolioMiscLogo[] = [{
   position: 10,
   is_published: true,
 }];
+
+const sortableMiscLogos: PortfolioMiscLogo[] = [
+  miscLogos[0],
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    name: "Campaign partner",
+    logo_url: "https://example.com/campaign-partner.png",
+    logo_path: "11111111-1111-4111-8111-111111111111/portfolio/logos/misc/66666666-6666-4666-8666-666666666666.png",
+    position: 20,
+    is_published: true,
+  },
+];
 
 describe("PortfolioManager media removal", () => {
   let container: HTMLDivElement;
@@ -203,6 +216,21 @@ describe("PortfolioManager media removal", () => {
 
     expect(actionMocks.deletePortfolioMiscLogo).toHaveBeenCalledWith(miscLogos[0].id);
     expect(container.textContent).toContain("“Venue partner” removed from the portfolio banner.");
+  });
+
+  it("gives every standalone logo an accessible drag handle", async () => {
+    await act(async () => {
+      root.render(<PortfolioManager categories={categories} miscLogos={sortableMiscLogos} workspaceId="11111111-1111-4111-8111-111111111111" />);
+    });
+
+    const logoHandles = Array.from(container.querySelectorAll<HTMLButtonElement>(".portfolio-misc-logo-order-handle"));
+    expect(logoHandles).toHaveLength(2);
+    expect(logoHandles.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Move Venue partner logo",
+      "Move Campaign partner logo",
+    ]);
+    expect(logoHandles.every((button) => !button.disabled)).toBe(true);
+    expect(container.textContent).toContain("Drag logos into the order they should appear in the portfolio banner.");
   });
 
   it("keeps a newly created category selected instead of falling back to the first category", async () => {

@@ -1909,6 +1909,54 @@ export async function createPortfolioMiscLogos(inputValue: {
   return { ok: true, logos: data };
 }
 
+export async function reorderPortfolioMiscLogos(logoIdsValue: string[]) {
+  const logoIds = z.array(z.string().uuid()).min(1).max(500).parse(logoIdsValue);
+  if (new Set(logoIds).size !== logoIds.length) {
+    throw new Error("The standalone logo order contains duplicates.");
+  }
+
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: existingLogos, error: readError } = await context.supabase
+    .from("website-portfolio-logos")
+    .select("id,name,logo_url,logo_path,is_published")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  if (readError) throw new Error(readError.message);
+  if (!existingLogos || existingLogos.length !== logoIds.length) {
+    throw new Error("The standalone logo list changed. Refresh the page and try again.");
+  }
+
+  const logosById = new Map(existingLogos.map((logo) => [logo.id, logo]));
+  if (logoIds.some((logoId) => !logosById.has(logoId))) {
+    throw new Error("The standalone logo order contains an unavailable logo.");
+  }
+
+  const { data: reorderedLogos, error } = await context.supabase
+    .from("website-portfolio-logos")
+    .upsert(logoIds.map((logoId, index) => {
+      const logo = logosById.get(logoId)!;
+      return {
+        id: logo.id,
+        workspace_id: TRUSHOT_WORKSPACE_ID,
+        name: logo.name,
+        logo_url: logo.logo_url,
+        logo_path: logo.logo_path,
+        is_published: logo.is_published,
+        position: (index + 1) * 10,
+      };
+    }), { onConflict: "id" })
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!reorderedLogos || reorderedLogos.length !== logoIds.length) {
+    throw new Error("The complete standalone logo order could not be saved.");
+  }
+
+  revalidatePath("/portfolio");
+  revalidatePath("/admin/portfolio");
+  return { ok: true, updated: logoIds.length };
+}
+
 export async function deletePortfolioMiscLogo(logoIdValue: string) {
   const logoId = z.string().uuid().parse(logoIdValue);
   const context = await getAdminContext();

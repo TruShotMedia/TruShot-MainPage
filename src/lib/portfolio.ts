@@ -1,4 +1,4 @@
-import type { PortfolioCategory, PortfolioItem } from "@/lib/types";
+import type { PortfolioCategory, PortfolioItem, PortfolioMiscLogo } from "@/lib/types";
 
 function movePortfolioEntry<T extends { id: string }>(items: T[], activeId: string, overId: string): T[] {
   const activeIndex = items.findIndex((item) => item.id === activeId);
@@ -18,6 +18,11 @@ export function movePortfolioItem<T extends Pick<PortfolioItem, "id">>(items: T[
 /** Moves a category without mutating the order received from the server. */
 export function movePortfolioCategory<T extends { id: string }>(categories: T[], activeId: string, overId: string): T[] {
   return movePortfolioEntry(categories, activeId, overId);
+}
+
+/** Moves a standalone logo without mutating the order received from the server. */
+export function movePortfolioMiscLogo<T extends Pick<PortfolioMiscLogo, "id">>(logos: T[], activeId: string, overId: string): T[] {
+  return movePortfolioEntry(logos, activeId, overId);
 }
 
 /** Moves media into another category and updates its ownership without mutating server state. */

@@ -7,11 +7,11 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useDroppable,
 import { rectSortingStrategy, sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, FileVideo, FolderPlus, GripVertical, ImageIcon, ImagePlus, Images, LoaderCircle, Pencil, Play, Trash2, Upload, X } from "lucide-react";
-import { createPortfolioCategory, createPortfolioItems, createPortfolioMiscLogos, deletePortfolioCategory, deletePortfolioItem, deletePortfolioMiscLogo, movePortfolioItemToCategory, removePortfolioCategoryLogo, reorderPortfolioCategories, reorderPortfolioItems, savePortfolioCategoryLogo, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
+import { createPortfolioCategory, createPortfolioItems, createPortfolioMiscLogos, deletePortfolioCategory, deletePortfolioItem, deletePortfolioMiscLogo, movePortfolioItemToCategory, removePortfolioCategoryLogo, reorderPortfolioCategories, reorderPortfolioItems, reorderPortfolioMiscLogos, savePortfolioCategoryLogo, savePortfolioVideoPoster, updatePortfolioCategory } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { getImageDimensions } from "@/lib/media-dimensions";
-import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "@/lib/portfolio";
+import { getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "@/lib/portfolio";
 import { uploadWebsiteMediaResumable } from "@/lib/resumable-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { PortfolioCategory, PortfolioItem, PortfolioMiscLogo } from "@/lib/types";
@@ -303,6 +303,61 @@ function SortableCategoryOrderRow({
   );
 }
 
+function SortableMiscLogoRow({
+  logo,
+  confirmingDelete,
+  disabled,
+  isDeleting,
+  onCancelDelete,
+  onConfirmDelete,
+  onRequestDelete,
+}: {
+  logo: PortfolioMiscLogo;
+  confirmingDelete: boolean;
+  disabled: boolean;
+  isDeleting: boolean;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+  onRequestDelete: () => void;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    id: logo.id,
+    data: { type: "portfolio-misc-logo" },
+    disabled,
+  });
+
+  return (
+    <article
+      ref={setNodeRef}
+      className={`portfolio-misc-logo-row ${isDragging ? "is-dragging" : ""}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 4 : undefined }}
+      aria-busy={isDeleting}
+    >
+      <span className="portfolio-misc-logo-preview has-logo"><Image src={logo.logo_url} alt={`${logo.name} logo`} fill sizes="90px" /></span>
+      <div><strong>{logo.name}</strong><small>Standalone · live in banner</small></div>
+      <button
+        className="portfolio-misc-logo-order-handle"
+        type="button"
+        aria-label={`Move ${logo.name} logo`}
+        title="Drag to change logo order"
+        disabled={disabled}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={15} />
+      </button>
+      <RemoveControls
+        confirming={confirmingDelete}
+        isDeleting={isDeleting}
+        label="Remove logo"
+        onCancel={onCancelDelete}
+        onConfirm={onConfirmDelete}
+        onRequest={onRequestDelete}
+      />
+    </article>
+  );
+}
+
 function PortfolioAdminCategory({
   category,
   categoryIndex,
@@ -436,6 +491,8 @@ export function PortfolioManager({ categories, miscLogos, workspaceId }: { categ
   const incomingMiscLogos = miscLogos ?? EMPTY_MISC_LOGOS;
   const [portfolioMiscLogos, setPortfolioMiscLogos] = useState(incomingMiscLogos);
   const [serverMiscLogos, setServerMiscLogos] = useState(incomingMiscLogos);
+  const [orderingMiscLogos, setOrderingMiscLogos] = useState(false);
+  const [miscLogoOrderFeedback, setMiscLogoOrderFeedback] = useState<{ status: "saving" | "saved" | "error"; message: string } | null>(null);
   const [orderingCategoryId, setOrderingCategoryId] = useState<string | null>(null);
   const [orderFeedback, setOrderFeedback] = useState<{ categoryId: string; status: "saving" | "saved" | "error"; message: string } | null>(null);
   const [orderingCategories, setOrderingCategories] = useState(false);
@@ -561,6 +618,27 @@ export function PortfolioManager({ categories, miscLogos, workspaceId }: { categ
       setMiscLogoMessage(error instanceof Error ? error.message : "The standalone logo could not be removed.");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleMiscLogoReorder(event: DragEndEvent) {
+    if (!event.over || event.active.id === event.over.id || orderingMiscLogos || deletingId || deleteRequest) return;
+    const previousLogos = portfolioMiscLogos;
+    const nextLogos = movePortfolioMiscLogo(previousLogos, String(event.active.id), String(event.over.id));
+    if (nextLogos === previousLogos) return;
+
+    setPortfolioMiscLogos(nextLogos);
+    setOrderingMiscLogos(true);
+    setMiscLogoOrderFeedback({ status: "saving", message: "Saving standalone logo order…" });
+    try {
+      await reorderPortfolioMiscLogos(nextLogos.map((logo) => logo.id));
+      setMiscLogoOrderFeedback({ status: "saved", message: "Standalone logo order saved." });
+      router.refresh();
+    } catch {
+      setPortfolioMiscLogos(previousLogos);
+      setMiscLogoOrderFeedback({ status: "error", message: "That logo order was not saved. The previous order has been restored." });
+    } finally {
+      setOrderingMiscLogos(false);
     }
   }
 
@@ -990,22 +1068,30 @@ export function PortfolioManager({ categories, miscLogos, workspaceId }: { categ
           </form>
 
           {portfolioMiscLogos.length > 0 ? (
-            <div className="portfolio-misc-logo-library" aria-label="Published standalone logos">
-              {portfolioMiscLogos.map((logo) => (
-                <article className="portfolio-misc-logo-row" key={logo.id}>
-                  <span className="portfolio-misc-logo-preview has-logo"><Image src={logo.logo_url} alt={`${logo.name} logo`} fill sizes="90px" /></span>
-                  <div><strong>{logo.name}</strong><small>Standalone · live in banner</small></div>
-                  <RemoveControls
-                    confirming={deleteRequest?.kind === "misc-logo" && deleteRequest.id === logo.id}
-                    isDeleting={deletingId === logo.id}
-                    label="Remove logo"
-                    onCancel={() => setDeleteRequest(null)}
-                    onConfirm={() => void handleMiscLogoRemove(logo)}
-                    onRequest={() => setDeleteRequest({ id: logo.id, kind: "misc-logo" })}
-                  />
-                </article>
-              ))}
-            </div>
+            <>
+              <p className={`portfolio-misc-logo-order-status ${miscLogoOrderFeedback?.status ?? ""}`} role="status" aria-live="polite">
+                <GripVertical size={13} />
+                {miscLogoOrderFeedback?.message ?? "Drag logos into the order they should appear in the portfolio banner."}
+              </p>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleMiscLogoReorder(event)}>
+                <SortableContext items={portfolioMiscLogos.map((logo) => logo.id)} strategy={rectSortingStrategy}>
+                  <div className="portfolio-misc-logo-library" aria-label="Published standalone logos">
+                    {portfolioMiscLogos.map((logo) => (
+                      <SortableMiscLogoRow
+                        key={logo.id}
+                        logo={logo}
+                        confirmingDelete={deleteRequest?.kind === "misc-logo" && deleteRequest.id === logo.id}
+                        disabled={portfolioMiscLogos.length < 2 || orderingMiscLogos || Boolean(deletingId) || Boolean(deleteRequest)}
+                        isDeleting={deletingId === logo.id}
+                        onCancelDelete={() => setDeleteRequest(null)}
+                        onConfirmDelete={() => void handleMiscLogoRemove(logo)}
+                        onRequestDelete={() => setDeleteRequest({ id: logo.id, kind: "misc-logo" })}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </>
           ) : (
             <div className="portfolio-misc-logo-empty"><ImageIcon size={19} /><p>No standalone logos yet. Category logos will continue to appear in the banner as usual.</p></div>
           )}

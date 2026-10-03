@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories } from "./portfolio";
+import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -37,6 +37,23 @@ describe("movePortfolioCategory", () => {
       "brand-stories",
     ]);
     expect(categories.map((category) => category.id)).toEqual(["campaigns", "brand-stories", "social-content"]);
+  });
+});
+
+describe("movePortfolioMiscLogo", () => {
+  it("moves a standalone logo without mutating the saved order", () => {
+    const logos = [
+      { id: "venue" },
+      { id: "partner" },
+      { id: "supplier" },
+    ];
+
+    expect(movePortfolioMiscLogo(logos, "supplier", "venue").map((logo) => logo.id)).toEqual([
+      "supplier",
+      "venue",
+      "partner",
+    ]);
+    expect(logos.map((logo) => logo.id)).toEqual(["venue", "partner", "supplier"]);
   });
 });
 
