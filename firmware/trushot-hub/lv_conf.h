@@ -1,0 +1,49 @@
+#ifndef LV_CONF_H
+#define LV_CONF_H
+
+#include <stdint.h>
+
+#define LV_COLOR_DEPTH 16
+#define LV_COLOR_16_SWAP 0
+#define LV_MEM_CUSTOM 1
+#define LV_MEM_CUSTOM_INCLUDE <stdlib.h>
+#define LV_MEM_CUSTOM_ALLOC malloc
+#define LV_MEM_CUSTOM_FREE free
+#define LV_MEM_CUSTOM_REALLOC realloc
+#define LV_DISP_DEF_REFR_PERIOD 24
+#define LV_INDEV_DEF_READ_PERIOD 20
+#define LV_DPI_DEF 140
+#define LV_DRAW_COMPLEX 1
+#define LV_USE_LOG 0
+#define LV_USE_USER_DATA 1
+
+#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_16 1
+#define LV_FONT_MONTSERRAT_18 1
+#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_22 1
+#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_MONTSERRAT_28 1
+#define LV_FONT_MONTSERRAT_32 1
+#define LV_FONT_MONTSERRAT_36 1
+#define LV_FONT_MONTSERRAT_40 1
+#define LV_FONT_MONTSERRAT_44 1
+#define LV_FONT_MONTSERRAT_48 1
+#define LV_FONT_DEFAULT &lv_font_montserrat_14
+
+#define LV_USE_QRCODE 1
+#define LV_USE_SPINNER 1
+#define LV_USE_SLIDER 1
+#define LV_USE_ARC 1
+#define LV_USE_LINE 1
+#define LV_USE_BTN 1
+#define LV_USE_LABEL 1
+
+#define LV_BUILD_EXAMPLES 0
+#define LV_USE_DEMO_WIDGETS 0
+#define LV_USE_DEMO_BENCHMARK 0
+#define LV_USE_DEMO_STRESS 0
+#define LV_USE_DEMO_MUSIC 0
+
+#endif
