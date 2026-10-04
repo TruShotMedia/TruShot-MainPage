@@ -43,7 +43,7 @@ Install the dependencies, copy `src/DeviceConfig.example.h` to the ignored
 ARDUINO_CLI_BIN=/path/to/arduino-cli bash tools/build.sh
 ```
 
-The exact board options (16 MB QIO flash, 8 MB OPI PSRAM, hardware USB CDC) are
+The exact board options (16 MB DIO flash, 8 MB OPI PSRAM, hardware USB CDC) are
 encoded in the build script. Before the first replacement flash, preserve the
 existing 16 MB image with `esptool read_flash` while the board is in download
 mode.
