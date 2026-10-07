@@ -6,15 +6,61 @@ import { isLandscapeMediaDimensions } from "@/lib/portfolio";
 import type { PortfolioItem } from "@/lib/types";
 
 const ERROR_ADVANCE_DELAY_MS = 1_200;
+const POSTER_VALIDATION_TIMEOUT_MS = 10_000;
+
+function posterIsLandscape(posterUrl: string | null): Promise<boolean> {
+  if (!posterUrl) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const poster = new window.Image();
+    let isSettled = false;
+    const finish = (isLandscape: boolean) => {
+      if (isSettled) return;
+      isSettled = true;
+      window.clearTimeout(timeout);
+      poster.onload = null;
+      poster.onerror = null;
+      resolve(isLandscape);
+    };
+    const timeout = window.setTimeout(() => finish(false), POSTER_VALIDATION_TIMEOUT_MS);
+    poster.onload = () => finish(isLandscapeMediaDimensions(poster.naturalWidth, poster.naturalHeight));
+    poster.onerror = () => finish(false);
+    poster.src = posterUrl;
+  });
+}
 
 export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [posterValidation, setPosterValidation] = useState<{ key: string; items: PortfolioItem[] } | null>(null);
   const [rejectedItemIds, setRejectedItemIds] = useState<Set<string>>(() => new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const errorAdvanceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
-  const playableItems = items.filter((item) => !rejectedItemIds.has(item.id));
+  const validationKey = items.map((item) => `${item.id}:${item.poster_url ?? ""}`).join("|");
+  const posterValidatedItems = posterValidation?.key === validationKey ? posterValidation.items : null;
+  const playableItems = (posterValidatedItems ?? []).filter((item) => !rejectedItemIds.has(item.id));
   const currentItem = playableItems[currentIndex];
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    void Promise.all(items.map(async (item) => ({
+      item,
+      isLandscape: await posterIsLandscape(item.poster_url),
+    }))).then((results) => {
+      if (!isCurrent) return;
+      setPosterValidation({
+        key: validationKey,
+        items: results.filter((result) => result.isLandscape).map((result) => result.item),
+      });
+      setCurrentIndex(0);
+      setIsReady(false);
+      setRejectedItemIds(new Set());
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [items, validationKey]);
 
   const showNext = useCallback(() => {
     if (playableItems.length < 2) return;
@@ -58,6 +104,15 @@ export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
   useEffect(() => () => {
     if (errorAdvanceTimerRef.current !== null) globalThis.clearTimeout(errorAdvanceTimerRef.current);
   }, []);
+
+  if (posterValidatedItems === null) {
+    return (
+      <main className="portfolio-kiosk portfolio-kiosk-empty" aria-label="Preparing TruShot Media landscape portfolio kiosk">
+        <Image src="/brand/logo-white.png" alt="TruShot Media" width={520} height={193} priority />
+        <p>Checking landscape films…</p>
+      </main>
+    );
+  }
 
   if (!currentItem) {
     return (

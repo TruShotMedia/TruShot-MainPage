@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, isLandscapeMediaDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "./portfolio";
+import { getPortfolioDisplaySizeFromDimensions, getPortfolioKioskVideoCandidates, isLandscapeMediaDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -129,8 +129,8 @@ describe("isLandscapeMediaDimensions", () => {
   });
 });
 
-describe("getLandscapePortfolioVideos", () => {
-  it("keeps category and media order while excluding photos and non-landscape films", () => {
+describe("getPortfolioKioskVideoCandidates", () => {
+  it("keeps category and media order while leaving final orientation validation to the generated posters", () => {
     const categories = [
       {
         id: "category-a",
@@ -162,6 +162,6 @@ describe("getLandscapePortfolioVideos", () => {
       },
     ];
 
-    expect(getLandscapePortfolioVideos(categories).map((item) => item.id)).toEqual(["film-a", "film-b"]);
+    expect(getPortfolioKioskVideoCandidates(categories).map((item) => item.id)).toEqual(["film-a", "portrait-film", "film-b"]);
   });
 });

@@ -72,9 +72,9 @@ export function isLandscapeMediaDimensions(width: number, height: number): boole
   return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 && width > height;
 }
 
-/** Fast server-side prefilter for films recorded as suitable for a landscape display. */
-export function getLandscapePortfolioVideos(categories: PortfolioCategory[]): PortfolioItem[] {
+/** Preserves portfolio order while selecting films for browser-level kiosk orientation validation. */
+export function getPortfolioKioskVideoCandidates(categories: PortfolioCategory[]): PortfolioItem[] {
   return categories.flatMap((category) => (
-    category.items.filter((item) => item.media_kind === "video" && item.display_size === "wide")
+    category.items.filter((item) => item.media_kind === "video")
   ));
 }

@@ -16,7 +16,7 @@ vi.mock("next/image", () => ({
 
 const items: PortfolioItem[] = [
   { id: "film-a", category_id: "category-a", media_kind: "video", alt_text: "First film", public_url: "https://example.com/first.mp4", poster_url: "https://example.com/first.jpg", poster_path: null, display_size: "wide" },
-  { id: "film-b", category_id: "category-b", media_kind: "video", alt_text: "Second film", public_url: "https://example.com/second.mp4", poster_url: null, poster_path: null, display_size: "wide" },
+  { id: "film-b", category_id: "category-b", media_kind: "video", alt_text: "Second film", public_url: "https://example.com/second.mp4", poster_url: "https://example.com/second.jpg", poster_path: null, display_size: "wide" },
 ];
 
 describe("PortfolioKioskPlayer", () => {
@@ -26,6 +26,20 @@ describe("PortfolioKioskPlayer", () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.stubGlobal("Image", class {
+      naturalWidth = 1920;
+      naturalHeight = 1080;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(value: string) {
+        if (value.includes("portrait-poster")) {
+          this.naturalWidth = 1080;
+          this.naturalHeight = 1920;
+        }
+        queueMicrotask(() => this.onload?.());
+      }
+    });
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -35,6 +49,7 @@ describe("PortfolioKioskPlayer", () => {
     await act(async () => root.unmount());
     container.remove();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("plays each film silently and advances when playback finishes", async () => {
@@ -70,6 +85,14 @@ describe("PortfolioKioskPlayer", () => {
     await act(async () => root.render(<PortfolioKioskPlayer items={[]} />));
     expect(container.textContent).toContain("No landscape portfolio films are currently published.");
     expect(container.querySelector("video")).toBeNull();
+  });
+
+  it("uses the generated poster orientation to reject a rotated portrait MOV before playback", async () => {
+    const portraitItem = { ...items[0], poster_url: "https://example.com/portrait-poster.jpg" };
+    await act(async () => root.render(<PortfolioKioskPlayer items={[portraitItem]} />));
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(container.textContent).toContain("No landscape portfolio films are currently published.");
   });
 
   it("skips a portrait video when its decoded dimensions disagree with stored metadata", async () => {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PortfolioKioskPlayer } from "@/components/public/portfolio-kiosk-player";
 import { PortfolioProtection } from "@/components/public/portfolio-protection";
 import { getPublishedPortfolioCategories } from "@/lib/data/public";
-import { getLandscapePortfolioVideos } from "@/lib/portfolio";
+import { getPortfolioKioskVideoCandidates } from "@/lib/portfolio";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default async function PortfolioKioskPage() {
   const categories = await getPublishedPortfolioCategories();
-  const videos = getLandscapePortfolioVideos(categories);
+  const videos = getPortfolioKioskVideoCandidates(categories);
 
   return (
     <>
