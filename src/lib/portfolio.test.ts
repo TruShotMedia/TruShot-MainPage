@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "./portfolio";
+import { getLandscapePortfolioVideos, getPortfolioDisplaySizeFromDimensions, isLandscapeMediaDimensions, movePortfolioCategory, movePortfolioItem, movePortfolioItemBetweenCategories, movePortfolioMiscLogo } from "./portfolio";
 
 describe("movePortfolioItem", () => {
   it("moves an item to the requested place without mutating the saved order", () => {
@@ -117,6 +117,15 @@ describe("getPortfolioDisplaySizeFromDimensions", () => {
 
   it("uses a stable square tile when dimensions are unavailable", () => {
     expect(getPortfolioDisplaySizeFromDimensions(0, 0)).toBe("standard");
+  });
+});
+
+describe("isLandscapeMediaDimensions", () => {
+  it("accepts only decoded media that is wider than it is tall", () => {
+    expect(isLandscapeMediaDimensions(1920, 1080)).toBe(true);
+    expect(isLandscapeMediaDimensions(1080, 1920)).toBe(false);
+    expect(isLandscapeMediaDimensions(1200, 1200)).toBe(false);
+    expect(isLandscapeMediaDimensions(0, 1080)).toBe(false);
   });
 });
 

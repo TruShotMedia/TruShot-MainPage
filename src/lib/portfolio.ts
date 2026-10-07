@@ -67,7 +67,12 @@ export function getPortfolioDisplaySizeFromDimensions(width: number, height: num
   return "standard";
 }
 
-/** Keeps the public portfolio order while selecting only films suited to a landscape display. */
+/** Confirms the decoded media is wider than it is tall. */
+export function isLandscapeMediaDimensions(width: number, height: number): boolean {
+  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 && width > height;
+}
+
+/** Fast server-side prefilter for films recorded as suitable for a landscape display. */
 export function getLandscapePortfolioVideos(categories: PortfolioCategory[]): PortfolioItem[] {
   return categories.flatMap((category) => (
     category.items.filter((item) => item.media_kind === "video" && item.display_size === "wide")

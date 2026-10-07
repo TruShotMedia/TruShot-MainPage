@@ -71,4 +71,33 @@ describe("PortfolioKioskPlayer", () => {
     expect(container.textContent).toContain("No landscape portfolio films are currently published.");
     expect(container.querySelector("video")).toBeNull();
   });
+
+  it("skips a portrait video when its decoded dimensions disagree with stored metadata", async () => {
+    await act(async () => root.render(<PortfolioKioskPlayer items={items} />));
+
+    let video = container.querySelector<HTMLVideoElement>("video")!;
+    Object.defineProperties(video, {
+      videoWidth: { configurable: true, value: 1080 },
+      videoHeight: { configurable: true, value: 1920 },
+    });
+    await act(async () => video.dispatchEvent(new Event("loadedmetadata", { bubbles: true })));
+
+    video = container.querySelector<HTMLVideoElement>("video")!;
+    expect(video.src).toBe("https://example.com/second.mp4");
+    expect(container.textContent).toContain("film 1 of 1");
+  });
+
+  it("shows the empty state when stored metadata incorrectly marks the only portrait film as wide", async () => {
+    await act(async () => root.render(<PortfolioKioskPlayer items={[items[0]]} />));
+
+    const video = container.querySelector<HTMLVideoElement>("video")!;
+    Object.defineProperties(video, {
+      videoWidth: { configurable: true, value: 1080 },
+      videoHeight: { configurable: true, value: 1920 },
+    });
+    await act(async () => video.dispatchEvent(new Event("loadedmetadata", { bubbles: true })));
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(container.textContent).toContain("No landscape portfolio films are currently published.");
+  });
 });

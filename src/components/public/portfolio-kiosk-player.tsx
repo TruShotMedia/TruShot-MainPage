@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isLandscapeMediaDimensions } from "@/lib/portfolio";
 import type { PortfolioItem } from "@/lib/types";
 
 const ERROR_ADVANCE_DELAY_MS = 1_200;
@@ -9,19 +10,42 @@ const ERROR_ADVANCE_DELAY_MS = 1_200;
 export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [rejectedItemIds, setRejectedItemIds] = useState<Set<string>>(() => new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const errorAdvanceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
-  const currentItem = items[currentIndex];
+  const playableItems = items.filter((item) => !rejectedItemIds.has(item.id));
+  const currentItem = playableItems[currentIndex];
 
   const showNext = useCallback(() => {
-    if (items.length < 2) return;
+    if (playableItems.length < 2) return;
     if (errorAdvanceTimerRef.current !== null) {
       globalThis.clearTimeout(errorAdvanceTimerRef.current);
       errorAdvanceTimerRef.current = null;
     }
     setIsReady(false);
-    setCurrentIndex((index) => (index + 1) % items.length);
-  }, [items.length]);
+    setCurrentIndex((index) => (index + 1) % playableItems.length);
+  }, [playableItems.length]);
+
+  const rejectNonLandscapeItem = useCallback((itemId: string) => {
+    setIsReady(false);
+    setRejectedItemIds((current) => {
+      if (current.has(itemId)) return current;
+      const next = new Set(current);
+      next.add(itemId);
+      return next;
+    });
+    setCurrentIndex((index) => {
+      const remainingCount = playableItems.length - 1;
+      return remainingCount > 0 && index < remainingCount ? index : 0;
+    });
+  }, [playableItems.length]);
+
+  const confirmLandscapeVideo = useCallback((video: HTMLVideoElement, itemId: string) => {
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) return true;
+    if (isLandscapeMediaDimensions(video.videoWidth, video.videoHeight)) return true;
+    rejectNonLandscapeItem(itemId);
+    return false;
+  }, [rejectNonLandscapeItem]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -29,7 +53,7 @@ export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
     video.muted = true;
     video.volume = 0;
     void video.play().catch(() => undefined);
-  }, [currentIndex]);
+  }, [currentItem?.id]);
 
   useEffect(() => () => {
     if (errorAdvanceTimerRef.current !== null) globalThis.clearTimeout(errorAdvanceTimerRef.current);
@@ -60,24 +84,30 @@ export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
           muted
           autoPlay
           playsInline
-          loop={items.length === 1}
+          loop={playableItems.length === 1}
           preload="auto"
           controlsList="nodownload noplaybackrate noremoteplayback"
           disablePictureInPicture
           disableRemotePlayback
           draggable={false}
           aria-label={currentItem.alt_text}
+          onLoadedMetadata={(event) => {
+            confirmLandscapeVideo(event.currentTarget, currentItem.id);
+          }}
           onCanPlay={(event) => {
+            if (!confirmLandscapeVideo(event.currentTarget, currentItem.id)) return;
             event.currentTarget.muted = true;
             event.currentTarget.volume = 0;
             setIsReady(true);
             void event.currentTarget.play().catch(() => undefined);
           }}
-          onLoadedData={() => setIsReady(true)}
+          onLoadedData={(event) => {
+            if (confirmLandscapeVideo(event.currentTarget, currentItem.id)) setIsReady(true);
+          }}
           onEnded={showNext}
           onError={() => {
             setIsReady(false);
-            if (items.length > 1 && errorAdvanceTimerRef.current === null) {
+            if (playableItems.length > 1 && errorAdvanceTimerRef.current === null) {
               errorAdvanceTimerRef.current = globalThis.setTimeout(showNext, ERROR_ADVANCE_DELAY_MS);
             }
           }}
@@ -89,7 +119,7 @@ export function PortfolioKioskPlayer({ items }: { items: PortfolioItem[] }) {
         />
       </div>
 
-      <p className="sr-only" aria-live="polite">Playing {currentItem.alt_text}, film {currentIndex + 1} of {items.length}.</p>
+      <p className="sr-only" aria-live="polite">Playing {currentItem.alt_text}, film {currentIndex + 1} of {playableItems.length}.</p>
     </main>
   );
 }
