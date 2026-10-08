@@ -6,6 +6,7 @@ import { InvoiceDeleteControl } from "@/components/admin/invoice-delete-control"
 import { PageHeader } from "@/components/admin/page-header";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { getAdminContext, getInvoices } from "@/lib/data/admin";
+import { brisbaneDateInput } from "@/lib/completed-date-filter";
 import { formatCurrency, formatDate, todayDateInput } from "@/lib/format";
 import { invoicePaymentTotals, type InvoiceStatus } from "@/lib/invoice-payments";
 
@@ -31,7 +32,13 @@ export default async function InvoicesPage() {
       <div className="formula-note"><Info size={17} /><p><strong>Suggested cash split:</strong> reserve 25% of every invoice for tax and make 75% available for owner withdrawals. These are planning allocations, not a final tax calculation.</p></div>
       {invoices.length ? <section className="admin-card table-card"><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Invoice</th><th>Client</th><th>Invoice date</th><th>Due</th><th>Status</th><th>Total</th><th>Paid</th><th>Balance</th><th>Suggested split</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
         {invoices.map((invoice: Record<string, unknown>) => {
-          const payments = invoice.payments as { amount_cents: number; paid_at: string }[];
+          const payments = invoice.payments as Array<{
+            id: string;
+            amount_cents: number;
+            paid_at: string;
+            method: string | null;
+            reference: string | null;
+          }>;
           const client = invoice.client as { name?: string } | null;
           const total = Number(invoice.total_cents);
           const { paidCents: paid, balanceCents: balance } = invoicePaymentTotals(total, payments, invoice.status as InvoiceStatus);
@@ -76,7 +83,31 @@ export default async function InvoicesPage() {
                 <label>Invoice date<input name="issue_date" type="date" required defaultValue={invoice.issue_date as string} /></label>
                 <label>Due date<input name="due_date" type="date" defaultValue={String(invoice.due_date ?? "")} /></label>
                 <label className="form-span">Notes<textarea name="notes" rows={3} defaultValue={String(invoice.notes ?? "")} /></label>
-                <p className="form-span invoice-payment-help">Choosing Paid records any remaining balance as received today. Existing payment records are always preserved.</p>
+                {payments.length ? (
+                  <fieldset className="form-span invoice-payment-date-editor">
+                    <legend>Recorded payments</legend>
+                    <p>Correct the received date for any payment without changing its amount.</p>
+                    {payments.map((payment, index) => (
+                      <div className="invoice-payment-date-row" key={payment.id}>
+                        <input type="hidden" name="payment_ids" value={payment.id} />
+                        <span>
+                          <strong>Payment {index + 1} · {formatCurrency(payment.amount_cents)}</strong>
+                          <small>{payment.method?.replaceAll("_", " ") ?? "Payment"}{payment.reference ? ` · ${payment.reference}` : ""}</small>
+                        </span>
+                        <label>
+                          Date received
+                          <input name="payment_paid_at" type="date" required defaultValue={brisbaneDateInput(payment.paid_at)} />
+                        </label>
+                      </div>
+                    ))}
+                  </fieldset>
+                ) : null}
+                <label>
+                  New balance payment date
+                  <input name="settlement_paid_at" type="date" defaultValue={todayDateInput()} />
+                  <small>Used only when Paid records a remaining balance.</small>
+                </label>
+                <p className="form-span invoice-payment-help">Choosing Paid records any remaining balance on the selected payment date. Existing payment amounts are always preserved.</p>
                 <SubmitButton pendingLabel="Saving…">Save invoice</SubmitButton>
               </ActionPopover>
               <InvoiceDeleteControl invoiceId={invoice.id as string} invoiceNumber={invoice.invoice_number as string} />

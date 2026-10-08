@@ -43,9 +43,9 @@ describe("TabletPipelineKiosk", () => {
           { id: "done", key: "posted_done", label: "Posted / Done", color: "#597a62", position: 2, is_open: false },
         ]}
         initialTasks={[
-          { id: "task-1", title: "First asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 1, updated_at: "2026-08-25T00:00:00.000Z" },
-          { id: "task-2", title: "Second asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 2, updated_at: "2026-08-25T00:00:00.000Z" },
-          { id: "task-3", title: "Complete asset", job_id: "job-2", status_id: "done", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 3, updated_at: "2026-08-25T00:00:00.000Z" },
+          { id: "task-1", title: "First asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 1, completed_at: null, updated_at: "2026-08-25T00:00:00.000Z" },
+          { id: "task-2", title: "Second asset", job_id: "job-1", status_id: "open", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 2, completed_at: null, updated_at: "2026-08-25T00:00:00.000Z" },
+          { id: "task-3", title: "Complete asset", job_id: "job-2", status_id: "done", asset_type: "Asset", hours: 1, due_date: null, due_time: null, priority: "normal", description: null, position: 3, completed_at: "2026-08-24T00:00:00.000Z", updated_at: "2026-08-25T00:00:00.000Z" },
         ]}
         initialView="pipeline"
         pendingRequestCount={0}

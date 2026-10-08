@@ -10,12 +10,25 @@ import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admi
 import { JobExportDialog } from "@/components/admin/job-export-dialog";
 import { JobSearchField } from "@/components/admin/job-search-field";
 import { SubmitButton } from "@/components/admin/submit-button";
+import { defaultCompletedDateRange, isDateInCompletedRange } from "@/lib/completed-date-filter";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { changeWorkflowStatus, getGroupSelectionState, sortWorkflowStatuses } from "@/lib/status-workflow";
 import type { InvoiceOption, JobRecord, JobSearchOption, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
 
 type WorkflowStatus = JobStatus | TaskStatus;
 type WorkflowRecord = JobRecord | PipelineTask;
+
+function isCompletedStatus(status: WorkflowStatus) {
+  return ("is_closed" in status && status.is_closed)
+    || ("is_open" in status && !status.is_open)
+    || status.key === "posted_done";
+}
+
+function completionTimestamp(kind: "jobs" | "tasks", record: WorkflowRecord) {
+  return kind === "jobs"
+    ? (record as JobRecord).delivered_at ?? record.updated_at
+    : (record as PipelineTask).completed_at ?? record.updated_at;
+}
 
 type StatusGroupedTableProps =
   | { kind: "jobs"; statuses: JobStatus[]; records: JobRecord[]; clients: SelectOption[]; invoices: InvoiceOption[] }
@@ -205,12 +218,23 @@ function StatusGroup({
   statuses: WorkflowStatus[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-group-${status.id}` });
-  const recordIds = records.map((record) => record.id);
+  const [completedRange, setCompletedRange] = useState(defaultCompletedDateRange);
+  const completedFrom = completedRange.from;
+  const completedTo = completedRange.to;
+  const completedStatus = isCompletedStatus(status);
+  const visibleRecords = completedStatus
+    ? records.filter((record) => isDateInCompletedRange(
+      completionTimestamp(kind, record),
+      completedFrom,
+      completedTo,
+    ))
+    : records;
+  const recordIds = visibleRecords.map((record) => record.id);
   const selection = getGroupSelectionState(recordIds, selectedIds);
   const headingId = `${kind}-status-${status.id}`;
   return (
     <section ref={setNodeRef} className={`status-table-group ${isOver ? "is-over" : ""}`} aria-labelledby={headingId}>
-      <header className="status-table-group-header">
+      <header className={`status-table-group-header ${completedStatus ? "has-date-filter" : ""}`}>
         <SelectionCheckbox
           checked={selection.allSelected}
           indeterminate={selection.partiallySelected}
@@ -218,15 +242,50 @@ function StatusGroup({
           onChange={() => onToggleGroup(recordIds, selection.allSelected)}
         />
         <span className="status-dot" style={{ background: status.color }} />
-        <div><h2 id={headingId}>{status.label}</h2><p>{records.length} {records.length === 1 ? kind.slice(0, -1) : kind}{selection.selectedCount ? ` · ${selection.selectedCount} selected` : ""}</p></div>
+        <div>
+          <h2 id={headingId}>{status.label}</h2>
+          <p>
+            {completedStatus && visibleRecords.length !== records.length ? `${visibleRecords.length} of ` : ""}
+            {records.length} {records.length === 1 ? kind.slice(0, -1) : kind}
+            {selection.selectedCount ? ` · ${selection.selectedCount} selected` : ""}
+          </p>
+        </div>
+        {completedStatus ? (
+          <div className="status-completed-range" aria-label={`${status.label} completion date range`}>
+            <label>
+              <span>From</span>
+              <input
+                type="date"
+                value={completedFrom}
+                max={completedTo || undefined}
+                onChange={(event) => setCompletedRange((current) => ({ ...current, from: event.target.value }))}
+              />
+            </label>
+            <label>
+              <span>To</span>
+              <input
+                type="date"
+                value={completedTo}
+                min={completedFrom || undefined}
+                onChange={(event) => setCompletedRange((current) => ({ ...current, to: event.target.value }))}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setCompletedRange(defaultCompletedDateRange())}
+            >
+              Last 3 months
+            </button>
+          </div>
+        ) : null}
         <b>{String(status.position).padStart(2, "0")}</b>
       </header>
-      {records.length ? (
+      {visibleRecords.length ? (
         <div className="admin-table-wrap">
           <table className={`admin-table status-record-table ${kind === "jobs" ? "jobs-table" : "tasks-table"}`}>
             <thead><TableHeading kind={kind} /></thead>
             <tbody>
-              {records.map((record) => (
+              {visibleRecords.map((record) => (
                 <DraggableRow
                   key={record.id}
                   id={record.id}
@@ -243,7 +302,13 @@ function StatusGroup({
             </tbody>
           </table>
         </div>
-      ) : <p className="status-group-empty">Drop {kind === "jobs" ? "a job" : "an asset"} here.</p>}
+      ) : (
+        <p className="status-group-empty">
+          {completedStatus && records.length
+            ? `No completed ${kind} fall within this date range.`
+            : `Drop ${kind === "jobs" ? "a job" : "an asset"} here.`}
+        </p>
+      )}
     </section>
   );
 }
@@ -326,9 +391,25 @@ export function StatusGroupedTable(props: StatusGroupedTableProps) {
     const previousRecords = records;
     const previousSelection = selectedIds;
     const movedTitles = records.filter((record) => movedIds.has(record.id)).map((record) => record.title);
+    const movedAt = new Date().toISOString();
+    const movingToCompleted = isCompletedStatus(destination);
     setMessage("");
     setSavingIds(new Set(recordIds));
-    setRecords((current) => changeWorkflowStatus(current, recordIds, statusId));
+    setRecords((current) => changeWorkflowStatus(current, recordIds, statusId).map((record) => {
+      if (!movedIds.has(record.id)) return record;
+      if (kind === "jobs") {
+        const job = record as JobRecord;
+        return {
+          ...job,
+          delivered_at: movingToCompleted ? job.delivered_at ?? movedAt : null,
+        };
+      }
+      const task = record as PipelineTask;
+      return {
+        ...task,
+        completed_at: movingToCompleted ? task.completed_at ?? movedAt : null,
+      };
+    }));
     setSelectedIds((current) => new Set([...current].filter((id) => !movedIds.has(id))));
     try {
       if (kind === "jobs") await bulkUpdateJobStatus(recordIds, statusId);

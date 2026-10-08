@@ -56,13 +56,17 @@ const job: JobRecord = {
   delivery_url: "https://files.example.com/campaign-shoot",
   description: null,
   notes: null,
+  delivered_at: null,
   updated_at: "2026-08-19T00:00:00.000Z",
   client: null,
   status: statuses[0],
   related_invoices: [],
 };
 
-const taskStatuses: TaskStatus[] = [{ id: "66666666-6666-4666-8666-666666666666", key: "not_started", label: "Not Started", color: "#777773", position: 10, is_open: true }];
+const taskStatuses: TaskStatus[] = [
+  { id: "66666666-6666-4666-8666-666666666666", key: "not_started", label: "Not Started", color: "#777773", position: 10, is_open: true },
+  { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", key: "posted_done", label: "Posted / Done", color: "#397253", position: 20, is_open: false },
+];
 const task: PipelineTask = {
   id: "77777777-7777-4777-8777-777777777777",
   title: "Social cut",
@@ -75,6 +79,7 @@ const task: PipelineTask = {
   priority: "normal",
   description: null,
   position: 1000,
+  completed_at: null,
   updated_at: "2026-08-19T00:00:00.000Z",
   job: { title: job.title },
 };
@@ -98,6 +103,7 @@ describe("StatusGroupedTable", () => {
     container.remove();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("orders jobs newest to oldest by shoot date within each status and puts undated jobs last", async () => {
@@ -133,6 +139,47 @@ describe("StatusGroupedTable", () => {
     const titles = Array.from(container.querySelectorAll<HTMLTableRowElement>("tbody tr"))
       .map((row) => row.querySelector<HTMLTableCellElement>("td:nth-child(3)")?.textContent?.trim());
     expect(titles).toEqual(["Newest firstNo client", "Newest secondNo client", "Middle taskNo client", "Older taskNo client", "Undated taskNo client"]);
+  });
+
+  it("defaults completed jobs to the last three months and supports changing the range", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T02:00:00.000Z"));
+    const completedJobs: JobRecord[] = [
+      { ...job, id: "88888888-8888-4888-8888-888888888888", title: "Recent delivery", status_id: statuses[1].id, status: statuses[1], delivered_at: "2026-09-01T02:00:00.000Z" },
+      { ...job, id: "99999999-9999-4999-8999-999999999999", title: "Older delivery", status_id: statuses[1].id, status: statuses[1], delivered_at: "2026-06-01T02:00:00.000Z" },
+    ];
+
+    await act(async () => {
+      root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={completedJobs} clients={[]} invoices={invoices} />);
+    });
+
+    const range = container.querySelectorAll<HTMLInputElement>(".status-completed-range input[type='date']");
+    expect([...range].map((input) => input.value)).toEqual(["2026-07-08", "2026-10-08"]);
+    expect(container.textContent).toContain("Recent delivery");
+    expect(container.textContent).not.toContain("Older delivery");
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(range[0], "2026-05-01");
+      range[0].dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.textContent).toContain("Older delivery");
+  });
+
+  it("filters completed assets using their recorded completion dates", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T02:00:00.000Z"));
+    const completedTasks: PipelineTask[] = [
+      { ...task, id: "88888888-8888-4888-8888-888888888888", title: "Recent asset", status_id: taskStatuses[1].id, completed_at: "2026-08-10T02:00:00.000Z" },
+      { ...task, id: "99999999-9999-4999-8999-999999999999", title: "Older asset", status_id: taskStatuses[1].id, completed_at: "2026-04-10T02:00:00.000Z" },
+    ];
+
+    await act(async () => {
+      root.render(<StatusGroupedTable kind="tasks" statuses={taskStatuses} records={completedTasks} jobs={[]} />);
+    });
+
+    expect(container.textContent).toContain("Recent asset");
+    expect(container.textContent).not.toContain("Older asset");
+    expect(container.textContent).toContain("1 of 2 tasks");
   });
 
   it("selects a complete status group and applies one bulk status change", async () => {

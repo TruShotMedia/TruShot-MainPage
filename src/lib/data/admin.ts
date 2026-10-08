@@ -120,7 +120,7 @@ export async function getJobs() {
   if (!context) return [];
   const [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
-    context.supabase.from("website-jobs").select("id,location,delivery_url,description,notes,shoot_time,due_time,updated_at").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,location,delivery_url,description,notes,shoot_time,due_time,delivered_at,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-job-statuses").select("id,key,label,color,position,is_closed").eq("is_active", true).order("position"),
     context.supabase
@@ -175,7 +175,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [], jobOptions: [] };
   const [statusesResult, tasksResult, jobsResult, clientsResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id,job_number,shoot_date,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
@@ -227,7 +227,7 @@ export async function getTabletKioskData(): Promise<{
       .order("position"),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("position"),

@@ -7,6 +7,7 @@ import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { pairInvoicePaymentDates, paymentDateToTimestamp } from "@/lib/invoice-payment-dates";
 import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { runNotionSync } from "@/lib/notion/sync";
@@ -1042,6 +1043,9 @@ export async function createInvoice(formData: FormData) {
 }
 
 export async function updateInvoice(formData: FormData) {
+  const paymentIds = z.array(z.string().uuid()).max(100).parse(formData.getAll("payment_ids"));
+  const paymentDates = z.array(calendarDateSchema).max(100).parse(formData.getAll("payment_paid_at"));
+  const paymentDateUpdates = pairInvoicePaymentDates(paymentIds, paymentDates);
   const input = z.object({
     id: z.string().uuid(),
     invoice_number: z.string().trim().min(1).max(60),
@@ -1052,6 +1056,7 @@ export async function updateInvoice(formData: FormData) {
     due_date: z.string().or(z.literal("")),
     status: z.enum(["draft", "sent", "viewed", "part_paid", "paid", "overdue", "void"]),
     notes: z.string().trim().max(2_000),
+    settlement_paid_at: z.union([calendarDateSchema, z.literal("")]),
   }).parse(Object.fromEntries(formData));
   if (input.due_date && input.due_date < input.issue_date) throw new Error("Due date cannot be before the invoice date.");
   const context = await getAdminContext();
@@ -1064,13 +1069,28 @@ export async function updateInvoice(formData: FormData) {
 
   const { data: payments, error: paymentsError } = await context.supabase
     .from("website-payments")
-    .select("amount_cents")
+    .select("id,amount_cents,paid_at")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .eq("invoice_id", input.id);
   if (paymentsError) throw new Error(paymentsError.message);
+  const currentPaymentIds = new Set((payments ?? []).map((payment) => payment.id));
+  if (
+    paymentDateUpdates.length !== currentPaymentIds.size
+    || paymentDateUpdates.some((update) => !currentPaymentIds.has(update.paymentId))
+  ) {
+    throw new Error("The invoice payment list changed. Refresh the page before saving.");
+  }
   const paidCents = (payments ?? []).reduce((sum, payment) => sum + Number(payment.amount_cents), 0);
   if (totalCents < paidCents) throw new Error("Invoice total cannot be lower than payments already received.");
   const resolvedStatus = invoiceStatusAfterEdit(input.status, totalCents, paidCents);
+  const remainingBalanceCents = Math.max(0, totalCents - paidCents);
+  const shouldRecordRemainingBalance = resolvedStatus === "paid" && remainingBalanceCents > 0;
+  if (shouldRecordRemainingBalance && !input.settlement_paid_at) {
+    throw new Error("Choose the date the remaining invoice balance was received.");
+  }
+  const databaseStatus = shouldRecordRemainingBalance
+    ? (paidCents > 0 ? "part_paid" : "sent")
+    : resolvedStatus;
 
   const { data, error } = await context.supabase
     .from("website-invoices")
@@ -1082,7 +1102,7 @@ export async function updateInvoice(formData: FormData) {
       gst_cents: gstCents,
       issue_date: input.issue_date,
       due_date: input.due_date || null,
-      status: resolvedStatus,
+      status: databaseStatus,
       notes: input.notes || null,
     })
     .eq("id", input.id)
@@ -1091,6 +1111,48 @@ export async function updateInvoice(formData: FormData) {
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "Invoice could not be updated.");
+
+  for (const paymentUpdate of paymentDateUpdates) {
+    const { data: updatedPayment, error: paymentUpdateError } = await context.supabase
+      .from("website-payments")
+      .update({ paid_at: paymentUpdate.paidAt })
+      .eq("id", paymentUpdate.paymentId)
+      .eq("invoice_id", input.id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .select("id")
+      .single();
+    if (paymentUpdateError || !updatedPayment) {
+      throw new Error(paymentUpdateError?.message ?? "A payment date could not be updated.");
+    }
+  }
+
+  if (shouldRecordRemainingBalance) {
+    const { data: settlement, error: settlementError } = await context.supabase
+      .from("website-payments")
+      .insert({
+        workspace_id: TRUSHOT_WORKSPACE_ID,
+        invoice_id: input.id,
+        amount_cents: remainingBalanceCents,
+        paid_at: paymentDateToTimestamp(input.settlement_paid_at),
+        method: "status_settlement",
+        reference: "Automatically recorded when invoice was marked paid",
+      })
+      .select("id")
+      .single();
+    if (settlementError || !settlement) {
+      throw new Error(settlementError?.message ?? "The remaining invoice balance could not be recorded.");
+    }
+
+    const { data: settledInvoice, error: settledInvoiceError } = await context.supabase
+      .from("website-invoices")
+      .select("status")
+      .eq("id", input.id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .single();
+    if (settledInvoiceError || settledInvoice?.status !== "paid") {
+      throw new Error(settledInvoiceError?.message ?? "The payment was recorded, but the invoice did not close as paid.");
+    }
+  }
 
   revalidateInvoicePages();
 }
@@ -1134,7 +1196,7 @@ export async function recordInvoicePayment(formData: FormData) {
     workspace_id: TRUSHOT_WORKSPACE_ID,
     invoice_id: input.invoice_id,
     amount_cents: amountCents,
-    paid_at: `${input.paid_at}T12:00:00+10:00`,
+    paid_at: paymentDateToTimestamp(input.paid_at),
     method: input.method,
     reference: input.reference || null,
   });

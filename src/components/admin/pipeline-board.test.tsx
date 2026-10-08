@@ -33,6 +33,7 @@ const readyTask: PipelineTask = {
   priority: "high",
   description: null,
   position: 10,
+  completed_at: null,
   updated_at: "2026-08-25T00:00:00.000Z",
   job: { title: "Launch campaign", client: { name: "Ravish Media" } },
 };

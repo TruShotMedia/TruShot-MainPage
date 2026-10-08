@@ -723,11 +723,17 @@ img { max-width: 100%; }
 .status-table-group { width: 100%; min-width: 0; max-width: 100%; overflow: visible; border: 1px solid #deddd6; border-radius: 15px; background: #faf9f5; transition: border-color 150ms, box-shadow 150ms; }
 .status-table-group.is-over { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,94,65,.09); }
 .status-table-group-header { display: grid; grid-template-columns: 18px 10px minmax(0, 1fr) auto; min-height: 67px; align-items: center; gap: 11px; padding: 13px 17px; border-bottom: 1px solid #e3e2dc; }
+.status-table-group-header.has-date-filter { grid-template-columns: 18px 10px minmax(150px, 1fr) auto auto; }
 .status-table-group-header input, .selection-cell input { width: 16px; height: 16px; margin: 0; accent-color: var(--green); cursor: pointer; }
 .status-table-group-header .status-dot { width: 10px; height: 10px; margin: 0; }
 .status-table-group-header h2 { margin: 0; font-size: 17px; letter-spacing: -.025em; }
 .status-table-group-header p { margin: 4px 0 0; color: #929790; font-size: 9px; }
 .status-table-group-header > b { color: #bdc0bb; font-family: ui-monospace, monospace; font-size: 10px; }
+.status-completed-range { display: flex; align-items: flex-end; gap: 7px; }
+.status-completed-range label { display: grid; gap: 3px; color: #777d76; font-size: 7px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.status-table-group-header .status-completed-range input { width: 120px; height: 32px; border: 1px solid #d9dad4; border-radius: 8px; background: white; padding: 0 8px; color: #343934; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; }
+.status-completed-range button { min-height: 32px; border: 1px solid #d9dad4; border-radius: 8px; background: #f1f3ef; padding: 0 10px; color: var(--green); font-size: 8px; font-weight: 850; cursor: pointer; }
+.status-completed-range button:hover { border-color: #b9cbbf; background: #eaf0eb; }
 .status-record-table tr { transition: background 140ms, opacity 140ms; }
 .status-record-table tbody tr.is-selected { background: #edf3ef; }
 .status-record-table tbody tr.is-dragging { position: relative; z-index: 5; background: white; box-shadow: 0 12px 35px rgba(21,29,24,.16); opacity: .58; }
@@ -802,6 +808,14 @@ img { max-width: 100%; }
 .invoice-payment-summary { display: flex; align-items: center; justify-content: space-between; border: 1px solid #d4ded6; border-radius: 12px; background: #f0f5f2; padding: 13px 15px; color: #667068; font-size: 10px; font-weight: 700; }
 .invoice-payment-summary strong { color: var(--green); font-size: 18px; }
 .invoice-payment-help { margin: -2px 0 4px; color: #7d857e; font-size: 9px; font-weight: 600; line-height: 1.55; }
+.invoice-payment-date-editor { display: grid; gap: 9px; min-width: 0; margin: 2px 0; border: 1px solid #d6ddd7; border-radius: 13px; background: #f4f6f3; padding: 12px; }
+.invoice-payment-date-editor legend { padding: 0 6px; color: var(--green); font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.invoice-payment-date-editor > p { margin: -2px 0 2px; color: #7d857e; font-size: 9px; font-weight: 600; }
+.invoice-payment-date-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; align-items: end; gap: 12px; border: 1px solid #dfe3de; border-radius: 10px; background: white; padding: 10px; }
+.invoice-payment-date-row > span { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.invoice-payment-date-row > span strong { color: #364039; font-size: 10px; }
+.invoice-payment-date-row > span small { overflow: hidden; margin: 0; color: #8a908a; font-size: 8px; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.invoice-payment-date-row label { gap: 4px; font-size: 8px; }
 .invoice-delete-button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #e2c6c0; border-radius: 9px; background: #fff9f7; padding: 0 10px; color: #984a3f; font-size: 9px; font-weight: 850; cursor: pointer; transition: background 150ms, border-color 150ms; }
 .invoice-delete-button:hover { border-color: #c98f84; background: #f9e9e5; }
 .invoice-delete-layer { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 20px; }
@@ -1573,8 +1587,11 @@ img { max-width: 100%; }
   .invoice-search-results { right: 0; left: auto; width: min(390px, calc(100vw - 40px)); min-width: 0; }
   .job-invoice-add-row { grid-template-columns: 1fr; }
   .job-invoice-add-row .admin-secondary-button { width: 100%; }
-  .status-table-group-header { grid-template-columns: 18px 10px minmax(0, 1fr); }
+  .invoice-payment-date-row { grid-template-columns: 1fr; }
+  .status-table-group-header, .status-table-group-header.has-date-filter { grid-template-columns: 18px 10px minmax(0, 1fr); }
   .status-table-group-header > b { display: none; }
+  .status-completed-range { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; width: 100%; padding-top: 2px; }
+  .status-table-group-header .status-completed-range input { width: 100%; min-width: 0; }
   .pipeline-board, .task-list, .loading-metrics { grid-template-columns: 1fr; }
   .pipeline-column { min-height: 280px; }
   .record-actions { grid-template-columns: 1fr; }

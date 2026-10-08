@@ -143,6 +143,7 @@ export type JobRecord = {
   delivery_url: string | null;
   description: string | null;
   notes: string | null;
+  delivered_at: string | null;
   updated_at: string;
   client: { id: string; name: string } | null;
   status: JobStatus | null;
@@ -161,6 +162,7 @@ export type PipelineTask = {
   priority: string;
   description: string | null;
   position: number;
+  completed_at: string | null;
   updated_at: string;
   job?: { title: string; shoot_date?: string | null; client?: { name: string } | null } | null;
 };
