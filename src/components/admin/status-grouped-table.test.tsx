@@ -100,6 +100,23 @@ describe("StatusGroupedTable", () => {
     vi.restoreAllMocks();
   });
 
+  it("orders jobs newest to oldest by shoot date within each status and puts undated jobs last", async () => {
+    const records: JobRecord[] = [
+      { ...job, id: "88888888-8888-4888-8888-888888888888", title: "Older shoot", shoot_date: "2026-09-18" },
+      { ...job, id: "99999999-9999-4999-8999-999999999999", title: "No shoot date", shoot_date: null },
+      { ...job, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", title: "Newest shoot", shoot_date: "2026-10-07" },
+      { ...job, id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", title: "Middle shoot", shoot_date: "2026-10-01" },
+    ];
+
+    await act(async () => {
+      root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={records} clients={[]} invoices={invoices} />);
+    });
+
+    const titles = Array.from(container.querySelectorAll<HTMLTableRowElement>("tbody tr"))
+      .map((row) => row.querySelector<HTMLTableCellElement>("td:nth-child(3)")?.textContent?.trim());
+    expect(titles).toEqual(["Newest shootNo client", "Middle shootNo client", "Older shootNo client", "No shoot dateNo client"]);
+  });
+
   it("selects a complete status group and applies one bulk status change", async () => {
     await act(async () => {
       root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={[job]} clients={[]} invoices={invoices} />);

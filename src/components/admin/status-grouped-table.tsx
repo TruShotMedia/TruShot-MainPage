@@ -250,12 +250,23 @@ function StatusGroup({
 
 function sortRecords(kind: "jobs" | "tasks", records: WorkflowRecord[]) {
   return [...records].sort((left, right) => {
+    if (kind === "jobs") {
+      const leftShootDate = (left as JobRecord).shoot_date;
+      const rightShootDate = (right as JobRecord).shoot_date;
+      if (leftShootDate !== rightShootDate) {
+        if (!leftShootDate) return 1;
+        if (!rightShootDate) return -1;
+        return rightShootDate.localeCompare(leftShootDate);
+      }
+      return left.title.localeCompare(right.title);
+    }
+
     if (kind === "tasks") {
       const positionDifference = Number((left as PipelineTask).position) - Number((right as PipelineTask).position);
       if (positionDifference) return positionDifference;
     }
-    const leftDate = kind === "jobs" ? (left as JobRecord).due_date : (left as PipelineTask).due_date;
-    const rightDate = kind === "jobs" ? (right as JobRecord).due_date : (right as PipelineTask).due_date;
+    const leftDate = (left as PipelineTask).due_date;
+    const rightDate = (right as PipelineTask).due_date;
     return (leftDate ?? "9999-12-31").localeCompare(rightDate ?? "9999-12-31") || left.title.localeCompare(right.title);
   });
 }
