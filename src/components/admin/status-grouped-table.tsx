@@ -262,6 +262,13 @@ function sortRecords(kind: "jobs" | "tasks", records: WorkflowRecord[]) {
     }
 
     if (kind === "tasks") {
+      const leftShootDate = (left as PipelineTask).job?.shoot_date ?? null;
+      const rightShootDate = (right as PipelineTask).job?.shoot_date ?? null;
+      if (leftShootDate !== rightShootDate) {
+        if (!leftShootDate) return 1;
+        if (!rightShootDate) return -1;
+        return rightShootDate.localeCompare(leftShootDate);
+      }
       const positionDifference = Number((left as PipelineTask).position) - Number((right as PipelineTask).position);
       if (positionDifference) return positionDifference;
     }

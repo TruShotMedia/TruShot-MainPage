@@ -176,7 +176,7 @@ export async function getPipeline() {
   const [statusesResult, tasksResult, jobsResult, clientsResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
     context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,updated_at").is("archived_at", null).order("position"),
-    context.supabase.from("website-jobs").select("id,title,client_id,job_number,due_date").is("archived_at", null),
+    context.supabase.from("website-jobs").select("id,title,client_id,job_number,shoot_date,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
   ]);
   const queryError = [statusesResult, tasksResult, jobsResult, clientsResult].find((result) => result.error)?.error;

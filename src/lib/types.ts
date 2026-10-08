@@ -162,7 +162,7 @@ export type PipelineTask = {
   description: string | null;
   position: number;
   updated_at: string;
-  job?: { title: string; client?: { name: string } | null } | null;
+  job?: { title: string; shoot_date?: string | null; client?: { name: string } | null } | null;
 };
 
 export type CalendarJob = {

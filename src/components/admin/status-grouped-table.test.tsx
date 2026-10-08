@@ -117,6 +117,24 @@ describe("StatusGroupedTable", () => {
     expect(titles).toEqual(["Newest shootNo client", "Middle shootNo client", "Older shootNo client", "No shoot dateNo client"]);
   });
 
+  it("orders tasks newest to oldest by their job shoot date within each status and puts undated tasks last", async () => {
+    const records: PipelineTask[] = [
+      { ...task, id: "88888888-8888-4888-8888-888888888888", title: "Older task", position: 10, job: { title: "Older job", shoot_date: "2026-09-18" } },
+      { ...task, id: "99999999-9999-4999-8999-999999999999", title: "Undated task", position: 1, job: { title: "Undated job", shoot_date: null } },
+      { ...task, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", title: "Newest second", position: 20, job: { title: "Newest job", shoot_date: "2026-10-07" } },
+      { ...task, id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", title: "Middle task", position: 5, job: { title: "Middle job", shoot_date: "2026-10-01" } },
+      { ...task, id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", title: "Newest first", position: 10, job: { title: "Newest job", shoot_date: "2026-10-07" } },
+    ];
+
+    await act(async () => {
+      root.render(<StatusGroupedTable kind="tasks" statuses={taskStatuses} records={records} jobs={[]} />);
+    });
+
+    const titles = Array.from(container.querySelectorAll<HTMLTableRowElement>("tbody tr"))
+      .map((row) => row.querySelector<HTMLTableCellElement>("td:nth-child(3)")?.textContent?.trim());
+    expect(titles).toEqual(["Newest firstNo client", "Newest secondNo client", "Middle taskNo client", "Older taskNo client", "Undated taskNo client"]);
+  });
+
   it("selects a complete status group and applies one bulk status change", async () => {
     await act(async () => {
       root.render(<StatusGroupedTable kind="jobs" statuses={statuses} records={[job]} clients={[]} invoices={invoices} />);
