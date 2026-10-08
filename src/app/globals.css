@@ -715,7 +715,7 @@ img { max-width: 100%; }
 .job-invoice-relation small { overflow: hidden; margin: 0 !important; color: #8a908a !important; font-size: 8px !important; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
 .job-invoice-relation > button { display: grid; width: 25px; min-height: 25px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 7px; background: #f0f2ef; padding: 0; color: #7b827c; cursor: pointer; }
 .job-invoice-relation > button:hover { background: #e5ece7; color: var(--green); }
-.job-invoice-add-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin-top: 10px; }
+.job-invoice-add-row { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; margin-top: 10px; }
 .job-invoice-add-row .admin-secondary-button { grid-column: auto !important; margin: 0; }
 .job-invoice-relations > small { display: block; margin-top: 9px; color: #8b908a; font-size: 8px; font-weight: 600; line-height: 1.4; text-transform: none; }
 .status-selection-clear { border: 0; background: transparent; padding: 7px; color: #777d76; font-size: 9px; font-weight: 800; cursor: pointer; }

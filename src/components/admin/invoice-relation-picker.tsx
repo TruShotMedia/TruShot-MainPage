@@ -118,7 +118,6 @@ export function JobInvoiceRelationsField({
 }) {
   const fieldsetRef = useRef<HTMLFieldSetElement>(null);
   const [selectedIds, setSelectedIds] = useState(() => relations.map((relation) => relation.id));
-  const [candidateId, setCandidateId] = useState("");
   const selectedInvoices = selectedIds.flatMap((invoiceId) => {
     const invoice = invoices.find((option) => option.id === invoiceId);
     return invoice ? [invoice] : [];
@@ -129,17 +128,10 @@ export function JobInvoiceRelationsField({
     if (!form) return;
     const resetRelations = () => {
       setSelectedIds(relations.map((relation) => relation.id));
-      setCandidateId("");
     };
     form.addEventListener("reset", resetRelations);
     return () => form.removeEventListener("reset", resetRelations);
   }, [relations]);
-
-  function addCandidate() {
-    if (!candidateId || selectedIds.includes(candidateId)) return;
-    setSelectedIds((current) => [...current, candidateId]);
-    setCandidateId("");
-  }
 
   return (
     <fieldset ref={fieldsetRef} className="job-invoice-relations form-span">
@@ -165,16 +157,18 @@ export function JobInvoiceRelationsField({
       </div>
       <div className="job-invoice-add-row">
         <InvoiceSearchPicker
-          key={candidateId || "job-invoice-empty"}
+          key={selectedIds.join("|") || "job-invoice-empty"}
           invoices={invoices}
-          selectedId={candidateId}
-          onSelect={setCandidateId}
+          selectedId=""
+          onSelect={(invoiceId) => {
+            if (!invoiceId) return;
+            setSelectedIds((current) => current.includes(invoiceId) ? current : [...current, invoiceId]);
+          }}
           excludedIds={selectedIds}
           label="Search invoice to relate to this job"
         />
-        <button type="button" className="admin-secondary-button" disabled={!candidateId} onClick={addCandidate}>Add invoice</button>
       </div>
-      <small>Invoice value will be allocated from the hours across every related job.</small>
+      <small>Selecting an invoice adds it immediately. Its value will be allocated from the hours across every related job.</small>
     </fieldset>
   );
 }

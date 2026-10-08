@@ -183,6 +183,17 @@ async function syncJobInvoiceRelations(context: AdminContext, jobId: string, inv
       throw new Error(removeError?.message ?? "The invoice relation could not be removed.");
     }
   }
+
+  const { data: persisted, error: verifyError } = await context.supabase
+    .from("website-invoice-job-allocations")
+    .select("invoice_id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("job_id", jobId);
+  if (verifyError) throw new Error("The saved invoice relations could not be verified.");
+  const persistedIds = new Set((persisted ?? []).map((relation) => relation.invoice_id));
+  if (persistedIds.size !== invoiceIds.length || invoiceIds.some((invoiceId) => !persistedIds.has(invoiceId))) {
+    throw new Error("The invoice relation was not saved. Refresh the job and try again.");
+  }
 }
 
 export async function signIn(formData: FormData) {
