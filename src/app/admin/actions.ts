@@ -7,6 +7,7 @@ import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
+import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
@@ -30,6 +31,16 @@ const optionalHttpUrlSchema = z.string().trim().max(2_048).refine((value) => {
     return false;
   }
 }, "Enter a complete link beginning with http:// or https://.");
+
+function revalidateInvoicePages() {
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/finance/reports");
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/overview");
+}
 
 async function getNextTaskPosition(context: AdminContext, statusId: string) {
   const { data, error } = await context.supabase
@@ -994,7 +1005,7 @@ export async function createInvoice(formData: FormData) {
     gst_dollars: z.coerce.number().min(0),
     issue_date: z.string().min(1),
     due_date: z.string().or(z.literal("")),
-    status: z.enum(["draft", "sent", "viewed", "part_paid", "paid", "overdue", "void"]),
+    status: z.enum(["draft", "sent", "viewed", "paid", "overdue", "void"]),
   }).parse(Object.fromEntries(formData));
   if (input.due_date && input.due_date < input.issue_date) throw new Error("Due date cannot be before the invoice date.");
   const context = await getAdminContext();
@@ -1016,11 +1027,7 @@ export async function createInvoice(formData: FormData) {
     total_cents: totalCents,
   });
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/invoices");
-  revalidatePath("/admin/finance");
-  revalidatePath("/admin/jobs");
-  revalidatePath("/admin/clients");
-  revalidatePath("/admin/overview");
+  revalidateInvoicePages();
 }
 
 export async function updateInvoice(formData: FormData) {
@@ -1052,6 +1059,7 @@ export async function updateInvoice(formData: FormData) {
   if (paymentsError) throw new Error(paymentsError.message);
   const paidCents = (payments ?? []).reduce((sum, payment) => sum + Number(payment.amount_cents), 0);
   if (totalCents < paidCents) throw new Error("Invoice total cannot be lower than payments already received.");
+  const resolvedStatus = invoiceStatusAfterEdit(input.status, totalCents, paidCents);
 
   const { data, error } = await context.supabase
     .from("website-invoices")
@@ -1063,7 +1071,7 @@ export async function updateInvoice(formData: FormData) {
       gst_cents: gstCents,
       issue_date: input.issue_date,
       due_date: input.due_date || null,
-      status: input.status,
+      status: resolvedStatus,
       notes: input.notes || null,
     })
     .eq("id", input.id)
@@ -1073,11 +1081,74 @@ export async function updateInvoice(formData: FormData) {
     .single();
   if (error || !data) throw new Error(error?.message ?? "Invoice could not be updated.");
 
-  revalidatePath("/admin/invoices");
-  revalidatePath("/admin/finance");
-  revalidatePath("/admin/jobs");
-  revalidatePath("/admin/clients");
-  revalidatePath("/admin/overview");
+  revalidateInvoicePages();
+}
+
+export async function recordInvoicePayment(formData: FormData) {
+  const input = z.object({
+    invoice_id: z.string().uuid(),
+    amount_dollars: z.coerce.number().positive().max(100_000_000),
+    paid_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    method: z.enum(["bank_transfer", "cash", "card", "other"]),
+    reference: z.string().trim().max(160),
+  }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data: invoice, error: invoiceError } = await context.supabase
+    .from("website-invoices")
+    .select("id,total_cents,status")
+    .eq("id", input.invoice_id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .single();
+  if (invoiceError || !invoice) throw new Error("That invoice is no longer available.");
+  if (invoice.status === "void") throw new Error("A payment cannot be recorded against a void invoice.");
+
+  const { data: payments, error: paymentsError } = await context.supabase
+    .from("website-payments")
+    .select("amount_cents")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("invoice_id", input.invoice_id);
+  if (paymentsError) throw new Error(paymentsError.message);
+
+  const paidCents = (payments ?? []).reduce((sum, payment) => sum + Number(payment.amount_cents), 0);
+  const outstandingCents = Number(invoice.total_cents) - paidCents;
+  const amountCents = Math.round(input.amount_dollars * 100);
+  if (!Number.isSafeInteger(amountCents)) throw new Error("Payment amount is too large.");
+  if (outstandingCents <= 0) throw new Error("This invoice has no outstanding balance.");
+  if (amountCents > outstandingCents) throw new Error("Payment cannot be greater than the outstanding balance.");
+
+  const { error } = await context.supabase.from("website-payments").insert({
+    workspace_id: TRUSHOT_WORKSPACE_ID,
+    invoice_id: input.invoice_id,
+    amount_cents: amountCents,
+    paid_at: `${input.paid_at}T12:00:00+10:00`,
+    method: input.method,
+    reference: input.reference || null,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidateInvoicePages();
+}
+
+export async function deleteInvoice(formData: FormData) {
+  const { id } = z.object({ id: z.string().uuid() }).parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) redirect("/admin/login");
+
+  const { data, error } = await context.supabase
+    .from("website-invoices")
+    .delete()
+    .eq("id", id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id,invoice_number")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "That invoice is no longer available.");
+
+  revalidateInvoicePages();
+  return { ok: true, invoiceNumber: data.invoice_number };
 }
 
 export async function createExpense(formData: FormData) {

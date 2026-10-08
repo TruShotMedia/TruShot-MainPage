@@ -794,6 +794,26 @@ img { max-width: 100%; }
 .invoice-split { display: flex; min-width: 145px; flex-direction: column; gap: 5px; }
 .invoice-split span { display: flex; justify-content: space-between; gap: 10px; color: #8a8f87; font-size: 8px; }
 .invoice-split strong { font-size: 9px; }
+.invoice-payment-total { display: flex; min-width: 116px; flex-direction: column; gap: 3px; }
+.invoice-payment-total > strong { color: #2f3731; }
+.invoice-payment-total small { margin: 0; color: #8a9089; font-size: 8px; font-weight: 650; white-space: nowrap; }
+.invoice-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; white-space: nowrap; }
+.invoice-row-actions .admin-secondary-button { min-height: 34px; padding: 0 10px; font-size: 9px; }
+.invoice-payment-summary { display: flex; align-items: center; justify-content: space-between; border: 1px solid #d4ded6; border-radius: 12px; background: #f0f5f2; padding: 13px 15px; color: #667068; font-size: 10px; font-weight: 700; }
+.invoice-payment-summary strong { color: var(--green); font-size: 18px; }
+.invoice-payment-help { margin: -2px 0 4px; color: #7d857e; font-size: 9px; font-weight: 600; line-height: 1.55; }
+.invoice-delete-button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #e2c6c0; border-radius: 9px; background: #fff9f7; padding: 0 10px; color: #984a3f; font-size: 9px; font-weight: 850; cursor: pointer; transition: background 150ms, border-color 150ms; }
+.invoice-delete-button:hover { border-color: #c98f84; background: #f9e9e5; }
+.invoice-delete-layer { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 20px; }
+.invoice-delete-dialog { position: relative; z-index: 1; width: min(440px, calc(100vw - 32px)); border: 1px solid #dedbd3; border-radius: 18px; background: #faf9f5; box-shadow: 0 24px 90px rgba(11,20,14,.3); padding: 30px; white-space: normal; }
+.invoice-delete-dialog .popover-close-button { position: absolute; top: 14px; right: 14px; display: grid; width: 32px; min-height: 32px; place-items: center; border: 1px solid #deddd6; border-radius: 9px; background: #f7f6f1; padding: 0; color: #727770; cursor: pointer; }
+.invoice-delete-dialog .popover-close-button:hover { border-color: #bfc8c1; color: var(--green); }
+.invoice-delete-dialog h3 { margin: 7px 42px 10px 0; color: #171c18; font-size: 25px; letter-spacing: -.04em; line-height: 1.08; }
+.invoice-delete-dialog > p:not(.card-label):not(.popover-error) { margin: 0; color: #737b74; font-size: 12px; line-height: 1.55; }
+.invoice-delete-dialog .popover-error { margin: 14px 0 0; border: 1px solid #efd2ca; border-radius: 9px; background: #fbefeb; padding: 10px 12px; color: #984838; font-size: 10px; font-weight: 700; line-height: 1.45; }
+.invoice-delete-icon { display: grid; width: 42px; height: 42px; margin-bottom: 18px; place-items: center; border-radius: 12px; background: #f5ded8; color: #984a3f; }
+.invoice-delete-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 25px; }
+.invoice-delete-actions form { margin: 0; }
 .tax-panel { border-radius: 16px; background: #101612; padding: 28px; color: white; }
 .tax-heading { display: flex; align-items: flex-start; justify-content: space-between; }
 .tax-heading .card-label { color: #91b5a0; }

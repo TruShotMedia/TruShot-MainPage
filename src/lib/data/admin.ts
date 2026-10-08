@@ -382,7 +382,7 @@ export async function getInvoices() {
   const [{ data: invoices }, { data: clients }, { data: payments }] = await Promise.all([
     context.supabase.from("website-invoices").select("id,client_id,invoice_number,status,issue_date,due_date,subtotal_cents,gst_cents,total_cents,external_url,notes").is("archived_at", null).order("issue_date", { ascending: false }),
     context.supabase.from("website-clients").select("id,name"),
-    context.supabase.from("website-payments").select("id,invoice_id,amount_cents,paid_at"),
+    context.supabase.from("website-payments").select("id,invoice_id,amount_cents,paid_at,method,reference").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
   return (invoices ?? []).map((invoice) => ({
     ...invoice,
