@@ -1,0 +1,13 @@
+.vercel/
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+edited-images/
+output/
+*.log
+*.tsbuildinfo
+.DS_Store
+.env*
+scriptable/TruShot CRM Widget Setup Code.txt
