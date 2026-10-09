@@ -92,8 +92,11 @@ describe("ActionPopover", () => {
     expect(details.open).toBe(true);
     expect(container.querySelector("form")).toBeNull();
     expect(document.body.querySelector(".row-editor-layer form")?.getAttribute("aria-label")).toBe("Edit job");
+    expect(document.body.querySelector(".row-editor-layer form")?.getAttribute("aria-modal")).toBe("true");
+    expect(document.body.style.overflow).toBe("hidden");
     await act(async () => document.body.querySelector<HTMLButtonElement>(".row-editor-backdrop")!.click());
     expect(details.open).toBe(false);
     expect(document.body.querySelector(".row-editor-layer")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
   });
 });

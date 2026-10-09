@@ -105,10 +105,17 @@ export async function getClients() {
     if (!job?.client_id) continue;
     earnedByClient.set(job.client_id, (earnedByClient.get(job.client_id) ?? 0) + Number(metric.value_cents));
   }
+  const packageById = new Map((packages ?? []).map((item) => [item.id, item]));
+  const contactsByClient = new Map<string, NonNullable<typeof contacts>>();
+  for (const contact of contacts ?? []) {
+    const clientContacts = contactsByClient.get(contact.client_id) ?? [];
+    clientContacts.push(contact);
+    contactsByClient.set(contact.client_id, clientContacts);
+  }
   return clients.map((client) => ({
     ...client,
-    package: (packages ?? []).find((item) => item.id === client.package_id) ?? null,
-    contacts: (contacts ?? []).filter((contact) => contact.client_id === client.id),
+    package: client.package_id ? packageById.get(client.package_id) ?? null : null,
+    contacts: contactsByClient.get(client.id) ?? [],
     invoiced_cents: invoicedByClient.get(client.id) ?? 0,
     earned_cents: earnedByClient.get(client.id) ?? 0,
     paid_cents: paidByClient.get(client.id) ?? 0,
@@ -185,22 +192,24 @@ export async function getPipeline() {
   const tasks = tasksResult.data ?? [];
   const jobs = jobsResult.data ?? [];
   const clients = clientsResult.data ?? [];
+  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const jobById = new Map(jobs.map((job) => [job.id, job]));
   return {
     statuses,
     jobOptions: jobs.map((job) => ({
       id: job.id,
       name: job.title,
       jobNumber: job.job_number,
-      clientName: job.client_id ? clients.find((client) => client.id === job.client_id)?.name ?? null : null,
+      clientName: job.client_id ? clientById.get(job.client_id)?.name ?? null : null,
       dueDate: job.due_date,
     })).sort((left, right) => left.name.localeCompare(right.name)),
     tasks: tasks.map((task) => {
-      const job = jobs.find((entry) => entry.id === task.job_id);
+      const job = jobById.get(task.job_id);
       return {
         ...task,
         asset_type: task.asset_type === "Other" ? "Other" : "Asset",
         due_date: job?.due_date ?? null,
-        job: job ? { ...job, client: clients.find((client) => client.id === job.client_id) ?? null } : null,
+        job: job ? { ...job, client: job.client_id ? clientById.get(job.client_id) ?? null : null } : null,
       };
     }),
   };
@@ -384,10 +393,17 @@ export async function getInvoices() {
     context.supabase.from("website-clients").select("id,name"),
     context.supabase.from("website-payments").select("id,invoice_id,amount_cents,paid_at,method,reference").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
+  const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
+  const paymentsByInvoice = new Map<string, NonNullable<typeof payments>>();
+  for (const payment of payments ?? []) {
+    const invoicePayments = paymentsByInvoice.get(payment.invoice_id) ?? [];
+    invoicePayments.push(payment);
+    paymentsByInvoice.set(payment.invoice_id, invoicePayments);
+  }
   return (invoices ?? []).map((invoice) => ({
     ...invoice,
-    client: (clients ?? []).find((client) => client.id === invoice.client_id) ?? null,
-    payments: (payments ?? []).filter((payment) => payment.invoice_id === invoice.id),
+    client: invoice.client_id ? clientById.get(invoice.client_id) ?? null : null,
+    payments: paymentsByInvoice.get(invoice.id) ?? [],
   }));
 }
 
@@ -403,10 +419,12 @@ export async function getEnquiries() {
     context.supabase.from("website-pricing-packages").select("id,title"),
     context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
+  const packageById = new Map((packages ?? []).map((item) => [item.id, item]));
+  const clientById = new Map((clients ?? []).map((item) => [item.id, item]));
   return (enquiries ?? []).map((enquiry) => ({
     ...enquiry,
-    package: (packages ?? []).find((item) => item.id === enquiry.package_id) ?? null,
-    converted_client: (clients ?? []).find((item) => item.id === enquiry.converted_client_id) ?? null,
+    package: enquiry.package_id ? packageById.get(enquiry.package_id) ?? null : null,
+    converted_client: enquiry.converted_client_id ? clientById.get(enquiry.converted_client_id) ?? null : null,
   })) as ClientEnquiry[];
 }
 

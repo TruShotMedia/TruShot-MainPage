@@ -16,12 +16,24 @@ export function NotionAutoSync({ enabled, intervalMinutes }: { enabled: boolean;
     if (Number.isFinite(lastRequestedAt) && now - lastRequestedAt < intervalMinutes * 60_000) return;
     window.localStorage.setItem(browserSyncKey, String(now));
     let active = true;
-    void syncNotionImport(false).then((result) => {
-      if (!active || result.status !== "completed") return;
-      const imported = result.created.clients + result.created.jobs + result.created.tasks;
-      if (imported > 0) router.refresh();
-    }).catch(() => undefined);
-    return () => { active = false; };
+    const runSync = () => {
+      void syncNotionImport(false).then((result) => {
+        if (!active || result.status !== "completed") return;
+        const imported = result.created.clients + result.created.jobs + result.created.tasks;
+        if (imported > 0) router.refresh();
+      }).catch(() => undefined);
+    };
+
+    const supportsIdleWork = "requestIdleCallback" in window;
+    const scheduleId = supportsIdleWork
+      ? window.requestIdleCallback(runSync, { timeout: 2_500 })
+      : window.setTimeout(runSync, 650);
+
+    return () => {
+      active = false;
+      if (supportsIdleWork) window.cancelIdleCallback(scheduleId);
+      else window.clearTimeout(scheduleId);
+    };
   }, [enabled, intervalMinutes, router]);
 
   return null;

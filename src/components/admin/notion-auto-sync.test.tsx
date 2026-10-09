@@ -34,16 +34,18 @@ describe("NotionAutoSync", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
+    vi.useFakeTimers();
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    vi.useRealTimers();
   });
 
   it("requests one sync on page load, refreshes after an import, and respects the browser cooldown", async () => {
     await act(async () => root.render(<NotionAutoSync enabled intervalMinutes={15} />));
-    await act(async () => Promise.resolve());
+    await act(async () => vi.runAllTimersAsync());
 
     expect(mocks.syncNotionImport).toHaveBeenCalledTimes(1);
     expect(mocks.syncNotionImport).toHaveBeenCalledWith(false);
@@ -55,7 +57,7 @@ describe("NotionAutoSync", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => root.render(<NotionAutoSync enabled intervalMinutes={15} />));
-    await act(async () => Promise.resolve());
+    await act(async () => vi.runAllTimersAsync());
     expect(mocks.syncNotionImport).toHaveBeenCalledTimes(1);
   });
 });

@@ -938,7 +938,7 @@ export function PortfolioManager({ categories, miscLogos, workspaceId }: { categ
     }
 
     const previousItems = sourceCategory.items;
-    const destinationItemId = dropCategoryId ? sourceCategory.items.at(-1)?.id : overId;
+    const destinationItemId = dropCategoryId ? sourceCategory.items[sourceCategory.items.length - 1]?.id : overId;
     if (!destinationItemId) return;
     const nextItems = movePortfolioItem(previousItems, activeId, destinationItemId);
     if (nextItems === previousItems) return;

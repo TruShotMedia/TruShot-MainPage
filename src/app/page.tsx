@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { AnalyticsTracker } from "@/components/public/analytics-tracker";
 import { EnquiryForm } from "@/components/public/enquiry-form";
+import { LazyAmbientVideo } from "@/components/public/lazy-ambient-video";
 import { PricingSection } from "@/components/public/pricing-section";
 import { PublicHeader } from "@/components/public/public-header";
 import { fallbackWebsiteElements, getPublishedPricing, getPublishedWebsiteElements, getPublicWebsiteSettings } from "@/lib/data/public";
@@ -64,9 +65,7 @@ export default async function HomePage() {
             <div className="service-media">
               <div className="service-shape" aria-hidden="true"><span /></div>
               {service.media_kind === "video" && service.media_url && (
-                <video autoPlay muted loop playsInline preload="metadata" aria-hidden="true">
-                  <source src={service.media_url} />
-                </video>
+                <LazyAmbientVideo src={service.media_url} />
               )}
               {service.media_kind === "image" && service.media_url && (
                 <Image
@@ -96,9 +95,7 @@ export default async function HomePage() {
             <Image src={about.media_url} alt={about.media_alt || "TruShot Media"} fill sizes="(max-width: 720px) 100vw, 47vw" />
           )}
           {about.media_kind === "video" && about.media_url && (
-            <video autoPlay muted loop playsInline preload="metadata" aria-hidden="true">
-              <source src={about.media_url} />
-            </video>
+            <LazyAmbientVideo src={about.media_url} />
           )}
         </div>
         <div className="about-copy">

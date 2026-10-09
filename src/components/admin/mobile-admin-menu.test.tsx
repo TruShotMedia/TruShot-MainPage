@@ -37,6 +37,15 @@ describe("MobileAdminMenu", () => {
     await act(async () => element.dispatchEvent(new MouseEvent("click", { bubbles: true })));
   }
 
+  async function pointer(element: Element, type: string, clientX: number, clientY = 100) {
+    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
+    Object.defineProperties(event, {
+      pointerId: { value: 1 },
+      pointerType: { value: "touch" },
+    });
+    await act(async () => element.dispatchEvent(event));
+  }
+
   it("opens and closes from the menu trigger", async () => {
     const trigger = container.querySelector<HTMLButtonElement>(".mobile-admin-menu-trigger")!;
 
@@ -68,5 +77,30 @@ describe("MobileAdminMenu", () => {
     await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("opens with a swipe from the left edge", async () => {
+    const edge = container.querySelector<HTMLElement>(".mobile-admin-menu-edge")!;
+    const trigger = container.querySelector<HTMLButtonElement>(".mobile-admin-menu-trigger")!;
+
+    await pointer(edge, "pointerdown", 1);
+    await pointer(edge, "pointermove", 190, 102);
+    await pointer(edge, "pointerup", 190, 102);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("closes with a left swipe and prevents background scrolling while open", async () => {
+    const trigger = container.querySelector<HTMLButtonElement>(".mobile-admin-menu-trigger")!;
+    await click(trigger);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    const panel = container.querySelector<HTMLElement>(".mobile-admin-menu-panel")!;
+    await pointer(panel, "pointerdown", 270);
+    await pointer(panel, "pointermove", 35, 102);
+    await pointer(panel, "pointerup", 35, 102);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.style.overflow).toBe("");
   });
 });
