@@ -41,6 +41,7 @@ export default async function TabletPage() {
       initialView={parseTabletView(cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
       jobOptions={data.jobOptions}
       jobStatuses={data.jobStatuses}
+      pipelineJobs={data.pipelineJobs}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
       notionSyncEnabled={notion.configured}

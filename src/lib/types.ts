@@ -150,6 +150,29 @@ export type JobRecord = {
   related_invoices: JobInvoiceRelation[];
 };
 
+export type TabletJobRecord = {
+  id: string;
+  title: string;
+  job_number: string | null;
+  client_id: string | null;
+  status_id: string;
+  shoot_date: string | null;
+  shoot_time: string | null;
+  due_date: string | null;
+  due_time: string | null;
+  photos_delivered: number;
+  location: string | null;
+  delivery_url: string | null;
+  description: string | null;
+  notes: string | null;
+  delivered_at: string | null;
+  updated_at: string;
+  open_tasks: number;
+  total_tasks: number;
+  client: { id: string; name: string } | null;
+  status: JobStatus | null;
+};
+
 export type PipelineTask = {
   id: string;
   title: string;

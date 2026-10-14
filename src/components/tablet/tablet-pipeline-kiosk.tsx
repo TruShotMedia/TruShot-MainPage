@@ -9,9 +9,10 @@ import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, Lay
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
+import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
@@ -20,7 +21,10 @@ const tabletScreensaverDurationMs = 15_000;
 
 const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-event-editor").then((module) => module.CalendarEventEditor));
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
+const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
 const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
+
+type TabletWorkspaceView = TabletView | "jobs";
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
@@ -71,6 +75,7 @@ export function TabletPipelineKiosk({
   initialView,
   jobOptions = [],
   jobStatuses = [],
+  pipelineJobs = [],
   pendingRequestCount,
   pipelineVersion,
   notionSyncEnabled,
@@ -89,6 +94,7 @@ export function TabletPipelineKiosk({
   initialView: TabletView;
   jobOptions?: JobSearchOption[];
   jobStatuses?: JobStatus[];
+  pipelineJobs?: TabletJobRecord[];
   pendingRequestCount: number;
   pipelineVersion: string;
   notionSyncEnabled: boolean;
@@ -97,13 +103,15 @@ export function TabletPipelineKiosk({
   today: string;
 }) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<TabletView>(initialView);
+  const [activeView, setActiveView] = useState<TabletWorkspaceView>(initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event"> } | null>(null);
   const [eventEditorDate, setEventEditorDate] = useState<string | null>(null);
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarCustomEvent | null>(null);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<CalendarItem | null>(null);
+  const [selectedJob, setSelectedJob] = useState<TabletJobRecord | null>(null);
+  const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
   const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
@@ -114,6 +122,7 @@ export function TabletPipelineKiosk({
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
+  const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
   const kioskSummary = useMemo(() => {
@@ -144,10 +153,10 @@ export function TabletPipelineKiosk({
     router.refresh();
   }, [router]);
 
-  const selectView = useCallback((view: TabletView) => {
+  const selectView = useCallback((view: TabletWorkspaceView) => {
     setActiveView(view);
     setIsScreensaverVisible(false);
-    document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    if (view !== "jobs") document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
 
   const updateLiveTasks = useCallback((tasks: PipelineTask[]) => {
@@ -169,18 +178,26 @@ export function TabletPipelineKiosk({
       setIsScreensaverVisible(false);
       setIsCreateMenuOpen(false);
       if (!next) {
+        if (activeView === "jobs") {
+          setActiveView("pipeline");
+          document.cookie = `${TABLET_VIEW_COOKIE_NAME}=pipeline; Path=/; Max-Age=31536000; SameSite=Lax`;
+        }
         setCreateRequest(null);
         setEventEditorDate(null);
         setSelectedCalendarEvent(null);
         setSelectedScheduleItem(null);
+        setSelectedJob(null);
+        setSelectedTask(null);
       }
       return next;
     });
-  }, []);
+  }, [activeView]);
 
   const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
     setIsCreateMenuOpen(false);
     setSelectedScheduleItem(null);
+    setSelectedJob(null);
+    setSelectedTask(null);
     if (kind === "event") {
       setCreateRequest(null);
       setSelectedCalendarEvent(null);
@@ -200,6 +217,8 @@ export function TabletPipelineKiosk({
   const handleMutationSaved = useCallback(() => {
     setCreateRequest(null);
     setSelectedScheduleItem(null);
+    setSelectedJob(null);
+    setSelectedTask(null);
     closeEventEditor();
     refresh();
   }, [closeEventEditor, refresh]);
@@ -292,7 +311,8 @@ export function TabletPipelineKiosk({
           </div>
 
           <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
-            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Pipeline</button>
+            {isEditing ? <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => selectView("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button> : null}
+            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> {isEditing ? "Tasks" : "Pipeline"}</button>
             <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
           </nav>
 
@@ -316,14 +336,33 @@ export function TabletPipelineKiosk({
           </div>
         </header>
 
-        <section className="tablet-kiosk-main" aria-label={activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
-          {activeView === "pipeline" ? (
+        <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
+          {activeView === "jobs" ? (
+            <TabletJobPipeline
+              key={jobPipelineVersion}
+              initialJobs={pipelineJobs}
+              statuses={jobStatuses}
+              onEditJob={(job) => {
+                setSelectedTask(null);
+                setSelectedScheduleItem(null);
+                closeEventEditor();
+                setSelectedJob(job);
+              }}
+              onMoveSaved={refresh}
+            />
+          ) : activeView === "pipeline" ? (
             <PipelineBoard
               editable={isEditing}
               key={pipelineVersion}
               completionStatusKey="final_draft_notes"
               initialStatuses={initialStatuses}
-              initialTasks={initialTasks}
+              initialTasks={liveTasks}
+              onEditTask={isEditing ? (task) => {
+                setSelectedJob(null);
+                setSelectedScheduleItem(null);
+                closeEventEditor();
+                setSelectedTask(task);
+              } : undefined}
               onTasksChange={updateLiveTasks}
               statusAliases={tabletPipelineStatusAliases}
               variant="tablet"
@@ -339,13 +378,29 @@ export function TabletPipelineKiosk({
             onEditEvent={(event) => {
               setCreateRequest(null);
               setSelectedScheduleItem(null);
+              setSelectedJob(null);
+              setSelectedTask(null);
               setSelectedCalendarEvent(event);
               setEventEditorDate(event.start_date);
             }}
             onEditItem={(item) => {
               setCreateRequest(null);
               closeEventEditor();
-              setSelectedScheduleItem(item);
+              if (item.entity_type === "job") {
+                const fullJob = pipelineJobs.find((job) => job.id === item.id) ?? null;
+                setSelectedTask(null);
+                setSelectedScheduleItem(fullJob ? null : item);
+                setSelectedJob(fullJob);
+              } else if (item.entity_type === "task") {
+                const fullTask = liveTasks.find((task) => task.id === item.id) ?? null;
+                setSelectedJob(null);
+                setSelectedScheduleItem(fullTask ? null : item);
+                setSelectedTask(fullTask);
+              } else {
+                setSelectedJob(null);
+                setSelectedTask(null);
+                setSelectedScheduleItem(item);
+              }
             }}
             today={today}
           />}
@@ -363,6 +418,8 @@ export function TabletPipelineKiosk({
         ) : null}
 
         {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} taskStatuses={initialStatuses} /> : null}
+        {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={initialStatuses} type="job" /> : null}
+        {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 

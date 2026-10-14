@@ -32,6 +32,22 @@ const optionalHttpUrlSchema = z.string().trim().max(2_048).refine((value) => {
     return false;
   }
 }, "Enter a complete link beginning with http:// or https://.");
+const jobEditorInputSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(2).max(200),
+  job_number: z.string().trim().max(60),
+  client_id: z.string().uuid().or(z.literal("")),
+  status_id: z.string().uuid(),
+  shoot_date: z.string().or(z.literal("")),
+  shoot_time: optionalTimeSchema,
+  due_date: z.string().or(z.literal("")),
+  due_time: optionalTimeSchema,
+  photos_delivered: z.coerce.number().int().min(0),
+  location: z.string().trim().max(300),
+  delivery_url: optionalHttpUrlSchema,
+  description: z.string().trim().max(2_000),
+  notes: z.string().trim().max(4_000),
+});
 
 function revalidateInvoicePages() {
   revalidatePath("/admin/invoices");
@@ -195,6 +211,44 @@ async function syncJobInvoiceRelations(context: AdminContext, jobId: string, inv
   if (persistedIds.size !== invoiceIds.length || invoiceIds.some((invoiceId) => !persistedIds.has(invoiceId))) {
     throw new Error("The invoice relation was not saved. Refresh the job and try again.");
   }
+}
+
+async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEditorInputSchema>) {
+  if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) {
+    throw new Error("Due date cannot be before the shoot date.");
+  }
+  await Promise.all([
+    requireJobStatus(context, input.status_id),
+    requireClient(context, input.client_id),
+  ]);
+  const { data, error } = await context.supabase.from("website-jobs").update({
+    title: input.title,
+    job_number: input.job_number || null,
+    client_id: input.client_id || null,
+    status_id: input.status_id,
+    shoot_date: input.shoot_date || null,
+    shoot_time: input.shoot_time || null,
+    due_date: input.due_date || null,
+    due_time: input.due_time || null,
+    photos_delivered: input.photos_delivered,
+    location: input.location || null,
+    delivery_url: input.delivery_url || null,
+    description: input.description || null,
+    notes: input.notes || null,
+    updated_by: context.claims.sub,
+  }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).select("id").single();
+  if (error || !data) throw new Error(error?.message ?? "Job could not be updated.");
+  await syncTasksToJobDeadline(context, input.id, input.due_date || null);
+}
+
+function revalidateProductionPages() {
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/calendar");
+  revalidatePath("/admin/clients");
+  revalidatePath("/tablet");
 }
 
 export async function signIn(formData: FormData) {
@@ -468,51 +522,12 @@ export async function duplicateJob(formData: FormData) {
 
 export async function updateJob(formData: FormData) {
   const invoiceIds = optionalRecordIdsSchema.parse(formData.getAll("invoice_ids"));
-  const input = z.object({
-    id: z.string().uuid(),
-    title: z.string().trim().min(2).max(200),
-    job_number: z.string().trim().max(60),
-    client_id: z.string().uuid().or(z.literal("")),
-    status_id: z.string().uuid(),
-    shoot_date: z.string().or(z.literal("")),
-    shoot_time: optionalTimeSchema,
-    due_date: z.string().or(z.literal("")),
-    due_time: optionalTimeSchema,
-    photos_delivered: z.coerce.number().int().min(0),
-    location: z.string().trim().max(300),
-    delivery_url: optionalHttpUrlSchema,
-    description: z.string().trim().max(2_000),
-    notes: z.string().trim().max(4_000),
-  }).parse(Object.fromEntries(formData));
-  if (input.shoot_date && input.due_date && input.due_date < input.shoot_date) throw new Error("Due date cannot be before the shoot date.");
+  const input = jobEditorInputSchema.parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
-  await Promise.all([
-    requireJobStatus(context, input.status_id),
-    requireClient(context, input.client_id),
-    requireInvoices(context, invoiceIds),
-  ]);
-  const { data, error } = await context.supabase.from("website-jobs").update({
-    title: input.title,
-    job_number: input.job_number || null,
-    client_id: input.client_id || null,
-    status_id: input.status_id,
-    shoot_date: input.shoot_date || null,
-    shoot_time: input.shoot_time || null,
-    due_date: input.due_date || null,
-    due_time: input.due_time || null,
-    photos_delivered: input.photos_delivered,
-    location: input.location || null,
-    delivery_url: input.delivery_url || null,
-    description: input.description || null,
-    notes: input.notes || null,
-    updated_by: context.claims.sub,
-  }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single();
-  if (error || !data) throw new Error(error?.message ?? "Job could not be updated.");
-  await Promise.all([
-    syncJobInvoiceRelations(context, input.id, invoiceIds),
-    syncTasksToJobDeadline(context, input.id, input.due_date || null),
-  ]);
+  await requireInvoices(context, invoiceIds);
+  await saveJobDetails(context, input);
+  await syncJobInvoiceRelations(context, input.id, invoiceIds);
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
@@ -522,6 +537,66 @@ export async function updateJob(formData: FormData) {
   revalidatePath("/admin/finance");
   revalidatePath("/admin/clients");
   revalidatePath("/tablet");
+}
+
+export async function updateTabletJob(formData: FormData) {
+  const input = jobEditorInputSchema.parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  await saveJobDetails(context, input);
+  revalidateProductionPages();
+  return { ok: true };
+}
+
+export async function archiveJob(formData: FormData) {
+  const jobId = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  const archivedAt = new Date().toISOString();
+  const { data: job, error: jobError } = await context.supabase
+    .from("website-jobs")
+    .update({ archived_at: archivedAt, updated_by: context.claims.sub })
+    .eq("id", jobId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id")
+    .single();
+  if (jobError || !job) throw new Error(jobError?.message ?? "Job could not be removed.");
+
+  const { error: taskError } = await context.supabase
+    .from("website-job-tasks")
+    .update({ archived_at: archivedAt, updated_by: context.claims.sub })
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("job_id", jobId)
+    .is("archived_at", null);
+  if (taskError) {
+    await context.supabase
+      .from("website-jobs")
+      .update({ archived_at: null, updated_by: context.claims.sub })
+      .eq("id", jobId)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+    throw new Error("The job was not removed because its related tasks could not be archived safely.");
+  }
+
+  revalidateProductionPages();
+  return { ok: true };
+}
+
+export async function archiveTask(formData: FormData) {
+  const taskId = z.string().uuid().parse(formData.get("id"));
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  const { data, error } = await context.supabase
+    .from("website-job-tasks")
+    .update({ archived_at: new Date().toISOString(), updated_by: context.claims.sub })
+    .eq("id", taskId)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Task could not be removed.");
+  revalidateProductionPages();
+  return { ok: true };
 }
 
 export async function createTask(formData: FormData) {
