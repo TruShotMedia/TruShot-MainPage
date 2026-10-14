@@ -15,9 +15,9 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 type TabletCalendarEvent = {
   id: string;
@@ -28,6 +28,7 @@ type TabletCalendarEvent = {
   detail: string;
   color: string;
   isComplete: boolean;
+  item: CalendarItem;
 };
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -62,7 +63,7 @@ function dateWindowLabel(startDate: string, endDate: string) {
   return `${format(start, "d")}–${format(end, "d MMM")}`;
 }
 
-function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleRangeItem> }) {
+function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarScheduleRangeItem> }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
@@ -76,7 +77,16 @@ function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleR
   return (
     <article
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isComplete ? ", completed" : ""}`}
-      className={`tablet-calendar-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      role={editable ? "button" : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={editable ? () => onOpen(segment.item) : undefined}
+      onKeyDown={editable ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(segment.item);
+        }
+      } : undefined}
       title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}`}
       style={{
         "--tablet-calendar-color": rangeColor,
@@ -91,7 +101,7 @@ function JobRange({ segment }: { segment: CalendarRangeSegment<CalendarScheduleR
   );
 }
 
-export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; today: string }) {
+export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], editable = false, onCreateEvent, onEditEvent, onEditItem, today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(todayDate));
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents]), [campaignAssets, customEvents, jobs]);
@@ -112,6 +122,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         detail: job.client_name ?? "No client",
         color: job.status_color,
         isComplete: job.is_complete,
+        item: job,
       });
       if (job.due_date && job.due_date !== job.shoot_date) eventsForJob.push({
         id: `${job.id}-due`,
@@ -122,6 +133,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         detail: job.client_name ?? "No client",
         color: job.status_color,
         isComplete: job.is_complete,
+        item: job,
       });
       return eventsForJob;
     });
@@ -134,6 +146,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
       detail: task.job_title,
       color: task.status_color,
       isComplete: task.is_complete,
+      item: task,
     }] : []);
     const campaignEvents = campaignAssets.flatMap((asset): TabletCalendarEvent[] => {
       if (!asset.due_date || rangedItemKeys.has(`campaign-asset:${asset.id}`)) return [];
@@ -146,6 +159,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         detail: asset.campaign_title,
         color: asset.status_color,
         isComplete: asset.is_complete,
+        item: asset,
       }];
     });
     return [...jobEvents, ...taskEvents, ...campaignEvents];
@@ -156,8 +170,14 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
     return grouped;
   }, [events]);
 
+  function openRangeItem(item: CalendarScheduleRangeItem) {
+    if (!editable) return;
+    if (item.entity_type === "calendar-event") onEditEvent?.(item);
+    else onEditItem?.(item);
+  }
+
   return (
-    <section className="tablet-calendar" aria-label="Production calendar">
+    <section className={`tablet-calendar ${editable ? "is-editable" : "is-read-only"}`} aria-label="Production calendar">
       <header className="tablet-calendar-toolbar">
         <div className="tablet-calendar-month-controls">
           <button type="button" onClick={() => setCurrentMonth((month) => subMonths(month, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
@@ -194,12 +214,22 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
                     return (
                       <div className={`tablet-calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
                         <time dateTime={dateKey}>{format(day, "d")}</time>
+                        {editable ? <button type="button" className="tablet-calendar-day-add" onClick={() => onCreateEvent?.(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`} title="Add event"><Plus size={11} /></button> : null}
                         <div className="tablet-calendar-day-events">
                           {dayEvents.slice(0, displayedEventLimit).map((event) => (
                             <article
-                              className={`tablet-calendar-event is-${event.kind} ${event.isComplete ? "is-complete" : ""}`}
+                              className={`tablet-calendar-event is-${event.kind} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
                               style={{ "--tablet-calendar-color": event.color } as CSSProperties}
                               title={`${event.label}: ${event.title} · ${event.detail}`}
+                              role={editable ? "button" : undefined}
+                              tabIndex={editable ? 0 : undefined}
+                              onClick={editable ? () => onEditItem?.(event.item) : undefined}
+                              onKeyDown={editable ? (keyboardEvent) => {
+                                if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+                                  keyboardEvent.preventDefault();
+                                  onEditItem?.(event.item);
+                                }
+                              } : undefined}
                               key={event.id}
                             >
                               <i />
@@ -212,7 +242,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
                     );
                   })}
                 </div>
-                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => <JobRange segment={segment} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => <JobRange editable={editable} onOpen={openRangeItem} segment={segment} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}

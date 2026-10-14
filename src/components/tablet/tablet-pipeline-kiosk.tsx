@@ -1,20 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, LayoutDashboard, ListChecks, Pause, Play, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
+import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, PipelineTask, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
 const tabletPageDurationMs = 60_000;
 const tabletScreensaverDurationMs = 15_000;
+
+const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-event-editor").then((module) => module.CalendarEventEditor));
+const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
+const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
@@ -58,10 +64,13 @@ export function TabletPipelineKiosk({
   calendarTasks,
   calendarCampaignAssets = [],
   calendarEvents = [],
+  clientOptions = [],
   initialNow,
   initialStatuses,
   initialTasks,
   initialView,
+  jobOptions = [],
+  jobStatuses = [],
   pendingRequestCount,
   pipelineVersion,
   notionSyncEnabled,
@@ -73,10 +82,13 @@ export function TabletPipelineKiosk({
   calendarTasks: CalendarTask[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
   calendarEvents?: CalendarCustomEvent[];
+  clientOptions?: SelectOption[];
   initialNow: string;
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
   initialView: TabletView;
+  jobOptions?: JobSearchOption[];
+  jobStatuses?: JobStatus[];
   pendingRequestCount: number;
   pipelineVersion: string;
   notionSyncEnabled: boolean;
@@ -86,6 +98,12 @@ export function TabletPipelineKiosk({
 }) {
   const router = useRouter();
   const [activeView, setActiveView] = useState<TabletView>(initialView);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event"> } | null>(null);
+  const [eventEditorDate, setEventEditorDate] = useState<string | null>(null);
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarCustomEvent | null>(null);
+  const [selectedScheduleItem, setSelectedScheduleItem] = useState<CalendarItem | null>(null);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
   const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
@@ -145,6 +163,47 @@ export function TabletPipelineKiosk({
     });
   }, []);
 
+  const toggleEditing = useCallback(() => {
+    setIsEditing((current) => {
+      const next = !current;
+      setIsScreensaverVisible(false);
+      setIsCreateMenuOpen(false);
+      if (!next) {
+        setCreateRequest(null);
+        setEventEditorDate(null);
+        setSelectedCalendarEvent(null);
+        setSelectedScheduleItem(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
+    setIsCreateMenuOpen(false);
+    setSelectedScheduleItem(null);
+    if (kind === "event") {
+      setCreateRequest(null);
+      setSelectedCalendarEvent(null);
+      setEventEditorDate(date);
+      return;
+    }
+    setEventEditorDate(null);
+    setSelectedCalendarEvent(null);
+    setCreateRequest({ date, kind });
+  }, [today]);
+
+  const closeEventEditor = useCallback(() => {
+    setEventEditorDate(null);
+    setSelectedCalendarEvent(null);
+  }, []);
+
+  const handleMutationSaved = useCallback(() => {
+    setCreateRequest(null);
+    setSelectedScheduleItem(null);
+    closeEventEditor();
+    refresh();
+  }, [closeEventEditor, refresh]);
+
   const rotateOrientation = useCallback(() => {
     const nextOrientation: TabletOrientation = effectiveOrientation === "landscape" ? "portrait" : "landscape";
     setPreferredOrientation(nextOrientation);
@@ -183,7 +242,7 @@ export function TabletPipelineKiosk({
   }, [syncViewportMetrics]);
 
   useEffect(() => {
-    if (isAutoRotationPaused) return;
+    if (isAutoRotationPaused || isEditing) return;
     let slideshowTimer = 0;
     const duration = isScreensaverVisible ? tabletScreensaverDurationMs : tabletPageDurationMs;
     const scheduleSlideshow = () => {
@@ -197,12 +256,12 @@ export function TabletPipelineKiosk({
     };
     scheduleSlideshow();
     return () => window.clearTimeout(slideshowTimer);
-  }, [activeView, isAutoRotationPaused, isScreensaverVisible]);
+  }, [activeView, isAutoRotationPaused, isEditing, isScreensaverVisible]);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
     const refreshIfAvailable = () => {
-      if (document.visibilityState !== "visible" || !navigator.onLine) return;
+      if (isEditing || document.visibilityState !== "visible" || !navigator.onLine) return;
       refresh();
     };
     const refreshIfStale = () => {
@@ -217,11 +276,11 @@ export function TabletPipelineKiosk({
       document.removeEventListener("visibilitychange", refreshIfStale);
       window.removeEventListener("online", refreshIfStale);
     };
-  }, [refresh, refreshIntervalMs]);
+  }, [isEditing, refresh, refreshIntervalMs]);
 
   return (
     <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
-      <div className="tablet-kiosk" data-orientation={effectiveOrientation}>
+      <div className={`tablet-kiosk ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
@@ -238,10 +297,7 @@ export function TabletPipelineKiosk({
           </nav>
 
           <div className="tablet-kiosk-actions">
-            <Link className="tablet-notification-button" href="/admin/requests" aria-label={`${pendingRequestCount} client ${pendingRequestCount === 1 ? "request" : "requests"} awaiting review`} title="Client requests">
-              <Bell size={15} />
-              {pendingRequestCount ? <span>{pendingRequestCount > 99 ? "99+" : pendingRequestCount}</span> : null}
-            </Link>
+            <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Editing on · tap to return to kiosk mode" : "Editing off · tap to make changes"}><Pencil size={15} /></button>
             <button
               type="button"
               className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
@@ -263,6 +319,7 @@ export function TabletPipelineKiosk({
         <section className="tablet-kiosk-main" aria-label={activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
           {activeView === "pipeline" ? (
             <PipelineBoard
+              editable={isEditing}
               key={pipelineVersion}
               completionStatusKey="final_draft_notes"
               initialStatuses={initialStatuses}
@@ -272,8 +329,42 @@ export function TabletPipelineKiosk({
               variant="tablet"
               visibleStatusKeys={tabletPipelineStatusKeys}
             />
-          ) : <TabletCalendar jobs={calendarJobs} tasks={calendarTasks} campaignAssets={calendarCampaignAssets} customEvents={calendarEvents} today={today} />}
+          ) : <TabletCalendar
+            jobs={calendarJobs}
+            tasks={calendarTasks}
+            campaignAssets={calendarCampaignAssets}
+            customEvents={calendarEvents}
+            editable={isEditing}
+            onCreateEvent={(date) => openCreate("event", date)}
+            onEditEvent={(event) => {
+              setCreateRequest(null);
+              setSelectedScheduleItem(null);
+              setSelectedCalendarEvent(event);
+              setEventEditorDate(event.start_date);
+            }}
+            onEditItem={(item) => {
+              setCreateRequest(null);
+              closeEventEditor();
+              setSelectedScheduleItem(item);
+            }}
+            today={today}
+          />}
         </section>
+
+        {isEditing ? (
+          <div className={`tablet-create-dock ${isCreateMenuOpen ? "is-open" : ""}`} onMouseLeave={() => setIsCreateMenuOpen(false)}>
+            <div className="tablet-create-options" aria-label="Create from tablet">
+              <button type="button" onClick={() => openCreate("event")}><CalendarPlus2 size={15} /><span>Event</span></button>
+              <button type="button" onClick={() => openCreate("job")}><BriefcaseBusiness size={15} /><span>Job</span></button>
+              <button type="button" onClick={() => openCreate("task")}><ListTodo size={15} /><span>Task</span></button>
+            </div>
+            <button type="button" className="tablet-create-trigger" onClick={() => setIsCreateMenuOpen((open) => !open)} aria-label="Create event, job or task" aria-expanded={isCreateMenuOpen}><Plus size={20} /></button>
+          </div>
+        ) : null}
+
+        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} taskStatuses={initialStatuses} /> : null}
+        {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
+        {eventEditorDate ? <CalendarEventEditor key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 
         {isScreensaverVisible ? (
           <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label="TruShot Media studio overview">

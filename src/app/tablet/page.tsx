@@ -34,10 +34,13 @@ export default async function TabletPage() {
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}
       calendarEvents={data.calendarEvents}
+      clientOptions={data.clientOptions}
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
       initialTasks={data.pipelineTasks}
       initialView={parseTabletView(cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
+      jobOptions={data.jobOptions}
+      jobStatuses={data.jobStatuses}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
       notionSyncEnabled={notion.configured}

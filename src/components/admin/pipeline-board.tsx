@@ -13,14 +13,14 @@ import type { PipelineTask, TaskStatus } from "@/lib/types";
 type PipelineVariant = "admin" | "tablet";
 const EMPTY_STATUS_ALIASES: Record<string, string> = {};
 
-function TaskCard({ task, isSaving, canComplete, onComplete, variant }: { task: PipelineTask; isSaving: boolean; canComplete: boolean; onComplete: () => void; variant: PipelineVariant }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving });
+function TaskCard({ task, editable, isSaving, canComplete, onComplete, variant }: { task: PipelineTask; editable: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; variant: PipelineVariant }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving || !editable });
   return (
-    <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className={`pipeline-task pipeline-task-${variant} ${isSaving ? "is-saving" : ""}`} aria-busy={isSaving}>
-      <div className="pipeline-task-controls">
+    <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className={`pipeline-task pipeline-task-${variant} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
+      {editable ? <div className="pipeline-task-controls">
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${task.title} as posted and done`} title="Mark Posted / Done" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
         <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`} disabled={isSaving}><GripVertical size={15} /></button>
-      </div>
+      </div> : null}
       <div className="task-client">{task.job?.client?.name ?? "No client"}</div>
       <h3>{task.title}</h3>
       <p>{task.job?.title ?? "Unlinked job"}</p>
@@ -33,20 +33,21 @@ function TaskCard({ task, isSaving, canComplete, onComplete, variant }: { task: 
   );
 }
 
-function Column({ status, tasks, savingId, onComplete, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; savingId: string | null; onComplete: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}` });
+function Column({ status, tasks, editable, savingId, onComplete, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; editable: boolean; savingId: string | null; onComplete: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}`, disabled: !editable });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-${variant} ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b></header>
       <div className="pipeline-stack">
-        {tasks.map((task) => <TaskCard key={task.id} task={task} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} variant={variant} />)}
-        {!tasks.length && <div className="pipeline-empty">Drop an asset here</div>}
+        {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} variant={variant} />)}
+        {!tasks.length && <div className="pipeline-empty">{editable ? "Drop an asset here" : "No assets"}</div>}
       </div>
     </section>
   );
 }
 
 export function PipelineBoard({
+  editable = true,
   initialStatuses,
   initialTasks,
   completionStatusKey = "ready_to_post",
@@ -55,6 +56,7 @@ export function PipelineBoard({
   variant = "admin",
   visibleStatusKeys,
 }: {
+  editable?: boolean;
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
   completionStatusKey?: string;
@@ -92,7 +94,7 @@ export function PipelineBoard({
   const byStatus = useMemo(() => new Map(visibleStatuses.map((status) => [status.id, tasks.filter((task) => (displayStatusByTaskStatus.get(task.status_id) ?? task.status_id) === status.id)])), [displayStatusByTaskStatus, tasks, visibleStatuses]);
 
   async function saveMove(taskId: string, destination: string, successMessage: string) {
-    if (savingId) return;
+    if (!editable || savingId) return;
     const current = tasks.find((task) => task.id === taskId);
     if (!current || current.status_id === destination) return;
 
@@ -123,6 +125,7 @@ export function PipelineBoard({
   }
 
   async function onDragEnd(event: DragEndEvent) {
+    if (!editable) return;
     const taskId = String(event.active.id);
     if (!event.over) return;
     const overId = String(event.over.id);
@@ -138,6 +141,7 @@ export function PipelineBoard({
   }
 
   function completeTask(task: PipelineTask) {
+    if (!editable) return;
     if (!postedStatus) {
       setMessage("The Posted / Done status is unavailable.");
       return;
@@ -148,9 +152,9 @@ export function PipelineBoard({
   return (
     <>
       {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext sensors={editable ? sensors : []} onDragEnd={onDragEnd}>
         <div className={`pipeline-board pipeline-board-${variant}`}>
-          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeTask} variant={variant} completionStatusKey={completionStatusKey} />)}
+          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} savingId={savingId} onComplete={completeTask} variant={variant} completionStatusKey={completionStatusKey} />)}
         </div>
       </DndContext>
     </>

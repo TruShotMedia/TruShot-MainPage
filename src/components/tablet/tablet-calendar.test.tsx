@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
 import { TabletCalendar } from "./tablet-calendar";
 
@@ -110,5 +110,25 @@ describe("TabletCalendar", () => {
     expect(busyDay?.querySelectorAll(".tablet-calendar-event")).toHaveLength(2);
     expect(busyDay?.querySelector(".tablet-calendar-overflow")?.textContent).toBe("+4 more");
     expect(busyDay?.querySelector(".tablet-calendar-overflow")?.getAttribute("title")).toContain("Asset 6");
+  });
+
+  it("only exposes date and item editing controls when edit mode is enabled", async () => {
+    const onCreateEvent = vi.fn();
+    const onEditEvent = vi.fn();
+    await act(async () => root.render(<TabletCalendar jobs={[]} tasks={[]} customEvents={customEvents} today="2026-08-25" onCreateEvent={onCreateEvent} onEditEvent={onEditEvent} />));
+
+    expect(container.querySelector(".tablet-calendar-day-add")).toBeNull();
+    expect(container.querySelector(".tablet-calendar-job-range")?.getAttribute("role")).toBeNull();
+
+    await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} customEvents={customEvents} today="2026-08-25" onCreateEvent={onCreateEvent} onEditEvent={onEditEvent} />));
+    const addButton = container.querySelector<HTMLButtonElement>('button[aria-label="Add event on 12 August 2026"]')!;
+    expect(addButton).not.toBeNull();
+    await act(async () => addButton.click());
+    expect(onCreateEvent).toHaveBeenCalledWith("2026-08-12");
+
+    const eventCard = container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event")!;
+    expect(eventCard.getAttribute("role")).toBe("button");
+    await act(async () => eventCard.click());
+    expect(onEditEvent).toHaveBeenCalledWith(customEvents[0]);
   });
 });

@@ -3,7 +3,7 @@ import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, JobSearchOption, JobStatus, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, SelectOption, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -217,6 +217,9 @@ export async function getPipeline() {
 
 export async function getTabletKioskData(): Promise<{
   statuses: TaskStatus[];
+  jobStatuses: JobStatus[];
+  clientOptions: SelectOption[];
+  jobOptions: JobSearchOption[];
   pipelineTasks: PipelineTask[];
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
@@ -225,7 +228,7 @@ export async function getTabletKioskData(): Promise<{
   pendingRequestCount: number;
 }> {
   const context = await getAdminContext();
-  if (!context) return { statuses: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], pendingRequestCount: 0 };
+  if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
   const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
@@ -242,7 +245,7 @@ export async function getTabletKioskData(): Promise<{
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -268,7 +271,7 @@ export async function getTabletKioskData(): Promise<{
       .is("archived_at", null),
     supabase
       .from("website-job-statuses")
-      .select("id,label,color,is_closed")
+      .select("id,key,label,color,position,is_closed,is_active")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     supabase
       .from("website-enquiries")
@@ -376,6 +379,29 @@ export async function getTabletKioskData(): Promise<{
       position: status.position,
       is_open: status.is_open,
     })),
+    jobStatuses: (jobStatusesResult.data ?? [])
+      .filter((status) => status.is_active)
+      .sort((left, right) => left.position - right.position)
+      .map((status) => ({
+        id: status.id,
+        key: status.key,
+        label: status.label,
+        color: status.color,
+        position: status.position,
+        is_closed: status.is_closed,
+      })),
+    clientOptions: [...clientsById.values()]
+      .map((client) => ({ id: client.id, name: client.name }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
+    jobOptions: jobs
+      .map((job) => ({
+        id: job.id,
+        name: job.title,
+        jobNumber: job.job_number,
+        clientName: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
+        dueDate: job.due_date,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
     pipelineTasks,
     calendarJobs,
     calendarTasks,

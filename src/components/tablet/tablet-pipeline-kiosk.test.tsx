@@ -7,13 +7,16 @@ import { TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
+const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), pipeline: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => routerMocks }));
 vi.mock("next/image", () => ({ default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} /> }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
-vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: () => <div data-testid="pipeline-view">Pipeline board</div> }));
+vi.mock("@/components/admin/calendar-event-editor", () => ({ CalendarEventEditor: () => <div data-testid="event-editor" /> }));
+vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: (props: unknown) => { componentMocks.pipeline(props); return <div data-testid="pipeline-view">Pipeline board</div>; } }));
 vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => null }));
-vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: () => <div data-testid="calendar-view">Calendar board</div> }));
+vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: (props: unknown) => { componentMocks.calendar(props); return <div data-testid="calendar-view">Calendar board</div>; } }));
+vi.mock("@/components/tablet/tablet-workspace-editors", () => ({ TabletRecordCreateEditor: () => <div data-testid="record-editor" />, TabletScheduleEditor: () => <div data-testid="schedule-editor" /> }));
 
 describe("TabletPipelineKiosk", () => {
   let container: HTMLDivElement;
@@ -22,6 +25,8 @@ describe("TabletPipelineKiosk", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     routerMocks.refresh.mockClear();
+    componentMocks.calendar.mockClear();
+    componentMocks.pipeline.mockClear();
     window.localStorage.clear();
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=; Path=/; Max-Age=0`;
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
@@ -126,7 +131,7 @@ describe("TabletPipelineKiosk", () => {
     vi.useRealTimers();
   });
 
-  it("switches between kiosk views and links the request notification", async () => {
+  it("switches views and keeps all editing locked until the pencil is enabled", async () => {
     await act(async () => root.render(
       <TabletPipelineKiosk
         calendarJobs={[]}
@@ -145,15 +150,29 @@ describe("TabletPipelineKiosk", () => {
     ));
 
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
-    expect(container.querySelector('a[href="/admin/requests"]')?.textContent).toContain("3");
+    expect(container.querySelector('a[href="/admin/requests"]')).toBeNull();
+    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false });
+    expect(container.querySelector(".tablet-create-dock")).toBeNull();
     expect(container.textContent).not.toContain("Full screen");
     expect(container.textContent).not.toContain("due soon");
+
+    const editButton = container.querySelector<HTMLButtonElement>('button[aria-label="Turn on tablet editing"]')!;
+    await act(async () => editButton.click());
+    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: true });
+    expect(container.querySelector(".tablet-create-dock")).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Turn off tablet editing"]')).not.toBeNull();
 
     const calendarTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Calendar"))!;
     await act(async () => calendarTab.click());
     expect(container.querySelector('[data-testid="calendar-view"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="pipeline-view"]')).toBeNull();
+    expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ editable: true });
     expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=calendar`);
+
+    const disableButton = container.querySelector<HTMLButtonElement>('button[aria-label="Turn off tablet editing"]')!;
+    await act(async () => disableButton.click());
+    expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ editable: false });
+    expect(container.querySelector(".tablet-create-dock")).toBeNull();
   });
 
   it("refreshes conservatively only while the kiosk is visible and online", async () => {
