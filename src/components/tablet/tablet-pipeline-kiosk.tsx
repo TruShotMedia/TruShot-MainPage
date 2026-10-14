@@ -24,8 +24,6 @@ const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/table
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
 const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
 
-type TabletWorkspaceView = TabletView | "jobs";
-
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
   minute: "2-digit",
@@ -103,7 +101,7 @@ export function TabletPipelineKiosk({
   today: string;
 }) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<TabletWorkspaceView>(initialView);
+  const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event"> } | null>(null);
@@ -153,10 +151,10 @@ export function TabletPipelineKiosk({
     router.refresh();
   }, [router]);
 
-  const selectView = useCallback((view: TabletWorkspaceView) => {
+  const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
     setIsScreensaverVisible(false);
-    if (view !== "jobs") document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
 
   const updateLiveTasks = useCallback((tasks: PipelineTask[]) => {
@@ -178,10 +176,6 @@ export function TabletPipelineKiosk({
       setIsScreensaverVisible(false);
       setIsCreateMenuOpen(false);
       if (!next) {
-        if (activeView === "jobs") {
-          setActiveView("pipeline");
-          document.cookie = `${TABLET_VIEW_COOKIE_NAME}=pipeline; Path=/; Max-Age=31536000; SameSite=Lax`;
-        }
         setCreateRequest(null);
         setEventEditorDate(null);
         setSelectedCalendarEvent(null);
@@ -191,7 +185,7 @@ export function TabletPipelineKiosk({
       }
       return next;
     });
-  }, [activeView]);
+  }, []);
 
   const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
     setIsCreateMenuOpen(false);
@@ -311,8 +305,8 @@ export function TabletPipelineKiosk({
           </div>
 
           <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
-            {isEditing ? <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => selectView("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button> : null}
-            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> {isEditing ? "Tasks" : "Pipeline"}</button>
+            <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => selectView("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
+            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
             <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
           </nav>
 
@@ -339,6 +333,7 @@ export function TabletPipelineKiosk({
         <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
           {activeView === "jobs" ? (
             <TabletJobPipeline
+              editable={isEditing}
               key={jobPipelineVersion}
               initialJobs={pipelineJobs}
               statuses={jobStatuses}
@@ -432,7 +427,7 @@ export function TabletPipelineKiosk({
                 <time suppressHydrationWarning>{lockscreenDateFormatter.format(now)}</time>
               </div>
               <button type="button" onClick={() => setIsScreensaverVisible(false)}>
-                Return to {activeView} <ArrowUpRight size={14} />
+                Return to {activeView === "pipeline" ? "tasks" : activeView} <ArrowUpRight size={14} />
               </button>
             </div>
 

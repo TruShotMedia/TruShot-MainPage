@@ -71,4 +71,15 @@ describe("TabletJobPipeline", () => {
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Edit Launch campaign"]')!.click());
     expect(onEditJob).toHaveBeenCalledWith(job);
   });
+
+  it("keeps job cards view-only until tablet editing is enabled", async () => {
+    const onEditJob = vi.fn();
+    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[job]} statuses={statuses} onEditJob={onEditJob} />));
+
+    expect(container.querySelector(".tablet-job-card")?.classList.contains("is-read-only")).toBe(true);
+    expect(container.querySelector('[aria-label="Move Launch campaign"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Edit Launch campaign"]')).toBeNull();
+    expect(container.textContent).toContain("No jobs");
+    expect(actionMocks.bulkUpdateJobStatus).not.toHaveBeenCalled();
+  });
 });

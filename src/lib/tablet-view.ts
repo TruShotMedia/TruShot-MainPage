@@ -2,11 +2,11 @@ export const TABLET_VIEW_COOKIE_NAME = "trushot-tablet-view";
 export const TABLET_ORIENTATION_STORAGE_KEY = "trushot-tablet-orientation";
 export const TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY = "trushot-tablet-auto-rotation-paused";
 
-export type TabletView = "pipeline" | "calendar";
+export type TabletView = "jobs" | "pipeline" | "calendar";
 export type TabletOrientation = "landscape" | "portrait";
 
 export function parseTabletView(value: string | undefined): TabletView {
-  return value === "calendar" ? "calendar" : "pipeline";
+  return value === "jobs" || value === "calendar" ? value : "pipeline";
 }
 
 export function parseTabletOrientation(value: string | null): TabletOrientation | null {

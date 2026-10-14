@@ -157,6 +157,19 @@ describe("TabletPipelineKiosk", () => {
     expect(container.querySelector(".tablet-create-dock")).toBeNull();
     expect(container.textContent).not.toContain("Full screen");
     expect(container.textContent).not.toContain("due soon");
+    expect(container.textContent).toContain("Jobs");
+    expect(container.textContent).toContain("Tasks");
+
+    const jobsTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Jobs"))!;
+    await act(async () => jobsTab.click());
+    expect(container.querySelector('[data-testid="job-pipeline-view"]')).not.toBeNull();
+    expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({ editable: false });
+    expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=jobs`);
+
+    const tasksTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Tasks"))!;
+    await act(async () => tasksTab.click());
+    expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false });
 
     const editButton = container.querySelector<HTMLButtonElement>('button[aria-label="Turn on tablet editing"]')!;
     await act(async () => editButton.click());
@@ -166,12 +179,11 @@ describe("TabletPipelineKiosk", () => {
     expect(container.textContent).toContain("Jobs");
     expect(container.textContent).toContain("Tasks");
 
-    const jobsTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Jobs"))!;
     await act(async () => jobsTab.click());
     expect(container.querySelector('[data-testid="job-pipeline-view"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="pipeline-view"]')).toBeNull();
+    expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({ editable: true });
 
-    const tasksTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Tasks"))!;
     await act(async () => tasksTab.click());
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
 
