@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { buildCalendarRangeWeeks, getCalendarJobRanges, getCalendarScheduleRanges } from "@/lib/calendar-layout";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob } from "@/lib/types";
 
-function job(id: string, title: string, start: string | null, end: string | null): CalendarJob {
+function job(id: string, title: string, start: string | null, end: string | null, clientName = "Ravish Media"): CalendarJob {
   return {
     id,
     entity_type: "job",
     title,
-    client_name: "Ravish Media",
+    client_name: clientName,
     shoot_date: start,
     shoot_time: null,
     due_date: end,
@@ -108,5 +108,28 @@ describe("calendar range layout", () => {
     expect(ranges[0]).toMatchObject({ start: "2026-08-14", end: "2026-08-18", durationDays: 5 });
     expect(weeks[0].segments[0]).toMatchObject({ startColumn: 4, span: 3, endsAfterWeek: true });
     expect(weeks[1].segments[0]).toMatchObject({ startColumn: 0, span: 2, startsBeforeWeek: true });
+  });
+
+  it("breaks Autopacific work at weekends while preserving its original date window", () => {
+    const autopacificDays = [
+      "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11",
+      "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18",
+    ];
+    const ranges = getCalendarJobRanges([
+      job("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Weekday production", "2026-10-06", "2026-10-14", "AUTOPACIFIC  GROUP"),
+    ]);
+    const weeks = buildCalendarRangeWeeks(autopacificDays, ranges);
+
+    expect(ranges[0]).toMatchObject({
+      start: "2026-10-06",
+      end: "2026-10-14",
+      durationDays: 7,
+      weekdaysOnly: true,
+    });
+    expect(weeks[0].segments).toHaveLength(1);
+    expect(weeks[0].segments[0]).toMatchObject({ startColumn: 1, span: 4, startsBeforeWeek: false, endsAfterWeek: false });
+    expect(weeks[1].segments).toHaveLength(1);
+    expect(weeks[1].segments[0]).toMatchObject({ startColumn: 0, span: 3, startsBeforeWeek: false, endsAfterWeek: false });
+    expect(weeks.flatMap((week) => week.segments).every((segment) => segment.startColumn + segment.span <= 5)).toBe(true);
   });
 });

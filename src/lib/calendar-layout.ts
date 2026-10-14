@@ -8,6 +8,7 @@ export type CalendarJobRange<T extends CalendarScheduleRangeItem = CalendarRange
   start: string;
   end: string;
   durationDays: number;
+  weekdaysOnly: boolean;
   item: T;
 };
 
@@ -30,6 +31,28 @@ function calendarDayNumber(date: string) {
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
 }
 
+function isWeekend(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
+
+function isAutopacificWork(item: CalendarScheduleRangeItem) {
+  if (item.entity_type === "calendar-event") return false;
+  return item.client_name?.trim().replace(/\s+/g, " ").toLowerCase() === "autopacific group";
+}
+
+function countRangeDays(start: string, end: string, weekdaysOnly: boolean) {
+  if (!weekdaysOnly) return calendarDayNumber(end) - calendarDayNumber(start) + 1;
+
+  let count = 0;
+  for (let day = calendarDayNumber(start); day <= calendarDayNumber(end); day += 1) {
+    const weekday = new Date(day * 86_400_000).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) count += 1;
+  }
+  return count;
+}
+
 export function getCalendarJobRanges(jobs: CalendarJob[]) {
   return getCalendarScheduleRanges(jobs);
 }
@@ -40,11 +63,13 @@ export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(i
       const start = item.entity_type === "job" ? item.shoot_date : item.start_date;
       const end = item.entity_type === "calendar-event" ? item.end_date : item.due_date;
       if (!start || !end || start > end) return [];
+      const weekdaysOnly = isAutopacificWork(item);
       return [{
         id: `${item.entity_type}-${item.id}`,
         start,
         end,
-        durationDays: calendarDayNumber(end) - calendarDayNumber(start) + 1,
+        durationDays: countRangeDays(start, end, weekdaysOnly),
+        weekdaysOnly,
         item,
       }];
     })
@@ -62,19 +87,42 @@ export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(day
     const laneEnds: number[] = [];
     const segments = ranges
       .filter((range) => range.start <= weekEnd && range.end >= weekStart)
-      .map((range) => {
+      .flatMap((range): CalendarRangeSegment<T>[] => {
+        if (range.weekdaysOnly) {
+          const visibleColumns = weekDays
+            .map((date, column) => ({ date, column }))
+            .filter(({ date }) => date >= range.start && date <= range.end && !isWeekend(date));
+          if (!visibleColumns.length) return [];
+
+          const columnRuns = visibleColumns.reduce<number[][]>((runs, { column }) => {
+            const activeRun = runs.at(-1);
+            if (!activeRun || activeRun.at(-1)! + 1 !== column) runs.push([column]);
+            else activeRun.push(column);
+            return runs;
+          }, []);
+
+          return columnRuns.map((columns) => ({
+            ...range,
+            startsBeforeWeek: false,
+            endsAfterWeek: false,
+            startColumn: columns[0],
+            span: columns.length,
+            lane: 0,
+          }));
+        }
+
         const clippedStart = range.start < weekStart ? weekStart : range.start;
         const clippedEnd = range.end > weekEnd ? weekEnd : range.end;
         const startColumn = weekDays.indexOf(clippedStart);
         const endColumn = weekDays.indexOf(clippedEnd);
-        return {
+        return [{
           ...range,
           startsBeforeWeek: range.start < weekStart,
           endsAfterWeek: range.end > weekEnd,
           startColumn,
           span: endColumn - startColumn + 1,
           lane: 0,
-        };
+        }];
       })
       .sort((left, right) => left.startColumn - right.startColumn || right.span - left.span || left.item.title.localeCompare(right.item.title))
       .map((segment) => {

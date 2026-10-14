@@ -86,6 +86,24 @@ describe("TabletCalendar", () => {
     expect(completedDeadline?.classList.contains("is-complete")).toBe(true);
   });
 
+  it("leaves weekends clear for multi-week Autopacific work", async () => {
+    const autopacificJob: CalendarJob = {
+      ...jobs[0],
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      title: "Weekday production",
+      client_name: "Autopacific Group",
+      shoot_date: "2026-10-06",
+      due_date: "2026-10-14",
+    };
+
+    await act(async () => root.render(<TabletCalendar jobs={[autopacificJob]} tasks={[]} today="2026-10-15" />));
+
+    const weekdaySegments = [...container.querySelectorAll<HTMLElement>('[aria-label^="Weekday production"]')];
+    expect(weekdaySegments).toHaveLength(2);
+    expect(weekdaySegments.map((segment) => segment.style.gridColumn)).toEqual(["2 / span 4", "1 / span 3"]);
+    expect(weekdaySegments.every((segment) => segment.getAttribute("aria-label")?.includes("7 days"))).toBe(true);
+  });
+
   it("shows custom event cards with only their title", async () => {
     await act(async () => root.render(<TabletCalendar jobs={[]} tasks={[]} customEvents={customEvents} today="2026-08-25" />));
 
