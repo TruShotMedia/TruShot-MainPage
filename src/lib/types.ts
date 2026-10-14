@@ -253,6 +253,32 @@ export type CalendarCustomEvent = {
   updated_at: string;
 };
 
+export type CalendarFlightEvent = {
+  id: string;
+  entity_type: "flight-event";
+  title: string;
+  departure_date: string;
+  departure_time: string;
+  arrival_date: string;
+  arrival_time: string;
+  origin_location: string;
+  destination_location: string;
+  departure_airline: string;
+  arrival_airline: string;
+  departure_flight_number: string | null;
+  arrival_flight_number: string | null;
+  notes: string | null;
+  accommodation_title: string | null;
+  accommodation_location: string | null;
+  accommodation_notes: string | null;
+  vehicle_title: string | null;
+  vehicle_location: string | null;
+  vehicle_notes: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TabletKioskData = {
   statuses: TaskStatus[];
   jobStatuses: JobStatus[];
@@ -264,6 +290,7 @@ export type TabletKioskData = {
   calendarTasks: CalendarTask[];
   calendarCampaignAssets: CalendarCampaignAsset[];
   calendarEvents: CalendarCustomEvent[];
+  flightEvents: CalendarFlightEvent[];
   pendingRequestCount: number;
 };
 
@@ -272,6 +299,14 @@ export type CalendarEventSaveResult =
   | { ok: false; error: string };
 
 export type CalendarEventDeleteResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export type FlightEventSaveResult =
+  | { ok: true; event: CalendarFlightEvent }
+  | { ok: false; error: string };
+
+export type FlightEventDeleteResult =
   | { ok: true }
   | { ok: false; error: string };
 

@@ -1241,6 +1241,26 @@ img { max-width: 100%; }
 .calendar-event-editor > footer > span { flex: 1; }
 .calendar-event-editor > footer > .calendar-event-delete { display: inline-flex; min-height: 39px; align-items: center; gap: 6px; border: 1px solid #e2c9c2; border-radius: 9px; background: #f8e9e5; padding: 0 13px; color: #9b4d3e; font-size: 9px; font-weight: 850; cursor: pointer; }
 .calendar-event-editor > footer > button:not(.admin-primary-button):not(.calendar-event-delete) { min-height: 39px; border: 1px solid #dad9d3; border-radius: 9px; background: white; padding: 0 14px; color: #686e67; font-size: 9px; font-weight: 850; cursor: pointer; }
+.flight-event-editor { width: min(980px, 100%); }
+.flight-event-overview { display: grid; grid-template-columns: .8fr 1.2fr; gap: 13px; margin: 22px 0 14px; }
+.flight-event-overview label, .flight-leg-card label, .flight-support-grid label { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: #5f665f; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.flight-event-overview input, .flight-event-overview textarea, .flight-leg-card input, .flight-support-grid input, .flight-support-grid textarea { width: 100%; min-height: 42px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 11px; color: #303631; font: inherit; font-size: 11px; font-weight: 650; letter-spacing: 0; text-transform: none; }
+.flight-event-overview textarea, .flight-support-grid textarea { min-height: 74px; resize: vertical; padding-top: 10px; line-height: 1.45; }
+.flight-event-overview input:focus, .flight-event-overview textarea:focus, .flight-leg-card input:focus, .flight-support-grid input:focus, .flight-support-grid textarea:focus { border-color: #3975ad; box-shadow: 0 0 0 3px rgba(57,117,173,.13); }
+.flight-leg-grid { display: grid; grid-template-columns: minmax(0,1fr) 38px minmax(0,1fr); align-items: stretch; gap: 10px; }
+.flight-leg-card, .flight-support-grid fieldset { min-width: 0; margin: 0; border: 1px solid #d9e2e9; border-radius: 14px; background: #f2f7fa; padding: 15px; }
+.flight-leg-card legend, .flight-support-grid legend { display: inline-flex; align-items: center; gap: 7px; padding: 0 7px; color: #315f85; font-size: 8px; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; }
+.flight-leg-card > label + label, .flight-support-grid label + label { margin-top: 10px; }
+.flight-leg-card > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 0; }
+.flight-leg-card label { position: relative; }
+.flight-leg-card label > svg { position: absolute; top: 34px; left: 10px; color: #69879d; }
+.flight-leg-card .flight-location-field input { padding-left: 31px; }
+.flight-leg-card label small, .flight-support-grid legend small { color: #8798a4; font-size: 6px; font-weight: 750; letter-spacing: 0; text-transform: none; }
+.flight-route-divider { display: flex; min-width: 0; align-items: center; flex-direction: column; justify-content: center; gap: 7px; color: #3975ad; }
+.flight-route-divider i { width: 1px; flex: 1; background: linear-gradient(transparent, #8cabc2, transparent); }
+.flight-support-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 14px; }
+.flight-support-grid fieldset { border-color: #e0e1db; background: transparent; }
+.flight-support-grid legend { color: #566058; }
 .pricing-direct-hero { min-height: 72vh; padding: clamp(180px, 19vw, 290px) clamp(24px, 5vw, 80px) clamp(90px, 10vw, 150px); background: radial-gradient(circle at 78% 20%, rgba(31,94,65,.10), transparent 34%), var(--cream); }
 .pricing-direct-hero h1 { max-width: 1300px; margin: 45px 0 0; font-size: clamp(70px, 9vw, 148px); line-height: .83; letter-spacing: -.075em; text-transform: uppercase; }
 .pricing-direct-hero h1 em { color: var(--green); font-family: Georgia, serif; font-weight: 400; text-transform: lowercase; }
@@ -1552,6 +1572,10 @@ img { max-width: 100%; }
   .calendar-event-editor > footer { flex-wrap: wrap; }
   .calendar-event-editor > footer > span { display: none; }
   .calendar-event-editor > footer > .calendar-event-delete { margin-right: auto; }
+  .flight-event-overview, .flight-support-grid { grid-template-columns: 1fr; }
+  .flight-leg-grid { grid-template-columns: 1fr; }
+  .flight-route-divider { min-height: 28px; flex-direction: row; }
+  .flight-route-divider i { width: auto; height: 1px; }
   .metric-grid, .finance-kpis, .request-grid, .client-grid, .pricing-admin-grid, .tax-grid, .settings-fields { grid-template-columns: 1fr; }
   .request-kpis { grid-template-columns: 1fr 1fr; }
   .request-kpis article { min-height: 78px; padding: 14px; }
@@ -1825,6 +1849,7 @@ img { max-width: 100%; }
 .tablet-calendar-legend i.is-task { width: 7px; height: 7px; background: #597cad; }
 .tablet-calendar-legend i.is-campaign { width: 11px; background: #7a5b91; }
 .tablet-calendar-legend i.is-calendar-event { width: 11px; background: #b74f44; }
+.tablet-calendar-legend i.is-flight { width: 13px; height: 7px; border: 1px solid #6fb2df; background: #234f71; }
 .tablet-calendar-legend i.is-complete { background: #aeb2ad; }
 .tablet-calendar-scroll { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-color: rgba(103,207,150,.22) transparent; scrollbar-width: thin; }
 .tablet-calendar-weekdays { position: sticky; top: 0; z-index: 6; display: grid; min-width: 650px; flex: 0 0 auto; grid-template-columns: repeat(7, minmax(0,1fr)); border-bottom: 1px solid #26322a; background: rgba(14,22,17,.98); }
@@ -1865,6 +1890,20 @@ img { max-width: 100%; }
 .tablet-calendar-job-range em { opacity: .78; font-size: 6px; font-style: normal; }
 .tablet-calendar-job-range span { opacity: .78; font-size: 6px; font-weight: 800; }
 .tablet-calendar-job-range.is-calendar-event { grid-template-columns: minmax(0,1fr); border: 1px solid #61382f; border: 1px solid color-mix(in srgb, var(--tablet-calendar-color) 52%, #26322a); border-left-width: 4px; background: #261714; background: color-mix(in srgb, var(--tablet-calendar-color) 22%, #101713); color: #f0bbb0; color: color-mix(in srgb, var(--tablet-calendar-color) 42%, #f3f5f2); }
+.tablet-calendar-flight-range { grid-template-columns: minmax(34px,auto) minmax(0,1fr) minmax(34px,auto); gap: 5px; border: 1px solid #4d8eb9; border-top-color: #75bce7; background: linear-gradient(105deg, #17364d, #234f71 48%, #163249); padding: 3px 6px; color: #ecf7ff; box-shadow: 0 4px 11px rgba(5,18,27,.42), inset 0 1px rgba(255,255,255,.1); }
+.flight-range-endpoint { display: grid; min-width: 0; grid-template-columns: 22px minmax(0,1fr); grid-template-rows: 1fr 1fr; align-items: center; column-gap: 4px; }
+.flight-range-endpoint b { display: grid; width: 22px; height: 22px; grid-row: 1 / 3; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: #f3f8fb; color: #194361; font-size: 6px; letter-spacing: -.02em; box-shadow: 0 2px 7px rgba(0,0,0,.2); }
+.flight-range-endpoint span { align-self: end; color: white; font-size: 6px; font-weight: 950; line-height: 1; }
+.flight-range-endpoint small { align-self: start; overflow: hidden; color: #a9cee7; font-size: 5px; font-weight: 800; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.flight-range-endpoint.is-arrival { text-align: right; }
+.flight-range-endpoint.is-arrival b { grid-column: 2; }
+.flight-range-endpoint.is-arrival span, .flight-range-endpoint.is-arrival small { grid-column: 1; }
+.flight-range-endpoint.is-hidden { visibility: hidden; }
+.flight-range-title { display: grid; min-width: 0; grid-template-columns: auto minmax(0,1fr); align-content: center; align-items: center; gap: 1px 4px; text-align: center; }
+.flight-range-title > svg { grid-row: 1 / 3; color: #9bd4f5; transform: rotate(9deg); }
+.flight-range-title strong, .flight-range-title em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flight-range-title strong { font-size: 7px; }
+.flight-range-title em { color: #abd1e9; font-size: 5px; font-style: normal; font-weight: 750; }
 .tablet-calendar-job-range.is-complete { background: #9a9e99; opacity: .62; }
 .tablet-calendar-job-range.is-editable { cursor: pointer; transition: filter 130ms ease, transform 130ms ease; }
 .tablet-calendar-job-range.is-editable:hover, .tablet-calendar-job-range.is-editable:focus-visible { z-index: 4; outline: 0; filter: brightness(1.16); transform: translateY(-1px); }
@@ -1913,6 +1952,15 @@ img { max-width: 100%; }
 .tablet-kiosk .calendar-event-colors span { border-color: #0d1510; box-shadow: 0 0 0 1px #3b473f; }
 .tablet-kiosk .calendar-event-reminders label { border-color: #344139; background: #151e18; color: #b5beb7; }
 .tablet-kiosk .calendar-editor-error { border-color: #703e35; background: #321b17; color: #f0a99a; }
+.tablet-kiosk .flight-event-editor { width: min(980px, calc(100% - 34px)); }
+.tablet-kiosk .flight-event-overview label, .tablet-kiosk .flight-leg-card label, .tablet-kiosk .flight-support-grid label { color: #9aa59d; }
+.tablet-kiosk .flight-event-overview input, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-leg-card input, .tablet-kiosk .flight-support-grid input, .tablet-kiosk .flight-support-grid textarea { border-color: #344139; background: #151e18; color: #edf2ee; }
+.tablet-kiosk .flight-leg-card { border-color: #31536b; background: #101b22; }
+.tablet-kiosk .flight-leg-card legend { color: #82c2ea; }
+.tablet-kiosk .flight-route-divider { color: #6cb3df; }
+.tablet-kiosk .flight-route-divider i { background: linear-gradient(transparent, #315f7c, transparent); }
+.tablet-kiosk .flight-support-grid fieldset { border-color: #303c33; }
+.tablet-kiosk .flight-support-grid legend { color: #a2ada5; }
 .tablet-kiosk .tablet-record-editor-footer { align-items: center; }
 .tablet-kiosk .tablet-record-editor-footer > span { flex: 1; }
 .tablet-kiosk .tablet-record-editor-footer > .tablet-delete-record { display: inline-flex; min-height: 39px; align-items: center; gap: 6px; border: 1px solid #703e35; border-radius: 9px; background: #321b17; padding: 0 13px; color: #f0a99a; font-size: 9px; font-weight: 850; cursor: pointer; }
@@ -1952,6 +2000,10 @@ img { max-width: 100%; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-calendar-legend span { font-size: 6px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-create-dock { right: 14px; bottom: 14px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-create-options { flex-direction: column; align-items: flex-end; }
+.tablet-kiosk[data-orientation="portrait"] .flight-event-overview, .tablet-kiosk[data-orientation="portrait"] .flight-support-grid { grid-template-columns: 1fr; }
+.tablet-kiosk[data-orientation="portrait"] .flight-leg-grid { grid-template-columns: 1fr; }
+.tablet-kiosk[data-orientation="portrait"] .flight-route-divider { min-height: 28px; flex-direction: row; }
+.tablet-kiosk[data-orientation="portrait"] .flight-route-divider i { width: auto; height: 1px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-screensaver { padding: 25px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-topline { gap: 9px; }
 .tablet-kiosk[data-orientation="portrait"] .tablet-screensaver-clock { min-height: 32px; flex-direction: column; gap: 1px; padding: 3px 11px; }

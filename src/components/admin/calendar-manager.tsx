@@ -18,10 +18,11 @@ import {
 import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, X } from "lucide-react";
 import { updateCalendarItem } from "@/app/admin/actions";
 import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
-import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
+import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 type CalendarFilter = "all" | "events" | "jobs" | "tasks" | "campaigns";
+type AdminScheduleRangeItem = CalendarJob | CalendarCampaignAsset | CalendarCustomEvent;
 type CalendarDisplayEvent = {
   id: string;
   date: string;
@@ -74,7 +75,7 @@ function dueLabel(date: string, today: string) {
   return `Due in ${difference}d`;
 }
 
-function formatJobWindow(range: CalendarJobRange<CalendarScheduleRangeItem>) {
+function formatJobWindow(range: CalendarJobRange<AdminScheduleRangeItem>) {
   const start = parseISO(range.start);
   const end = parseISO(range.end);
   if (format(start, "yyyy") !== format(end, "yyyy")) return `${format(start, "d MMM yyyy")}–${format(end, "d MMM yyyy")}`;
@@ -92,7 +93,7 @@ function CalendarEventButton({ event, onOpen }: { event: CalendarDisplayEvent; o
   );
 }
 
-function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment<CalendarScheduleRangeItem>; onOpen: (item: CalendarScheduleRangeItem) => void }) {
+function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSegment<AdminScheduleRangeItem>; onOpen: (item: AdminScheduleRangeItem) => void }) {
   const windowLabel = formatJobWindow(segment);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
@@ -122,7 +123,7 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
   );
 }
 
-function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<CalendarScheduleRangeItem>; onOpen: (item: CalendarScheduleRangeItem) => void }) {
+function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<AdminScheduleRangeItem>; onOpen: (item: AdminScheduleRangeItem) => void }) {
   const windowLabel = formatJobWindow(range);
   const isCalendarEvent = range.item.entity_type === "calendar-event";
   const isComplete = range.item.entity_type === "calendar-event" ? false : range.item.is_complete;
@@ -181,7 +182,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], events: init
     return grouped;
   }, [events]);
   const mobileRangesByDay = useMemo(() => {
-    const grouped = new Map<string, CalendarJobRange<CalendarScheduleRangeItem>[]>();
+    const grouped = new Map<string, CalendarJobRange<AdminScheduleRangeItem>[]>();
     const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
     for (const range of scheduleRanges) {
@@ -225,7 +226,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], events: init
     setErrorMessage("");
   }
 
-  function openRangeItem(item: CalendarScheduleRangeItem) {
+  function openRangeItem(item: AdminScheduleRangeItem) {
     if (item.entity_type === "calendar-event") {
       setSelectedCustomEvent(item);
       setEventEditorDate(item.start_date);

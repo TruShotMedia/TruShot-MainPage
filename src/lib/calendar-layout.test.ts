@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCalendarRangeWeeks, getCalendarJobRanges, getCalendarScheduleRanges } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob } from "@/lib/types";
 
 function job(id: string, title: string, start: string | null, end: string | null, clientName = "Ravish Media"): CalendarJob {
   return {
@@ -131,5 +131,44 @@ describe("calendar range layout", () => {
     expect(weeks[1].segments).toHaveLength(1);
     expect(weeks[1].segments[0]).toMatchObject({ startColumn: 0, span: 3, startsBeforeWeek: false, endsAfterWeek: false });
     expect(weeks.flatMap((week) => week.segments).every((segment) => segment.startColumn + segment.span <= 5)).toBe(true);
+  });
+
+  it("reserves a double-height lane for flight itineraries without overlapping work", () => {
+    const flight: CalendarFlightEvent = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      entity_type: "flight-event",
+      title: "Sydney production trip",
+      departure_date: "2026-08-14",
+      departure_time: "07:30:00",
+      arrival_date: "2026-08-15",
+      arrival_time: "09:05:00",
+      origin_location: "Brisbane · BNE",
+      destination_location: "Sydney · SYD",
+      departure_airline: "Qantas",
+      arrival_airline: "Qantas",
+      departure_flight_number: "QF 501",
+      arrival_flight_number: "QF 501",
+      notes: null,
+      accommodation_title: "The Old Clare",
+      accommodation_location: "Chippendale",
+      accommodation_notes: null,
+      vehicle_title: null,
+      vehicle_location: null,
+      vehicle_notes: null,
+      color: "#3975ad",
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    };
+    const ranges = getCalendarScheduleRanges([
+      flight,
+      job("cccccccc-cccc-4ccc-8ccc-cccccccccccc", "Overlapping production", "2026-08-14", "2026-08-16"),
+    ]);
+    const week = buildCalendarRangeWeeks(dayKeys, ranges)[0];
+    const flightSegment = week.segments.find((segment) => segment.item.entity_type === "flight-event")!;
+    const jobSegment = week.segments.find((segment) => segment.item.entity_type === "job")!;
+
+    expect(flightSegment).toMatchObject({ startColumn: 4, span: 2, lane: 0, laneSpan: 2 });
+    expect(jobSegment.lane).toBe(2);
+    expect(week.laneCount).toBe(3);
   });
 });

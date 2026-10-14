@@ -15,9 +15,9 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plane, Plus } from "lucide-react";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 type TabletCalendarEvent = {
   id: string;
@@ -33,7 +33,8 @@ type TabletCalendarEvent = {
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const calendarWindowDays = 42;
-const visibleRangeLanes = 2;
+const visibleRangeLanes = 3;
+type CalendarStandardRangeItem = Exclude<CalendarScheduleRangeItem, CalendarFlightEvent>;
 
 function getCalendarWindow(month: Date, today: Date) {
   const monthStart = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
@@ -63,7 +64,75 @@ function dateWindowLabel(startDate: string, endDate: string) {
   return `${format(start, "d")}–${format(end, "d MMM")}`;
 }
 
-function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarScheduleRangeItem> }) {
+function compactTime(value: string) {
+  const [hourText, minuteText] = value.slice(0, 5).split(":");
+  const hour = Number(hourText);
+  const suffix = hour >= 12 ? "pm" : "am";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}${minuteText === "00" ? "" : `:${minuteText}`}${suffix}`;
+}
+
+function airlineMark(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1) return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+  return name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase();
+}
+
+function flightHoverDetails(flight: CalendarFlightEvent) {
+  return [
+    flight.title,
+    `${flight.departure_airline}${flight.departure_flight_number ? ` ${flight.departure_flight_number}` : ""}: ${flight.origin_location} · ${flight.departure_date} ${compactTime(flight.departure_time)}`,
+    `${flight.arrival_airline}${flight.arrival_flight_number ? ` ${flight.arrival_flight_number}` : ""}: ${flight.destination_location} · ${flight.arrival_date} ${compactTime(flight.arrival_time)}`,
+    flight.accommodation_title ? `Accommodation: ${flight.accommodation_title}${flight.accommodation_location ? ` · ${flight.accommodation_location}` : ""}${flight.accommodation_notes ? ` · ${flight.accommodation_notes}` : ""}` : null,
+    flight.vehicle_title ? `Vehicle: ${flight.vehicle_title}${flight.vehicle_location ? ` · ${flight.vehicle_location}` : ""}${flight.vehicle_notes ? ` · ${flight.vehicle_notes}` : ""}` : null,
+    flight.notes,
+  ].filter(Boolean).join("\n");
+}
+
+function FlightRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarFlightEvent> }) {
+  const flight = segment.item;
+  const showDeparture = !segment.startsBeforeWeek;
+  const showArrival = !segment.endsAfterWeek;
+  return (
+    <article
+      aria-label={`${flight.title}, flight from ${flight.origin_location} to ${flight.destination_location}`}
+      className={`tablet-calendar-job-range tablet-calendar-flight-range ${editable ? "is-editable" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""}`}
+      role={editable ? "button" : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={editable ? () => onOpen(flight) : undefined}
+      onKeyDown={editable ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(flight);
+        }
+      } : undefined}
+      title={flightHoverDetails(flight)}
+      style={{
+        "--tablet-calendar-color": flight.color,
+        gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
+        gridRow: `${segment.lane + 1} / span ${segment.laneSpan}`,
+      } as CSSProperties}
+    >
+      <div className={`flight-range-endpoint ${showDeparture ? "" : "is-hidden"}`}>
+        <b aria-hidden="true">{airlineMark(flight.departure_airline)}</b>
+        <span>{compactTime(flight.departure_time)}</span>
+        <small>{flight.origin_location}</small>
+      </div>
+      <div className="flight-range-title">
+        <Plane size={12} aria-hidden="true" />
+        <strong>{flight.title}</strong>
+        <em>{flight.origin_location} → {flight.destination_location}</em>
+      </div>
+      <div className={`flight-range-endpoint is-arrival ${showArrival ? "" : "is-hidden"}`}>
+        <b aria-hidden="true">{airlineMark(flight.arrival_airline)}</b>
+        <span>{compactTime(flight.arrival_time)}</span>
+        <small>{flight.destination_location}</small>
+      </div>
+    </article>
+  );
+}
+
+function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarStandardRangeItem> }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
@@ -91,7 +160,7 @@ function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (i
       style={{
         "--tablet-calendar-color": rangeColor,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
-        gridRow: segment.lane + 1,
+        gridRow: `${segment.lane + 1} / span ${segment.laneSpan}`,
       } as CSSProperties}
     >
       <strong>{segment.item.title}</strong>
@@ -101,10 +170,10 @@ function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (i
   );
 }
 
-export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], editable = false, onCreateEvent, onEditEvent, onEditItem, today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
+export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(todayDate));
-  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents]), [campaignAssets, customEvents, jobs]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...flightEvents]), [campaignAssets, customEvents, flightEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate), [currentMonth, todayDate]);
   const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);
@@ -173,6 +242,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
   function openRangeItem(item: CalendarScheduleRangeItem) {
     if (!editable) return;
     if (item.entity_type === "calendar-event") onEditEvent?.(item);
+    else if (item.entity_type === "flight-event") onEditFlight?.(item);
     else onEditItem?.(item);
   }
 
@@ -190,6 +260,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
           <span><i className="is-task" /> Deadline</span>
           <span><i className="is-campaign" /> Campaign</span>
           <span><i className="is-calendar-event" /> Event</span>
+          <span><i className="is-flight" /> Flight</span>
           <span><i className="is-complete" /> Completed</span>
         </div>
       </header>
@@ -199,7 +270,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         <div className="tablet-calendar-grid" style={{ "--tablet-calendar-week-count": calendarWeeks.length } as CSSProperties}>
           {calendarWeeks.map((week) => {
             const displayedRangeLanes = Math.min(week.laneCount, visibleRangeLanes);
-            const displayedSegments = week.segments.filter((segment) => segment.lane < visibleRangeLanes);
+            const displayedSegments = week.segments.filter((segment) => segment.lane + segment.laneSpan <= visibleRangeLanes);
             const displayedEventLimit = Math.max(1, 3 - displayedRangeLanes);
 
             return (
@@ -208,7 +279,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
                   {week.dayKeys.map((dateKey, dayIndex) => {
                     const day = parseISO(dateKey);
                     const dayEvents = eventsByDay.get(dateKey) ?? [];
-                    const hiddenRangeSegments = week.segments.filter((segment) => segment.lane >= visibleRangeLanes && segment.startColumn <= dayIndex && segment.startColumn + segment.span > dayIndex);
+                    const hiddenRangeSegments = week.segments.filter((segment) => segment.lane + segment.laneSpan > visibleRangeLanes && segment.startColumn <= dayIndex && segment.startColumn + segment.span > dayIndex);
                     const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
                     const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
                     return (
@@ -242,7 +313,9 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
                     );
                   })}
                 </div>
-                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => <JobRange editable={editable} onOpen={openRangeItem} segment={segment} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
+                  ? <FlightRange editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} key={`${segment.id}-${week.dayKeys[0]}`} />
+                  : <JobRange editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}

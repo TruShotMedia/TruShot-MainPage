@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => routerMocks }));
 vi.mock("next/image", () => ({ default: ({ alt, className, src }: { alt: string; className?: string; src: string }) => <span role="img" aria-label={alt} className={className} data-src={src} /> }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
 vi.mock("@/components/admin/calendar-event-editor", () => ({ CalendarEventEditor: () => <div data-testid="event-editor" /> }));
+vi.mock("@/components/tablet/flight-event-editor", () => ({ FlightEventEditor: () => <div data-testid="flight-editor" /> }));
 vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: (props: unknown) => { componentMocks.pipeline(props); return <div data-testid="pipeline-view">Pipeline board</div>; } }));
 vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => null }));
 vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: (props: unknown) => { componentMocks.calendar(props); return <div data-testid="calendar-view">Calendar board</div>; } }));
@@ -213,6 +214,7 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => editButton.click());
     expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: true });
     expect(container.querySelector(".tablet-create-dock")).not.toBeNull();
+    expect(container.textContent).toContain("Flight");
     expect(container.querySelector('button[aria-label="Turn off tablet editing"]')).not.toBeNull();
     expect(container.textContent).toContain("Jobs");
     expect(container.textContent).toContain("Tasks");

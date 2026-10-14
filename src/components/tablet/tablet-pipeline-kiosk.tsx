@@ -5,14 +5,14 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
@@ -39,6 +39,7 @@ const defaultTabletKioskBranding: TabletKioskBranding = {
 };
 
 const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-event-editor").then((module) => module.CalendarEventEditor));
+const FlightEventEditor = dynamic(() => import("@/components/tablet/flight-event-editor").then((module) => module.FlightEventEditor));
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
 const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
@@ -85,6 +86,7 @@ export function TabletPipelineKiosk({
   calendarTasks,
   calendarCampaignAssets = [],
   calendarEvents = [],
+  flightEvents = [],
   branding = defaultTabletKioskBranding,
   clientOptions = [],
   initialNow,
@@ -105,6 +107,7 @@ export function TabletPipelineKiosk({
   calendarTasks: CalendarTask[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
   calendarEvents?: CalendarCustomEvent[];
+  flightEvents?: CalendarFlightEvent[];
   branding?: TabletKioskBranding;
   clientOptions?: SelectOption[];
   initialNow: string;
@@ -125,9 +128,11 @@ export function TabletPipelineKiosk({
   const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event"> } | null>(null);
+  const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event" | "flight"> } | null>(null);
   const [eventEditorDate, setEventEditorDate] = useState<string | null>(null);
+  const [flightEditorDate, setFlightEditorDate] = useState<string | null>(null);
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarCustomEvent | null>(null);
+  const [selectedFlightEvent, setSelectedFlightEvent] = useState<CalendarFlightEvent | null>(null);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<CalendarItem | null>(null);
   const [selectedJob, setSelectedJob] = useState<TabletJobRecord | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
@@ -199,7 +204,9 @@ export function TabletPipelineKiosk({
       if (!next) {
         setCreateRequest(null);
         setEventEditorDate(null);
+        setFlightEditorDate(null);
         setSelectedCalendarEvent(null);
+        setSelectedFlightEvent(null);
         setSelectedScheduleItem(null);
         setSelectedJob(null);
         setSelectedTask(null);
@@ -213,10 +220,19 @@ export function TabletPipelineKiosk({
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
+    setSelectedFlightEvent(null);
+    setFlightEditorDate(null);
     if (kind === "event") {
       setCreateRequest(null);
       setSelectedCalendarEvent(null);
       setEventEditorDate(date);
+      return;
+    }
+    if (kind === "flight") {
+      setCreateRequest(null);
+      setEventEditorDate(null);
+      setSelectedCalendarEvent(null);
+      setFlightEditorDate(date);
       return;
     }
     setEventEditorDate(null);
@@ -229,14 +245,20 @@ export function TabletPipelineKiosk({
     setSelectedCalendarEvent(null);
   }, []);
 
+  const closeFlightEditor = useCallback(() => {
+    setFlightEditorDate(null);
+    setSelectedFlightEvent(null);
+  }, []);
+
   const handleMutationSaved = useCallback(() => {
     setCreateRequest(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
     closeEventEditor();
+    closeFlightEditor();
     refresh();
-  }, [closeEventEditor, refresh]);
+  }, [closeEventEditor, closeFlightEditor, refresh]);
 
   const rotateOrientation = useCallback(() => {
     const nextOrientation: TabletOrientation = effectiveOrientation === "landscape" ? "portrait" : "landscape";
@@ -392,6 +414,7 @@ export function TabletPipelineKiosk({
             tasks={calendarTasks}
             campaignAssets={calendarCampaignAssets}
             customEvents={calendarEvents}
+            flightEvents={flightEvents}
             editable={isEditing}
             onCreateEvent={(date) => openCreate("event", date)}
             onEditEvent={(event) => {
@@ -401,6 +424,15 @@ export function TabletPipelineKiosk({
               setSelectedTask(null);
               setSelectedCalendarEvent(event);
               setEventEditorDate(event.start_date);
+            }}
+            onEditFlight={(event) => {
+              setCreateRequest(null);
+              closeEventEditor();
+              setSelectedScheduleItem(null);
+              setSelectedJob(null);
+              setSelectedTask(null);
+              setSelectedFlightEvent(event);
+              setFlightEditorDate(event.departure_date);
             }}
             onEditItem={(item) => {
               setCreateRequest(null);
@@ -429,10 +461,11 @@ export function TabletPipelineKiosk({
           <div className={`tablet-create-dock ${isCreateMenuOpen ? "is-open" : ""}`} onMouseLeave={() => setIsCreateMenuOpen(false)}>
             <div className="tablet-create-options" aria-label="Create from tablet">
               <button type="button" onClick={() => openCreate("event")}><CalendarPlus2 size={15} /><span>Event</span></button>
+              <button type="button" onClick={() => openCreate("flight")}><Plane size={15} /><span>Flight</span></button>
               <button type="button" onClick={() => openCreate("job")}><BriefcaseBusiness size={15} /><span>Job</span></button>
               <button type="button" onClick={() => openCreate("task")}><ListTodo size={15} /><span>Task</span></button>
             </div>
-            <button type="button" className="tablet-create-trigger" onClick={() => setIsCreateMenuOpen((open) => !open)} aria-label="Create event, job or task" aria-expanded={isCreateMenuOpen}><Plus size={20} /></button>
+            <button type="button" className="tablet-create-trigger" onClick={() => setIsCreateMenuOpen((open) => !open)} aria-label="Create event, flight, job or task" aria-expanded={isCreateMenuOpen}><Plus size={20} /></button>
           </div>
         ) : null}
 
@@ -441,6 +474,7 @@ export function TabletPipelineKiosk({
         {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
+        {flightEditorDate ? <FlightEventEditor key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 
         {isScreensaverVisible ? (
           <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label={`${branding.name} overview`}>

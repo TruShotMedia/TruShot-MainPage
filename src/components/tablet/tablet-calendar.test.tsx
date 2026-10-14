@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCustomEvent, CalendarFlightEvent, CalendarJob, CalendarTask } from "@/lib/types";
 import { TabletCalendar } from "./tablet-calendar";
 
 const jobs: CalendarJob[] = [{
@@ -47,6 +47,32 @@ const customEvents: CalendarCustomEvent[] = [{
   is_all_day: true,
   color: "#b74f44",
   reminder_offsets_minutes: [0],
+  created_at: "2026-08-01T00:00:00.000Z",
+  updated_at: "2026-08-01T00:00:00.000Z",
+}];
+
+const flightEvents: CalendarFlightEvent[] = [{
+  id: "44444444-4444-4444-8444-444444444444",
+  entity_type: "flight-event",
+  title: "Sydney production trip",
+  departure_date: "2026-08-12",
+  departure_time: "07:30:00",
+  arrival_date: "2026-08-13",
+  arrival_time: "09:05:00",
+  origin_location: "Brisbane · BNE",
+  destination_location: "Sydney · SYD",
+  departure_airline: "Qantas Airways",
+  arrival_airline: "Qantas Airways",
+  departure_flight_number: "QF 501",
+  arrival_flight_number: "QF 501",
+  notes: "Camera gear is carry-on.",
+  accommodation_title: "The Old Clare",
+  accommodation_location: "Chippendale",
+  accommodation_notes: "Late check-in",
+  vehicle_title: "Airport transfer",
+  vehicle_location: "Terminal 3",
+  vehicle_notes: "Driver has the itinerary",
+  color: "#3975ad",
   created_at: "2026-08-01T00:00:00.000Z",
   updated_at: "2026-08-01T00:00:00.000Z",
 }];
@@ -111,6 +137,21 @@ describe("TabletCalendar", () => {
     expect(calendarEvent).not.toBeNull();
     expect(calendarEvent?.textContent).toBe("First day AUTOPACIFIC");
     expect(calendarEvent?.title).toContain("Geebung");
+  });
+
+  it("renders a double-height flight itinerary with route details and editing", async () => {
+    const onEditFlight = vi.fn();
+    await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} flightEvents={flightEvents} onEditFlight={onEditFlight} today="2026-08-25" />));
+
+    const flight = container.querySelector<HTMLElement>(".tablet-calendar-flight-range")!;
+    expect(flight).not.toBeNull();
+    expect(flight.style.gridColumn).toBe("3 / span 2");
+    expect(flight.style.gridRow).toBe("1 / span 2");
+    expect(flight.textContent).toContain("QA7:30amBrisbane · BNESydney production trip");
+    expect(flight.title).toContain("Accommodation: The Old Clare · Chippendale · Late check-in");
+    expect(flight.title).toContain("Vehicle: Airport transfer · Terminal 3");
+    await act(async () => flight.click());
+    expect(onEditFlight).toHaveBeenCalledWith(flightEvents[0]);
   });
 
   it("summarises busy days instead of overflowing their calendar cell", async () => {

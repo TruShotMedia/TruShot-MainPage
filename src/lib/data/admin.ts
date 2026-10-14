@@ -4,7 +4,7 @@ import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TabletJobRecord, TabletKioskData, TaskStatus } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TabletJobRecord, TabletKioskData, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -218,10 +218,10 @@ export async function getPipeline() {
 
 export async function getTabletKioskData(options: { clientName?: string } = {}): Promise<TabletKioskData> {
   const context = await getAdminContext();
-  if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], pendingRequestCount: 0 };
+  if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -255,6 +255,12 @@ export async function getTabletKioskData(options: { clientName?: string } = {}):
       .order("start_date")
       .order("start_time"),
     supabase
+      .from("website-flight-events")
+      .select("id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("departure_date")
+      .order("departure_time"),
+    supabase
       .from("website-clients")
       .select("id,name")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
@@ -271,7 +277,7 @@ export async function getTabletKioskData(options: { clientName?: string } = {}):
       .is("archived_at", null),
   ]);
 
-  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, enquiriesResult]
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error("The tablet workspace could not be refreshed.");
 
@@ -371,6 +377,11 @@ export async function getTabletKioskData(options: { clientName?: string } = {}):
       : [],
   }));
 
+  const flightEvents = (flightEventsResult.data ?? []).map((event): CalendarFlightEvent => ({
+    ...event,
+    entity_type: "flight-event",
+  }));
+
   const data: TabletKioskData = {
     statuses: allTaskStatuses.filter((status) => status.is_active).map((status) => ({
       id: status.id,
@@ -409,6 +420,7 @@ export async function getTabletKioskData(options: { clientName?: string } = {}):
     calendarTasks,
     calendarCampaignAssets,
     calendarEvents,
+    flightEvents,
     pendingRequestCount: enquiriesResult.count ?? 0,
   };
   return options.clientName ? scopeTabletKioskDataByClient(data, options.clientName) : data;

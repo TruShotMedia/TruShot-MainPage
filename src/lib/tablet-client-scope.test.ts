@@ -35,6 +35,7 @@ function makeData(): TabletKioskData {
       { id: "campaign-other", entity_type: "campaign-asset", title: "Other campaign", campaign_title: "Other", client_name: "Another Client", start_date: null, start_time: null, due_date: null, due_time: null, priority: "normal", status_label: "Not started", status_color: "#777", is_complete: false },
     ],
     calendarEvents: [{ id: "event-1", entity_type: "calendar-event", title: "Studio event", description: null, location: null, start_date: "2026-10-15", start_time: null, end_date: "2026-10-15", end_time: null, is_all_day: true, color: "#1f5e41", reminder_offsets_minutes: [], created_at: "2026-10-15T00:00:00.000Z", updated_at: "2026-10-15T00:00:00.000Z" }],
+    flightEvents: [],
     pendingRequestCount: 3,
   };
 }

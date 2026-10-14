@@ -1,13 +1,14 @@
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob } from "@/lib/types";
 
 export type CalendarRangeItem = CalendarJob | CalendarCampaignAsset;
-export type CalendarScheduleRangeItem = CalendarRangeItem | CalendarCustomEvent;
+export type CalendarScheduleRangeItem = CalendarRangeItem | CalendarCustomEvent | CalendarFlightEvent;
 
 export type CalendarJobRange<T extends CalendarScheduleRangeItem = CalendarRangeItem> = {
   id: string;
   start: string;
   end: string;
   durationDays: number;
+  laneSpan: number;
   weekdaysOnly: boolean;
   item: T;
 };
@@ -38,7 +39,7 @@ function isWeekend(date: string) {
 }
 
 function isAutopacificWork(item: CalendarScheduleRangeItem) {
-  if (item.entity_type === "calendar-event") return false;
+  if (item.entity_type === "calendar-event" || item.entity_type === "flight-event") return false;
   return item.client_name?.trim().replace(/\s+/g, " ").toLowerCase() === "autopacific group";
 }
 
@@ -60,8 +61,16 @@ export function getCalendarJobRanges(jobs: CalendarJob[]) {
 export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(items: T[]): CalendarJobRange<T>[] {
   return items
     .flatMap((item): CalendarJobRange<T>[] => {
-      const start = item.entity_type === "job" ? item.shoot_date : item.start_date;
-      const end = item.entity_type === "calendar-event" ? item.end_date : item.due_date;
+      const start = item.entity_type === "job"
+        ? item.shoot_date
+        : item.entity_type === "flight-event"
+          ? item.departure_date
+          : item.start_date;
+      const end = item.entity_type === "calendar-event"
+        ? item.end_date
+        : item.entity_type === "flight-event"
+          ? item.arrival_date
+          : item.due_date;
       if (!start || !end || start > end) return [];
       const weekdaysOnly = isAutopacificWork(item);
       return [{
@@ -69,6 +78,7 @@ export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(i
         start,
         end,
         durationDays: countRangeDays(start, end, weekdaysOnly),
+        laneSpan: item.entity_type === "flight-event" ? 2 : 1,
         weekdaysOnly,
         item,
       }];
@@ -124,12 +134,17 @@ export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(day
           lane: 0,
         }];
       })
-      .sort((left, right) => left.startColumn - right.startColumn || right.span - left.span || left.item.title.localeCompare(right.item.title))
+      .sort((left, right) => left.startColumn - right.startColumn || right.laneSpan - left.laneSpan || right.span - left.span || left.item.title.localeCompare(right.item.title))
       .map((segment) => {
         const endColumn = segment.startColumn + segment.span - 1;
-        let lane = laneEnds.findIndex((occupiedThrough) => occupiedThrough < segment.startColumn);
-        if (lane === -1) lane = laneEnds.length;
-        laneEnds[lane] = endColumn;
+        let lane = 0;
+        while (true) {
+          const available = Array.from({ length: segment.laneSpan }, (_, offset) => laneEnds[lane + offset] ?? -1)
+            .every((occupiedThrough) => occupiedThrough < segment.startColumn);
+          if (available) break;
+          lane += 1;
+        }
+        for (let offset = 0; offset < segment.laneSpan; offset += 1) laneEnds[lane + offset] = endColumn;
         return { ...segment, lane };
       });
 

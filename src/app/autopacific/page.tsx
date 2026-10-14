@@ -49,6 +49,7 @@ export default async function AutopacificPage() {
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}
       calendarEvents={data.calendarEvents}
+      flightEvents={data.flightEvents}
       clientOptions={data.clientOptions}
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}

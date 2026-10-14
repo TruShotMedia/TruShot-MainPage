@@ -6,14 +6,14 @@ import { archiveJob, archiveTask, createJob, createTask, updateCalendarItem, upd
 import { JobSearchField } from "@/components/admin/job-search-field";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
-export type TabletCreateKind = "event" | "job" | "task";
+export type TabletCreateKind = "event" | "flight" | "job" | "task";
 
 type CreateEditorProps = {
   clientOptions: SelectOption[];
   defaultDate: string;
   jobOptions: JobSearchOption[];
   jobStatuses: JobStatus[];
-  kind: Exclude<TabletCreateKind, "event">;
+  kind: Exclude<TabletCreateKind, "event" | "flight">;
   onClose: () => void;
   onCreated: () => void;
   taskStatuses: TaskStatus[];
