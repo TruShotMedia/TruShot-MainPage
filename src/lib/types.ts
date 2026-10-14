@@ -253,6 +253,20 @@ export type CalendarCustomEvent = {
   updated_at: string;
 };
 
+export type TabletKioskData = {
+  statuses: TaskStatus[];
+  jobStatuses: JobStatus[];
+  clientOptions: SelectOption[];
+  jobOptions: JobSearchOption[];
+  pipelineJobs: TabletJobRecord[];
+  pipelineTasks: PipelineTask[];
+  calendarJobs: CalendarJob[];
+  calendarTasks: CalendarTask[];
+  calendarCampaignAssets: CalendarCampaignAsset[];
+  calendarEvents: CalendarCustomEvent[];
+  pendingRequestCount: number;
+};
+
 export type CalendarEventSaveResult =
   | { ok: true; event: CalendarCustomEvent }
   | { ok: false; error: string };

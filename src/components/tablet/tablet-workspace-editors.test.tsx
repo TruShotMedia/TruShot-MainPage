@@ -48,7 +48,7 @@ describe("tablet workspace editors", () => {
   it("creates a job through the existing authenticated CRM action", async () => {
     const onCreated = vi.fn();
     await act(async () => root.render(
-      <TabletRecordCreateEditor clientOptions={[]} defaultDate="2026-10-14" jobOptions={[]} jobStatuses={jobStatuses} kind="job" onClose={vi.fn()} onCreated={onCreated} taskStatuses={taskStatuses} />,
+      <TabletRecordCreateEditor clientOptions={[{ id: "client-auto", name: "Autopacific Group" }]} defaultDate="2026-10-14" jobOptions={[]} jobStatuses={jobStatuses} kind="job" onClose={vi.fn()} onCreated={onCreated} taskStatuses={taskStatuses} />,
     ));
     const titleInput = container.querySelector<HTMLInputElement>('input[name="title"]')!;
     titleInput.value = "Tablet production day";
@@ -58,6 +58,7 @@ describe("tablet workspace editors", () => {
     expect(actionMocks.createJob).toHaveBeenCalledOnce();
     const formData = actionMocks.createJob.mock.calls[0]?.[0];
     expect(formData.get("title")).toBe("Tablet production day");
+    expect(formData.get("client_id")).toBe("client-auto");
     expect(formData.get("shoot_date")).toBe("2026-10-14");
     expect(onCreated).toHaveBeenCalledOnce();
   });

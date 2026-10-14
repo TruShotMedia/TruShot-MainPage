@@ -55,6 +55,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
   }
 
   const title = kind === "job" ? "Create a job" : "Create a task / asset";
+  const defaultClientId = clientOptions.length === 1 ? clientOptions[0].id : "";
   return (
     <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
       <form className="calendar-editor tablet-record-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="tablet-record-editor-title">
@@ -70,7 +71,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
         {kind === "job" ? (
           <div className="tablet-record-editor-fields">
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} autoFocus /></label>
-            <label>Client<select name="client_id" defaultValue=""><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+            <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
             <label>Status<select name="status_id" required defaultValue={jobStatuses[0]?.id}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Shoot date<input name="shoot_date" type="date" defaultValue={defaultDate} /></label>
             <label>Shoot time<input name="shoot_time" type="time" /></label>

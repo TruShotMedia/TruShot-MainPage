@@ -3,7 +3,8 @@ import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, JobSearchOption, JobStatus, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
+import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TabletJobRecord, TabletKioskData, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
   const supabase = await createClient();
@@ -215,19 +216,7 @@ export async function getPipeline() {
   };
 }
 
-export async function getTabletKioskData(): Promise<{
-  statuses: TaskStatus[];
-  jobStatuses: JobStatus[];
-  clientOptions: SelectOption[];
-  jobOptions: JobSearchOption[];
-  pipelineJobs: TabletJobRecord[];
-  pipelineTasks: PipelineTask[];
-  calendarJobs: CalendarJob[];
-  calendarTasks: CalendarTask[];
-  calendarCampaignAssets: CalendarCampaignAsset[];
-  calendarEvents: CalendarCustomEvent[];
-  pendingRequestCount: number;
-}> {
+export async function getTabletKioskData(options: { clientName?: string } = {}): Promise<TabletKioskData> {
   const context = await getAdminContext();
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
@@ -382,7 +371,7 @@ export async function getTabletKioskData(): Promise<{
       : [],
   }));
 
-  return {
+  const data: TabletKioskData = {
     statuses: allTaskStatuses.filter((status) => status.is_active).map((status) => ({
       id: status.id,
       key: status.key,
@@ -422,6 +411,7 @@ export async function getTabletKioskData(): Promise<{
     calendarEvents,
     pendingRequestCount: enquiriesResult.count ?? 0,
   };
+  return options.clientName ? scopeTabletKioskDataByClient(data, options.clientName) : data;
 }
 
 export async function getInvoices() {
