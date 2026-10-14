@@ -19,6 +19,25 @@ const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
 const tabletPageDurationMs = 60_000;
 const tabletScreensaverDurationMs = 15_000;
 
+type TabletKioskBranding = {
+  logoAlt: string;
+  logoHeight: number;
+  logoSrc: string;
+  logoSurface?: "light";
+  logoWidth: number;
+  name: string;
+  location: string;
+};
+
+const defaultTabletKioskBranding: TabletKioskBranding = {
+  logoAlt: "TruShot Media",
+  logoHeight: 744,
+  logoSrc: "/brand/logo-white.png",
+  logoWidth: 2000,
+  name: "TruShot Media",
+  location: "Brisbane",
+};
+
 const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-event-editor").then((module) => module.CalendarEventEditor));
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
@@ -66,6 +85,7 @@ export function TabletPipelineKiosk({
   calendarTasks,
   calendarCampaignAssets = [],
   calendarEvents = [],
+  branding = defaultTabletKioskBranding,
   clientOptions = [],
   initialNow,
   initialStatuses,
@@ -85,6 +105,7 @@ export function TabletPipelineKiosk({
   calendarTasks: CalendarTask[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
   calendarEvents?: CalendarCustomEvent[];
+  branding?: TabletKioskBranding;
   clientOptions?: SelectOption[];
   initialNow: string;
   initialStatuses: TaskStatus[];
@@ -297,7 +318,9 @@ export function TabletPipelineKiosk({
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
-            <Image src="/brand/logo-white.png" alt="TruShot Media" width={230} height={84} priority />
+            <span className={`tablet-kiosk-brandmark ${branding.logoSurface === "light" ? "is-light-backed" : ""}`}>
+              <Image src={branding.logoSrc} alt={branding.logoAlt} width={branding.logoWidth} height={branding.logoHeight} priority />
+            </span>
             <div className="tablet-kiosk-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
               <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
               <span suppressHydrationWarning>{dateFormatter.format(now)}</span>
@@ -420,9 +443,9 @@ export function TabletPipelineKiosk({
         {eventEditorDate ? <CalendarEventEditor key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 
         {isScreensaverVisible ? (
-          <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label="TruShot Media studio overview">
+          <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label={`${branding.name} overview`}>
             <div className="tablet-screensaver-topline">
-              <span><i /> TruShot Media · Brisbane</span>
+              <span><i /> {branding.name} · {branding.location}</span>
               <div className="tablet-screensaver-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
                 <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
                 <time suppressHydrationWarning>{lockscreenDateFormatter.format(now)}</time>
@@ -432,8 +455,8 @@ export function TabletPipelineKiosk({
               </button>
             </div>
 
-            <div className="tablet-screensaver-hero">
-              <Image src="/brand/logo-white.png" alt="TruShot Media" width={2000} height={744} priority sizes="(max-width: 800px) 72vw, 680px" />
+            <div className={`tablet-screensaver-hero ${branding.logoSurface === "light" ? "has-light-backed-logo" : ""}`}>
+              <Image src={branding.logoSrc} alt={branding.logoAlt} width={branding.logoWidth} height={branding.logoHeight} priority sizes="(max-width: 800px) 72vw, 680px" />
             </div>
 
             <div className="tablet-screensaver-summary" aria-label="Studio summary">

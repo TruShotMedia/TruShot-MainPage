@@ -36,6 +36,15 @@ export default async function AutopacificPage() {
 
   return (
     <TabletPipelineKiosk
+      branding={{
+        logoAlt: "Autopacific Group",
+        logoHeight: 312,
+        logoSrc: "/brand/autopacific-logo-clean.png",
+        logoSurface: "light",
+        logoWidth: 1800,
+        name: "Autopacific Group",
+        location: "Production",
+      }}
       calendarJobs={data.calendarJobs}
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}

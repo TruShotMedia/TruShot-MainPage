@@ -10,7 +10,7 @@ const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
 const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), jobPipeline: vi.fn(), pipeline: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => routerMocks }));
-vi.mock("next/image", () => ({ default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} /> }));
+vi.mock("next/image", () => ({ default: ({ alt, className, src }: { alt: string; className?: string; src: string }) => <span role="img" aria-label={alt} className={className} data-src={src} /> }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
 vi.mock("@/components/admin/calendar-event-editor", () => ({ CalendarEventEditor: () => <div data-testid="event-editor" /> }));
 vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: (props: unknown) => { componentMocks.pipeline(props); return <div data-testid="pipeline-view">Pipeline board</div>; } }));
@@ -125,6 +125,44 @@ describe("TabletPipelineKiosk", () => {
     expect(container.querySelector('button[aria-label="Resume automatic slideshow"]')).not.toBeNull();
     await act(async () => vi.advanceTimersByTime(30_000));
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
+  });
+
+  it("supports client-specific branding in both the header and lockscreen", async () => {
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        branding={{
+          logoAlt: "Autopacific Group",
+          logoHeight: 312,
+          logoSrc: "/brand/autopacific-logo-clean.png",
+          logoSurface: "light",
+          logoWidth: 1800,
+          name: "Autopacific Group",
+          location: "Production",
+        }}
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-08-25T00:00:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="pipeline"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        today="2026-08-25"
+      />,
+    ));
+
+    const headerLogo = container.querySelector('.tablet-kiosk-brandmark [data-src="/brand/autopacific-logo-clean.png"]');
+    expect(headerLogo?.getAttribute("aria-label")).toBe("Autopacific Group");
+    expect(container.querySelector(".tablet-kiosk-brandmark")?.classList.contains("is-light-backed")).toBe(true);
+
+    await act(async () => vi.advanceTimersByTime(60_000));
+    const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
+    expect(screensaver?.getAttribute("aria-label")).toBe("Autopacific Group overview");
+    expect(screensaver?.textContent).toContain("Autopacific Group · Production");
+    expect(screensaver?.querySelector('.tablet-screensaver-hero [data-src="/brand/autopacific-logo-clean.png"]')).not.toBeNull();
   });
 
   afterEach(async () => {
