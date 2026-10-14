@@ -15,7 +15,7 @@ vi.mock("@/app/admin/actions", () => actionMocks);
 const statuses: JobStatus[] = [
   { id: "11111111-1111-4111-8111-111111111111", key: "not_started", label: "Not started", color: "#777773", position: 10, is_closed: false },
   { id: "22222222-2222-4222-8222-222222222222", key: "in_progress", label: "In progress", color: "#3975ad", position: 20, is_closed: false },
-  { id: "33333333-3333-4333-8333-333333333333", key: "complete", label: "Complete", color: "#397253", position: 30, is_closed: true },
+  { id: "33333333-3333-4333-8333-333333333333", key: "delivered", label: "Delivered", color: "#397253", position: 30, is_closed: true },
 ];
 
 const job: TabletJobRecord = {
@@ -62,7 +62,8 @@ describe("TabletJobPipeline", () => {
     const onEditJob = vi.fn();
     await act(async () => root.render(<TabletJobPipeline initialJobs={[job]} statuses={statuses} onEditJob={onEditJob} />));
 
-    expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(3);
+    expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
+    expect(container.textContent).not.toContain("Delivered");
     expect(container.textContent).toContain("Launch campaign");
     expect(container.textContent).toContain("Ravish Media");
     expect(container.textContent).toContain("2open · 3 total");
@@ -76,6 +77,8 @@ describe("TabletJobPipeline", () => {
     const onEditJob = vi.fn();
     await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[job]} statuses={statuses} onEditJob={onEditJob} />));
 
+    expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
+    expect(container.textContent).not.toContain("Delivered");
     expect(container.querySelector(".tablet-job-card")?.classList.contains("is-read-only")).toBe(true);
     expect(container.querySelector('[aria-label="Move Launch campaign"]')).toBeNull();
     expect(container.querySelector('[aria-label="Edit Launch campaign"]')).toBeNull();

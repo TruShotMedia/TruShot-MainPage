@@ -74,7 +74,10 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEd
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
     useSensor(KeyboardSensor),
   );
-  const orderedStatuses = useMemo(() => [...statuses].sort((left, right) => left.position - right.position), [statuses]);
+  const orderedStatuses = useMemo(
+    () => statuses.filter((status) => status.key !== "delivered").sort((left, right) => left.position - right.position),
+    [statuses],
+  );
   const jobsByStatus = useMemo(() => {
     const grouped = new Map(orderedStatuses.map((status) => [status.id, [] as TabletJobRecord[]]));
     for (const job of jobs) grouped.get(job.status_id)?.push(job);
