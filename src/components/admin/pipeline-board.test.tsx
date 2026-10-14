@@ -93,7 +93,7 @@ describe("PipelineBoard tablet variant", () => {
     expect(container.textContent).toContain("marked Posted / Done");
   });
 
-  it("removes all mutation controls when the tablet is in read-only kiosk mode", async () => {
+  it("keeps workflow controls available while detail editing is disabled", async () => {
     await act(async () => {
       root.render(
         <PipelineBoard
@@ -104,13 +104,18 @@ describe("PipelineBoard tablet variant", () => {
           statusAliases={{ ready_to_post: "final_draft_notes" }}
           variant="tablet"
           visibleStatusKeys={["not_started", "in_progress", "ready_for_revision", "final_draft_notes"]}
+          workflowEnabled
         />,
       );
     });
 
-    expect(container.querySelector(".drag-handle")).toBeNull();
-    expect(container.querySelector(".pipeline-complete-button")).toBeNull();
+    expect(container.querySelector('[aria-label="Move Launch reel"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Mark Launch reel as posted and done"]')).not.toBeNull();
+    expect(container.querySelector(".tablet-card-edit-button")).toBeNull();
     expect(container.querySelector(".pipeline-task")?.classList.contains("is-read-only")).toBe(true);
-    expect(actionMocks.movePipelineTask).not.toHaveBeenCalled();
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Launch reel as posted and done"]')!.click());
+    expect(actionMocks.movePipelineTask).toHaveBeenCalledWith(readyTask.id, statuses[5].id);
+    expect([...container.querySelectorAll(".pipeline-task h3")].map((heading) => heading.textContent)).not.toContain("Launch reel");
   });
 });

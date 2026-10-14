@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, GripVertical, ListChecks, Pencil } from "lucide-react";
+import { CalendarDays, Check, GripVertical, ListChecks, Pencil } from "lucide-react";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -19,8 +19,8 @@ function sortJobs(jobs: TabletJobRecord[]) {
   });
 }
 
-function JobCard({ editable, job, isSaving, onEdit }: { editable: boolean; job: TabletJobRecord; isSaving: boolean; onEdit: (job: TabletJobRecord) => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving || !editable });
+function JobCard({ canComplete, editable, job, isSaving, onComplete, onEdit }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onEdit: (job: TabletJobRecord) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
   return (
     <article
       ref={setNodeRef}
@@ -28,12 +28,11 @@ function JobCard({ editable, job, isSaving, onEdit }: { editable: boolean; job: 
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }}
       aria-busy={isSaving}
     >
-      {editable ? (
-        <div className="pipeline-task-controls">
-          <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button>
-          <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={isSaving}><GripVertical size={15} /></button>
-        </div>
-      ) : null}
+      <div className="pipeline-task-controls">
+        {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
+        {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
+        <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={isSaving}><GripVertical size={15} /></button>
+      </div>
       <div className="task-client">{job.client?.name ?? "No client"}</div>
       <h3>{job.title}</h3>
       <p>{job.job_number ? `Job ${job.job_number}` : "No job number"}</p>
@@ -46,14 +45,14 @@ function JobCard({ editable, job, isSaving, onEdit }: { editable: boolean; job: 
   );
 }
 
-function JobColumn({ editable, status, jobs, savingId, onEdit }: { editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onEdit: (job: TabletJobRecord) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}`, disabled: !editable });
+function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onEdit }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b></header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} editable={editable} job={job} isSaving={savingId === job.id} onEdit={onEdit} />)}
-        {!jobs.length ? <div className="pipeline-empty">{editable ? "Drop a job here" : "No jobs"}</div> : null}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onEdit={onEdit} />)}
+        {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
   );
@@ -78,6 +77,8 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEd
     () => statuses.filter((status) => status.key !== "delivered").sort((left, right) => left.position - right.position),
     [statuses],
   );
+  const deliveredStatus = useMemo(() => statuses.find((status) => status.key === "delivered") ?? null, [statuses]);
+  const finalVisibleStatusId = orderedStatuses.at(-1)?.id ?? null;
   const jobsByStatus = useMemo(() => {
     const grouped = new Map(orderedStatuses.map((status) => [status.id, [] as TabletJobRecord[]]));
     for (const job of jobs) grouped.get(job.status_id)?.push(job);
@@ -86,9 +87,9 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEd
   }, [jobs, orderedStatuses]);
 
   async function moveJob(jobId: string, statusId: string) {
-    if (!editable || savingId) return;
+    if (savingId) return;
     const current = jobs.find((job) => job.id === jobId);
-    const destination = orderedStatuses.find((status) => status.id === statusId);
+    const destination = statuses.find((status) => status.id === statusId);
     if (!current || !destination || current.status_id === statusId) return;
     const previousJobs = jobs;
     const movedAt = new Date().toISOString();
@@ -116,18 +117,26 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEd
   }
 
   function onDragEnd(event: DragEndEvent) {
-    if (!editable || !event.over) return;
+    if (!event.over) return;
     const overId = String(event.over.id);
     if (!overId.startsWith("job-status-")) return;
     void moveJob(String(event.active.id), overId.replace("job-status-", ""));
   }
 
+  function completeJob(job: TabletJobRecord) {
+    if (!deliveredStatus) {
+      setMessage("The Delivered status is unavailable.");
+      return;
+    }
+    void moveJob(job.id, deliveredStatus.id);
+  }
+
   return (
     <>
       {message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
-      <DndContext sensors={editable ? sensors : []} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="pipeline-board pipeline-board-tablet tablet-job-board" style={{ gridTemplateColumns: `repeat(${Math.max(1, orderedStatuses.length)}, minmax(0, 1fr))` }}>
-          {orderedStatuses.map((status) => <JobColumn key={status.id} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onEdit={onEditJob} />)}
+          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onEdit={onEditJob} />)}
         </div>
       </DndContext>
     </>

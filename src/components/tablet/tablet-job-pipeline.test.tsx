@@ -41,6 +41,14 @@ const job: TabletJobRecord = {
   status: statuses[0],
 };
 
+const finalStageJob: TabletJobRecord = {
+  ...job,
+  id: "66666666-6666-4666-8666-666666666666",
+  title: "Final review",
+  status_id: statuses[1].id,
+  status: statuses[1],
+};
+
 describe("TabletJobPipeline", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -60,7 +68,7 @@ describe("TabletJobPipeline", () => {
 
   it("shows jobs grouped by status with edit and drag controls", async () => {
     const onEditJob = vi.fn();
-    await act(async () => root.render(<TabletJobPipeline initialJobs={[job]} statuses={statuses} onEditJob={onEditJob} />));
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[job, finalStageJob]} statuses={statuses} onEditJob={onEditJob} />));
 
     expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
     expect(container.textContent).not.toContain("Delivered");
@@ -68,21 +76,30 @@ describe("TabletJobPipeline", () => {
     expect(container.textContent).toContain("Ravish Media");
     expect(container.textContent).toContain("2open · 3 total");
     expect(container.querySelector('[aria-label="Move Launch campaign"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Mark Final review as delivered"]')).not.toBeNull();
 
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Edit Launch campaign"]')!.click());
     expect(onEditJob).toHaveBeenCalledWith(job);
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Final review as delivered"]')!.click());
+    expect(actionMocks.bulkUpdateJobStatus).toHaveBeenCalledWith([finalStageJob.id], statuses[2].id);
+    expect([...container.querySelectorAll(".tablet-job-card h3")].map((heading) => heading.textContent)).not.toContain("Final review");
   });
 
-  it("keeps job cards view-only until tablet editing is enabled", async () => {
+  it("keeps job workflow controls available while detail editing is disabled", async () => {
     const onEditJob = vi.fn();
-    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[job]} statuses={statuses} onEditJob={onEditJob} />));
+    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[finalStageJob]} statuses={statuses} onEditJob={onEditJob} />));
 
     expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
     expect(container.textContent).not.toContain("Delivered");
     expect(container.querySelector(".tablet-job-card")?.classList.contains("is-read-only")).toBe(true);
-    expect(container.querySelector('[aria-label="Move Launch campaign"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Edit Launch campaign"]')).toBeNull();
-    expect(container.textContent).toContain("No jobs");
-    expect(actionMocks.bulkUpdateJobStatus).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Move Final review"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Mark Final review as delivered"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Edit Final review"]')).toBeNull();
+    expect(container.textContent).toContain("Drop a job here");
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Final review as delivered"]')!.click());
+    expect(actionMocks.bulkUpdateJobStatus).toHaveBeenCalledWith([finalStageJob.id], statuses[2].id);
+    expect([...container.querySelectorAll(".tablet-job-card h3")].map((heading) => heading.textContent)).not.toContain("Final review");
   });
 });

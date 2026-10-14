@@ -311,7 +311,7 @@ export function TabletPipelineKiosk({
           </nav>
 
           <div className="tablet-kiosk-actions">
-            <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Editing on · tap to return to kiosk mode" : "Editing off · tap to make changes"}><Pencil size={15} /></button>
+            <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button>
             <button
               type="button"
               className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
@@ -362,6 +362,7 @@ export function TabletPipelineKiosk({
               statusAliases={tabletPipelineStatusAliases}
               variant="tablet"
               visibleStatusKeys={tabletPipelineStatusKeys}
+              workflowEnabled
             />
           ) : <TabletCalendar
             jobs={calendarJobs}

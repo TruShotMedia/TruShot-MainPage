@@ -153,7 +153,7 @@ describe("TabletPipelineKiosk", () => {
 
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
     expect(container.querySelector('a[href="/admin/requests"]')).toBeNull();
-    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false });
+    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false, workflowEnabled: true });
     expect(container.querySelector(".tablet-create-dock")).toBeNull();
     expect(container.textContent).not.toContain("Full screen");
     expect(container.textContent).not.toContain("due soon");
@@ -169,7 +169,7 @@ describe("TabletPipelineKiosk", () => {
     const tasksTab = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Tasks"))!;
     await act(async () => tasksTab.click());
     expect(container.querySelector('[data-testid="pipeline-view"]')).not.toBeNull();
-    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false });
+    expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false, workflowEnabled: true });
 
     const editButton = container.querySelector<HTMLButtonElement>('button[aria-label="Turn on tablet editing"]')!;
     await act(async () => editButton.click());
