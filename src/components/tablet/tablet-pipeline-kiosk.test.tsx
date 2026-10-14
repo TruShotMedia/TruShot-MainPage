@@ -132,6 +132,7 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => root.render(
       <TabletPipelineKiosk
         branding={{
+          calendarAccentColor: "#5d91b0",
           logoAlt: "Autopacific Group",
           logoHeight: 312,
           logoSrc: "/brand/autopacific-logo-clean.png",
@@ -139,13 +140,14 @@ describe("TabletPipelineKiosk", () => {
           logoWidth: 1800,
           name: "Autopacific Group",
           location: "Production",
+          theme: "autopacific",
         }}
         calendarJobs={[]}
         calendarTasks={[]}
         initialNow="2026-08-25T00:00:00.000Z"
         initialStatuses={[]}
         initialTasks={[]}
-        initialView="pipeline"
+        initialView="calendar"
         pendingRequestCount={0}
         pipelineVersion="empty"
         notionSyncEnabled={false}
@@ -158,6 +160,8 @@ describe("TabletPipelineKiosk", () => {
     const headerLogo = container.querySelector('.tablet-kiosk-brandmark [data-src="/brand/autopacific-logo-clean.png"]');
     expect(headerLogo?.getAttribute("aria-label")).toBe("Autopacific Group");
     expect(container.querySelector(".tablet-kiosk-brandmark")?.classList.contains("is-light-backed")).toBe(true);
+    expect(container.querySelector(".tablet-kiosk")?.classList.contains("theme-autopacific")).toBe(true);
+    expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ accentColor: "#5d91b0" });
 
     await act(async () => vi.advanceTimersByTime(60_000));
     const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');

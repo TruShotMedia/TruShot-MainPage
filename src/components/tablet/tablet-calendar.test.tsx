@@ -139,6 +139,28 @@ describe("TabletCalendar", () => {
     expect(calendarEvent?.title).toContain("Geebung");
   });
 
+  it("uses a client accent for every job, task and calendar event while keeping flight styling distinct", async () => {
+    await act(async () => root.render(
+      <TabletCalendar
+        accentColor="#5d91b0"
+        customEvents={customEvents}
+        flightEvents={flightEvents}
+        jobs={jobs}
+        tasks={tasks.map((task) => ({ ...task, is_complete: false }))}
+        today="2026-08-25"
+      />,
+    ));
+
+    const jobRange = container.querySelector<HTMLElement>('[aria-label^="Launch campaign"]');
+    const taskDeadline = container.querySelector<HTMLElement>('[title^="Asset due: Published reel"]');
+    const calendarEvent = container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event");
+    const flight = container.querySelector<HTMLElement>(".tablet-calendar-flight-range");
+    expect(jobRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(taskDeadline?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(calendarEvent?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(flight?.style.getPropertyValue("--tablet-calendar-color")).toBe("#3975ad");
+  });
+
   it("renders a double-height flight itinerary with route details and editing", async () => {
     const onEditFlight = vi.fn();
     await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} flightEvents={flightEvents} onEditFlight={onEditFlight} today="2026-08-25" />));

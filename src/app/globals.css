@@ -1966,6 +1966,51 @@ img { max-width: 100%; }
 .tablet-kiosk .tablet-record-editor-footer > .tablet-delete-record { display: inline-flex; min-height: 39px; align-items: center; gap: 6px; border: 1px solid #703e35; border-radius: 9px; background: #321b17; padding: 0 13px; color: #f0a99a; font-size: 9px; font-weight: 850; cursor: pointer; }
 .tablet-kiosk .tablet-record-editor-footer > .tablet-delete-record:hover { border-color: #a95949; background: #45231d; }
 
+/* AutoPacific keeps workflow status colours intact while using the PACIFIC
+   wordmark blue for the workspace chrome and all client schedule items. */
+.tablet-kiosk.theme-autopacific { background: radial-gradient(circle at 92% -10%, rgba(93,145,176,.23), transparent 29%), radial-gradient(circle at 5% 110%, rgba(15,53,70,.22), transparent 32%), #071017; }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-header { background: rgba(6,16,23,.96); }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-screensaver { background: radial-gradient(circle at 15% 18%, rgba(93,145,176,.3), transparent 32%), radial-gradient(circle at 88% 82%, rgba(15,53,70,.34), transparent 34%), #071017; }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-screensaver::after { background: rgba(93,145,176,.17); }
+.tablet-kiosk.theme-autopacific .tablet-screensaver-topline > span i { background: #7fb4d0; box-shadow: 0 0 18px rgba(93,145,176,.8); }
+.tablet-kiosk.theme-autopacific .tablet-screensaver-topline > button:hover,
+.tablet-kiosk.theme-autopacific .tablet-kiosk-tabs button:hover,
+.tablet-kiosk.theme-autopacific .tablet-kiosk-actions > button:hover,
+.tablet-kiosk.theme-autopacific .tablet-kiosk-actions > a:hover { border-color: rgba(127,180,208,.58); background: rgba(93,145,176,.13); color: #a7d1e5; }
+.tablet-kiosk.theme-autopacific .tablet-screensaver-summary article > span svg { color: #7fb4d0; }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-tabs button.is-active { border-color: #8abbd3; background: #5d91b0; box-shadow: 0 5px 18px rgba(42,96,127,.38); }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-actions .tablet-edit-toggle.is-active { border-color: #8abbd3; background: #5d91b0; box-shadow: 0 0 0 3px rgba(93,145,176,.15), 0 5px 18px rgba(42,96,127,.38); }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-actions .tablet-crm-button { border-color: #5d91b0; background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .tablet-kiosk-actions .tablet-crm-button:hover { background: #75a7c3; }
+.tablet-kiosk.theme-autopacific .pipeline-status-toast { border-color: rgba(127,180,208,.4); background: rgba(9,29,41,.97); color: #a7d1e5; }
+.tablet-kiosk.theme-autopacific .pipeline-stack,
+.tablet-kiosk.theme-autopacific .tablet-calendar-scroll { scrollbar-color: rgba(93,145,176,.32) transparent; }
+.tablet-kiosk.theme-autopacific .drag-handle:hover,
+.tablet-kiosk.theme-autopacific .tablet-card-edit-button:hover { background: rgba(93,145,176,.13); color: #9dc8de; }
+.tablet-kiosk.theme-autopacific .pipeline-complete-button { border-color: #3d718e; background: #102733; color: #9dc8de; }
+.tablet-kiosk.theme-autopacific .task-client,
+.tablet-kiosk.theme-autopacific .tablet-job-card-progress,
+.tablet-kiosk.theme-autopacific .tablet-calendar-month-controls span { color: #79acc7; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-month-controls > button:hover { border-color: rgba(127,180,208,.58); color: #9dc8de; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-legend i:not(.is-flight):not(.is-complete) { background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-day.is-today > time { background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-day-add { border-color: rgba(127,180,208,.38); background: rgba(93,145,176,.3); color: #a7d1e5; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-day:hover .tablet-calendar-day-add,
+.tablet-kiosk.theme-autopacific .tablet-calendar-day-add:focus-visible { background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-event.is-editable:hover,
+.tablet-kiosk.theme-autopacific .tablet-calendar-event.is-editable:focus-visible { border-color: rgba(127,180,208,.68); }
+.tablet-kiosk.theme-autopacific .tablet-create-trigger { border-color: #8abbd3; background: #5d91b0; box-shadow: 0 12px 34px rgba(0,0,0,.42), 0 0 0 4px rgba(93,145,176,.1); }
+.tablet-kiosk.theme-autopacific .tablet-create-trigger:hover { background: #75a7c3; }
+.tablet-kiosk.theme-autopacific .tablet-create-options button:hover { border-color: rgba(127,180,208,.6); background: #102733; color: #a7d1e5; }
+.tablet-kiosk.theme-autopacific .calendar-editor > header span { color: #82b7d2; }
+.tablet-kiosk.theme-autopacific .tablet-record-editor-fields input:focus,
+.tablet-kiosk.theme-autopacific .tablet-record-editor-fields select:focus,
+.tablet-kiosk.theme-autopacific .tablet-record-editor-fields textarea:focus { border-color: #5d91b0; box-shadow: 0 0 0 3px rgba(93,145,176,.14); }
+.tablet-kiosk.theme-autopacific .tablet-record-editor-fields .invoice-search-results button:hover,
+.tablet-kiosk.theme-autopacific .tablet-record-editor-fields .invoice-search-results button[data-active="true"] { background: #102733; }
+.tablet-kiosk.theme-autopacific .admin-primary-button { background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .admin-primary-button:hover { background: #75a7c3; }
+
 @media (max-width: 1180px) {
   .tablet-kiosk-header { grid-template-columns: auto minmax(190px, 1fr) auto; gap: 10px; padding: 8px 11px; }
   .tablet-kiosk-identity { gap: 10px; }

@@ -20,6 +20,7 @@ const tabletPageDurationMs = 60_000;
 const tabletScreensaverDurationMs = 15_000;
 
 type TabletKioskBranding = {
+  calendarAccentColor?: string;
   logoAlt: string;
   logoHeight: number;
   logoSrc: string;
@@ -27,6 +28,7 @@ type TabletKioskBranding = {
   logoWidth: number;
   name: string;
   location: string;
+  theme?: "autopacific";
 };
 
 const defaultTabletKioskBranding: TabletKioskBranding = {
@@ -336,7 +338,7 @@ export function TabletPipelineKiosk({
 
   return (
     <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
-      <div className={`tablet-kiosk ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation}>
+      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
@@ -410,6 +412,7 @@ export function TabletPipelineKiosk({
               workflowEnabled
             />
           ) : <TabletCalendar
+            accentColor={branding.calendarAccentColor}
             jobs={calendarJobs}
             tasks={calendarTasks}
             campaignAssets={calendarCampaignAssets}

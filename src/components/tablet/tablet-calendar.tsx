@@ -132,11 +132,11 @@ function FlightRange({ editable, onOpen, segment }: { editable: boolean; onOpen:
   );
 }
 
-function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarStandardRangeItem> }) {
+function JobRange({ accentColor, editable, onOpen, segment }: { accentColor?: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarStandardRangeItem> }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
-  const rangeColor = segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color;
+  const rangeColor = accentColor ?? (segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color);
   const context = segment.item.entity_type === "calendar-event"
     ? segment.item.location
     : segment.item.entity_type === "campaign-asset"
@@ -170,7 +170,7 @@ function JobRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (i
   );
 }
 
-export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
+export function TabletCalendar({ accentColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: { accentColor?: string; jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(todayDate));
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...flightEvents]), [campaignAssets, customEvents, flightEvents, jobs]);
@@ -189,7 +189,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         label: "Production",
         title: job.title,
         detail: job.client_name ?? "No client",
-        color: job.status_color,
+        color: accentColor ?? job.status_color,
         isComplete: job.is_complete,
         item: job,
       });
@@ -200,7 +200,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         label: "Job due",
         title: job.title,
         detail: job.client_name ?? "No client",
-        color: job.status_color,
+        color: accentColor ?? job.status_color,
         isComplete: job.is_complete,
         item: job,
       });
@@ -213,7 +213,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
       label: "Asset due",
       title: task.title,
       detail: task.job_title,
-      color: task.status_color,
+      color: accentColor ?? task.status_color,
       isComplete: task.is_complete,
       item: task,
     }] : []);
@@ -226,13 +226,13 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
         label: "Campaign asset",
         title: asset.title,
         detail: asset.campaign_title,
-        color: asset.status_color,
+        color: accentColor ?? asset.status_color,
         isComplete: asset.is_complete,
         item: asset,
       }];
     });
     return [...jobEvents, ...taskEvents, ...campaignEvents];
-  }, [campaignAssets, jobs, rangedItemKeys, tasks]);
+  }, [accentColor, campaignAssets, jobs, rangedItemKeys, tasks]);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, TabletCalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
@@ -315,7 +315,7 @@ export function TabletCalendar({ jobs, tasks, campaignAssets = [], customEvents 
                 </div>
                 {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange accentColor={accentColor} editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}
