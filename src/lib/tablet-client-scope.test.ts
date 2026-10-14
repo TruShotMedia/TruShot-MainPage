@@ -68,4 +68,14 @@ describe("scopeTabletKioskDataByClient", () => {
     expect(scoped.calendarTasks).toEqual([]);
     expect(scoped.calendarCampaignAssets).toEqual([]);
   });
+
+  it("can retain the full calendar while keeping the boards scoped to one client", () => {
+    const scoped = scopeTabletKioskDataByClient(makeData(), "Autopacific Group", { includeOtherCalendarItems: true });
+
+    expect(scoped.pipelineJobs.map((job) => job.id)).toEqual(["job-auto"]);
+    expect(scoped.pipelineTasks.map((task) => task.id)).toEqual(["task-auto"]);
+    expect(scoped.calendarJobs.map((job) => job.id)).toEqual(["job-auto", "job-other"]);
+    expect(scoped.calendarTasks.map((task) => task.id)).toEqual(["task-auto", "task-other"]);
+    expect(scoped.calendarCampaignAssets.map((asset) => asset.id)).toEqual(["campaign-auto", "campaign-other"]);
+  });
 });

@@ -21,6 +21,9 @@ const tabletScreensaverDurationMs = 15_000;
 
 type TabletKioskBranding = {
   calendarAccentColor?: string;
+  calendarAccentClientName?: string;
+  calendarAccentKeywords?: string[];
+  calendarMutedColor?: string;
   logoAlt: string;
   logoHeight: number;
   logoSrc: string;
@@ -413,6 +416,9 @@ export function TabletPipelineKiosk({
             />
           ) : <TabletCalendar
             accentColor={branding.calendarAccentColor}
+            accentClientName={branding.calendarAccentClientName}
+            accentKeywords={branding.calendarAccentKeywords}
+            mutedColor={branding.calendarMutedColor}
             jobs={calendarJobs}
             tasks={calendarTasks}
             campaignAssets={calendarCampaignAssets}

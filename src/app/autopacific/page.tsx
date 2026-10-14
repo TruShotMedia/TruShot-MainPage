@@ -26,7 +26,7 @@ export default async function AutopacificPage() {
   if (!context) redirect("/admin/login?next=%2Fautopacific");
 
   const [data, cookieStore] = await Promise.all([
-    getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME }),
+    getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
     cookies(),
   ]);
   const notion = getNotionConfigurationSummary();
@@ -38,6 +38,9 @@ export default async function AutopacificPage() {
     <TabletPipelineKiosk
       branding={{
         calendarAccentColor: "#5d91b0",
+        calendarAccentClientName: AUTOPACIFIC_CLIENT_NAME,
+        calendarAccentKeywords: ["autopacific", "autopac"],
+        calendarMutedColor: "#687177",
         logoAlt: "Autopacific Group",
         logoHeight: 312,
         logoSrc: "/brand/autopacific-logo-clean.png",

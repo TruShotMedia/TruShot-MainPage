@@ -4,7 +4,11 @@ function normalizeClientName(value: string) {
   return value.trim().toLocaleLowerCase("en-AU");
 }
 
-export function scopeTabletKioskDataByClient(data: TabletKioskData, clientName: string): TabletKioskData {
+export function scopeTabletKioskDataByClient(
+  data: TabletKioskData,
+  clientName: string,
+  options: { includeOtherCalendarItems?: boolean } = {},
+): TabletKioskData {
   const normalizedClientName = normalizeClientName(clientName);
   const client = data.clientOptions.find((option) => normalizeClientName(option.name) === normalizedClientName);
   const jobIds = new Set(
@@ -24,10 +28,16 @@ export function scopeTabletKioskDataByClient(data: TabletKioskData, clientName: 
     jobOptions: data.jobOptions.filter((job) => jobIds.has(job.id)),
     pipelineJobs: data.pipelineJobs.filter((job) => jobIds.has(job.id)),
     pipelineTasks: data.pipelineTasks.filter((task) => taskIds.has(task.id)),
-    calendarJobs: data.calendarJobs.filter((job) => jobIds.has(job.id)),
-    calendarTasks: data.calendarTasks.filter((task) => taskIds.has(task.id)),
-    calendarCampaignAssets: data.calendarCampaignAssets.filter(
-      (asset) => normalizeClientName(asset.client_name ?? "") === normalizedClientName,
-    ),
+    calendarJobs: options.includeOtherCalendarItems
+      ? data.calendarJobs
+      : data.calendarJobs.filter((job) => jobIds.has(job.id)),
+    calendarTasks: options.includeOtherCalendarItems
+      ? data.calendarTasks
+      : data.calendarTasks.filter((task) => taskIds.has(task.id)),
+    calendarCampaignAssets: options.includeOtherCalendarItems
+      ? data.calendarCampaignAssets
+      : data.calendarCampaignAssets.filter(
+        (asset) => normalizeClientName(asset.client_name ?? "") === normalizedClientName,
+      ),
   };
 }

@@ -216,7 +216,7 @@ export async function getPipeline() {
   };
 }
 
-export async function getTabletKioskData(options: { clientName?: string } = {}): Promise<TabletKioskData> {
+export async function getTabletKioskData(options: { clientName?: string; includeOtherCalendarItems?: boolean } = {}): Promise<TabletKioskData> {
   const context = await getAdminContext();
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
@@ -423,7 +423,9 @@ export async function getTabletKioskData(options: { clientName?: string } = {}):
     flightEvents,
     pendingRequestCount: enquiriesResult.count ?? 0,
   };
-  return options.clientName ? scopeTabletKioskDataByClient(data, options.clientName) : data;
+  return options.clientName
+    ? scopeTabletKioskDataByClient(data, options.clientName, { includeOtherCalendarItems: options.includeOtherCalendarItems })
+    : data;
 }
 
 export async function getInvoices() {

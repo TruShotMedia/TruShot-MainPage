@@ -139,25 +139,53 @@ describe("TabletCalendar", () => {
     expect(calendarEvent?.title).toContain("Geebung");
   });
 
-  it("uses a client accent for every job, task and calendar event while keeping flight styling distinct", async () => {
+  it("uses the client accent only for matching work and mutes unrelated calendar items", async () => {
+    const autopacificJob: CalendarJob = {
+      ...jobs[0],
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      title: "Autopacific launch",
+      client_name: "Autopacific Group",
+    };
+    const autopacificTask: CalendarTask = {
+      ...tasks[0],
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      title: "Autopacific edit",
+      client_name: "Autopacific Group",
+      is_complete: false,
+    };
+    const studioEvent: CalendarCustomEvent = {
+      ...customEvents[0],
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      title: "Studio planning",
+      start_date: "2026-08-19",
+      end_date: "2026-08-19",
+    };
     await act(async () => root.render(
       <TabletCalendar
         accentColor="#5d91b0"
-        customEvents={customEvents}
+        accentClientName="Autopacific Group"
+        accentKeywords={["autopacific"]}
+        mutedColor="#687177"
+        customEvents={[customEvents[0], studioEvent]}
         flightEvents={flightEvents}
-        jobs={jobs}
-        tasks={tasks.map((task) => ({ ...task, is_complete: false }))}
+        jobs={[autopacificJob, jobs[0]]}
+        tasks={[autopacificTask, { ...tasks[0], is_complete: false }]}
         today="2026-08-25"
       />,
     ));
 
-    const jobRange = container.querySelector<HTMLElement>('[aria-label^="Launch campaign"]');
-    const taskDeadline = container.querySelector<HTMLElement>('[title^="Asset due: Published reel"]');
-    const calendarEvent = container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event");
+    const autopacificJobRange = container.querySelector<HTMLElement>('[aria-label^="Autopacific launch"]');
+    const otherJobRange = container.querySelector<HTMLElement>('[aria-label^="Launch campaign"]');
+    const autopacificTaskDeadline = container.querySelector<HTMLElement>('[title^="Asset due: Autopacific edit"]');
+    const otherTaskDeadline = container.querySelector<HTMLElement>('[title^="Asset due: Published reel"]');
+    const calendarEvents = container.querySelectorAll<HTMLElement>(".tablet-calendar-job-range.is-calendar-event");
     const flight = container.querySelector<HTMLElement>(".tablet-calendar-flight-range");
-    expect(jobRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
-    expect(taskDeadline?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
-    expect(calendarEvent?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(autopacificJobRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(otherJobRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
+    expect(autopacificTaskDeadline?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(otherTaskDeadline?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
+    expect(calendarEvents[0]?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
+    expect(calendarEvents[1]?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
     expect(flight?.style.getPropertyValue("--tablet-calendar-color")).toBe("#3975ad");
   });
 
