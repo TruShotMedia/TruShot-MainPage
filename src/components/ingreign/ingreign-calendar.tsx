@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Flame, ImagePlus } from "lucide-react";
-import { buildRecurringIngreignMarkers, formatIngreignDate, manualEventToMarker, type IngreignManualEvent } from "@/lib/ingreign";
+import { buildRecurringIngreignMarkers, formatIngreignDate, manualEventToMarker, markerDateParts, type IngreignManualEvent } from "@/lib/ingreign";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -98,13 +98,16 @@ export function IngreignCalendar({ manualEvents }: { manualEvents: IngreignManua
         <h2>Ready when you are.</h2>
         <p>Each marker opens the generator with its countdown, date and caption already prepared.</p>
         <div className="ingreign-upcoming-list">
-          {upcoming.map((marker) => (
-            <Link href={generatorHref(marker)} key={marker.id}>
-              <time dateTime={marker.date}><strong>{marker.dayLabel}</strong><span>{marker.monthLabel.slice(0, 3)}</span></time>
-              <div><strong>{marker.calendarLabel}</strong><span>{formatIngreignDate(marker.date)}</span></div>
-              <ArrowRight size={16} />
-            </Link>
-          ))}
+          {upcoming.map((marker) => {
+            const postingParts = markerDateParts(marker.date);
+            return (
+              <Link href={generatorHref(marker)} key={marker.id}>
+                <time dateTime={marker.date}><strong>{postingParts.dayLabel}</strong><span>{postingParts.monthLabel.slice(0, 3)}</span></time>
+                <div><strong>{marker.calendarLabel}</strong><span>{formatIngreignDate(marker.date)}</span></div>
+                <ArrowRight size={16} />
+              </Link>
+            );
+          })}
         </div>
         <Link className="ingreign-primary-action" href="/ingreign/generator"><ImagePlus size={17} /> Create a post</Link>
       </aside>

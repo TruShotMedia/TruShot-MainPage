@@ -112,9 +112,9 @@ export function buildRecurringIngreignMarkers(year: number): IngreignCalendarMar
   const markers: IngreignCalendarMarker[] = [];
   for (let monthIndex = 2; monthIndex <= 11; monthIndex += 1) {
     const eventDate = firstFriday(year, monthIndex);
+    const eventParts = markerDateParts(eventDate);
     for (const marker of recurringMarkers) {
       const date = addCalendarDays(eventDate, marker.offsetDays);
-      const parts = markerDateParts(date);
       markers.push({
         id: `recurring-${eventDate}-${marker.presetKey}`,
         date,
@@ -123,8 +123,8 @@ export function buildRecurringIngreignMarkers(year: number): IngreignCalendarMar
         calendarLabel: marker.calendarLabel,
         presetKey: marker.presetKey,
         generatorMode: marker.generatorMode,
-        monthLabel: parts.monthLabel,
-        dayLabel: parts.dayLabel,
+        monthLabel: eventParts.monthLabel,
+        dayLabel: eventParts.dayLabel,
         captionOverride: null,
         notificationEnabled: true,
         isManual: false,

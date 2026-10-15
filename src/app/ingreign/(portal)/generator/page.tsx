@@ -13,12 +13,13 @@ export default async function IngreignGeneratorPage({ searchParams }: { searchPa
     ? data.manualEvents.map(manualEventToMarker).find((marker) => marker.id === query.marker) ?? null
     : recurring.find((marker) => marker.id === query.marker || (marker.date === query.date && marker.presetKey === query.preset)) ?? null;
   if (!initialMarker && requestedPreset && query.date) {
-    const parts = new Intl.DateTimeFormat("en-AU", { month: "long", day: "2-digit", timeZone: "UTC" }).formatToParts(new Date(`${query.date}T00:00:00Z`));
+    const eventDate = query.event ?? query.date;
+    const parts = new Intl.DateTimeFormat("en-AU", { month: "long", day: "2-digit", timeZone: "UTC" }).formatToParts(new Date(`${eventDate}T00:00:00Z`));
     const values = new Map(parts.map((part) => [part.type, part.value]));
     initialMarker = {
       id: "query",
       date: query.date,
-      eventDate: query.event ?? query.date,
+      eventDate,
       title: requestedPreset.label,
       calendarLabel: requestedPreset.label,
       presetKey: requestedPreset.preset_key as IngreignPresetKey,
