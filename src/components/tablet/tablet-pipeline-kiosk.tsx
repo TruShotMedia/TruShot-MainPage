@@ -76,6 +76,12 @@ type TabletViewportMetrics = {
   width: number;
 };
 
+type TabletRecordCreateRequest = {
+  date: string;
+  kind: Exclude<TabletCreateKind, "event" | "flight">;
+  sourceRecord?: TabletJobRecord | PipelineTask;
+};
+
 function readViewportMetrics(): TabletViewportMetrics {
   const width = Math.round(window.visualViewport?.width ?? window.innerWidth ?? document.documentElement.clientWidth);
   const height = Math.round(window.visualViewport?.height ?? window.innerHeight ?? document.documentElement.clientHeight);
@@ -133,7 +139,7 @@ export function TabletPipelineKiosk({
   const [activeView, setActiveView] = useState<TabletView>(initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  const [createRequest, setCreateRequest] = useState<{ date: string; kind: Exclude<TabletCreateKind, "event" | "flight"> } | null>(null);
+  const [createRequest, setCreateRequest] = useState<TabletRecordCreateRequest | null>(null);
   const [eventEditorDate, setEventEditorDate] = useState<string | null>(null);
   const [flightEditorDate, setFlightEditorDate] = useState<string | null>(null);
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarCustomEvent | null>(null);
@@ -254,6 +260,19 @@ export function TabletPipelineKiosk({
     setFlightEditorDate(null);
     setSelectedFlightEvent(null);
   }, []);
+
+  const openDuplicateRecord = useCallback((kind: TabletRecordCreateRequest["kind"], sourceRecord: TabletJobRecord | PipelineTask) => {
+    setIsCreateMenuOpen(false);
+    setSelectedScheduleItem(null);
+    setSelectedJob(null);
+    setSelectedTask(null);
+    setSelectedCalendarEvent(null);
+    setSelectedFlightEvent(null);
+    setEventEditorDate(null);
+    setFlightEditorDate(null);
+    const date = kind === "job" && "shoot_date" in sourceRecord ? sourceRecord.shoot_date ?? today : today;
+    setCreateRequest({ date, kind, sourceRecord });
+  }, [today]);
 
   const handleMutationSaved = useCallback(() => {
     setCreateRequest(null);
@@ -387,6 +406,7 @@ export function TabletPipelineKiosk({
               key={jobPipelineVersion}
               initialJobs={pipelineJobs}
               statuses={jobStatuses}
+              onDuplicateJob={(job) => openDuplicateRecord("job", job)}
               onEditJob={(job) => {
                 setSelectedTask(null);
                 setSelectedScheduleItem(null);
@@ -402,6 +422,7 @@ export function TabletPipelineKiosk({
               completionStatusKey="final_draft_notes"
               initialStatuses={initialStatuses}
               initialTasks={liveTasks}
+              onDuplicateTask={isEditing ? (task) => openDuplicateRecord("task", task) : undefined}
               onEditTask={isEditing ? (task) => {
                 setSelectedJob(null);
                 setSelectedScheduleItem(null);
@@ -478,7 +499,7 @@ export function TabletPipelineKiosk({
           </div>
         ) : null}
 
-        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} taskStatuses={initialStatuses} /> : null}
+        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={initialStatuses} /> : null}
         {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={initialStatuses} type="job" /> : null}
         {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}

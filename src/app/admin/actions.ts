@@ -249,6 +249,7 @@ function revalidateProductionPages() {
   revalidatePath("/admin/calendar");
   revalidatePath("/admin/clients");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
 }
 
 export async function signIn(formData: FormData) {
@@ -442,6 +443,10 @@ export async function createJob(formData: FormData) {
     due_date: z.string().or(z.literal("")),
     due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
+    location: z.string().trim().max(300).optional().default(""),
+    delivery_url: optionalHttpUrlSchema.optional().default(""),
+    description: z.string().trim().max(2_000).optional().default(""),
+    notes: z.string().trim().max(4_000).optional().default(""),
   }).parse(Object.fromEntries(formData));
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
@@ -456,6 +461,10 @@ export async function createJob(formData: FormData) {
     due_date: input.due_date || null,
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
+    location: input.location || null,
+    delivery_url: input.delivery_url || null,
+    description: input.description || null,
+    notes: input.notes || null,
     created_by: context.claims.sub,
     updated_by: context.claims.sub,
   });
@@ -464,6 +473,7 @@ export async function createJob(formData: FormData) {
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
 }
 
 export async function duplicateJob(formData: FormData) {
@@ -634,6 +644,7 @@ export async function createTask(formData: FormData) {
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
 }
 
 export async function duplicateTask(formData: FormData) {

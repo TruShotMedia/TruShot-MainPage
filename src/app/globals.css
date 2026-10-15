@@ -1812,24 +1812,26 @@ img { max-width: 100%; }
 .tablet-kiosk .pipeline-column > header h2 { color: white; font-size: clamp(8px, .82vw, 11px); font-weight: 950; letter-spacing: .045em; text-transform: uppercase; }
 .tablet-kiosk .pipeline-column > header b { width: 25px; height: 25px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.16); color: white; }
 .tablet-kiosk .pipeline-stack { min-height: 0; flex: 1; gap: 6px; overflow-y: auto; overscroll-behavior: contain; padding: 7px; scrollbar-color: rgba(103,207,150,.22) transparent; scrollbar-width: thin; }
-.tablet-kiosk .pipeline-task { border-color: rgba(255,255,255,.09); border-radius: 10px; background: #151d18; padding: 10px; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
+.tablet-kiosk .pipeline-task { border-color: rgba(255,255,255,.09); border-radius: 10px; background: #151d18; padding: 10px 40px 10px 10px; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
+.tablet-kiosk .pipeline-task.is-editable { min-height: 128px; }
 .tablet-kiosk .pipeline-task:hover { border-color: #3a5d47; border-color: color-mix(in srgb, var(--pipeline-status-color) 46%, #26342b); }
 .tablet-kiosk.is-read-only .pipeline-task { cursor: default; }
 .tablet-kiosk.is-read-only .pipeline-task:hover { border-color: rgba(255,255,255,.09); }
-.tablet-kiosk .pipeline-task-controls { top: 6px; right: 5px; }
-.tablet-kiosk .drag-handle { width: 29px; height: 29px; border-radius: 8px; touch-action: none; }
+.tablet-kiosk .pipeline-task-controls { top: 6px; right: 5px; flex-direction: column; gap: 3px; }
+.tablet-kiosk .drag-handle { width: 27px; height: 27px; border-radius: 8px; touch-action: none; }
 .tablet-kiosk .drag-handle { color: #77837b; }
 .tablet-kiosk .drag-handle:hover { background: rgba(255,255,255,.06); color: #7fd39e; }
-.tablet-kiosk .pipeline-complete-button { width: 29px; height: 29px; border-color: #326747; background: #14271b; color: #7fd39e; }
-.tablet-kiosk .tablet-card-edit-button { display: grid; width: 29px; height: 29px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #8b978f; cursor: pointer; }
-.tablet-kiosk .tablet-card-edit-button:hover { background: rgba(103,207,150,.12); color: #8cdaa9; }
-.tablet-kiosk .task-client { max-width: calc(100% - 70px); color: #70c692; font-size: 7px; }
+.tablet-kiosk .pipeline-complete-button { width: 27px; height: 27px; border-color: #326747; background: #14271b; color: #7fd39e; }
+.tablet-kiosk .tablet-card-edit-button, .tablet-kiosk .tablet-card-duplicate-button { display: grid; width: 27px; height: 27px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #8b978f; cursor: pointer; }
+.tablet-kiosk .tablet-card-edit-button:hover, .tablet-kiosk .tablet-card-duplicate-button:hover { background: rgba(103,207,150,.12); color: #8cdaa9; }
+.tablet-kiosk .tablet-card-edit-button:focus-visible, .tablet-kiosk .tablet-card-duplicate-button:focus-visible { outline: 2px solid #7fd39e; outline-offset: 1px; }
+.tablet-kiosk .task-client { max-width: 100%; color: #70c692; font-size: 7px; }
 .tablet-kiosk .pipeline-task h3 { margin: 9px 0 4px; font-size: clamp(9px, .9vw, 12px); line-height: 1.22; }
 .tablet-kiosk .pipeline-task > p { padding-right: 4px; color: #9ca69f; font-size: 8px; line-height: 1.3; }
 .tablet-task-priority { display: inline-flex; margin-top: 8px; border-radius: 999px; background: rgba(255,255,255,.07); padding: 4px 6px; color: #a0aaa3; font-size: 6px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
 .tablet-task-priority.priority-high, .tablet-task-priority.priority-urgent { background: rgba(185,87,68,.18); color: #e59a88; }
 .tablet-kiosk .task-meta { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 8px; padding-top: 8px; border-color: rgba(255,255,255,.08); color: #89958c; font-size: 7px; }
-.tablet-kiosk .tablet-job-card .task-client { max-width: calc(100% - 75px); }
+.tablet-kiosk .tablet-job-card .task-client { max-width: 100%; }
 .tablet-kiosk .tablet-job-card-dates span:last-child { padding-left: 17px; }
 .tablet-job-card-progress { display: flex; align-items: center; gap: 5px; margin-top: 8px; border-radius: 8px; background: rgba(255,255,255,.045); padding: 7px 8px; color: #7fd39e; font-size: 7px; }
 .tablet-job-card-progress strong { color: white; font-size: 10px; }
@@ -1989,7 +1991,8 @@ img { max-width: 100%; }
 .tablet-kiosk.theme-autopacific .pipeline-stack,
 .tablet-kiosk.theme-autopacific .tablet-calendar-scroll { scrollbar-color: rgba(93,145,176,.32) transparent; }
 .tablet-kiosk.theme-autopacific .drag-handle:hover,
-.tablet-kiosk.theme-autopacific .tablet-card-edit-button:hover { background: rgba(93,145,176,.13); color: #9dc8de; }
+.tablet-kiosk.theme-autopacific .tablet-card-edit-button:hover,
+.tablet-kiosk.theme-autopacific .tablet-card-duplicate-button:hover { background: rgba(93,145,176,.13); color: #9dc8de; }
 .tablet-kiosk.theme-autopacific .pipeline-complete-button { border-color: #3d718e; background: #102733; color: #9dc8de; }
 .tablet-kiosk.theme-autopacific .task-client,
 .tablet-kiosk.theme-autopacific .tablet-job-card-progress,

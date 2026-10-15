@@ -68,7 +68,8 @@ describe("TabletJobPipeline", () => {
 
   it("shows jobs grouped by status with edit and drag controls", async () => {
     const onEditJob = vi.fn();
-    await act(async () => root.render(<TabletJobPipeline initialJobs={[job, finalStageJob]} statuses={statuses} onEditJob={onEditJob} />));
+    const onDuplicateJob = vi.fn();
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[job, finalStageJob]} statuses={statuses} onDuplicateJob={onDuplicateJob} onEditJob={onEditJob} />));
 
     expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
     expect(container.textContent).not.toContain("Delivered");
@@ -81,6 +82,9 @@ describe("TabletJobPipeline", () => {
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Edit Launch campaign"]')!.click());
     expect(onEditJob).toHaveBeenCalledWith(job);
 
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Duplicate Launch campaign"]')!.click());
+    expect(onDuplicateJob).toHaveBeenCalledWith(job);
+
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Final review as delivered"]')!.click());
     expect(actionMocks.bulkUpdateJobStatus).toHaveBeenCalledWith([finalStageJob.id], statuses[2].id);
     expect([...container.querySelectorAll(".tablet-job-card h3")].map((heading) => heading.textContent)).not.toContain("Final review");
@@ -88,7 +92,7 @@ describe("TabletJobPipeline", () => {
 
   it("keeps job workflow controls available while detail editing is disabled", async () => {
     const onEditJob = vi.fn();
-    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[finalStageJob]} statuses={statuses} onEditJob={onEditJob} />));
+    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[finalStageJob]} statuses={statuses} onDuplicateJob={vi.fn()} onEditJob={onEditJob} />));
 
     expect(container.querySelectorAll(".tablet-job-column")).toHaveLength(2);
     expect(container.textContent).not.toContain("Delivered");
@@ -96,6 +100,7 @@ describe("TabletJobPipeline", () => {
     expect(container.querySelector('[aria-label="Move Final review"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Mark Final review as delivered"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Edit Final review"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Duplicate Final review"]')).toBeNull();
     expect(container.textContent).toContain("Drop a job here");
 
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Final review as delivered"]')!.click());

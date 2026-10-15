@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarJob, JobStatus, TabletJobRecord, TaskStatus } from "@/lib/types";
+import type { CalendarJob, JobStatus, PipelineTask, TabletJobRecord, TaskStatus } from "@/lib/types";
 import { TabletRecordCreateEditor, TabletRecordEditEditor, TabletScheduleEditor } from "./tablet-workspace-editors";
 
 const actionMocks = vi.hoisted(() => ({
@@ -17,7 +17,7 @@ const actionMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/app/admin/actions", () => actionMocks);
-vi.mock("@/components/admin/job-search-field", () => ({ JobSearchField: () => <input type="hidden" name="job_id" value="33333333-3333-4333-8333-333333333333" /> }));
+vi.mock("@/components/admin/job-search-field", () => ({ JobSearchField: ({ defaultJobId }: { defaultJobId?: string }) => <input type="hidden" name="job_id" value={defaultJobId ?? "33333333-3333-4333-8333-333333333333"} /> }));
 
 const jobStatuses: JobStatus[] = [{ id: "11111111-1111-4111-8111-111111111111", key: "not_started", label: "Not started", color: "#777773", position: 1, is_closed: false }];
 const taskStatuses: TaskStatus[] = [{ id: "22222222-2222-4222-8222-222222222222", key: "not_started", label: "Not started", color: "#777773", position: 1, is_open: true }];
@@ -61,6 +61,99 @@ describe("tablet workspace editors", () => {
     expect(formData.get("client_id")).toBe("client-auto");
     expect(formData.get("shoot_date")).toBe("2026-10-14");
     expect(onCreated).toHaveBeenCalledOnce();
+  });
+
+  it("opens a duplicate job as a pre-filled new record and resets delivered output", async () => {
+    const source: TabletJobRecord = {
+      id: "44444444-4444-4444-8444-444444444444",
+      title: "Autopacific launch shoot",
+      job_number: "AP-104",
+      client_id: "55555555-5555-4555-8555-555555555555",
+      status_id: jobStatuses[0].id,
+      shoot_date: "2026-10-20",
+      shoot_time: "09:30:00",
+      due_date: "2026-10-23",
+      due_time: "17:00:00",
+      photos_delivered: 45,
+      location: "Brendale",
+      delivery_url: "https://example.com/delivery",
+      description: "Launch photography and video",
+      notes: "Use the loading bay",
+      delivered_at: null,
+      updated_at: "2026-10-15T00:00:00.000Z",
+      open_tasks: 3,
+      total_tasks: 3,
+      client: { id: "55555555-5555-4555-8555-555555555555", name: "Autopacific Group" },
+      status: jobStatuses[0],
+    };
+
+    await act(async () => root.render(
+      <TabletRecordCreateEditor
+        clientOptions={[source.client!]}
+        defaultDate="2026-10-20"
+        jobOptions={[]}
+        jobStatuses={jobStatuses}
+        kind="job"
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+        sourceRecord={source}
+        taskStatuses={taskStatuses}
+      />,
+    ));
+
+    expect(container.querySelector("h2")?.textContent).toBe("Duplicate this job");
+    expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(source.title);
+    expect(container.querySelector<HTMLInputElement>('input[name="location"]')?.value).toBe(source.location);
+    expect(container.querySelector<HTMLInputElement>('input[name="photos_delivered"]')?.value).toBe("0");
+    await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
+
+    const formData = actionMocks.createJob.mock.calls[0]?.[0];
+    expect(formData.get("client_id")).toBe(source.client_id);
+    expect(formData.get("shoot_date")).toBe(source.shoot_date);
+    expect(formData.get("delivery_url")).toBe(source.delivery_url);
+    expect(formData.get("notes")).toBe(source.notes);
+  });
+
+  it("opens a duplicate task as a pre-filled new record", async () => {
+    const source: PipelineTask = {
+      id: "66666666-6666-4666-8666-666666666666",
+      title: "Launch reel",
+      job_id: "33333333-3333-4333-8333-333333333333",
+      status_id: taskStatuses[0].id,
+      asset_type: "Asset",
+      hours: 2.5,
+      due_date: "2026-10-23",
+      due_time: "15:30:00",
+      priority: "high",
+      description: "Vertical launch edit",
+      position: 10,
+      completed_at: null,
+      updated_at: "2026-10-15T00:00:00.000Z",
+    };
+
+    await act(async () => root.render(
+      <TabletRecordCreateEditor
+        clientOptions={[]}
+        defaultDate="2026-10-15"
+        jobOptions={[{ id: source.job_id, name: "Autopacific launch shoot" }]}
+        jobStatuses={jobStatuses}
+        kind="task"
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+        sourceRecord={source}
+        taskStatuses={taskStatuses}
+      />,
+    ));
+
+    expect(container.querySelector("h2")?.textContent).toBe("Duplicate this task / asset");
+    expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(source.title);
+    expect(container.querySelector<HTMLInputElement>('input[name="hours"]')?.value).toBe("2.5");
+    await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
+
+    const formData = actionMocks.createTask.mock.calls[0]?.[0];
+    expect(formData.get("job_id")).toBe(source.job_id);
+    expect(formData.get("priority")).toBe(source.priority);
+    expect(formData.get("description")).toBe(source.description);
   });
 
   it("updates an existing calendar job through the shared schedule action", async () => {

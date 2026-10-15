@@ -63,12 +63,14 @@ describe("PipelineBoard tablet variant", () => {
   });
 
   it("shows four kiosk stages, folds Ready To Post into Final Draft, and completes from there", async () => {
+    const onDuplicateTask = vi.fn();
     await act(async () => {
       root.render(
         <PipelineBoard
           completionStatusKey="final_draft_notes"
           initialStatuses={statuses}
           initialTasks={[readyTask, completedTask]}
+          onDuplicateTask={onDuplicateTask}
           statusAliases={{ ready_to_post: "final_draft_notes" }}
           variant="tablet"
           visibleStatusKeys={["not_started", "in_progress", "ready_for_revision", "final_draft_notes"]}
@@ -84,6 +86,9 @@ describe("PipelineBoard tablet variant", () => {
     expect(container.textContent).not.toContain("Posted / Done");
     expect(container.textContent).not.toContain("Published reel");
     expect(container.textContent).not.toContain("Touch and drag");
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Duplicate Launch reel"]')!.click());
+    expect(onDuplicateTask).toHaveBeenCalledWith(readyTask);
 
     const completeButton = container.querySelector<HTMLButtonElement>('[aria-label="Mark Launch reel as posted and done"]')!;
     await act(async () => completeButton.click());
@@ -112,6 +117,7 @@ describe("PipelineBoard tablet variant", () => {
     expect(container.querySelector('[aria-label="Move Launch reel"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Mark Launch reel as posted and done"]')).not.toBeNull();
     expect(container.querySelector(".tablet-card-edit-button")).toBeNull();
+    expect(container.querySelector(".tablet-card-duplicate-button")).toBeNull();
     expect(container.querySelector(".pipeline-task")?.classList.contains("is-read-only")).toBe(true);
 
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Mark Launch reel as posted and done"]')!.click());

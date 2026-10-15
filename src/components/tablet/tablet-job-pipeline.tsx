@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, GripVertical, ListChecks, Pencil } from "lucide-react";
+import { CalendarDays, Check, Copy, GripVertical, ListChecks, Pencil } from "lucide-react";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -19,7 +19,7 @@ function sortJobs(jobs: TabletJobRecord[]) {
   });
 }
 
-function JobCard({ canComplete, editable, job, isSaving, onComplete, onEdit }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onEdit: (job: TabletJobRecord) => void }) {
+function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
   return (
     <article
@@ -29,9 +29,10 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onEdit }: {
       aria-busy={isSaving}
     >
       <div className="pipeline-task-controls">
-        {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
-        {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
         <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={isSaving}><GripVertical size={15} /></button>
+        {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
+        {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
+        {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
       <div className="task-client">{job.client?.name ?? "No client"}</div>
       <h3>{job.title}</h3>
@@ -45,23 +46,24 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onEdit }: {
   );
 }
 
-function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onEdit }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
+function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onDuplicate, onEdit }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b></header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onEdit={onEdit} />)}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onDuplicate={onDuplicate} onEdit={onEdit} />)}
         {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
   );
 }
 
-export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEditJob, onJobsChange, onMoveSaved }: {
+export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved }: {
   editable?: boolean;
   initialJobs: TabletJobRecord[];
   statuses: JobStatus[];
+  onDuplicateJob: (job: TabletJobRecord) => void;
   onEditJob: (job: TabletJobRecord) => void;
   onJobsChange?: (jobs: TabletJobRecord[]) => void;
   onMoveSaved?: () => void;
@@ -136,7 +138,7 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onEd
       {message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="pipeline-board pipeline-board-tablet tablet-job-board" style={{ gridTemplateColumns: `repeat(${Math.max(1, orderedStatuses.length)}, minmax(0, 1fr))` }}>
-          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onEdit={onEditJob} />)}
+          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} />)}
         </div>
       </DndContext>
     </>
