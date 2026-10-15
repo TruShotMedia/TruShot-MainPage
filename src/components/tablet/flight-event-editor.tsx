@@ -89,6 +89,11 @@ export function FlightEventEditor({ defaultDate, event, onClose, onDeleted, onSa
           <label>Trip notes<textarea name="notes" maxLength={4000} defaultValue={event?.notes ?? ""} placeholder="Booking notes, baggage, contacts or production details…" /></label>
         </div>
 
+        <div className="flight-passenger-grid">
+          <label>Class <small>Optional</small><input name="travel_class" maxLength={80} defaultValue={event?.travel_class ?? ""} placeholder="Economy, Business…" /></label>
+          <label>Seat No. <small>Optional</small><input name="seat_number" maxLength={40} defaultValue={event?.seat_number ?? ""} placeholder="14A" autoCapitalize="characters" /></label>
+        </div>
+
         <div className="flight-leg-grid">
           <fieldset className="flight-leg-card is-departure">
             <legend><PlaneTakeoff size={15} /> Departure</legend>
@@ -104,6 +109,7 @@ export function FlightEventEditor({ defaultDate, event, onClose, onDeleted, onSa
             </div>
             <label>Airline<input name="departure_airline" required minLength={2} maxLength={120} defaultValue={event?.departure_airline ?? ""} placeholder="Qantas" /></label>
             <label>Flight number <small>Optional</small><input name="departure_flight_number" maxLength={40} defaultValue={event?.departure_flight_number ?? ""} placeholder="QF 501" /></label>
+            <label>Departure terminal <small>Optional</small><input name="departure_terminal" maxLength={80} defaultValue={event?.departure_terminal ?? ""} placeholder="Domestic · Terminal 3" /></label>
           </fieldset>
 
           <div className="flight-route-divider" aria-hidden="true"><i /><Plane size={16} /><i /></div>
@@ -117,6 +123,7 @@ export function FlightEventEditor({ defaultDate, event, onClose, onDeleted, onSa
             </div>
             <label>Airline <small>Defaults to departure airline</small><input name="arrival_airline" maxLength={120} defaultValue={event?.arrival_airline ?? ""} placeholder="Same airline" /></label>
             <label>Flight number <small>Optional</small><input name="arrival_flight_number" maxLength={40} defaultValue={event?.arrival_flight_number ?? ""} placeholder="QF 501" /></label>
+            <label>Arrival terminal <small>Optional</small><input name="arrival_terminal" maxLength={80} defaultValue={event?.arrival_terminal ?? ""} placeholder="Domestic · Terminal 3" /></label>
           </fieldset>
         </div>
 

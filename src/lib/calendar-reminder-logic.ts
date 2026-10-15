@@ -3,7 +3,7 @@ import type { PushMessage } from "@/lib/push";
 export const BRISBANE_TIMEZONE = "Australia/Brisbane";
 const BRISBANE_OFFSET = "+10:00";
 
-export type CalendarReminderEventKind = "job_start" | "job_due" | "task_due" | "campaign_start" | "campaign_due" | "calendar_event_start";
+export type CalendarReminderEventKind = "job_start" | "job_due" | "task_due" | "campaign_start" | "campaign_due" | "calendar_event_start" | "flight_departure" | "flight_arrival";
 
 export type CalendarReminderSettings = {
   workspace_id: string;
@@ -15,6 +15,8 @@ export type CalendarReminderSettings = {
   notify_job_deadlines: boolean;
   notify_task_deadlines: boolean;
   notify_campaign_assets: boolean;
+  notify_flights: boolean;
+  flight_lead_minutes: number;
   timezone: typeof BRISBANE_TIMEZONE;
 };
 
@@ -27,6 +29,16 @@ export type CalendarReminderEvent = {
   time: string | null;
   context: string | null;
   reminderOffsetsMinutes?: number[];
+  flightDetails?: {
+    airline: string;
+    flightNumber: string | null;
+    route: string;
+    localTime: string;
+    terminal: string | null;
+    travelClass: string | null;
+    seatNumber: string | null;
+    onwardDetails: string | null;
+  };
 };
 
 export type DueCalendarReminder = CalendarReminderEvent & {
@@ -42,6 +54,8 @@ const reminderLabels: Record<CalendarReminderEventKind, { subject: string; atTim
   campaign_start: { subject: "Campaign asset", atTime: "starting now" },
   campaign_due: { subject: "Campaign asset", atTime: "due now" },
   calendar_event_start: { subject: "Calendar event", atTime: "starting now" },
+  flight_departure: { subject: "Flight departure", atTime: "departing now" },
+  flight_arrival: { subject: "Flight arrival", atTime: "arriving now" },
 };
 
 const brisbaneTimeFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -110,11 +124,36 @@ export function buildCalendarReminderPushMessage(reminder: DueCalendarReminder):
   const labels = reminderLabels[reminder.kind];
   const eventTime = brisbaneTimeFormatter.format(reminder.occurrenceAt);
   const timing = reminder.offsetMinutes === 0 ? labels.atTime : `in ${leadLabel(reminder.offsetMinutes)}`;
+  if ((reminder.kind === "flight_departure" || reminder.kind === "flight_arrival") && reminder.flightDetails) {
+    const details = reminder.flightDetails;
+    const flightIdentity = [details.airline, details.flightNumber].filter(Boolean).join(" ");
+    const terminal = details.terminal
+      ? (/^terminal\b/i.test(details.terminal) ? details.terminal : `Terminal ${details.terminal}`)
+      : null;
+    const travelDetails = [
+      terminal,
+      details.travelClass,
+      details.seatNumber ? `Seat ${details.seatNumber}` : null,
+    ].filter(Boolean).join(" · ");
+    return {
+      title: `${labels.subject} ${timing}`,
+      body: [
+        `${flightIdentity} · ${details.route} · ${details.localTime}`,
+        travelDetails || null,
+        reminder.kind === "flight_arrival" ? details.onwardDetails : reminder.title,
+      ].filter(Boolean).join("\n"),
+      url: `/autopacific?view=calendar&flight=${encodeURIComponent(reminder.entityId)}`,
+      tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}-${reminder.offsetMinutes}`,
+      kind: "flight",
+      timestamp: reminder.occurrenceAt.getTime(),
+    };
+  }
   const context = reminder.context ? ` · ${reminder.context}` : "";
   return {
     title: `${labels.subject} ${timing}`,
     body: `${reminder.title}${context} · ${eventTime}`,
     url: `/admin/calendar?type=${encodeURIComponent(reminder.kind)}&item=${encodeURIComponent(reminder.entityId)}`,
     tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}-${reminder.offsetMinutes}`,
+    timestamp: reminder.occurrenceAt.getTime(),
   };
 }

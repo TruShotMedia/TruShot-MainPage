@@ -50,6 +50,29 @@ type CustomCalendarEventReminderRow = {
   reminder_offsets_minutes: number[];
 };
 
+type FlightReminderRow = {
+  id: string;
+  title: string;
+  departure_date: string;
+  departure_time: string;
+  arrival_date: string;
+  arrival_time: string;
+  origin_location: string;
+  destination_location: string;
+  departure_airline: string;
+  arrival_airline: string;
+  departure_flight_number: string | null;
+  arrival_flight_number: string | null;
+  departure_terminal: string | null;
+  arrival_terminal: string | null;
+  travel_class: string | null;
+  seat_number: string | null;
+  accommodation_title: string | null;
+  accommodation_location: string | null;
+  vehicle_title: string | null;
+  vehicle_location: string | null;
+};
+
 export type CalendarReminderDispatchResult = {
   workspaces: number;
   candidates: number;
@@ -75,6 +98,13 @@ function addEvent(
   time: string | null,
 ) {
   if (date) events.push({ ...base, kind, date, time });
+}
+
+function compactFlightTime(value: string) {
+  const [hourText, minuteText] = value.slice(0, 5).split(":");
+  const hour = Number(hourText);
+  const suffix = hour >= 12 ? "pm" : "am";
+  return `${hour % 12 || 12}${minuteText === "00" ? "" : `:${minuteText}`}${suffix}`;
 }
 
 async function reserveDelivery(
@@ -125,8 +155,8 @@ async function processWorkspace(
   now: Date,
   supabase: NonNullable<ReturnType<typeof createServiceClient>>,
 ) {
-  const bounds = dateBounds(now, Math.max(settings.lead_minutes, 10_080));
-  const [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
+  const bounds = dateBounds(now, Math.max(settings.lead_minutes, settings.flight_lead_minutes, 10_080));
+  const [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
     supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
@@ -150,13 +180,18 @@ async function processWorkspace(
       .eq("workspace_id", settings.workspace_id)
       .gte("start_date", bounds.start)
       .lte("start_date", bounds.end),
+    supabase
+      .from("website-flight-events")
+      .select("id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,accommodation_title,accommodation_location,vehicle_title,vehicle_location")
+      .eq("workspace_id", settings.workspace_id)
+      .or(`and(departure_date.gte.${bounds.start},departure_date.lte.${bounds.end}),and(arrival_date.gte.${bounds.start},arrival_date.lte.${bounds.end})`),
     supabase.from("website-clients").select("id,name").eq("workspace_id", settings.workspace_id),
     supabase.from("website-jobs").select("id,title,client_id,due_date").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-job-statuses").select("id,is_closed").eq("workspace_id", settings.workspace_id),
     supabase.from("website-task-statuses").select("id,is_open").eq("workspace_id", settings.workspace_id),
   ]);
-  const queryError = [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult]
+  const queryError = [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw queryError;
 
@@ -221,6 +256,50 @@ async function processWorkspace(
     }, "calendar_event_start", calendarEvent.start_date, calendarEvent.start_time);
   }
 
+  if (settings.notify_flights) {
+    for (const flight of (flightEventsResult.data ?? []) as FlightReminderRow[]) {
+      const route = `${flight.origin_location} → ${flight.destination_location}`;
+      const commonDetails = {
+        route,
+        travelClass: flight.travel_class,
+        seatNumber: flight.seat_number,
+      };
+      addEvent(events, {
+        workspaceId: settings.workspace_id,
+        entityId: flight.id,
+        title: flight.title,
+        context: route,
+        reminderOffsetsMinutes: [settings.flight_lead_minutes],
+        flightDetails: {
+          ...commonDetails,
+          airline: flight.departure_airline,
+          flightNumber: flight.departure_flight_number,
+          localTime: compactFlightTime(flight.departure_time),
+          terminal: flight.departure_terminal,
+          onwardDetails: null,
+        },
+      }, "flight_departure", flight.departure_date, flight.departure_time);
+      addEvent(events, {
+        workspaceId: settings.workspace_id,
+        entityId: flight.id,
+        title: flight.title,
+        context: route,
+        reminderOffsetsMinutes: [settings.flight_lead_minutes],
+        flightDetails: {
+          ...commonDetails,
+          airline: flight.arrival_airline,
+          flightNumber: flight.arrival_flight_number,
+          localTime: compactFlightTime(flight.arrival_time),
+          terminal: flight.arrival_terminal,
+          onwardDetails: [
+            flight.accommodation_title ? `Stay: ${flight.accommodation_title}${flight.accommodation_location ? ` · ${flight.accommodation_location}` : ""}` : null,
+            flight.vehicle_title ? `Vehicle: ${flight.vehicle_title}${flight.vehicle_location ? ` · ${flight.vehicle_location}` : ""}` : null,
+          ].filter(Boolean).join(" · ") || flight.title,
+        },
+      }, "flight_arrival", flight.arrival_date, flight.arrival_time);
+    }
+  }
+
   const reminders = getDueCalendarReminders({ events, settings, now });
   if (!reminders.length) return { candidates: 0, delivered: 0, failed: 0, skippedDuplicates: 0 };
 
@@ -274,7 +353,7 @@ export async function dispatchCalendarReminders(now = new Date()): Promise<Calen
   if (!supabase) throw new Error("The Supabase server key is not configured.");
   const { data, error } = await supabase
     .from("website-calendar-reminder-settings")
-    .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,timezone")
+    .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,notify_flights,flight_lead_minutes,timezone")
     .eq("enabled", true);
   if (error) throw error;
   const settingsRows = (data ?? []) as CalendarReminderSettings[];

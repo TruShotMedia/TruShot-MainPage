@@ -3,6 +3,8 @@ export type PushMessage = {
   body: string;
   url: string;
   tag: string;
+  kind?: "flight";
+  timestamp?: number;
 };
 
 export function buildClientRequestPushMessage({

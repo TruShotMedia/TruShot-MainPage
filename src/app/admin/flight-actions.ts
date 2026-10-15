@@ -22,6 +22,10 @@ const flightEventSchema = z.object({
   arrival_airline: optionalText(120),
   departure_flight_number: optionalText(40),
   arrival_flight_number: optionalText(40),
+  departure_terminal: optionalText(80),
+  arrival_terminal: optionalText(80),
+  travel_class: optionalText(80),
+  seat_number: optionalText(40),
   notes: optionalText(4_000),
   accommodation_title: optionalText(180),
   accommodation_location: optionalText(300),
@@ -31,7 +35,7 @@ const flightEventSchema = z.object({
   vehicle_notes: optionalText(2_000),
 });
 
-const flightEventFields = "id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at";
+const flightEventFields = "id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at";
 
 function nullable(value: string) {
   return value || null;
@@ -63,6 +67,10 @@ function parseFlightEvent(formData: FormData) {
       arrival_airline: arrivalAirline,
       departure_flight_number: nullable(input.departure_flight_number),
       arrival_flight_number: nullable(input.arrival_flight_number),
+      departure_terminal: nullable(input.departure_terminal),
+      arrival_terminal: nullable(input.arrival_terminal),
+      travel_class: nullable(input.travel_class),
+      seat_number: nullable(input.seat_number),
       notes: nullable(input.notes),
       accommodation_title: nullable(input.accommodation_title),
       accommodation_location: nullable(input.accommodation_location),

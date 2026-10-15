@@ -116,7 +116,11 @@ function flightHoverDetails(flight: CalendarFlightEvent) {
   return [
     flight.title,
     `${flight.departure_airline}${flight.departure_flight_number ? ` ${flight.departure_flight_number}` : ""}: ${flight.origin_location} · ${flight.departure_date} ${compactTime(flight.departure_time)}`,
+    flight.departure_terminal ? `Departure terminal: ${flight.departure_terminal}` : null,
     `${flight.arrival_airline}${flight.arrival_flight_number ? ` ${flight.arrival_flight_number}` : ""}: ${flight.destination_location} · ${flight.arrival_date} ${compactTime(flight.arrival_time)}`,
+    flight.arrival_terminal ? `Arrival terminal: ${flight.arrival_terminal}` : null,
+    flight.travel_class ? `Class: ${flight.travel_class}` : null,
+    flight.seat_number ? `Seat: ${flight.seat_number}` : null,
     flight.accommodation_title ? `Accommodation: ${flight.accommodation_title}${flight.accommodation_location ? ` · ${flight.accommodation_location}` : ""}${flight.accommodation_notes ? ` · ${flight.accommodation_notes}` : ""}` : null,
     flight.vehicle_title ? `Vehicle: ${flight.vehicle_title}${flight.vehicle_location ? ` · ${flight.vehicle_location}` : ""}${flight.vehicle_notes ? ` · ${flight.vehicle_notes}` : ""}` : null,
     flight.notes,

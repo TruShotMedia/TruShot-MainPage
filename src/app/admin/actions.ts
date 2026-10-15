@@ -930,9 +930,12 @@ export async function updateCalendarReminderSettings(formData: FormData) {
   const input = z.object({
     default_event_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
     lead_hours: z.coerce.number().min(0.25).max(168),
+    flight_lead_hours: z.coerce.number().min(0.25).max(168),
   }).parse(Object.fromEntries(formData));
   const leadMinutes = Math.round(input.lead_hours * 60);
+  const flightLeadMinutes = Math.round(input.flight_lead_hours * 60);
   if (leadMinutes < 15 || leadMinutes > 10_080) throw new Error("Reminder lead time must be between 15 minutes and 7 days.");
+  if (flightLeadMinutes < 15 || flightLeadMinutes > 10_080) throw new Error("Flight briefing time must be between 15 minutes and 7 days.");
 
   const context = await getAdminContext();
   if (!context) redirect("/admin/login");
@@ -947,6 +950,8 @@ export async function updateCalendarReminderSettings(formData: FormData) {
       notify_job_deadlines: formData.get("notify_job_deadlines") === "on",
       notify_task_deadlines: formData.get("notify_task_deadlines") === "on",
       notify_campaign_assets: formData.get("notify_campaign_assets") === "on",
+      notify_flights: formData.get("notify_flights") === "on",
+      flight_lead_minutes: flightLeadMinutes,
     })
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .select("workspace_id")

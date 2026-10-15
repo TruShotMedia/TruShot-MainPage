@@ -256,7 +256,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("start_time"),
     supabase
       .from("website-flight-events")
-      .select("id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
+      .select("id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("departure_date")
       .order("departure_time"),
@@ -788,6 +788,8 @@ export async function getCalendarData() {
     notify_job_deadlines: true,
     notify_task_deadlines: true,
     notify_campaign_assets: true,
+    notify_flights: true,
+    flight_lead_minutes: 180,
     timezone: BRISBANE_TIMEZONE,
   };
   if (!context) return { jobs: [], tasks: [], campaignAssets: [], events: [], reminderSettings: defaultReminderSettings };
@@ -833,7 +835,7 @@ export async function getCalendarData() {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     context.supabase
       .from("website-calendar-reminder-settings")
-      .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,timezone")
+      .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,notify_flights,flight_lead_minutes,timezone")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .maybeSingle(),
   ]);

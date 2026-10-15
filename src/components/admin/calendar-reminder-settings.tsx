@@ -1,4 +1,4 @@
-import { BellRing, Clock3, Save, ShieldCheck } from "lucide-react";
+import { BellRing, Clock3, Plane, Save, ShieldCheck } from "lucide-react";
 import { updateCalendarReminderSettings } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/admin/submit-button";
 import type { CalendarReminderSettings } from "@/lib/calendar-reminder-logic";
@@ -20,6 +20,7 @@ export function CalendarReminderSettingsPanel({ settings }: { settings: Calendar
         <div className="calendar-reminder-timing">
           <label><Clock3 size={14} /> Notify before<input type="number" name="lead_hours" min="0.25" max="168" step="0.25" defaultValue={settings.lead_minutes / 60} /><small>hours</small></label>
           <label><Clock3 size={14} /> Date-only time<input type="time" name="default_event_time" required defaultValue={settings.default_event_time.slice(0, 5)} /></label>
+          <label><Plane size={14} /> Flight briefing<input type="number" name="flight_lead_hours" min="0.25" max="168" step="0.25" defaultValue={settings.flight_lead_minutes / 60} /><small>hours</small></label>
         </div>
         <div className="calendar-reminder-options">
           <label><input type="checkbox" name="send_at_event_time" defaultChecked={settings.send_at_event_time} /><span><strong>At event time</strong><small>Send a second alert when it starts or becomes due.</small></span></label>
@@ -27,6 +28,7 @@ export function CalendarReminderSettingsPanel({ settings }: { settings: Calendar
           <label><input type="checkbox" name="notify_job_deadlines" defaultChecked={settings.notify_job_deadlines} /><span><strong>Job deadlines</strong><small>Final job delivery dates.</small></span></label>
           <label><input type="checkbox" name="notify_task_deadlines" defaultChecked={settings.notify_task_deadlines} /><span><strong>Task deadlines</strong><small>Individual assets and task due dates.</small></span></label>
           <label><input type="checkbox" name="notify_campaign_assets" defaultChecked={settings.notify_campaign_assets} /><span><strong>Campaign assets</strong><small>Campaign asset starts and deadlines.</small></span></label>
+          <label><input type="checkbox" name="notify_flights" defaultChecked={settings.notify_flights} /><span><strong>Flight briefings</strong><small>Departure and arrival details, including terminal and seat.</small></span></label>
         </div>
         <SubmitButton pendingLabel="Saving reminders…"><Save size={14} /> Save reminder settings</SubmitButton>
       </form>

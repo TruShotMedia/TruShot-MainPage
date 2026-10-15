@@ -101,6 +101,8 @@ const DEFAULT_REMINDER_SETTINGS: CalendarReminderSettings = {
   notify_job_deadlines: true,
   notify_task_deadlines: true,
   notify_campaign_assets: true,
+  notify_flights: true,
+  flight_lead_minutes: 180,
   timezone: BRISBANE_TIMEZONE,
 };
 
@@ -190,7 +192,7 @@ export async function getDeviceHubSnapshot(now = new Date()): Promise<DeviceHubS
       .is("archived_at", null),
     supabase
       .from("website-calendar-reminder-settings")
-      .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,timezone")
+      .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,notify_flights,flight_lead_minutes,timezone")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .maybeSingle(),
   ]);

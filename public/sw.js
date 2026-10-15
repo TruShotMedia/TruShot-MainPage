@@ -14,14 +14,18 @@ self.addEventListener("push", (event) => {
     ? message.url
     : "/admin/requests";
   const tag = typeof message.tag === "string" ? message.tag : "trushot-update";
+  const timestamp = typeof message.timestamp === "number" ? message.timestamp : Date.now();
+  const kind = message.kind === "flight" ? "flight" : "default";
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "/icons/trushot-app-192.png",
     badge: "/icons/trushot-app-192.png",
     tag,
+    timestamp,
     renotify: true,
-    data: { url },
+    lang: "en-AU",
+    data: { kind, url },
   }));
 });
 

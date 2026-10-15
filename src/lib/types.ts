@@ -267,6 +267,10 @@ export type CalendarFlightEvent = {
   arrival_airline: string;
   departure_flight_number: string | null;
   arrival_flight_number: string | null;
+  departure_terminal: string | null;
+  arrival_terminal: string | null;
+  travel_class: string | null;
+  seat_number: string | null;
   notes: string | null;
   accommodation_title: string | null;
   accommodation_location: string | null;
