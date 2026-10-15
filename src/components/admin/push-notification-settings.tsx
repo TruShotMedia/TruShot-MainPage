@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BellOff, BellRing, CheckCircle2, LoaderCircle, Send, Smartphone, TriangleAlert } from "lucide-react";
-import { removePushSubscription, savePushSubscription, sendTestPushNotification } from "@/app/admin/notification-actions";
+import { BellOff, BellRing, CheckCircle2, LoaderCircle, PlaneTakeoff, Send, Smartphone, TriangleAlert } from "lucide-react";
+import { removePushSubscription, savePushSubscription, sendTestFlightPushNotification, sendTestPushNotification } from "@/app/admin/notification-actions";
 
 type DeviceState = "checking" | "unsupported" | "ready" | "enabled" | "denied";
 
@@ -153,6 +153,23 @@ export function PushNotificationSettings({
     });
   }
 
+  function sendFlightTest() {
+    startTransition(async () => {
+      setMessage("");
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription) throw new Error("Enable notifications on this device first.");
+        await sendTestFlightPushNotification(subscription.endpoint);
+        setMessageKind("success");
+        setMessage("Flight briefing sent. It uses the same layout and delivery path as a scheduled flight alert.");
+      } catch (error) {
+        setMessageKind("error");
+        setMessage(getMessage(error, "The flight briefing test could not be sent."));
+      }
+    });
+  }
+
   const unavailable = deviceState === "unsupported" || deviceState === "denied" || installRequired;
   return (
     <section className="admin-card settings-section push-settings-section">
@@ -194,6 +211,9 @@ export function PushNotificationSettings({
           )}
           <button type="button" className="admin-secondary-button" onClick={sendTest} disabled={isPending || !isEnabled}>
             <Send size={15} /> Send test alert
+          </button>
+          <button type="button" className="admin-secondary-button" onClick={sendFlightTest} disabled={isPending || !isEnabled}>
+            <PlaneTakeoff size={15} /> Test flight briefing
           </button>
         </div>
         {message ? <p className={`push-settings-message is-${messageKind}`} role="status">{message}</p> : null}

@@ -3,7 +3,9 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { buildCalendarReminderPushMessage, type DueCalendarReminder } from "@/lib/calendar-reminder-logic";
 import { getAdminContext } from "@/lib/data/admin";
+import type { PushMessage } from "@/lib/push";
 import { sendPushNotifications, type StoredPushSubscription } from "@/lib/push-notifications";
 
 const subscriptionSchema = z.object({
@@ -62,6 +64,54 @@ export async function removePushSubscription(endpoint: string) {
 }
 
 export async function sendTestPushNotification(endpoint: string) {
+  return sendTestNotification(endpoint, {
+    title: "TruShot notifications are ready",
+    body: "Client-request and calendar alerts are enabled on this device.",
+    url: "/admin/settings",
+    tag: `notification-test-${Date.now()}`,
+  });
+}
+
+export async function sendTestFlightPushNotification(endpoint: string) {
+  const now = new Date();
+  const occurrenceAt = new Date(now.getTime() + 180 * 60_000);
+  const localTime = new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Australia/Brisbane",
+  }).format(occurrenceAt);
+  const reminder: DueCalendarReminder = {
+    workspaceId: "test",
+    entityId: "flight-briefing-test",
+    kind: "flight_departure",
+    title: "TruShot flight briefing test",
+    date: "2026-01-01",
+    time: "09:00:00",
+    context: "Brisbane · BNE → Sydney · SYD",
+    reminderOffsetsMinutes: [180],
+    flightDetails: {
+      airline: "Qantas",
+      flightNumber: "QF 501",
+      route: "Brisbane · BNE → Sydney · SYD",
+      localTime,
+      terminal: "Domestic 3",
+      travelClass: "Economy",
+      seatNumber: "14A",
+      onwardDetails: null,
+    },
+    occurrenceAt,
+    reminderAt: now,
+    offsetMinutes: 180,
+  };
+  const message = buildCalendarReminderPushMessage(reminder);
+  return sendTestNotification(endpoint, {
+    ...message,
+    url: "/admin/settings",
+    tag: `flight-notification-test-${Date.now()}`,
+  });
+}
+
+async function sendTestNotification(endpoint: string, message: PushMessage) {
   const context = await getAdminContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const userId = context.claims.sub;
@@ -77,12 +127,7 @@ export async function sendTestPushNotification(endpoint: string) {
   if (error) throw new Error("Registered devices could not be loaded.");
   if (!data?.length) throw new Error("Enable notifications on this device first.");
 
-  const result = await sendPushNotifications(data as StoredPushSubscription[], {
-    title: "TruShot notifications are ready",
-    body: "Client-request and calendar alerts are enabled on this device.",
-    url: "/admin/settings",
-    tag: `notification-test-${Date.now()}`,
-  });
+  const result = await sendPushNotifications(data as StoredPushSubscription[], message);
   if (!result.configured) throw new Error("Server notification credentials have not been configured.");
 
   if (result.expiredIds.length) {
