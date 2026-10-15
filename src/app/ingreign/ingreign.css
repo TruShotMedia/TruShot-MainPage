@@ -17,6 +17,8 @@
 .ingreign-root *, .ingreign-root *::before, .ingreign-root *::after { box-sizing: border-box; }
 .ingreign-root button, .ingreign-root input, .ingreign-root select, .ingreign-root textarea { font: inherit; }
 .ingreign-root button, .ingreign-root a { -webkit-tap-highlight-color: transparent; }
+.ingreign-root button { transition: transform .12s ease, background .2s ease, border-color .2s ease, color .2s ease, opacity .2s ease; }
+.ingreign-root button:active:not(:disabled), .ingreign-root a:active { transform: scale(.975); }
 
 .ingreign-app-shell { min-height: 100svh; background: radial-gradient(circle at 88% 2%, rgba(239,112,137,.1), transparent 24rem), var(--paper); }
 .ingreign-topbar { position: sticky; z-index: 40; top: 0; display: grid; min-height: 84px; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 28px; border-bottom: 1px solid rgba(255,255,255,.09); background: rgba(20,11,13,.96); padding: 0 clamp(22px,4vw,64px); color: white; backdrop-filter: blur(20px); }
@@ -33,6 +35,20 @@
 .ingreign-menu-button { display: none; }
 .ingreign-menu-backdrop, .ingreign-mobile-menu { display: none; }
 .ingreign-main { width: min(1520px, 100%); margin: 0 auto; padding: clamp(36px,5vw,74px) clamp(20px,4vw,64px) 72px; }
+
+.ingreign-route-loading { min-height: 68vh; }
+.ingreign-loading-header { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(280px,.62fr); align-items: end; gap: 48px; margin-bottom: clamp(34px,5vw,66px); }
+.ingreign-loading-header > div { display: flex; flex-direction: column; gap: 12px; }
+.ingreign-loading-line, .ingreign-loading-card, .ingreign-loading-grid span { display: block; overflow: hidden; border-radius: 999px; background: linear-gradient(105deg,#eadfda 30%,#f8efec 45%,#eadfda 60%); background-size: 240% 100%; animation: ingreign-loading-sweep 1.35s ease-in-out infinite; }
+.ingreign-loading-line { width: 100%; height: 13px; }
+.ingreign-loading-line.is-label { width: 138px; height: 10px; }
+.ingreign-loading-line.is-title { width: min(620px,86%); height: clamp(42px,6vw,78px); border-radius: 15px; }
+.ingreign-loading-line.is-short { width: min(390px,58%); }
+.ingreign-loading-line.is-medium { width: 72%; }
+.ingreign-loading-card { min-height: 420px; border: 1px solid #ded3ce; border-radius: 24px; padding: 28px; }
+.ingreign-loading-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-top: 28px; }
+.ingreign-loading-grid span { min-height: 92px; border-radius: 12px; }
+@keyframes ingreign-loading-sweep { to { background-position: -240% 0; } }
 
 .ingreign-page-header { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(280px,.62fr); align-items: end; gap: 48px; margin-bottom: clamp(34px,5vw,66px); }
 .ingreign-page-header > div > span, .ingreign-section-label { display: inline-flex; align-items: center; gap: 8px; color: var(--red); font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
@@ -156,8 +172,9 @@
 .ingreign-login-card label { color: #5f5658; font-size: 9px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
 .ingreign-login-card input { width: 100%; height: 54px; margin-top: 7px; border: 1px solid #dcd0cc; border-radius: 12px; outline: 0; background: white; padding: 0 15px; color: var(--ink); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .ingreign-login-card input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(239,112,137,.14); }
-.ingreign-login-card form button { height: 54px; border: 0; border-radius: 12px; background: var(--red); color: white; font-size: 11px; font-weight: 900; cursor: pointer; }
+.ingreign-login-card form button { display: inline-flex; height: 54px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; background: var(--red); color: white; font-size: 11px; font-weight: 900; cursor: pointer; }
 .ingreign-login-card form button:hover { background: #8f0006; }
+.ingreign-login-card form button:disabled { cursor: wait; opacity: .72; }
 .ingreign-login-error { border-radius: 9px; background: #f5dedd; padding: 11px 12px; color: #9c2e2d; font-size: 9px; font-weight: 700; }
 .ingreign-login-card > small { display: block; margin-top: 25px; color: #a09798; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
 
@@ -189,6 +206,10 @@
   .ingreign-mobile-menu > form { margin-top: auto; }
   .ingreign-mobile-menu > form button { width: 100%; border: 1px solid rgba(255,255,255,.1); cursor: pointer; }
   .ingreign-main { padding: 30px 15px max(48px,env(safe-area-inset-bottom)); }
+  .ingreign-loading-header { grid-template-columns: 1fr; gap: 22px; margin-bottom: 30px; }
+  .ingreign-loading-line.is-title { width: 90%; height: 54px; }
+  .ingreign-loading-line.is-short { width: 62%; }
+  .ingreign-loading-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .ingreign-page-header { grid-template-columns: 1fr; gap: 22px; margin-bottom: 30px; }
   .ingreign-page-header h1 { font-size: clamp(46px,15vw,72px); }
   .ingreign-page-header p { font-size: 13px; }

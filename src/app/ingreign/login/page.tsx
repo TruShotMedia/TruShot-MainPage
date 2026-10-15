@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { LockKeyhole, Sparkles } from "lucide-react";
 import { signInToIngreign } from "@/app/ingreign/actions";
+import { IngreignLoginButton } from "@/components/ingreign/ingreign-login-button";
 
 export default async function IngreignLoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
@@ -18,10 +19,9 @@ export default async function IngreignLoginPage({ searchParams }: { searchParams
           <h1>Welcome to<br />INGREIGN.</h1>
           <span>Plan every post, copy approved captions and create ready-to-share event artwork in one place.</span>
           <form action={signInToIngreign}>
-            <label>Email<input name="email" type="email" defaultValue="thebuildof86@gmail.com" autoComplete="email" required /></label>
-            <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+            <label>Password<input name="password" type="password" autoComplete="current-password" autoFocus required /></label>
             {error ? <div className="ingreign-login-error">{error === "access" ? "This account does not have INGREIGN access." : "Those details didn’t work. Please try again."}</div> : null}
-            <button type="submit">Enter workspace</button>
+            <IngreignLoginButton />
           </form>
           <small>Securely powered by TruShot Media</small>
         </div>

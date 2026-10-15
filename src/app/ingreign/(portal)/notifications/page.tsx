@@ -1,9 +1,9 @@
 import { BellRing } from "lucide-react";
 import { IngreignNotificationSettings } from "@/components/ingreign/notification-settings";
-import { getIngreignData } from "@/lib/data/ingreign";
+import { getIngreignNotificationData } from "@/lib/data/ingreign";
 
 export default async function IngreignNotificationsPage() {
-  const data = await getIngreignData();
+  const data = await getIngreignNotificationData();
   if (!data) return null;
   return (
     <>

@@ -1,9 +1,9 @@
 import { CalendarDays } from "lucide-react";
 import { IngreignCalendar } from "@/components/ingreign/ingreign-calendar";
-import { getIngreignData } from "@/lib/data/ingreign";
+import { getIngreignEventsData } from "@/lib/data/ingreign";
 
 export default async function IngreignCalendarPage() {
-  const data = await getIngreignData();
+  const data = await getIngreignEventsData();
   if (!data) return null;
   return (
     <>

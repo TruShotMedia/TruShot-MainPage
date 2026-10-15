@@ -20,15 +20,14 @@ const subscriptionSchema = z.object({
 });
 
 export async function signInToIngreign(formData: FormData) {
-  const email = z.email().safeParse(formData.get("email"));
   const password = z.string().min(6).safeParse(formData.get("password"));
   const failure = (reason: string) => `/ingreign/login?${new URLSearchParams({ error: reason })}`;
-  if (!email.success || !password.success || email.data.toLowerCase() !== INGREIGN_LOGIN_EMAIL) {
+  if (!password.success) {
     redirect(failure("invalid"));
   }
 
   const supabase = await createSupabaseClient();
-  const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
+  const { error } = await supabase.auth.signInWithPassword({ email: INGREIGN_LOGIN_EMAIL, password: password.data });
   if (error) redirect(failure("credentials"));
 
   const { data: claims } = await supabase.auth.getClaims();

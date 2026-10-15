@@ -29,12 +29,12 @@ export function IngreignShell({ children, displayName }: { children: React.React
   return (
     <div className="ingreign-app-shell">
       <header className="ingreign-topbar">
-        <Link href="/ingreign" className="ingreign-brand" aria-label="INGREIGN calendar">
+        <Link href="/ingreign" prefetch className="ingreign-brand" aria-label="INGREIGN calendar">
           <Image src="/ingreign/ingreign-header-mark.png" alt="INGREIGN" width={512} height={512} priority />
         </Link>
         <nav className="ingreign-desktop-nav" aria-label="INGREIGN navigation">
           {links.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} className={pathname === href ? "is-active" : undefined}>
+            <Link key={href} href={href} prefetch className={pathname === href ? "is-active" : undefined} aria-current={pathname === href ? "page" : undefined}>
               <Icon size={17} /><span>{label}</span>
             </Link>
           ))}
@@ -56,7 +56,7 @@ export function IngreignShell({ children, displayName }: { children: React.React
         </div>
         <nav aria-label="Mobile INGREIGN navigation">
           {links.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} className={pathname === href ? "is-active" : undefined}>
+            <Link key={href} href={href} prefetch className={pathname === href ? "is-active" : undefined} aria-current={pathname === href ? "page" : undefined}>
               <Icon size={18} /><span>{label}</span>
             </Link>
           ))}

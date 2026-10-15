@@ -1,10 +1,10 @@
 import { ImagePlus } from "lucide-react";
 import { PostGenerator } from "@/components/ingreign/post-generator";
-import { getIngreignData } from "@/lib/data/ingreign";
+import { getIngreignGeneratorData } from "@/lib/data/ingreign";
 import { buildRecurringIngreignMarkers, manualEventToMarker, type IngreignPresetKey } from "@/lib/ingreign";
 
 export default async function IngreignGeneratorPage({ searchParams }: { searchParams: Promise<{ date?: string; event?: string; preset?: string; marker?: string }> }) {
-  const [data, query] = await Promise.all([getIngreignData(), searchParams]);
+  const [data, query] = await Promise.all([getIngreignGeneratorData(), searchParams]);
   if (!data) return null;
   const requestedPreset = data.presets.find((preset) => preset.preset_key === query.preset);
   const requestedYear = Number(query.date?.slice(0, 4)) || new Date().getUTCFullYear();

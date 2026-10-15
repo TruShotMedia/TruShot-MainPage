@@ -32,36 +32,55 @@ export const getIngreignContext = cache(async () => {
   return { supabase, claims: claims.claims, membership: adminMembership, access: "admin" as const };
 });
 
-export const getIngreignData = cache(async () => {
+async function loadPresets() {
   const context = await getIngreignContext();
   if (!context) return null;
-  const [presetsResult, eventsResult, subscriptionsResult] = await Promise.all([
-    context.supabase
-      .from("website-ingreign-caption-presets")
-      .select("id,preset_key,label,caption,generator_mode,position,is_active")
-      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-      .eq("is_active", true)
-      .order("position"),
-    context.supabase
-      .from("website-ingreign-manual-events")
-      .select("id,title,calendar_label,event_date,preset_key,generator_mode,month_label,day_label,caption_override,notification_enabled,created_at,updated_at")
-      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-      .order("event_date"),
-    context.access === "portal"
-      ? context.supabase
-          .from("website-ingreign-push-subscriptions")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", context.claims.sub)
-      : Promise.resolve({ count: 0, error: null }),
-  ]);
-  const error = presetsResult.error ?? eventsResult.error ?? subscriptionsResult.error;
-  if (error) throw new Error("The INGREIGN workspace could not be loaded.");
+  const { data, error } = await context.supabase
+    .from("website-ingreign-caption-presets")
+    .select("id,preset_key,label,caption,generator_mode,position,is_active")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("is_active", true)
+    .order("position");
+  if (error) throw new Error("The INGREIGN captions could not be loaded.");
+  return { context, presets: (data ?? []) as IngreignCaptionPreset[] };
+}
+
+async function loadManualEvents() {
+  const context = await getIngreignContext();
+  if (!context) return null;
+  const { data, error } = await context.supabase
+    .from("website-ingreign-manual-events")
+    .select("id,title,calendar_label,event_date,preset_key,generator_mode,month_label,day_label,caption_override,notification_enabled,created_at,updated_at")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .order("event_date");
+  if (error) throw new Error("The INGREIGN calendar could not be loaded.");
+  return { context, manualEvents: (data ?? []) as IngreignManualEvent[] };
+}
+
+export const getIngreignPresetsData = cache(loadPresets);
+export const getIngreignEventsData = cache(loadManualEvents);
+
+export const getIngreignGeneratorData = cache(async () => {
+  const [presetsData, eventsData] = await Promise.all([loadPresets(), loadManualEvents()]);
+  if (!presetsData || !eventsData) return null;
   return {
-    context,
-    presets: (presetsResult.data ?? []) as IngreignCaptionPreset[],
-    manualEvents: (eventsResult.data ?? []) as IngreignManualEvent[],
-    subscriptionCount: subscriptionsResult.count ?? 0,
+    context: presetsData.context,
+    presets: presetsData.presets,
+    manualEvents: eventsData.manualEvents,
   };
+});
+
+export const getIngreignNotificationData = cache(async () => {
+  const context = await getIngreignContext();
+  if (!context) return null;
+  const result = context.access === "portal"
+    ? await context.supabase
+        .from("website-ingreign-push-subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.claims.sub)
+    : { count: 0, error: null };
+  if (result.error) throw new Error("INGREIGN reminder settings could not be loaded.");
+  return { context, subscriptionCount: result.count ?? 0 };
 });
 
 export async function getIngreignAdminData() {

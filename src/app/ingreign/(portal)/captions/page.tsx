@@ -1,9 +1,9 @@
 import { Captions } from "lucide-react";
 import { CaptionLibrary } from "@/components/ingreign/caption-library";
-import { getIngreignData } from "@/lib/data/ingreign";
+import { getIngreignPresetsData } from "@/lib/data/ingreign";
 
 export default async function IngreignCaptionsPage() {
-  const data = await getIngreignData();
+  const data = await getIngreignPresetsData();
   if (!data) return null;
   return (
     <>
