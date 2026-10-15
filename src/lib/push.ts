@@ -3,7 +3,7 @@ export type PushMessage = {
   body: string;
   url: string;
   tag: string;
-  kind?: "flight";
+  kind?: "flight" | "ingreign";
   timestamp?: number;
 };
 

@@ -1062,6 +1062,61 @@ img { max-width: 100%; }
 .portfolio-category-empty p { margin: 0; font-size: 10px; }
 .portfolio-empty-state { min-height: 330px; }
 .calendar-page-badge { display: inline-flex; min-height: 38px; align-items: center; gap: 8px; border: 1px solid #cbd8cf; border-radius: 10px; background: #e8efe9; padding: 0 13px; color: var(--green); font-size: 9px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+
+/* INGREIGN client portal controls */
+.ingreign-admin-summary { display: grid; grid-template-columns: 180px minmax(0,1fr) auto; align-items: center; gap: 28px; overflow: hidden; margin-bottom: 26px; padding: 0 28px 0 0; }
+.ingreign-admin-logo { display: grid; min-height: 190px; place-items: center; background: #140b0d; }
+.ingreign-admin-logo img { width: 118px; height: auto; }
+.ingreign-admin-summary h2 { margin: 8px 0 0; font-size: 26px; letter-spacing: -.04em; }
+.ingreign-admin-summary p:not(.card-label) { max-width: 690px; margin: 10px 0 0; color: #747a74; font-size: 10px; line-height: 1.62; }
+.ingreign-admin-stats { display: flex; gap: 8px; }
+.ingreign-admin-stats span { display: grid; min-width: 96px; min-height: 72px; place-content: center; border: 1px solid #e4d7d5; border-radius: 12px; background: #faf5f4; color: #8d6a70; font-size: 7px; font-weight: 900; text-align: center; text-transform: uppercase; }
+.ingreign-admin-stats strong { display: block; margin-bottom: 4px; color: #aa1d2b; font-size: 22px; }
+.ingreign-admin-section { margin-top: 30px; }
+.ingreign-admin-section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+.ingreign-admin-section-heading > div { display: flex; align-items: center; gap: 10px; color: #aa1d2b; }
+.ingreign-admin-section-heading span, .ingreign-admin-section-heading strong, .ingreign-admin-section-heading small { display: block; }
+.ingreign-admin-section-heading strong { color: #252b26; font-size: 13px; }
+.ingreign-admin-section-heading small { margin-top: 3px; color: #848a84; font-size: 8px; }
+.ingreign-admin-captions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.ingreign-admin-caption { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+.ingreign-admin-caption-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; color: #aa1d2b; font-size: 8px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.ingreign-admin-caption-title span { color: #ef7089; }
+.ingreign-admin-caption label, .ingreign-admin-event-form > label { color: #69706a; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.ingreign-admin-caption input, .ingreign-admin-caption select, .ingreign-admin-caption textarea, .ingreign-admin-event-form input:not([type="checkbox"]), .ingreign-admin-event-form select, .ingreign-admin-event-form textarea { width: 100%; border: 1px solid #ddded8; border-radius: 9px; background: white; color: #283029; font-size: 10px; font-weight: 650; letter-spacing: 0; text-transform: none; }
+.ingreign-admin-caption input, .ingreign-admin-caption select, .ingreign-admin-event-form input:not([type="checkbox"]), .ingreign-admin-event-form select { height: 42px; margin-top: 5px; padding: 0 10px; }
+.ingreign-admin-caption textarea, .ingreign-admin-event-form textarea { margin-top: 5px; resize: vertical; padding: 10px; line-height: 1.5; }
+.ingreign-admin-caption .admin-primary-button { align-self: flex-start; margin-top: auto; }
+.ingreign-admin-event-form { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 13px; padding: 22px; }
+.ingreign-admin-event-form .form-span { grid-column: 1/-1; }
+.ingreign-admin-event-form .toggle-field { display: flex; min-height: 54px; align-items: center; gap: 10px; border: 1px solid #e1e2dc; border-radius: 10px; background: #f8f8f4; padding: 10px 12px; }
+.ingreign-admin-event-form .toggle-field input { accent-color: #aa1d2b; }
+.ingreign-admin-event-form .toggle-field span, .ingreign-admin-event-form .toggle-field strong, .ingreign-admin-event-form .toggle-field small { display: block; }
+.ingreign-admin-event-form .toggle-field small { margin-top: 3px; color: #8d938d; font-size: 7px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.ingreign-admin-event-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.ingreign-admin-event-list article { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 16px; padding: 15px 18px; }
+.ingreign-admin-event-list time { color: #aa1d2b; font-size: 8px; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
+.ingreign-admin-event-list h3 { margin: 5px 0 0; font-size: 14px; }
+.ingreign-admin-event-list p { margin: 4px 0 0; color: #838983; font-size: 8px; }
+.ingreign-admin-event-list article > span { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; background: #efeeea; padding: 7px 9px; color: #858a85; font-size: 7px; font-weight: 900; text-transform: uppercase; }
+.ingreign-admin-event-list article > span.is-on { background: #f7e5e7; color: #a32635; }
+.ingreign-admin-empty { padding: 26px; color: #858b85; font-size: 9px; text-align: center; }
+
+@media (max-width: 1100px) {
+  .ingreign-admin-summary { grid-template-columns: 140px 1fr; }
+  .ingreign-admin-stats { grid-column: 1/-1; padding: 0 18px 18px; }
+  .ingreign-admin-captions { grid-template-columns: 1fr 1fr; }
+  .ingreign-admin-event-form { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 700px) {
+  .ingreign-admin-summary { grid-template-columns: 1fr; padding: 0 18px 18px; }
+  .ingreign-admin-logo { margin: 0 -18px; }
+  .ingreign-admin-stats { grid-column: auto; flex-wrap: wrap; padding: 0; }
+  .ingreign-admin-stats span { flex: 1; }
+  .ingreign-admin-captions, .ingreign-admin-event-form { grid-template-columns: 1fr; }
+  .ingreign-admin-event-list article { grid-template-columns: 1fr; }
+}
 .calendar-reminder-settings { display: grid; grid-template-columns: minmax(250px,.68fr) minmax(0,1.5fr); gap: clamp(28px,4vw,64px); margin-bottom: 16px; overflow: hidden; padding: clamp(22px,3vw,34px); background: linear-gradient(125deg, #f8f7f2 0 40%, #eef3ee 100%); }
 .calendar-reminder-intro > span { display: inline-flex; align-items: center; gap: 7px; color: var(--green); font-size: 8px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
 .calendar-reminder-intro h2 { max-width: 390px; margin: 12px 0 0; font-size: clamp(23px,2.3vw,34px); line-height: 1.02; letter-spacing: -.05em; }

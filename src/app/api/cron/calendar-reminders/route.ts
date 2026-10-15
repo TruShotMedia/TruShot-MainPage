@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { dispatchCalendarReminders } from "@/lib/calendar-reminders";
+import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,8 +18,11 @@ function authorised(request: Request) {
 export async function POST(request: Request) {
   if (!authorised(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const result = await dispatchCalendarReminders();
-    return Response.json({ ok: true, ...result });
+    const [calendar, ingreign] = await Promise.all([
+      dispatchCalendarReminders(),
+      dispatchIngreignReminders(),
+    ]);
+    return Response.json({ ok: true, calendar, ingreign });
   } catch (error) {
     console.error("Calendar reminder dispatch failed.", error);
     return Response.json({ error: "Calendar reminders could not be processed." }, { status: 500 });

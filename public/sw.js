@@ -15,12 +15,13 @@ self.addEventListener("push", (event) => {
     : "/admin/requests";
   const tag = typeof message.tag === "string" ? message.tag : "trushot-update";
   const timestamp = typeof message.timestamp === "number" ? message.timestamp : Date.now();
-  const kind = message.kind === "flight" ? "flight" : "default";
+  const kind = message.kind === "flight" ? "flight" : message.kind === "ingreign" ? "ingreign" : "default";
+  const notificationIcon = kind === "ingreign" ? "/ingreign/icon-192.png" : "/icons/trushot-app-192.png";
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: "/icons/trushot-app-192.png",
-    badge: "/icons/trushot-app-192.png",
+    icon: notificationIcon,
+    badge: notificationIcon,
     tag,
     timestamp,
     renotify: true,

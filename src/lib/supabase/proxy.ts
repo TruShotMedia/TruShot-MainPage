@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -27,21 +26,26 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  const isLogin = request.nextUrl.pathname.startsWith("/admin/login");
+  const isIngreign = request.nextUrl.pathname === "/ingreign" || request.nextUrl.pathname.startsWith("/ingreign/");
+  const isAdminLogin = request.nextUrl.pathname.startsWith("/admin/login");
+  const isIngreignLogin = request.nextUrl.pathname.startsWith("/ingreign/login");
+  const isLogin = isAdminLogin || isIngreignLogin;
 
   if (!data?.claims && !isLogin) {
     const url = request.nextUrl.clone();
-    url.pathname = "/admin/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    url.pathname = isIngreign ? "/ingreign/login" : "/admin/login";
+    if (!isIngreign) url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
-  if (data?.claims && isLogin) {
+  if (data?.claims && isIngreignLogin) {
     const url = request.nextUrl.clone();
-    url.pathname = safeAuthenticatedPath(request.nextUrl.searchParams.get("next"));
+    url.pathname = "/ingreign";
     url.search = "";
     return NextResponse.redirect(url);
   }
+
+  if (data?.claims && isAdminLogin) return response;
 
   return response;
 }
