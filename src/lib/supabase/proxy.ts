@@ -29,9 +29,13 @@ export async function updateSession(request: NextRequest) {
   const isIngreign = request.nextUrl.pathname === "/ingreign" || request.nextUrl.pathname.startsWith("/ingreign/");
   const isAdminLogin = request.nextUrl.pathname.startsWith("/admin/login");
   const isIngreignLogin = request.nextUrl.pathname.startsWith("/ingreign/login");
+  const isIngreignPublicAsset = isIngreign && (
+    request.nextUrl.pathname === "/ingreign/manifest.webmanifest"
+    || /\.(?:png|svg|ico)$/i.test(request.nextUrl.pathname)
+  );
   const isLogin = isAdminLogin || isIngreignLogin;
 
-  if (!data?.claims && !isLogin) {
+  if (!data?.claims && !isLogin && !isIngreignPublicAsset) {
     const url = request.nextUrl.clone();
     url.pathname = isIngreign ? "/ingreign/login" : "/admin/login";
     if (!isIngreign) url.searchParams.set("next", request.nextUrl.pathname);
