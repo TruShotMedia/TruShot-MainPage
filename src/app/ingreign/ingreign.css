@@ -8,7 +8,11 @@
   --pink-soft: #ffafb7;
   --red: #ad0007;
   --muted: #776e70;
+  width: 100%;
+  max-width: 100%;
   min-height: 100svh;
+  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ingreign), Arial, sans-serif;
@@ -20,7 +24,7 @@
 .ingreign-root button { transition: transform .12s ease, background .2s ease, border-color .2s ease, color .2s ease, opacity .2s ease; }
 .ingreign-root button:active:not(:disabled), .ingreign-root a:active { transform: scale(.975); }
 
-.ingreign-app-shell { min-height: 100svh; background: radial-gradient(circle at 88% 2%, rgba(239,112,137,.1), transparent 24rem), var(--paper); }
+.ingreign-app-shell { width: 100%; max-width: 100%; min-height: 100svh; overflow-x: hidden; overflow-x: clip; background: radial-gradient(circle at 88% 2%, rgba(239,112,137,.1), transparent 24rem), var(--paper); }
 .ingreign-topbar { position: sticky; z-index: 40; top: 0; display: grid; min-height: 84px; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 28px; border-bottom: 1px solid rgba(255,255,255,.09); background: rgba(20,11,13,.96); padding: 0 clamp(22px,4vw,64px); color: white; backdrop-filter: blur(20px); }
 .ingreign-brand { display: grid; width: 56px; height: 62px; place-items: center; }
 .ingreign-brand img { width: 52px; height: 52px; object-fit: contain; }
@@ -34,7 +38,8 @@
 .ingreign-account button:hover { border-color: rgba(239,112,137,.55); background: rgba(239,112,137,.13); }
 .ingreign-menu-button { display: none; }
 .ingreign-menu-backdrop, .ingreign-mobile-menu { display: none; }
-.ingreign-main { width: min(1520px, 100%); margin: 0 auto; padding: clamp(36px,5vw,74px) clamp(20px,4vw,64px) 72px; }
+.ingreign-main { width: min(1520px, 100%); min-width: 0; max-width: 100%; margin: 0 auto; padding: clamp(36px,5vw,74px) clamp(20px,4vw,64px) 72px; }
+.ingreign-main > *, .ingreign-page-header > *, .ingreign-calendar-layout > *, .ingreign-caption-grid > *, .ingreign-generator-layout > * { min-width: 0; max-width: 100%; }
 
 .ingreign-route-loading { min-height: 68vh; }
 .ingreign-loading-header { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(280px,.62fr); align-items: end; gap: 48px; margin-bottom: clamp(34px,5vw,66px); }
@@ -56,9 +61,10 @@
 .ingreign-page-header p { max-width: 480px; margin: 0; color: var(--muted); font-size: clamp(14px,1.4vw,18px); line-height: 1.65; }
 
 .ingreign-calendar-layout { display: grid; grid-template-columns: minmax(0,1fr) 330px; align-items: start; gap: 18px; }
-.ingreign-calendar-card, .ingreign-upcoming-card, .ingreign-caption-grid article, .ingreign-generator-preview, .ingreign-generator-controls, .ingreign-notification-card { border: 1px solid #ded3ce; border-radius: 24px; background: rgba(255,255,255,.76); box-shadow: 0 18px 55px rgba(47,28,34,.06); }
+.ingreign-calendar-card, .ingreign-upcoming-card, .ingreign-caption-grid article, .ingreign-generator-preview, .ingreign-generator-controls, .ingreign-notification-card { min-width: 0; max-width: 100%; border: 1px solid #ded3ce; border-radius: 24px; background: rgba(255,255,255,.76); box-shadow: 0 18px 55px rgba(47,28,34,.06); }
 .ingreign-calendar-card { overflow: hidden; }
 .ingreign-calendar-toolbar { display: flex; min-height: 104px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #e3d9d4; padding: 20px 24px; }
+.ingreign-calendar-toolbar > * { min-width: 0; }
 .ingreign-calendar-toolbar span { color: var(--red); font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 .ingreign-calendar-toolbar h2 { margin: 5px 0 0; font-size: 27px; letter-spacing: -.04em; }
 .ingreign-calendar-toolbar > div:last-child { display: flex; gap: 6px; }
@@ -102,8 +108,8 @@
 .ingreign-caption-grid article header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .ingreign-caption-grid article header span { color: var(--pink); font-size: 11px; font-weight: 900; letter-spacing: .1em; }
 .ingreign-caption-grid article header strong { color: var(--red); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-.ingreign-caption-grid article p { flex: 1; margin: 28px 0; color: #4f4648; font-size: 14px; line-height: 1.65; white-space: pre-wrap; }
-.ingreign-caption-grid article > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ingreign-caption-grid article p { flex: 1; margin: 28px 0; overflow-wrap: anywhere; color: #4f4648; font-size: 14px; line-height: 1.65; white-space: pre-wrap; }
+.ingreign-caption-grid article > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .ingreign-caption-grid button, .ingreign-caption-grid a { display: flex; min-height: 43px; align-items: center; justify-content: center; gap: 7px; border: 1px solid #ded2ce; border-radius: 10px; background: white; color: var(--ink); font-size: 9px; font-weight: 900; text-decoration: none; cursor: pointer; }
 .ingreign-caption-grid button:hover, .ingreign-caption-grid a:hover { border-color: var(--pink); color: var(--red); }
 
@@ -121,17 +127,18 @@
 .ingreign-upload-control strong, .ingreign-upload-control small { display: block; }
 .ingreign-upload-control strong { font-size: 12px; }
 .ingreign-upload-control small { margin-top: 5px; color: var(--muted); font-size: 8px; line-height: 1.4; }
-.ingreign-control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ingreign-control-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.ingreign-control-grid > *, .ingreign-generator-controls label, .ingreign-generator-controls fieldset { min-width: 0; }
 .ingreign-generator-controls label { color: #655d5f; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-.ingreign-generator-controls input, .ingreign-generator-controls select, .ingreign-generator-controls textarea { width: 100%; border: 1px solid #ddd2ce; border-radius: 11px; outline: 0; background: white; color: var(--ink); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; transition: border-color .18s ease, box-shadow .18s ease; }
+.ingreign-generator-controls input, .ingreign-generator-controls select, .ingreign-generator-controls textarea { width: 100%; min-width: 0; max-width: 100%; border: 1px solid #ddd2ce; border-radius: 11px; outline: 0; background: white; color: var(--ink); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; transition: border-color .18s ease, box-shadow .18s ease; }
 .ingreign-generator-controls input, .ingreign-generator-controls select { height: 48px; margin-top: 7px; padding: 0 13px; }
 .ingreign-generator-controls textarea { min-height: 190px; margin-top: 8px; resize: vertical; padding: 14px; line-height: 1.55; }
 .ingreign-generator-controls input:focus, .ingreign-generator-controls select:focus, .ingreign-generator-controls textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(239,112,137,.14); }
-.ingreign-mode-control { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; border: 0; margin: 0; padding: 0; }
+.ingreign-mode-control { display: grid; min-inline-size: 0; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; border: 0; margin: 0; padding: 0; }
 .ingreign-mode-control legend { grid-column: 1/-1; margin-bottom: 8px; color: #655d5f; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
 .ingreign-mode-control button { min-height: 43px; border: 1px solid #ddd2ce; border-radius: 10px; background: white; color: #766d6f; font-size: 9px; font-weight: 900; cursor: pointer; }
 .ingreign-mode-control button.is-active { border-color: var(--red); background: var(--night); color: white; }
-.ingreign-generator-actions { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 8px; }
+.ingreign-generator-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr); gap: 8px; }
 .ingreign-generator-actions button { display: flex; min-height: 47px; align-items: center; justify-content: center; gap: 7px; border: 1px solid #d9ceca; border-radius: 11px; background: white; color: var(--ink); font-size: 9px; font-weight: 900; cursor: pointer; }
 .ingreign-generator-actions button.is-primary { border-color: var(--red); background: var(--red); color: white; }
 .ingreign-generator-actions button:hover { transform: translateY(-1px); }
@@ -146,6 +153,7 @@
 .ingreign-spin { animation: ingreign-spin 1s linear infinite; }
 @keyframes ingreign-spin { to { transform: rotate(360deg); } }
 .ingreign-notification-copy { display: flex; align-items: flex-start; gap: 18px; padding: 34px; }
+.ingreign-notification-copy > div { min-width: 0; }
 .ingreign-notification-copy > svg { width: 52px; height: 52px; flex: 0 0 auto; border-radius: 17px; background: #f6dfe2; padding: 14px; color: var(--red); }
 .ingreign-notification-copy strong { font-size: 22px; letter-spacing: -.035em; }
 .ingreign-notification-copy p { max-width: 570px; margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
@@ -187,6 +195,12 @@
   .ingreign-caption-grid { grid-template-columns: 1fr 1fr; }
 }
 
+@media (max-width: 900px) {
+  .ingreign-page-header, .ingreign-loading-header { grid-template-columns: 1fr; gap: 24px; }
+  .ingreign-generator-layout { grid-template-columns: minmax(0,1fr); }
+  .ingreign-generator-preview { position: static; }
+}
+
 @media (max-width: 780px) {
   .ingreign-topbar { min-height: 70px; grid-template-columns: 1fr auto; padding: max(8px,env(safe-area-inset-top)) 18px 8px; }
   .ingreign-brand { width: 48px; height: 52px; }
@@ -225,10 +239,8 @@
   .ingreign-upcoming-card { padding: 21px; }
   .ingreign-caption-grid { grid-template-columns: 1fr; }
   .ingreign-caption-grid article { min-height: 285px; padding: 20px; }
-  .ingreign-generator-layout { grid-template-columns: 1fr; }
-  .ingreign-generator-preview { position: static; }
-  .ingreign-control-grid { grid-template-columns: 1fr 1fr; }
-  .ingreign-mode-control { grid-template-columns: 1fr 1fr; }
+  .ingreign-control-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ingreign-mode-control { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .ingreign-generator-actions { grid-template-columns: 1fr; }
   .ingreign-notification-card > header { align-items: flex-start; flex-direction: column; }
   .ingreign-notification-copy { padding: 24px 20px; }
@@ -243,6 +255,16 @@
   .ingreign-login-panel { min-height: 68svh; padding: 34px 22px max(34px,env(safe-area-inset-bottom)); }
   .ingreign-login-card h1 { font-size: 54px; }
   .ingreign-login-card form { margin-top: 28px; }
+}
+
+@media (max-width: 480px) {
+  .ingreign-main { padding-inline: 12px; }
+  .ingreign-calendar-toolbar { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .ingreign-calendar-toolbar > div:last-child { width: 100%; justify-content: flex-end; }
+  .ingreign-control-grid { grid-template-columns: minmax(0,1fr); }
+  .ingreign-caption-grid article > div { grid-template-columns: minmax(0,1fr); }
+  .ingreign-notification-copy { gap: 12px; padding-inline: 16px; }
+  .ingreign-notification-copy > svg { width: 44px; height: 44px; padding: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
