@@ -19,9 +19,9 @@
 .ingreign-root button, .ingreign-root a { -webkit-tap-highlight-color: transparent; }
 
 .ingreign-app-shell { min-height: 100svh; background: radial-gradient(circle at 88% 2%, rgba(239,112,137,.1), transparent 24rem), var(--paper); }
-.ingreign-topbar { position: sticky; z-index: 40; top: 0; display: grid; min-height: 84px; grid-template-columns: 160px minmax(0,1fr) auto; align-items: center; gap: 28px; border-bottom: 1px solid rgba(255,255,255,.09); background: rgba(20,11,13,.96); padding: 0 clamp(22px,4vw,64px); color: white; backdrop-filter: blur(20px); }
-.ingreign-brand { display: flex; width: 126px; height: 62px; align-items: center; overflow: hidden; }
-.ingreign-brand img { width: 114px; height: auto; }
+.ingreign-topbar { position: sticky; z-index: 40; top: 0; display: grid; min-height: 84px; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 28px; border-bottom: 1px solid rgba(255,255,255,.09); background: rgba(20,11,13,.96); padding: 0 clamp(22px,4vw,64px); color: white; backdrop-filter: blur(20px); }
+.ingreign-brand { display: grid; width: 56px; height: 62px; place-items: center; }
+.ingreign-brand img { width: 52px; height: 52px; object-fit: contain; }
 .ingreign-desktop-nav { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .ingreign-desktop-nav a { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; border-radius: 999px; padding: 0 14px; color: rgba(255,255,255,.58); font-size: 12px; font-weight: 600; text-decoration: none; transition: background .2s ease, color .2s ease, transform .2s ease; }
 .ingreign-desktop-nav a:hover { background: rgba(255,255,255,.07); color: white; transform: translateY(-1px); }
@@ -162,7 +162,7 @@
 .ingreign-login-card > small { display: block; margin-top: 25px; color: #a09798; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
 
 @media (max-width: 1100px) {
-  .ingreign-topbar { grid-template-columns: 130px minmax(0,1fr) auto; gap: 14px; }
+  .ingreign-topbar { grid-template-columns: 56px minmax(0,1fr) auto; gap: 14px; }
   .ingreign-desktop-nav a { padding: 0 9px; }
   .ingreign-account > span { display: none; }
   .ingreign-calendar-layout { grid-template-columns: 1fr; }
@@ -172,8 +172,8 @@
 
 @media (max-width: 780px) {
   .ingreign-topbar { min-height: 70px; grid-template-columns: 1fr auto; padding: max(8px,env(safe-area-inset-top)) 18px 8px; }
-  .ingreign-brand { width: 96px; height: 52px; }
-  .ingreign-brand img { width: 88px; }
+  .ingreign-brand { width: 48px; height: 52px; }
+  .ingreign-brand img { width: 44px; height: 44px; }
   .ingreign-desktop-nav, .ingreign-account { display: none; }
   .ingreign-menu-button { display: grid; }
   .ingreign-menu-backdrop { position: fixed; z-index: 48; inset: 0; display: block; border: 0; background: rgba(10,5,7,.48); opacity: 0; pointer-events: none; transition: opacity .25s ease; }

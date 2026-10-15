@@ -30,7 +30,7 @@ export function IngreignShell({ children, displayName }: { children: React.React
     <div className="ingreign-app-shell">
       <header className="ingreign-topbar">
         <Link href="/ingreign" className="ingreign-brand" aria-label="INGREIGN calendar">
-          <Image src="/ingreign/ingreign-logo-white.png" alt="INGREIGN" width={900} height={780} priority />
+          <Image src="/ingreign/ingreign-header-mark.png" alt="INGREIGN" width={512} height={512} priority />
         </Link>
         <nav className="ingreign-desktop-nav" aria-label="INGREIGN navigation">
           {links.map(({ href, label, Icon }) => (
