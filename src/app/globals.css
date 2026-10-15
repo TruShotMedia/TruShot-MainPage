@@ -1514,7 +1514,7 @@ img { max-width: 100%; }
   .mobile-admin-menu-panel .admin-nav-group > a { min-height: 46px; }
   .mobile-admin-menu-grip { position: fixed; z-index: 1; top: 50%; left: min(calc(326px - 5px), calc(88vw - 5px)); width: 3px; height: 38px; border-radius: 999px; background: rgba(255,255,255,.15); pointer-events: none; transform: translateY(-50%); }
   .admin-search { display: none; }
-  .admin-topbar { height: 58px; }
+  .admin-topbar { height: 58px; background: rgba(243,242,236,.98); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .admin-main { padding-top: 30px; }
   .admin-shell input:not([type="checkbox"]):not([type="radio"]), .admin-shell select, .admin-shell textarea,
   .row-editor-layer input:not([type="checkbox"]):not([type="radio"]), .row-editor-layer select, .row-editor-layer textarea { font-size: 16px; }
