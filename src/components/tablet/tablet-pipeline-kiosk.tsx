@@ -5,11 +5,12 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3 } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
+import { TabletToday } from "@/components/tablet/tablet-today";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
@@ -112,6 +113,7 @@ export function TabletPipelineKiosk({
   notionSyncEnabled,
   notionSyncIntervalMinutes,
   refreshIntervalMinutes,
+  showTodayView = false,
   today,
 }: {
   calendarJobs: CalendarJob[];
@@ -133,10 +135,11 @@ export function TabletPipelineKiosk({
   notionSyncEnabled: boolean;
   notionSyncIntervalMinutes: number;
   refreshIntervalMinutes: number;
+  showTodayView?: boolean;
   today: string;
 }) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<TabletView>(initialView);
+  const [activeView, setActiveView] = useState<TabletView>(initialView === "today" && !showTodayView ? "pipeline" : initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [createRequest, setCreateRequest] = useState<TabletRecordCreateRequest | null>(null);
@@ -377,6 +380,7 @@ export function TabletPipelineKiosk({
             <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => selectView("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
             <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
             <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
+            {showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => selectView("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
           </nav>
 
           <div className="tablet-kiosk-actions">
@@ -399,7 +403,7 @@ export function TabletPipelineKiosk({
           </div>
         </header>
 
-        <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : "Tablet production calendar"}>
+        <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : activeView === "today" ? "Tablet today itinerary" : "Tablet production calendar"}>
           {activeView === "jobs" ? (
             <TabletJobPipeline
               editable={isEditing}
@@ -435,7 +439,53 @@ export function TabletPipelineKiosk({
               visibleStatusKeys={tabletPipelineStatusKeys}
               workflowEnabled
             />
-          ) : <TabletCalendar
+          ) : activeView === "today" ? <TabletToday
+            accentClientName={branding.calendarAccentClientName}
+            accentKeywords={branding.calendarAccentKeywords}
+            jobs={calendarJobs}
+            tasks={calendarTasks}
+            campaignAssets={calendarCampaignAssets}
+            customEvents={calendarEvents}
+            flightEvents={flightEvents}
+            editable={isEditing}
+            onOpenCustomEvent={(event) => {
+              setCreateRequest(null);
+              setSelectedScheduleItem(null);
+              setSelectedJob(null);
+              setSelectedTask(null);
+              setSelectedCalendarEvent(event);
+              setEventEditorDate(event.start_date);
+            }}
+            onOpenFlight={(event) => {
+              setCreateRequest(null);
+              closeEventEditor();
+              setSelectedScheduleItem(null);
+              setSelectedJob(null);
+              setSelectedTask(null);
+              setSelectedFlightEvent(event);
+              setFlightEditorDate(event.departure_date);
+            }}
+            onOpenItem={(item) => {
+              setCreateRequest(null);
+              closeEventEditor();
+              if (item.entity_type === "job") {
+                const fullJob = pipelineJobs.find((job) => job.id === item.id) ?? null;
+                setSelectedTask(null);
+                setSelectedScheduleItem(fullJob ? null : item);
+                setSelectedJob(fullJob);
+              } else if (item.entity_type === "task") {
+                const fullTask = liveTasks.find((task) => task.id === item.id) ?? null;
+                setSelectedJob(null);
+                setSelectedScheduleItem(fullTask ? null : item);
+                setSelectedTask(fullTask);
+              } else {
+                setSelectedJob(null);
+                setSelectedTask(null);
+                setSelectedScheduleItem(item);
+              }
+            }}
+            today={today}
+          /> : <TabletCalendar
             accentColor={branding.calendarAccentColor}
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}

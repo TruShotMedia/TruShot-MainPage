@@ -68,6 +68,7 @@ export default async function AutopacificPage() {
       notionSyncEnabled={notion.configured}
       notionSyncIntervalMinutes={notion.syncIntervalMinutes}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}
+      showTodayView
       today={todayDateInput()}
     />
   );

@@ -7,7 +7,7 @@ import { TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
-const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), jobPipeline: vi.fn(), pipeline: vi.fn() }));
+const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), jobPipeline: vi.fn(), pipeline: vi.fn(), today: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => routerMocks }));
 vi.mock("next/image", () => ({ default: ({ alt, className, src }: { alt: string; className?: string; src: string }) => <span role="img" aria-label={alt} className={className} data-src={src} /> }));
@@ -18,6 +18,7 @@ vi.mock("@/components/admin/pipeline-board", () => ({ PipelineBoard: (props: unk
 vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => null }));
 vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: (props: unknown) => { componentMocks.calendar(props); return <div data-testid="calendar-view">Calendar board</div>; } }));
 vi.mock("@/components/tablet/tablet-job-pipeline", () => ({ TabletJobPipeline: (props: unknown) => { componentMocks.jobPipeline(props); return <div data-testid="job-pipeline-view">Job pipeline</div>; } }));
+vi.mock("@/components/tablet/tablet-today", () => ({ TabletToday: (props: unknown) => { componentMocks.today(props); return <div data-testid="today-view">Today itinerary</div>; } }));
 vi.mock("@/components/tablet/tablet-workspace-editors", () => ({ TabletRecordCreateEditor: () => <div data-testid="record-editor" />, TabletRecordEditEditor: () => <div data-testid="record-edit-editor" />, TabletScheduleEditor: () => <div data-testid="schedule-editor" /> }));
 
 describe("TabletPipelineKiosk", () => {
@@ -30,6 +31,7 @@ describe("TabletPipelineKiosk", () => {
     componentMocks.calendar.mockClear();
     componentMocks.jobPipeline.mockClear();
     componentMocks.pipeline.mockClear();
+    componentMocks.today.mockClear();
     window.localStorage.clear();
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=; Path=/; Max-Age=0`;
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
@@ -242,6 +244,33 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => disableButton.click());
     expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ editable: false });
     expect(container.querySelector(".tablet-create-dock")).toBeNull();
+  });
+
+  it("adds the Today view after Calendar only when it is enabled", async () => {
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-10-16T00:00:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="calendar"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        showTodayView
+        today="2026-10-16"
+      />,
+    ));
+
+    const tabs = [...container.querySelectorAll<HTMLButtonElement>(".tablet-kiosk-tabs button")];
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual(["Jobs", "Tasks", "Calendar", "Today"]);
+    await act(async () => tabs[3].click());
+    expect(container.querySelector('[data-testid="today-view"]')).not.toBeNull();
+    expect(componentMocks.today.mock.lastCall?.[0]).toMatchObject({ editable: false, today: "2026-10-16" });
+    expect(document.cookie).toContain(`${TABLET_VIEW_COOKIE_NAME}=today`);
   });
 
   it("refreshes conservatively only while the kiosk is visible and online", async () => {
