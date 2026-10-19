@@ -1,22 +1,29 @@
 import { Save } from "lucide-react";
 import { updateSettings } from "@/app/admin/actions";
+import { ClickUpSyncPanel, type ClickUpPanelIntegration } from "@/components/admin/clickup-sync-panel";
 import { NotionSyncPanel } from "@/components/admin/notion-sync-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import { PushNotificationSettings } from "@/components/admin/push-notification-settings";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext } from "@/lib/data/admin";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
+import { getClickUpConfigurationSummary } from "@/lib/clickup/config";
 import type { NotionSyncResult } from "@/lib/notion/types";
 
 export default async function SettingsPage() {
   const context = await getAdminContext();
   if (!context) return null;
   const notionConfiguration = getNotionConfigurationSummary();
-  const [{ data: settings }, { data: tax }, { data: notionSync }, pushSubscriptions] = await Promise.all([
+  const clickUpConfiguration = getClickUpConfigurationSummary();
+  const [{ data: settings }, { data: tax }, { data: notionSync }, pushSubscriptions, clickUpIntegration, clickUpLinks, clickUpPending, clickUpFailed] = await Promise.all([
     context.supabase.from("website-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
     context.supabase.from("website-tax-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
     context.supabase.from("website-notion-sync-state").select("status,last_successful_at,last_error,last_result").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
     context.supabase.from("website-push-subscriptions").select("id", { count: "exact", head: true }).eq("user_id", context.claims.sub),
+    context.supabase.from("website-clickup-integrations").select("enabled,list_id,list_name,assigned_user_name,status_mapping,last_connected_at,last_sync_completed_at,last_error").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
+    context.supabase.from("website-clickup-job-links").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-clickup-sync-outbox").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).in("status", ["pending", "retry", "processing"]),
+    context.supabase.from("website-clickup-sync-outbox").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
   ]);
   return (
     <>
@@ -37,6 +44,13 @@ export default async function SettingsPage() {
         lastResult={(notionSync?.last_result as NotionSyncResult | null) ?? null}
         lastSuccessfulAt={notionSync?.last_successful_at ?? null}
         status={notionSync?.status ?? "idle"}
+      />
+      <ClickUpSyncPanel
+        configured={clickUpConfiguration.configured}
+        failedCount={clickUpFailed.count ?? 0}
+        integration={(clickUpIntegration.data as ClickUpPanelIntegration) ?? null}
+        linkedCount={clickUpLinks.count ?? 0}
+        pendingCount={clickUpPending.count ?? 0}
       />
     </>
   );

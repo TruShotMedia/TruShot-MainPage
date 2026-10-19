@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
+import { scheduleClickUpJobSync } from "@/lib/clickup/job-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
 import { pairInvoicePaymentDates, paymentDateToTimestamp } from "@/lib/invoice-payment-dates";
@@ -469,6 +470,7 @@ export async function createJob(formData: FormData) {
     updated_by: context.claims.sub,
   });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
@@ -523,6 +525,7 @@ export async function duplicateJob(formData: FormData) {
     updated_by: context.claims.sub,
   });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
@@ -538,6 +541,7 @@ export async function updateJob(formData: FormData) {
   await requireInvoices(context, invoiceIds);
   await saveJobDetails(context, input);
   await syncJobInvoiceRelations(context, input.id, invoiceIds);
+  scheduleClickUpJobSync();
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
@@ -554,6 +558,7 @@ export async function updateTabletJob(formData: FormData) {
   const context = await getAdminContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   await saveJobDetails(context, input);
+  scheduleClickUpJobSync();
   revalidateProductionPages();
   return { ok: true };
 }
@@ -588,6 +593,7 @@ export async function archiveJob(formData: FormData) {
     throw new Error("The job was not removed because its related tasks could not be archived safely.");
   }
 
+  scheduleClickUpJobSync();
   revalidateProductionPages();
   return { ok: true };
 }
@@ -828,6 +834,7 @@ export async function updateCalendarItem(formData: FormData) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/overview");
+  if (raw.entity_type === "job") scheduleClickUpJobSync();
   revalidatePath("/tablet");
   return { ok: true };
 }
@@ -1017,6 +1024,7 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
     .select("id");
   if (error || data?.length !== parsed.jobIds.length) throw new Error(error?.message ?? "The selected jobs could not be updated.");
 
+  scheduleClickUpJobSync();
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
@@ -1723,6 +1731,7 @@ export async function updateSettings(formData: FormData) {
 export async function syncNotionImport(force = false) {
   const result = await runNotionSync({ force });
   if (result.status === "completed") {
+    scheduleClickUpJobSync();
     revalidatePath("/admin", "layout");
     revalidatePath("/tablet");
   }

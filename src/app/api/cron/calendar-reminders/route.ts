@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { dispatchCalendarReminders } from "@/lib/calendar-reminders";
+import { dispatchClickUpJobSync } from "@/lib/clickup/job-sync";
 import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 
 export const runtime = "nodejs";
@@ -18,11 +19,22 @@ function authorised(request: Request) {
 export async function POST(request: Request) {
   if (!authorised(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const [calendar, ingreign] = await Promise.all([
+    const clickUpSync = dispatchClickUpJobSync({ limit: 50 }).catch((error) => {
+      console.error("ClickUp sync failed without interrupting calendar reminders.", error);
+      return {
+        status: "unavailable" as const,
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        message: "ClickUp could not be reached during this reminder run.",
+      };
+    });
+    const [calendar, ingreign, clickup] = await Promise.all([
       dispatchCalendarReminders(),
       dispatchIngreignReminders(),
+      clickUpSync,
     ]);
-    return Response.json({ ok: true, calendar, ingreign });
+    return Response.json({ ok: true, calendar, ingreign, clickup });
   } catch (error) {
     console.error("Calendar reminder dispatch failed.", error);
     return Response.json({ error: "Calendar reminders could not be processed." }, { status: 500 });

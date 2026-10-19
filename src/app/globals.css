@@ -1351,6 +1351,7 @@ img { max-width: 100%; }
 .toggle-field small { color: #939790; font-size: 9px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .settings-save { display: flex; justify-content: flex-end; }
 .notion-sync-section { margin-top: 22px; }
+.clickup-sync-section { margin-top: 22px; }
 .push-settings-section { margin-top: 22px; }
 .push-settings-panel { display: flex; min-width: 0; flex-direction: column; gap: 17px; }
 .push-settings-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -1372,6 +1373,16 @@ img { max-width: 100%; }
 .notion-sync-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .notion-sync-panel > header .admin-primary-button { min-width: 118px; }
 .notion-sync-panel > header .admin-primary-button:disabled { cursor: not-allowed; opacity: .48; }
+.clickup-sync-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
+.clickup-sync-actions button { min-width: 0 !important; }
+.clickup-status-map { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); overflow: hidden; border: 1px solid #dcded8; border-radius: 12px; background: rgba(255,255,255,.48); }
+.clickup-status-map > span { display: flex; min-width: 0; flex-direction: column; gap: 5px; border-right: 1px solid #e1e2dc; padding: 11px; }
+.clickup-status-map > span:last-child { border-right: 0; }
+.clickup-status-map small { overflow: hidden; color: #8a8f88; font-size: 7px; font-weight: 850; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.clickup-status-map strong { overflow: hidden; color: #315f78; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.clickup-sync-section .notion-sync-explainer { flex-wrap: wrap; }
+.clickup-sync-section .notion-sync-explainer a { color: var(--green); font-weight: 800; text-decoration: none; }
+.clickup-sync-section .notion-sync-explainer a:hover { text-decoration: underline; }
 .notion-connection-status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #e2c9ad; border-radius: 999px; background: #f5ebdc; padding: 8px 11px; color: #946528; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
 .notion-connection-status.is-connected { border-color: #b9d0bf; background: #e8f0e9; color: var(--green); }
 .notion-sync-metrics { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); overflow: hidden; border: 1px solid #deded7; border-radius: 12px; background: rgba(255,255,255,.55); }
@@ -1660,6 +1671,8 @@ img { max-width: 100%; }
   .quick-form h3, .quick-form.wide button, .form-span { grid-column: auto; }
   .settings-section { padding: 22px; }
   .notion-sync-panel > header { align-items: flex-start; flex-direction: column; }
+  .clickup-sync-actions { width: 100%; justify-content: stretch; }
+  .clickup-sync-actions button { flex: 1 1 140px; }
   .push-settings-panel > header { align-items: flex-start; flex-direction: column; }
   .push-settings-actions { display: grid; grid-template-columns: 1fr; }
   .push-settings-actions button { width: 100%; }
@@ -1668,6 +1681,9 @@ img { max-width: 100%; }
   .notion-sync-metrics > div { border-right: 0; }
   .notion-sync-metrics > div:nth-last-child(-n+2) { border-bottom: 1px solid #e1e1da; }
   .notion-sync-metrics > div:last-child { border-bottom: 0; }
+  .clickup-status-map { grid-template-columns: 1fr; }
+  .clickup-status-map > span { border-right: 0; border-bottom: 1px solid #e1e2dc; }
+  .clickup-status-map > span:last-child { border-bottom: 0; }
   .website-element-preview { height: 235px; }
   .website-visibility-form { padding: 20px; }
   .website-visibility-form button { width: 100%; }
