@@ -181,9 +181,11 @@ export function TabletPipelineKiosk({
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
   const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
-  const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
-  const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
-  const isMobileViewport = Boolean(viewportSize && viewportSize.width <= 760);
+  const isMobileViewport = Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
+  const effectiveOrientation = isMobileViewport
+    ? currentViewportOrientation ?? "portrait"
+    : preferredOrientation ?? currentViewportOrientation ?? "landscape";
+  const isCssRotated = Boolean(!isMobileViewport && preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
   const screensaverLogo = branding.screensaverLogo ?? {
     alt: branding.logoAlt,
     height: branding.logoHeight,
@@ -199,7 +201,7 @@ export function TabletPipelineKiosk({
       tasks: outstandingTasks.length,
     };
   }, [initialStatuses, liveTasks]);
-  const viewportStyle = viewportSize ? {
+  const viewportStyle = viewportSize && !isMobileViewport ? {
     "--tablet-viewport-height": `${viewportSize.height}px`,
     "--tablet-viewport-width": `${viewportSize.width}px`,
   } as CSSProperties : undefined;
@@ -339,6 +341,15 @@ export function TabletPipelineKiosk({
   }, [effectiveOrientation, syncViewportMetrics]);
 
   useEffect(() => {
+    document.documentElement.classList.add("tablet-kiosk-active");
+    document.body.classList.add("tablet-kiosk-active");
+    return () => {
+      document.documentElement.classList.remove("tablet-kiosk-active");
+      document.body.classList.remove("tablet-kiosk-active");
+    };
+  }, []);
+
+  useEffect(() => {
     const restoreOrientation = window.requestAnimationFrame(() => {
       setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
       setIsAutoRotationPaused(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY) === "true");
@@ -460,10 +471,10 @@ export function TabletPipelineKiosk({
                   <span>{isAutoRotationPaused ? <Play size={18} /> : <Pause size={18} />}</span>
                   <strong>{isAutoRotationPaused ? "Resume kiosk display" : "Pause kiosk display"}<small>Control the automatic lockscreen on larger displays.</small></strong>
                 </button>
-                <button type="button" onClick={() => { rotateOrientation(); setIsMobileActionsOpen(false); }}>
+                {!isMobileViewport ? <button type="button" onClick={() => { rotateOrientation(); setIsMobileActionsOpen(false); }}>
                   <span>{effectiveOrientation === "landscape" ? <RectangleVertical size={18} /> : <RectangleHorizontal size={18} />}</span>
                   <strong>Change orientation<small>Switch between portrait and landscape layouts.</small></strong>
-                </button>
+                </button> : null}
                 <button type="button" onClick={() => { refresh(); setIsMobileActionsOpen(false); }}>
                   <span><RefreshCw size={18} /></span>
                   <strong>Refresh workspace<small>Fetch the latest jobs, tasks and schedule.</small></strong>

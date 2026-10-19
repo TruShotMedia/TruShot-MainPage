@@ -36,6 +36,8 @@ describe("TabletPipelineKiosk", () => {
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=; Path=/; Max-Age=0`;
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.append(container);
@@ -309,8 +311,8 @@ describe("TabletPipelineKiosk", () => {
   });
 
   it("rotates immediately with measured dimensions when an old kiosk browser cannot lock orientation", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1024 });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1280 });
     Object.defineProperty(window.screen, "orientation", {
       configurable: true,
       value: { lock: vi.fn(() => new Promise<void>(() => undefined)) },
@@ -335,8 +337,8 @@ describe("TabletPipelineKiosk", () => {
     await act(async () => vi.advanceTimersByTime(20));
 
     const viewport = container.querySelector<HTMLElement>(".tablet-kiosk-viewport")!;
-    expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("600px");
-    expect(viewport.style.getPropertyValue("--tablet-viewport-height")).toBe("1024px");
+    expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("800px");
+    expect(viewport.style.getPropertyValue("--tablet-viewport-height")).toBe("1280px");
 
     const rotateButton = container.querySelector<HTMLButtonElement>('button[aria-label="Switch kiosk to landscape"]')!;
     await act(async () => rotateButton.click());
@@ -351,5 +353,38 @@ describe("TabletPipelineKiosk", () => {
     expect(viewport.classList.contains("is-css-rotated")).toBe(false);
     expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
     expect(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)).toBe("portrait");
+  });
+
+  it("ignores saved kiosk rotation and JavaScript viewport sizing on a phone", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    window.localStorage.setItem(TABLET_ORIENTATION_STORAGE_KEY, "landscape");
+
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        initialNow="2026-10-19T05:48:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="jobs"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        today="2026-10-19"
+      />,
+    ));
+    await act(async () => vi.advanceTimersByTime(20));
+
+    const viewport = container.querySelector<HTMLElement>(".tablet-kiosk-viewport")!;
+    const kiosk = container.querySelector<HTMLElement>(".tablet-kiosk")!;
+    expect(viewport.classList.contains("is-css-rotated")).toBe(false);
+    expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("");
+    expect(viewport.style.getPropertyValue("--tablet-viewport-height")).toBe("");
+    expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
+    expect(document.documentElement.classList.contains("tablet-kiosk-active")).toBe(true);
+    expect(document.body.classList.contains("tablet-kiosk-active")).toBe(true);
   });
 });
