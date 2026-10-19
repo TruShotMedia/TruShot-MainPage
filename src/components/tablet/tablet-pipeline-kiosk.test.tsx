@@ -380,11 +380,15 @@ describe("TabletPipelineKiosk", () => {
 
     const viewport = container.querySelector<HTMLElement>(".tablet-kiosk-viewport")!;
     const kiosk = container.querySelector<HTMLElement>(".tablet-kiosk")!;
+    const header = container.querySelector<HTMLElement>(".tablet-kiosk-header")!;
+    const mobileNavigation = container.querySelector<HTMLElement>(".tablet-kiosk-tabs-mobile")!;
     expect(viewport.classList.contains("is-css-rotated")).toBe(false);
     expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("");
     expect(viewport.style.getPropertyValue("--tablet-viewport-height")).toBe("");
     expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
     expect(document.documentElement.classList.contains("tablet-kiosk-active")).toBe(true);
     expect(document.body.classList.contains("tablet-kiosk-active")).toBe(true);
+    expect(header.contains(mobileNavigation)).toBe(false);
+    expect(mobileNavigation.parentElement).toBe(kiosk);
   });
 });

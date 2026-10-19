@@ -86,6 +86,29 @@ const lockscreenDateFormatter = new Intl.DateTimeFormat("en-AU", {
   year: "numeric",
 });
 
+function TabletViewTabs({
+  activeView,
+  className,
+  label,
+  onSelect,
+  showTodayView,
+}: {
+  activeView: TabletView;
+  className: string;
+  label: string;
+  onSelect: (view: TabletView) => void;
+  showTodayView: boolean;
+}) {
+  return (
+    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label}>
+      <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => onSelect("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
+      <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
+      <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => onSelect("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
+      {showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
+    </nav>
+  );
+}
+
 type TabletViewportMetrics = {
   height: number;
   orientation: TabletOrientation;
@@ -429,12 +452,7 @@ export function TabletPipelineKiosk({
             </div>
           </div>
 
-          <nav className="tablet-kiosk-tabs" aria-label="Tablet views">
-            <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => selectView("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
-            <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => selectView("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
-            <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => selectView("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
-            {showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => selectView("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
-          </nav>
+          <TabletViewTabs activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
 
           <div className="tablet-kiosk-actions">
             <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button>
@@ -457,6 +475,8 @@ export function TabletPipelineKiosk({
             <button type="button" className={`tablet-mobile-more-toggle ${isMobileActionsOpen ? "is-active" : ""}`} onClick={() => setIsMobileActionsOpen((open) => !open)} aria-label="More AutoPacific controls" aria-expanded={isMobileActionsOpen}><MoreHorizontal size={17} /></button>
           </div>
         </header>
+
+        <TabletViewTabs activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
 
         {isMobileActionsOpen ? (
           <>
