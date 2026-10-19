@@ -246,6 +246,46 @@ describe("TabletCalendar", () => {
     expect(busyDay?.querySelector(".tablet-calendar-overflow")).toBeNull();
   });
 
+  it("turns the AutoPacific calendar into a readable weekly agenda on phones", async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({
+        addEventListener: vi.fn(),
+        matches: true,
+        media: "(max-width: 760px)",
+        onchange: null,
+        removeEventListener: vi.fn(),
+      })),
+    });
+    const mobileJob: CalendarJob = {
+      ...jobs[0],
+      id: "66666666-6666-4666-8666-666666666666",
+      title: "Mobile production window",
+      client_name: "Autopacific Group",
+      shoot_date: "2026-08-24",
+      due_date: "2026-08-28",
+    };
+    const mobileTask: CalendarTask = {
+      ...tasks[0],
+      id: "77777777-7777-4777-8777-777777777777",
+      title: "Mobile deadline",
+      client_name: "Autopacific Group",
+      due_date: "2026-08-25",
+      is_complete: false,
+    };
+
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[mobileJob]} tasks={[mobileTask]} today="2026-08-25" />));
+
+    expect(container.querySelector('[data-testid="tablet-calendar-mobile"]')).not.toBeNull();
+    expect(container.querySelectorAll('.tablet-calendar-mobile-week button')).toHaveLength(7);
+    expect(container.textContent).toContain("One-week focus");
+    expect(container.textContent).toContain("Mobile production window");
+    expect(container.textContent).toContain("Mobile deadline");
+
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
   it("only exposes date and item editing controls when edit mode is enabled", async () => {
     const onCreateEvent = vi.fn();
     const onEditEvent = vi.fn();

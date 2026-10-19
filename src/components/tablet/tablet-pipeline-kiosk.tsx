@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, MoreHorizontal, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
@@ -20,6 +20,13 @@ const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revis
 const tabletPipelineStatusAliases = { ready_to_post: "final_draft_notes" };
 const tabletPageDurationMs = 60_000;
 const tabletScreensaverDurationMs = 15_000;
+
+const tabletViewCopy: Record<TabletView, { eyebrow: string; title: string }> = {
+  jobs: { eyebrow: "Production workflow", title: "Jobs" },
+  pipeline: { eyebrow: "Asset workflow", title: "Tasks" },
+  calendar: { eyebrow: "Schedule", title: "Calendar" },
+  today: { eyebrow: "Daily briefing", title: "Today" },
+};
 
 type TabletKioskBranding = {
   calendarAccentColor?: string;
@@ -157,6 +164,7 @@ export function TabletPipelineKiosk({
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
   const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
   const [now, setNow] = useState(() => new Date(initialNow));
   const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
@@ -168,6 +176,7 @@ export function TabletPipelineKiosk({
   const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
+  const isMobileViewport = Boolean(viewportSize && viewportSize.width <= 760);
   const kioskSummary = useMemo(() => {
     const openStatusIds = new Set(initialStatuses.filter((status) => status.is_open).map((status) => status.id));
     const outstandingTasks = liveTasks.filter((task) => openStatusIds.has(task.status_id));
@@ -199,6 +208,8 @@ export function TabletPipelineKiosk({
   const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
     setIsScreensaverVisible(false);
+    setIsMobileActionsOpen(false);
+    setIsCreateMenuOpen(false);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
 
@@ -219,6 +230,7 @@ export function TabletPipelineKiosk({
     setIsEditing((current) => {
       const next = !current;
       setIsScreensaverVisible(false);
+      setIsMobileActionsOpen(false);
       setIsCreateMenuOpen(false);
       if (!next) {
         setCreateRequest(null);
@@ -330,7 +342,7 @@ export function TabletPipelineKiosk({
   }, [syncViewportMetrics]);
 
   useEffect(() => {
-    if (isAutoRotationPaused || isEditing) return;
+    if (isAutoRotationPaused || isEditing || isMobileViewport) return;
     let slideshowTimer = 0;
     const duration = isScreensaverVisible ? tabletScreensaverDurationMs : tabletPageDurationMs;
     const scheduleSlideshow = () => {
@@ -344,7 +356,18 @@ export function TabletPipelineKiosk({
     };
     scheduleSlideshow();
     return () => window.clearTimeout(slideshowTimer);
-  }, [activeView, isAutoRotationPaused, isEditing, isScreensaverVisible]);
+  }, [activeView, isAutoRotationPaused, isEditing, isMobileViewport, isScreensaverVisible]);
+
+  useEffect(() => {
+    if (!isMobileActionsOpen && !isCreateMenuOpen) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMobileActionsOpen(false);
+      setIsCreateMenuOpen(false);
+    };
+    document.addEventListener("keydown", dismiss);
+    return () => document.removeEventListener("keydown", dismiss);
+  }, [isCreateMenuOpen, isMobileActionsOpen]);
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
@@ -393,7 +416,7 @@ export function TabletPipelineKiosk({
             {notificationPublicKey ? <TabletNotificationControl publicKey={notificationPublicKey} /> : null}
             <button
               type="button"
-              className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
+              className={`tablet-slideshow-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
               onClick={toggleAutoRotation}
               aria-label={isAutoRotationPaused ? "Resume automatic slideshow" : "Pause automatic slideshow"}
               aria-pressed={isAutoRotationPaused}
@@ -401,15 +424,50 @@ export function TabletPipelineKiosk({
             >
               {isAutoRotationPaused ? <Play size={14} /> : <Pause size={14} />}
             </button>
-            <button type="button" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
+            <button type="button" className="tablet-orientation-toggle" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
               {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
             </button>
-            <button type="button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
+            <button type="button" className="tablet-refresh-button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
             <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
+            <button type="button" className={`tablet-mobile-more-toggle ${isMobileActionsOpen ? "is-active" : ""}`} onClick={() => setIsMobileActionsOpen((open) => !open)} aria-label="More AutoPacific controls" aria-expanded={isMobileActionsOpen}><MoreHorizontal size={17} /></button>
           </div>
         </header>
 
+        {isMobileActionsOpen ? (
+          <>
+            <button type="button" className="tablet-mobile-sheet-backdrop" onClick={() => setIsMobileActionsOpen(false)} aria-label="Close more controls" />
+            <section className="tablet-mobile-actions-sheet" aria-label={`${branding.name} app controls`} role="dialog" aria-modal="true">
+              <header>
+                <div><span>Workspace controls</span><strong>{branding.name}</strong></div>
+                <button type="button" onClick={() => setIsMobileActionsOpen(false)} aria-label="Close more controls"><X size={18} /></button>
+              </header>
+              <div>
+                <button type="button" onClick={() => { toggleAutoRotation(); setIsMobileActionsOpen(false); }}>
+                  <span>{isAutoRotationPaused ? <Play size={18} /> : <Pause size={18} />}</span>
+                  <strong>{isAutoRotationPaused ? "Resume kiosk display" : "Pause kiosk display"}<small>Control the automatic lockscreen on larger displays.</small></strong>
+                </button>
+                <button type="button" onClick={() => { rotateOrientation(); setIsMobileActionsOpen(false); }}>
+                  <span>{effectiveOrientation === "landscape" ? <RectangleVertical size={18} /> : <RectangleHorizontal size={18} />}</span>
+                  <strong>Change orientation<small>Switch between portrait and landscape layouts.</small></strong>
+                </button>
+                <button type="button" onClick={() => { refresh(); setIsMobileActionsOpen(false); }}>
+                  <span><RefreshCw size={18} /></span>
+                  <strong>Refresh workspace<small>Fetch the latest jobs, tasks and schedule.</small></strong>
+                </button>
+                <Link href="/admin" onClick={() => setIsMobileActionsOpen(false)}>
+                  <span><LayoutDashboard size={18} /></span>
+                  <strong>Open TruShot CRM<small>Continue in the complete administration workspace.</small></strong>
+                </Link>
+              </div>
+            </section>
+          </>
+        ) : null}
+
         <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : activeView === "today" ? "Tablet today itinerary" : "Tablet production calendar"}>
+          <header className="tablet-mobile-view-heading">
+            <div><span>{tabletViewCopy[activeView].eyebrow}</span><h1>{tabletViewCopy[activeView].title}</h1></div>
+            <small className={isEditing ? "is-editing" : ""}><i /> {isEditing ? "Editing on" : "Live workspace"}</small>
+          </header>
           {activeView === "jobs" ? (
             <TabletJobPipeline
               editable={isEditing}
@@ -546,6 +604,7 @@ export function TabletPipelineKiosk({
 
         {isEditing ? (
           <div className={`tablet-create-dock ${isCreateMenuOpen ? "is-open" : ""}`} onMouseLeave={() => setIsCreateMenuOpen(false)}>
+            {isCreateMenuOpen ? <button type="button" className="tablet-create-backdrop" onClick={() => setIsCreateMenuOpen(false)} aria-label="Close create menu" /> : null}
             <div className="tablet-create-options" aria-label="Create from tablet">
               <button type="button" onClick={() => openCreate("event")}><CalendarPlus2 size={15} /><span>Event</span></button>
               <button type="button" onClick={() => openCreate("flight")}><Plane size={15} /><span>Flight</span></button>

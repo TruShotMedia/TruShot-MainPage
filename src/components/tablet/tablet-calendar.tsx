@@ -15,7 +15,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plane, Plus } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus } from "lucide-react";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
@@ -138,6 +138,79 @@ function flightHoverDetails(flight: CalendarFlightEvent) {
   ].filter(Boolean).join("\n");
 }
 
+function dateFallsInRange(date: string, range: { end: string; start: string; weekdaysOnly: boolean }) {
+  if (date < range.start || date > range.end) return false;
+  if (!range.weekdaysOnly) return true;
+  const weekday = parseISO(date).getDay();
+  return weekday !== 0 && weekday !== 6;
+}
+
+function MobileRangeAgendaCard({ editable, onOpen, palette, range }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; range: ReturnType<typeof getCalendarScheduleRanges>[number] }) {
+  const item = range.item;
+  const isFlight = item.entity_type === "flight-event";
+  const isCalendarEvent = item.entity_type === "calendar-event";
+  const isComplete = isCalendarEvent || isFlight ? false : item.is_complete;
+  const color = isFlight ? item.color : calendarItemColor(item, palette);
+  const kicker = isFlight
+    ? "Flight itinerary"
+    : isCalendarEvent
+      ? "Calendar event"
+      : item.entity_type === "campaign-asset"
+        ? "Campaign"
+        : "Job window";
+  const detail = isFlight
+    ? `${compactTime(item.departure_time)} ${item.origin_location} → ${compactTime(item.arrival_time)} ${item.destination_location}`
+    : isCalendarEvent
+      ? ""
+      : item.entity_type === "campaign-asset"
+        ? item.campaign_title
+        : item.client_name ?? "No client";
+  const Icon = isFlight ? Plane : isCalendarEvent ? CalendarClock : item.entity_type === "campaign-asset" ? Megaphone : BriefcaseBusiness;
+
+  return (
+    <article
+      className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      style={{ "--tablet-calendar-color": color } as CSSProperties}
+      role={editable ? "button" : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={editable ? () => onOpen(item) : undefined}
+      onKeyDown={editable ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(item);
+        }
+      } : undefined}
+    >
+      <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
+      <span className="tablet-calendar-mobile-entry-copy"><small>{kicker}</small><strong>{item.title}</strong>{detail ? <em>{detail}</em> : null}</span>
+      <span className="tablet-calendar-mobile-entry-side">{isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
+    </article>
+  );
+}
+
+function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boolean; event: TabletCalendarEvent; onOpen?: (item: CalendarItem) => void }) {
+  const Icon = event.kind === "task" ? ListTodo : event.kind === "campaign" ? Megaphone : BriefcaseBusiness;
+  return (
+    <article
+      className={`tablet-calendar-mobile-entry is-deadline ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      style={{ "--tablet-calendar-color": event.color } as CSSProperties}
+      role={editable ? "button" : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={editable ? () => onOpen?.(event.item) : undefined}
+      onKeyDown={editable ? (keyboardEvent) => {
+        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+          keyboardEvent.preventDefault();
+          onOpen?.(event.item);
+        }
+      } : undefined}
+    >
+      <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
+      <span className="tablet-calendar-mobile-entry-copy"><small>{event.label}</small><strong>{event.title}</strong><em>{event.detail}</em></span>
+      <span className="tablet-calendar-mobile-entry-side">{event.isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
+    </article>
+  );
+}
+
 function FlightRange({ editable, onOpen, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; segment: CalendarRangeSegment<CalendarFlightEvent> }) {
   const flight = segment.item;
   const showDeparture = !segment.startsBeforeWeek;
@@ -223,6 +296,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [selectedMobileDate, setSelectedMobileDate] = useState(today);
   const isCapacityCalendar = density === "capacity";
   const capacityWindowDays = isCapacityCalendar
     ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
@@ -293,6 +367,16 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
     return grouped;
   }, [events]);
+  const selectedMobileRanges = useMemo(
+    () => scheduleRanges.filter((range) => dateFallsInRange(selectedMobileDate, range)),
+    [scheduleRanges, selectedMobileDate],
+  );
+  const selectedMobileEvents = eventsByDay.get(selectedMobileDate) ?? [];
+  const mobileDayCounts = useMemo(() => new Map(calendarDays.map((day) => {
+    const dateKey = format(day, "yyyy-MM-dd");
+    const rangeCount = scheduleRanges.filter((range) => dateFallsInRange(dateKey, range)).length;
+    return [dateKey, rangeCount + (eventsByDay.get(dateKey)?.length ?? 0)];
+  })), [calendarDays, eventsByDay, scheduleRanges]);
 
   useEffect(() => {
     if (!isCapacityCalendar || typeof window.matchMedia !== "function") return;
@@ -302,6 +386,27 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     media.addEventListener?.("change", sync);
     return () => media.removeEventListener?.("change", sync);
   }, [isCapacityCalendar]);
+
+  useEffect(() => {
+    const firstDay = format(calendarWindow.start, "yyyy-MM-dd");
+    const lastDay = format(calendarWindow.end, "yyyy-MM-dd");
+    if (selectedMobileDate < firstDay || selectedMobileDate > lastDay) setSelectedMobileDate(firstDay);
+  }, [calendarWindow, selectedMobileDate]);
+
+  function moveCalendar(direction: -1 | 1) {
+    if (isCapacityCalendar) {
+      const days = capacityWindowDays ?? capacityDesktopWindowDays;
+      setCurrentMonth((month) => addDays(month, direction * days));
+      if (isCompactViewport) setSelectedMobileDate((date) => format(addDays(parseISO(date), direction * days), "yyyy-MM-dd"));
+      return;
+    }
+    setCurrentMonth((month) => direction < 0 ? subMonths(month, 1) : addMonths(month, 1));
+  }
+
+  function jumpToToday() {
+    setCurrentMonth(isCapacityCalendar ? todayDate : startOfMonth(todayDate));
+    setSelectedMobileDate(today);
+  }
 
   function openRangeItem(item: CalendarScheduleRangeItem) {
     if (!editable) return;
@@ -314,13 +419,13 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     <section className={`tablet-calendar ${isCapacityCalendar ? "is-capacity" : ""} ${isCompactViewport ? "is-compact-window" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-label="Production calendar">
       <header className="tablet-calendar-toolbar">
         <div className="tablet-calendar-month-controls">
-          <button type="button" onClick={() => setCurrentMonth((month) => isCapacityCalendar ? addDays(month, -(capacityWindowDays ?? capacityDesktopWindowDays)) : subMonths(month, 1))} aria-label={isCapacityCalendar ? "Previous calendar period" : "Previous month"}><ChevronLeft size={16} /></button>
+          <button type="button" onClick={() => moveCalendar(-1)} aria-label={isCapacityCalendar ? "Previous calendar period" : "Previous month"}><ChevronLeft size={16} /></button>
           <div>
             <span>{isCapacityCalendar ? `${capacityWindowDays === capacityMobileWindowDays ? "One-week" : "Two-week"} focus` : calendarWindow.isRolling ? `Rolling · through ${format(calendarWindow.end, "d MMM")}` : "Six-week schedule"}</span>
             <h1>{isCapacityCalendar ? dateWindowLabel(format(calendarWindow.start, "yyyy-MM-dd"), format(calendarWindow.end, "yyyy-MM-dd")) : format(currentMonth, "MMMM yyyy")}</h1>
           </div>
-          <button type="button" onClick={() => setCurrentMonth((month) => isCapacityCalendar ? addDays(month, capacityWindowDays ?? capacityDesktopWindowDays) : addMonths(month, 1))} aria-label={isCapacityCalendar ? "Next calendar period" : "Next month"}><ChevronRight size={16} /></button>
-          <button type="button" className="tablet-calendar-today" onClick={() => setCurrentMonth(isCapacityCalendar ? todayDate : startOfMonth(todayDate))}>Today</button>
+          <button type="button" onClick={() => moveCalendar(1)} aria-label={isCapacityCalendar ? "Next calendar period" : "Next month"}><ChevronRight size={16} /></button>
+          <button type="button" className="tablet-calendar-today" onClick={jumpToToday}>Today</button>
         </div>
         <div className="tablet-calendar-legend" aria-label="Calendar legend">
           <span><i className="is-job" /> Job window</span>
@@ -332,7 +437,32 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         </div>
       </header>
 
-      <div className="tablet-calendar-scroll">
+      {isCompactViewport && isCapacityCalendar ? (
+        <div className="tablet-calendar-mobile" data-testid="tablet-calendar-mobile">
+          <div className="tablet-calendar-mobile-week" role="tablist" aria-label="Choose a day">
+            {calendarDays.map((day) => {
+              const dateKey = format(day, "yyyy-MM-dd");
+              const count = mobileDayCounts.get(dateKey) ?? 0;
+              return (
+                <button type="button" role="tab" aria-selected={selectedMobileDate === dateKey} className={`${selectedMobileDate === dateKey ? "is-selected" : ""} ${dateKey === today ? "is-today" : ""}`} onClick={() => setSelectedMobileDate(dateKey)} key={dateKey}>
+                  <span>{format(day, "EEE")}</span><strong>{format(day, "d")}</strong>{count ? <i aria-label={`${count} scheduled items`}>{count}</i> : <i aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+          <section className="tablet-calendar-mobile-agenda" aria-label={`Schedule for ${format(parseISO(selectedMobileDate), "d MMMM yyyy")}`}>
+            <header>
+              <div><span>{selectedMobileDate === today ? "Today" : format(parseISO(selectedMobileDate), "EEEE")}</span><h2>{format(parseISO(selectedMobileDate), "d MMMM yyyy")}</h2></div>
+              {editable ? <button type="button" onClick={() => onCreateEvent?.(selectedMobileDate)} aria-label={`Add event on ${format(parseISO(selectedMobileDate), "d MMMM yyyy")}`}><Plus size={16} /> Add</button> : null}
+            </header>
+            <div className="tablet-calendar-mobile-list">
+              {selectedMobileRanges.map((range) => <MobileRangeAgendaCard editable={editable} key={range.id} onOpen={openRangeItem} palette={palette} range={range} />)}
+              {selectedMobileEvents.map((event) => <MobileDeadlineAgendaCard editable={editable} event={event} key={event.id} onOpen={onEditItem} />)}
+              {!selectedMobileRanges.length && !selectedMobileEvents.length ? <div className="tablet-calendar-mobile-empty"><Clock3 size={22} /><strong>Clear day</strong><span>Nothing is scheduled for this date.</span></div> : null}
+            </div>
+          </section>
+        </div>
+      ) : <div className="tablet-calendar-scroll">
         <div className="tablet-calendar-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
         <div className="tablet-calendar-grid" style={{ "--tablet-calendar-week-count": calendarWeeks.length } as CSSProperties}>
           {calendarWeeks.map((week) => {
@@ -394,7 +524,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
             );
           })}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
