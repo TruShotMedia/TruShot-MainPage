@@ -63,6 +63,7 @@ const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-ev
 const FlightEventEditor = dynamic(() => import("@/components/tablet/flight-event-editor").then((module) => module.FlightEventEditor));
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
+const TabletJobDetailSheet = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletJobDetailSheet));
 const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -191,6 +192,7 @@ export function TabletPipelineKiosk({
   const [selectedFlightEvent, setSelectedFlightEvent] = useState<CalendarFlightEvent | null>(null);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<CalendarItem | null>(null);
   const [selectedJob, setSelectedJob] = useState<TabletJobRecord | null>(null);
+  const [viewingJob, setViewingJob] = useState<TabletJobRecord | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
@@ -249,6 +251,7 @@ export function TabletPipelineKiosk({
     setIsScreensaverVisible(false);
     setIsMobileActionsOpen(false);
     setIsCreateMenuOpen(false);
+    setViewingJob(null);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, []);
 
@@ -271,6 +274,7 @@ export function TabletPipelineKiosk({
       setIsScreensaverVisible(false);
       setIsMobileActionsOpen(false);
       setIsCreateMenuOpen(false);
+      setViewingJob(null);
       if (!next) {
         setCreateRequest(null);
         setEventEditorDate(null);
@@ -287,6 +291,7 @@ export function TabletPipelineKiosk({
 
   const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
     setIsCreateMenuOpen(false);
+    setViewingJob(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
@@ -322,6 +327,7 @@ export function TabletPipelineKiosk({
 
   const openDuplicateRecord = useCallback((kind: TabletRecordCreateRequest["kind"], sourceRecord: TabletJobRecord | PipelineTask) => {
     setIsCreateMenuOpen(false);
+    setViewingJob(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
@@ -335,6 +341,7 @@ export function TabletPipelineKiosk({
 
   const handleMutationSaved = useCallback(() => {
     setCreateRequest(null);
+    setViewingJob(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
@@ -521,12 +528,22 @@ export function TabletPipelineKiosk({
               statuses={jobStatuses}
               onDuplicateJob={(job) => openDuplicateRecord("job", job)}
               onEditJob={(job) => {
+                setViewingJob(null);
                 setSelectedTask(null);
                 setSelectedScheduleItem(null);
                 closeEventEditor();
                 setSelectedJob(job);
               }}
               onMoveSaved={refresh}
+              onViewJob={(job) => {
+                setCreateRequest(null);
+                setSelectedJob(null);
+                setSelectedTask(null);
+                setSelectedScheduleItem(null);
+                closeEventEditor();
+                closeFlightEditor();
+                setViewingJob(job);
+              }}
             />
           ) : activeView === "pipeline" ? (
             <PipelineBoard
@@ -661,6 +678,7 @@ export function TabletPipelineKiosk({
         ) : null}
 
         {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={initialStatuses} /> : null}
+        {viewingJob ? <TabletJobDetailSheet job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
         {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={initialStatuses} type="job" /> : null}
         {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "AutoPacific",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "black",
   },
 };
 

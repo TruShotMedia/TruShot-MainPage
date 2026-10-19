@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
-import { BriefcaseBusiness, CalendarPlus2, FilePlus2, ListTodo, LoaderCircle, Save, Trash2, X } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, Save, Trash2, X } from "lucide-react";
 import { archiveJob, archiveTask, createJob, createTask, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
 import { JobSearchField } from "@/components/admin/job-search-field";
+import { formatDate } from "@/lib/format";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
@@ -32,6 +33,71 @@ function useEscapeToClose(onClose: () => void) {
 
 function isJobRecord(record: TabletJobRecord | PipelineTask): record is TabletJobRecord {
   return "photos_delivered" in record;
+}
+
+function formatTabletTime(value: string | null) {
+  if (!value) return "Time not set";
+  const [hours, minutes] = value.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
+  return new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, hours, minutes));
+}
+
+export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; onClose: () => void }) {
+  useEscapeToClose(onClose);
+
+  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
+  return (
+    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
+      <section className="calendar-editor tablet-job-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="tablet-job-detail-title">
+        <header>
+          <div>
+            <span><BriefcaseBusiness size={13} /> Job details</span>
+            <h2 id="tablet-job-detail-title">{job.title}</h2>
+            <p>{job.client?.name ?? "No client"}{job.status ? ` · ${job.status.label}` : ""}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close job details"><X size={17} /></button>
+        </header>
+
+        <div className="tablet-job-detail-summary">
+          <article>
+            <span><CalendarDays size={15} /> Shoot</span>
+            <strong>{formatDate(job.shoot_date)}</strong>
+            <small>{formatTabletTime(job.shoot_time)}</small>
+          </article>
+          <article>
+            <span><CalendarDays size={15} /> Due</span>
+            <strong>{formatDate(job.due_date)}</strong>
+            <small>{formatTabletTime(job.due_time)}</small>
+          </article>
+          <article>
+            <span><ListChecks size={15} /> Assets</span>
+            <strong>{job.open_tasks} open</strong>
+            <small>{job.total_tasks} total tasks</small>
+          </article>
+          <article>
+            <span><Images size={15} /> Photos</span>
+            <strong>{job.photos_delivered}</strong>
+            <small>Delivered</small>
+          </article>
+        </div>
+
+        <dl className="tablet-job-detail-list">
+          <div><dt>Job number</dt><dd>{job.job_number || "Not assigned"}</dd></div>
+          <div><dt><MapPin size={14} /> Location</dt><dd>{job.location || "Not specified"}</dd></div>
+          {job.description ? <div className="is-wide"><dt>Description</dt><dd>{job.description}</dd></div> : null}
+          {job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
+        </dl>
+
+        <footer>
+          {job.delivery_url ? <a className="tablet-job-delivery-link" href={job.delivery_url} target="_blank" rel="noreferrer"><Link2 size={14} /> Open client files <ArrowUpRight size={13} /></a> : <span />}
+          <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>
+        </footer>
+      </section>
+    </div>
+  );
 }
 
 export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOptions, jobStatuses, kind, onClose, onCreated, sourceRecord, taskStatuses }: CreateEditorProps) {

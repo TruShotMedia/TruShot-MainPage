@@ -19,7 +19,7 @@ function sortJobs(jobs: TabletJobRecord[]) {
   });
 }
 
-function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
+function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
   return (
     <article
@@ -34,6 +34,7 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
+      {!editable ? <button type="button" className="tablet-job-card-view-target" aria-label={`View details for ${job.title}`} onClick={() => onView(job)} /> : null}
       <div className="task-client">{job.client?.name ?? "No client"}</div>
       <h3>{job.title}</h3>
       <p>{job.job_number ? `Job ${job.job_number}` : "No job number"}</p>
@@ -46,20 +47,20 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
   );
 }
 
-function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onDuplicate, onEdit }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void }) {
+function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b></header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onDuplicate={onDuplicate} onEdit={onEdit} />)}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
         {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
   );
 }
 
-export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved }: {
+export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onViewJob }: {
   editable?: boolean;
   initialJobs: TabletJobRecord[];
   statuses: JobStatus[];
@@ -67,6 +68,7 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDu
   onEditJob: (job: TabletJobRecord) => void;
   onJobsChange?: (jobs: TabletJobRecord[]) => void;
   onMoveSaved?: () => void;
+  onViewJob: (job: TabletJobRecord) => void;
 }) {
   const [jobs, setJobs] = useState(initialJobs);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDu
       {message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="pipeline-board pipeline-board-tablet tablet-job-board" style={{ gridTemplateColumns: `repeat(${Math.max(1, orderedStatuses.length)}, minmax(0, 1fr))` }}>
-          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} />)}
+          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} onView={onViewJob} />)}
         </div>
       </DndContext>
     </>
