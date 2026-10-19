@@ -140,6 +140,7 @@ export function TabletPipelineKiosk({
   flightEvents = [],
   calendarDensity = "standard",
   branding = defaultTabletKioskBranding,
+  experience = "kiosk",
   clientOptions = [],
   initialNow,
   initialStatuses,
@@ -164,6 +165,7 @@ export function TabletPipelineKiosk({
   flightEvents?: CalendarFlightEvent[];
   calendarDensity?: "standard" | "capacity";
   branding?: TabletKioskBranding;
+  experience?: "kiosk" | "mobile";
   clientOptions?: SelectOption[];
   initialNow: string;
   initialStatuses: TaskStatus[];
@@ -206,11 +208,14 @@ export function TabletPipelineKiosk({
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
   const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
-  const isMobileViewport = Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
-  const effectiveOrientation = isMobileViewport
+  const isDedicatedMobile = experience === "mobile";
+  const isMobileViewport = isDedicatedMobile || Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
+  const effectiveOrientation = isDedicatedMobile
+    ? "portrait"
+    : isMobileViewport
     ? currentViewportOrientation ?? "portrait"
     : preferredOrientation ?? currentViewportOrientation ?? "landscape";
-  const isCssRotated = Boolean(!isMobileViewport && preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
+  const isCssRotated = Boolean(!isDedicatedMobile && !isMobileViewport && preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
   const screensaverLogo = branding.screensaverLogo ?? {
     alt: branding.logoAlt,
     height: branding.logoHeight,
@@ -226,7 +231,7 @@ export function TabletPipelineKiosk({
       tasks: outstandingTasks.length,
     };
   }, [initialStatuses, liveTasks]);
-  const viewportStyle = viewportSize && !isMobileViewport ? {
+  const viewportStyle = viewportSize && !isMobileViewport && !isDedicatedMobile ? {
     "--tablet-viewport-height": `${viewportSize.height}px`,
     "--tablet-viewport-width": `${viewportSize.width}px`,
   } as CSSProperties : undefined;
@@ -381,7 +386,7 @@ export function TabletPipelineKiosk({
 
   useEffect(() => {
     const restoreOrientation = window.requestAnimationFrame(() => {
-      setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
+      if (!isDedicatedMobile) setPreferredOrientation(parseTabletOrientation(window.localStorage.getItem(TABLET_ORIENTATION_STORAGE_KEY)));
       setIsAutoRotationPaused(window.localStorage.getItem(TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY) === "true");
       syncViewportMetrics();
     });
@@ -394,7 +399,7 @@ export function TabletPipelineKiosk({
       window.removeEventListener("orientationchange", syncViewportMetrics);
       window.visualViewport?.removeEventListener("resize", syncViewportMetrics);
     };
-  }, [syncViewportMetrics]);
+  }, [isDedicatedMobile, syncViewportMetrics]);
 
   useEffect(() => {
     if (isAutoRotationPaused || isEditing || isMobileViewport) return;
@@ -445,8 +450,8 @@ export function TabletPipelineKiosk({
   }, [isEditing, refresh, refreshIntervalMs]);
 
   return (
-    <main className={`tablet-kiosk-viewport ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
-      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation}>
+    <main className={`tablet-kiosk-viewport ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
+      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation} data-experience={experience}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">

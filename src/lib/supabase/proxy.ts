@@ -27,15 +27,20 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
   const isIngreign = request.nextUrl.pathname === "/ingreign" || request.nextUrl.pathname.startsWith("/ingreign/");
+  const isAutopacific = request.nextUrl.pathname === "/autopacific" || request.nextUrl.pathname.startsWith("/autopacific/");
   const isAdminLogin = request.nextUrl.pathname.startsWith("/admin/login");
   const isIngreignLogin = request.nextUrl.pathname.startsWith("/ingreign/login");
   const isIngreignPublicAsset = isIngreign && (
     request.nextUrl.pathname === "/ingreign/manifest.webmanifest"
     || /\.(?:png|svg|ico)$/i.test(request.nextUrl.pathname)
   );
+  const isAutopacificPublicAsset = isAutopacific && (
+    request.nextUrl.pathname === "/autopacific/manifest.webmanifest"
+    || request.nextUrl.pathname.startsWith("/autopacific/icons/")
+  );
   const isLogin = isAdminLogin || isIngreignLogin;
 
-  if (!data?.claims && !isLogin && !isIngreignPublicAsset) {
+  if (!data?.claims && !isLogin && !isIngreignPublicAsset && !isAutopacificPublicAsset) {
     const url = request.nextUrl.clone();
     url.pathname = isIngreign ? "/ingreign/login" : "/admin/login";
     if (!isIngreign) url.searchParams.set("next", request.nextUrl.pathname);

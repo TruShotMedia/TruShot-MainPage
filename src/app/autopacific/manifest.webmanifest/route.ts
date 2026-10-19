@@ -4,7 +4,7 @@ export function GET() {
     short_name: "AutoPacific",
     description: "AutoPacific Group production jobs, tasks, calendar and daily itinerary.",
     id: "/autopacific",
-    start_url: "/autopacific",
+    start_url: "/autopacific/mobile",
     scope: "/autopacific",
     display: "standalone",
     orientation: "any",

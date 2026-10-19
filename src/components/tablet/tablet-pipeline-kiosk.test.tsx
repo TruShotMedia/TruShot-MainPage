@@ -391,4 +391,39 @@ describe("TabletPipelineKiosk", () => {
     expect(header.contains(mobileNavigation)).toBe(false);
     expect(mobileNavigation.parentElement).toBe(kiosk);
   });
+
+  it("keeps the dedicated mobile experience in its native portrait shell", async () => {
+    window.localStorage.setItem(TABLET_ORIENTATION_STORAGE_KEY, "landscape");
+    await act(async () => root.render(
+      <TabletPipelineKiosk
+        calendarJobs={[]}
+        calendarTasks={[]}
+        experience="mobile"
+        initialNow="2026-10-19T10:15:00.000Z"
+        initialStatuses={[]}
+        initialTasks={[]}
+        initialView="jobs"
+        pendingRequestCount={0}
+        pipelineVersion="empty"
+        notionSyncEnabled={false}
+        notionSyncIntervalMinutes={15}
+        refreshIntervalMinutes={15}
+        showTodayView
+        today="2026-10-19"
+      />,
+    ));
+    await act(async () => vi.advanceTimersByTime(20));
+
+    const viewport = container.querySelector<HTMLElement>(".tablet-kiosk-viewport")!;
+    const kiosk = container.querySelector<HTMLElement>(".tablet-kiosk")!;
+    expect(viewport.classList.contains("is-dedicated-mobile")).toBe(true);
+    expect(viewport.classList.contains("is-css-rotated")).toBe(false);
+    expect(viewport.style.getPropertyValue("--tablet-viewport-width")).toBe("");
+    expect(kiosk.classList.contains("is-dedicated-mobile")).toBe(true);
+    expect(kiosk.getAttribute("data-experience")).toBe("mobile");
+    expect(kiosk.getAttribute("data-orientation")).toBe("portrait");
+
+    await act(async () => vi.advanceTimersByTime(75_000));
+    expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
+  });
 });
