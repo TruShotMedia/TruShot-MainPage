@@ -1,5 +1,5 @@
 export function GET() {
-  return Response.json({
+  const manifest = {
     name: "AutoPacific Production",
     short_name: "AutoPacific",
     description: "AutoPacific Group production jobs, tasks, calendar and daily itinerary.",
@@ -16,7 +16,11 @@ export function GET() {
       { src: "/autopacific/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/autopacific/icons/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
-  }, {
-    headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
+  };
+  return new Response(JSON.stringify(manifest), {
+    headers: {
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+      "Content-Type": "application/manifest+json",
+    },
   });
 }
