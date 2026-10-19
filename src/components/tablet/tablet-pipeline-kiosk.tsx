@@ -10,6 +10,7 @@ import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
+import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { TabletToday } from "@/components/tablet/tablet-today";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
@@ -99,6 +100,7 @@ export function TabletPipelineKiosk({
   calendarCampaignAssets = [],
   calendarEvents = [],
   flightEvents = [],
+  calendarDensity = "standard",
   branding = defaultTabletKioskBranding,
   clientOptions = [],
   initialNow,
@@ -110,6 +112,7 @@ export function TabletPipelineKiosk({
   pipelineJobs = [],
   pendingRequestCount,
   pipelineVersion,
+  notificationPublicKey = "",
   notionSyncEnabled,
   notionSyncIntervalMinutes,
   refreshIntervalMinutes,
@@ -121,6 +124,7 @@ export function TabletPipelineKiosk({
   calendarCampaignAssets?: CalendarCampaignAsset[];
   calendarEvents?: CalendarCustomEvent[];
   flightEvents?: CalendarFlightEvent[];
+  calendarDensity?: "standard" | "capacity";
   branding?: TabletKioskBranding;
   clientOptions?: SelectOption[];
   initialNow: string;
@@ -132,6 +136,7 @@ export function TabletPipelineKiosk({
   pipelineJobs?: TabletJobRecord[];
   pendingRequestCount: number;
   pipelineVersion: string;
+  notificationPublicKey?: string;
   notionSyncEnabled: boolean;
   notionSyncIntervalMinutes: number;
   refreshIntervalMinutes: number;
@@ -385,6 +390,7 @@ export function TabletPipelineKiosk({
 
           <div className="tablet-kiosk-actions">
             <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button>
+            {notificationPublicKey ? <TabletNotificationControl publicKey={notificationPublicKey} /> : null}
             <button
               type="button"
               className={`tablet-rotation-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
@@ -490,6 +496,7 @@ export function TabletPipelineKiosk({
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
             mutedColor={branding.calendarMutedColor}
+            density={calendarDensity}
             jobs={calendarJobs}
             tasks={calendarTasks}
             campaignAssets={calendarCampaignAssets}

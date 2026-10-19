@@ -54,6 +54,7 @@ export default async function AutopacificPage() {
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}
       calendarEvents={data.calendarEvents}
+      calendarDensity="capacity"
       flightEvents={data.flightEvents}
       clientOptions={data.clientOptions}
       initialNow={new Date().toISOString()}
@@ -67,6 +68,7 @@ export default async function AutopacificPage() {
       pipelineVersion={pipelineVersion}
       notionSyncEnabled={notion.configured}
       notionSyncIntervalMinutes={notion.syncIntervalMinutes}
+      notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}
       showTodayView
       today={todayDateInput()}

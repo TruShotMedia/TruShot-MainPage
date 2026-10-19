@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   addDays,
   addMonths,
@@ -34,6 +34,8 @@ type TabletCalendarEvent = {
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const calendarWindowDays = 42;
 const visibleRangeLanes = 3;
+const capacityDesktopWindowDays = 14;
+const capacityMobileWindowDays = 7;
 type CalendarStandardRangeItem = Exclude<CalendarScheduleRangeItem, CalendarFlightEvent>;
 
 type CalendarPalette = {
@@ -70,7 +72,16 @@ function calendarItemColor(item: CalendarStandardRangeItem | CalendarItem, palet
   return palette.mutedColor ?? "#687177";
 }
 
-function getCalendarWindow(month: Date, today: Date) {
+function getCalendarWindow(month: Date, today: Date, capacityWindowDays?: number) {
+  if (capacityWindowDays) {
+    const start = startOfWeek(month, { weekStartsOn: 1 });
+    return {
+      start,
+      end: addDays(start, capacityWindowDays - 1),
+      isRolling: true,
+    };
+  }
+
   const monthStart = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
   const standardEnd = addDays(monthStart, calendarWindowDays - 1);
   const daysUntilMonthEnd = differenceInCalendarDays(endOfMonth(month), today);
@@ -208,13 +219,18 @@ function JobRange({ editable, onOpen, palette, segment }: { editable: boolean; o
   );
 }
 
-export function TabletCalendar({ accentColor, accentClientName, accentKeywords, mutedColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
+export function TabletCalendar({ accentColor, accentClientName, accentKeywords, mutedColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(todayDate));
+  const [currentMonth, setCurrentMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const isCapacityCalendar = density === "capacity";
+  const capacityWindowDays = isCapacityCalendar
+    ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
+    : undefined;
   const palette = useMemo(() => ({ accentClientName, accentColor, accentKeywords, mutedColor }), [accentClientName, accentColor, accentKeywords, mutedColor]);
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...flightEvents]), [campaignAssets, customEvents, flightEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
-  const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate), [currentMonth, todayDate]);
+  const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate, capacityWindowDays), [capacityWindowDays, currentMonth, todayDate]);
   const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const events = useMemo(() => {
@@ -278,6 +294,15 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     return grouped;
   }, [events]);
 
+  useEffect(() => {
+    if (!isCapacityCalendar || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 760px)");
+    const sync = () => setIsCompactViewport(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, [isCapacityCalendar]);
+
   function openRangeItem(item: CalendarScheduleRangeItem) {
     if (!editable) return;
     if (item.entity_type === "calendar-event") onEditEvent?.(item);
@@ -286,13 +311,16 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   }
 
   return (
-    <section className={`tablet-calendar ${editable ? "is-editable" : "is-read-only"}`} aria-label="Production calendar">
+    <section className={`tablet-calendar ${isCapacityCalendar ? "is-capacity" : ""} ${isCompactViewport ? "is-compact-window" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-label="Production calendar">
       <header className="tablet-calendar-toolbar">
         <div className="tablet-calendar-month-controls">
-          <button type="button" onClick={() => setCurrentMonth((month) => subMonths(month, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
-          <div><span>{calendarWindow.isRolling ? `Rolling · through ${format(calendarWindow.end, "d MMM")}` : "Six-week schedule"}</span><h1>{format(currentMonth, "MMMM yyyy")}</h1></div>
-          <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, 1))} aria-label="Next month"><ChevronRight size={16} /></button>
-          <button type="button" className="tablet-calendar-today" onClick={() => setCurrentMonth(startOfMonth(todayDate))}>Today</button>
+          <button type="button" onClick={() => setCurrentMonth((month) => isCapacityCalendar ? addDays(month, -(capacityWindowDays ?? capacityDesktopWindowDays)) : subMonths(month, 1))} aria-label={isCapacityCalendar ? "Previous calendar period" : "Previous month"}><ChevronLeft size={16} /></button>
+          <div>
+            <span>{isCapacityCalendar ? `${capacityWindowDays === capacityMobileWindowDays ? "One-week" : "Two-week"} focus` : calendarWindow.isRolling ? `Rolling · through ${format(calendarWindow.end, "d MMM")}` : "Six-week schedule"}</span>
+            <h1>{isCapacityCalendar ? dateWindowLabel(format(calendarWindow.start, "yyyy-MM-dd"), format(calendarWindow.end, "yyyy-MM-dd")) : format(currentMonth, "MMMM yyyy")}</h1>
+          </div>
+          <button type="button" onClick={() => setCurrentMonth((month) => isCapacityCalendar ? addDays(month, capacityWindowDays ?? capacityDesktopWindowDays) : addMonths(month, 1))} aria-label={isCapacityCalendar ? "Next calendar period" : "Next month"}><ChevronRight size={16} /></button>
+          <button type="button" className="tablet-calendar-today" onClick={() => setCurrentMonth(isCapacityCalendar ? todayDate : startOfMonth(todayDate))}>Today</button>
         </div>
         <div className="tablet-calendar-legend" aria-label="Calendar legend">
           <span><i className="is-job" /> Job window</span>
@@ -308,12 +336,19 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         <div className="tablet-calendar-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
         <div className="tablet-calendar-grid" style={{ "--tablet-calendar-week-count": calendarWeeks.length } as CSSProperties}>
           {calendarWeeks.map((week) => {
-            const displayedRangeLanes = Math.min(week.laneCount, visibleRangeLanes);
-            const displayedSegments = week.segments.filter((segment) => segment.lane + segment.laneSpan <= visibleRangeLanes);
-            const displayedEventLimit = Math.max(1, 3 - displayedRangeLanes);
+            const displayedRangeLanes = isCapacityCalendar ? week.laneCount : Math.min(week.laneCount, visibleRangeLanes);
+            const displayedSegments = isCapacityCalendar
+              ? week.segments
+              : week.segments.filter((segment) => segment.lane + segment.laneSpan <= visibleRangeLanes);
+            const displayedEventLimit = isCapacityCalendar
+              ? Math.max(1, ...week.dayKeys.map((dateKey) => eventsByDay.get(dateKey)?.length ?? 0))
+              : Math.max(1, 3 - displayedRangeLanes);
+            const capacityWeekHeight = isCapacityCalendar
+              ? Math.max(220, 40 + displayedRangeLanes * 18 + displayedEventLimit * 24)
+              : undefined;
 
             return (
-              <section className="tablet-calendar-week" style={{ "--tablet-calendar-range-space": `${displayedRangeLanes * 18}px` } as CSSProperties} key={week.dayKeys[0]}>
+              <section className="tablet-calendar-week" style={{ "--tablet-calendar-range-space": `${displayedRangeLanes * 18}px`, "--tablet-calendar-week-min-height": capacityWeekHeight ? `${capacityWeekHeight}px` : undefined } as CSSProperties} key={week.dayKeys[0]}>
                 <div className="tablet-calendar-days">
                   {week.dayKeys.map((dateKey, dayIndex) => {
                     const day = parseISO(dateKey);
@@ -322,7 +357,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                     const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
                     const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
                     return (
-                      <div className={`tablet-calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
+                      <div className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
                         <time dateTime={dateKey}>{format(day, "d")}</time>
                         {editable ? <button type="button" className="tablet-calendar-day-add" onClick={() => onCreateEvent?.(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`} title="Add event"><Plus size={11} /></button> : null}
                         <div className="tablet-calendar-day-events">

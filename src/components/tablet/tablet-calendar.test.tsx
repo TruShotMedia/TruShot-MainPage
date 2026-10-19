@@ -225,6 +225,27 @@ describe("TabletCalendar", () => {
     expect(busyDay?.querySelector(".tablet-calendar-overflow")?.getAttribute("title")).toContain("Asset 6");
   });
 
+  it("uses a two-week AutoPacific capacity window without hiding busy-day entries", async () => {
+    const busyTasks = Array.from({ length: 6 }, (_, index): CalendarTask => ({
+      ...tasks[0],
+      id: `55555555-5555-4555-8555-55555555555${index}`,
+      title: `AutoPacific asset ${index + 1}`,
+      due_date: "2026-08-25",
+      is_complete: false,
+    }));
+
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={jobs} tasks={busyTasks} today="2026-08-25" />));
+
+    const calendarDays = [...container.querySelectorAll<HTMLTimeElement>(".tablet-calendar-day > time")];
+    expect(calendarDays).toHaveLength(14);
+    expect(calendarDays[0]?.dateTime).toBe("2026-08-24");
+    expect(calendarDays.at(-1)?.dateTime).toBe("2026-09-06");
+    expect(container.textContent).toContain("Two-week focus");
+    const busyDay = container.querySelector<HTMLTimeElement>('time[datetime="2026-08-25"]')?.parentElement;
+    expect(busyDay?.querySelectorAll(".tablet-calendar-event")).toHaveLength(6);
+    expect(busyDay?.querySelector(".tablet-calendar-overflow")).toBeNull();
+  });
+
   it("only exposes date and item editing controls when edit mode is enabled", async () => {
     const onCreateEvent = vi.fn();
     const onEditEvent = vi.fn();
