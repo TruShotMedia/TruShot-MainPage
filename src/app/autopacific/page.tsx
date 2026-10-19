@@ -46,6 +46,13 @@ export default async function AutopacificPage() {
         logoSrc: "/brand/autopacific-logo-clean.png",
         logoSurface: "light",
         logoWidth: 1800,
+        screensaverLogo: {
+          alt: "Autopacific Group",
+          height: 312,
+          src: "/brand/autopacific-logo-clean.png",
+          surface: "light",
+          width: 1800,
+        },
         name: "Autopacific Group",
         location: "Production",
         theme: "autopacific",

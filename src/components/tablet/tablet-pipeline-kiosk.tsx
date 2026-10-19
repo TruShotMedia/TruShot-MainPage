@@ -38,6 +38,13 @@ type TabletKioskBranding = {
   logoSrc: string;
   logoSurface?: "light";
   logoWidth: number;
+  screensaverLogo?: {
+    alt: string;
+    height: number;
+    src: string;
+    surface?: "light";
+    width: number;
+  };
   name: string;
   location: string;
   theme?: "autopacific";
@@ -177,6 +184,13 @@ export function TabletPipelineKiosk({
   const effectiveOrientation = preferredOrientation ?? currentViewportOrientation ?? "landscape";
   const isCssRotated = Boolean(preferredOrientation && currentViewportOrientation && preferredOrientation !== currentViewportOrientation);
   const isMobileViewport = Boolean(viewportSize && viewportSize.width <= 760);
+  const screensaverLogo = branding.screensaverLogo ?? {
+    alt: branding.logoAlt,
+    height: branding.logoHeight,
+    src: branding.logoSrc,
+    surface: branding.logoSurface,
+    width: branding.logoWidth,
+  };
   const kioskSummary = useMemo(() => {
     const openStatusIds = new Set(initialStatuses.filter((status) => status.is_open).map((status) => status.id));
     const outstandingTasks = liveTasks.filter((task) => openStatusIds.has(task.status_id));
@@ -635,8 +649,8 @@ export function TabletPipelineKiosk({
               </button>
             </div>
 
-            <div className={`tablet-screensaver-hero ${branding.logoSurface === "light" ? "has-light-backed-logo" : ""}`}>
-              <Image src={branding.logoSrc} alt={branding.logoAlt} width={branding.logoWidth} height={branding.logoHeight} priority sizes="(max-width: 800px) 72vw, 680px" />
+            <div className={`tablet-screensaver-hero ${screensaverLogo.surface === "light" ? "has-light-backed-logo" : ""}`}>
+              <Image src={screensaverLogo.src} alt={screensaverLogo.alt} width={screensaverLogo.width} height={screensaverLogo.height} priority sizes="(max-width: 800px) 72vw, 680px" />
             </div>
 
             <div className="tablet-screensaver-summary" aria-label="Studio summary">

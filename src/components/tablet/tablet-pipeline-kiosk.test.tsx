@@ -140,6 +140,13 @@ describe("TabletPipelineKiosk", () => {
           logoSrc: "/brand/autopacific-logo-clean.png",
           logoSurface: "light",
           logoWidth: 1800,
+          screensaverLogo: {
+            alt: "Autopacific Group screensaver",
+            height: 312,
+            src: "/brand/autopacific-logo-clean.png",
+            surface: "light",
+            width: 1800,
+          },
           name: "Autopacific Group",
           location: "Production",
           theme: "autopacific",
@@ -169,7 +176,8 @@ describe("TabletPipelineKiosk", () => {
     const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
     expect(screensaver?.getAttribute("aria-label")).toBe("Autopacific Group overview");
     expect(screensaver?.textContent).toContain("Autopacific Group · Production");
-    expect(screensaver?.querySelector('.tablet-screensaver-hero [data-src="/brand/autopacific-logo-clean.png"]')).not.toBeNull();
+    const screensaverLogo = screensaver?.querySelector('.tablet-screensaver-hero [data-src="/brand/autopacific-logo-clean.png"]');
+    expect(screensaverLogo?.getAttribute("aria-label")).toBe("Autopacific Group screensaver");
   });
 
   afterEach(async () => {
