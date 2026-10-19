@@ -1,34 +1,34 @@
-import { ImageResponse } from "next/og";
-import { SITE_URL } from "@/lib/config";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
 
 const supportedSizes = new Set([180, 192, 512]);
+export const runtime = "nodejs";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ size: string }> }) {
   const requestedSize = Number((await params).size);
   if (!supportedSizes.has(requestedSize)) return new Response("Icon size not found", { status: 404 });
-  const logoUrl = new URL("/brand/autopacific-logo-clean.png", SITE_URL).toString();
-
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          alignItems: "center",
-          background: "linear-gradient(145deg, #f9fbfc 0%, #e8f0f4 100%)",
-          display: "flex",
-          height: "100%",
-          justifyContent: "center",
-          padding: "13%",
-          width: "100%",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt="AutoPacific Group" src={logoUrl} style={{ height: "auto", width: "100%" }} />
-      </div>
-    ),
-    {
-      height: requestedSize,
+  const logo = await readFile(path.join(process.cwd(), "public", "brand", "autopacific-logo-clean.png"));
+  const resizedLogo = await sharp(logo)
+    .resize({ width: Math.round(requestedSize * .82), fit: "inside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
+  const icon = await sharp({
+    create: {
       width: requestedSize,
-      headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+      height: requestedSize,
+      channels: 4,
+      background: { r: 241, g: 247, b: 250, alpha: 1 },
     },
-  );
+  })
+    .composite([{ input: resizedLogo, gravity: "centre" }])
+    .png()
+    .toBuffer();
+
+  return new Response(new Uint8Array(icon), {
+    headers: {
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Content-Type": "image/png",
+    },
+  });
 }
