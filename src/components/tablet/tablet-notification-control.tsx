@@ -17,7 +17,7 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-export function TabletNotificationControl({ publicKey }: { publicKey: string }) {
+export function TabletNotificationControl({ experience = "trushot", experienceName, publicKey }: { experience?: "autopacific" | "trushot"; experienceName: string; publicKey: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [deviceState, setDeviceState] = useState<DeviceState>("checking");
@@ -59,6 +59,16 @@ export function TabletNotificationControl({ publicKey }: { publicKey: string }) 
   }, [publicKey]);
 
   useEffect(() => {
+    const badgeNavigator = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
+    if (document.visibilityState === "visible") void badgeNavigator.clearAppBadge?.().catch(() => undefined);
+    const clearVisibleBadge = () => {
+      if (document.visibilityState === "visible") void badgeNavigator.clearAppBadge?.().catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", clearVisibleBadge);
+    return () => document.removeEventListener("visibilitychange", clearVisibleBadge);
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
     const dismiss = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -82,7 +92,7 @@ export function TabletNotificationControl({ publicKey }: { publicKey: string }) 
     startTransition(async () => {
       setMessage("");
       try {
-        if (installRequired) throw new Error("Add AutoPacific to your Home Screen first, then enable alerts from the installed app.");
+        if (installRequired) throw new Error(`Add ${experienceName} to your Home Screen first, then enable alerts from the installed app.`);
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           setDeviceState(permission === "denied" ? "denied" : "ready");
@@ -147,7 +157,7 @@ export function TabletNotificationControl({ publicKey }: { publicKey: string }) 
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
         if (!subscription) throw new Error("Enable notifications on this device first.");
-        await sendTestPushNotification(subscription.endpoint);
+        await sendTestPushNotification(subscription.endpoint, experience);
         setMessageKind("success");
         setMessage("Test alert sent.");
       } catch (error) {
@@ -164,7 +174,7 @@ export function TabletNotificationControl({ publicKey }: { publicKey: string }) 
         type="button"
         className={`tablet-alert-toggle ${enabled ? "is-enabled" : ""}`}
         onClick={() => setIsOpen((open) => !open)}
-        aria-label="AutoPacific notifications"
+        aria-label={`${experienceName} notifications`}
         aria-expanded={isOpen}
         title={enabled ? "Notifications enabled" : "Set up notifications"}
       >
@@ -180,12 +190,12 @@ export function TabletNotificationControl({ publicKey }: { publicKey: string }) 
           <div className="tablet-notification-state">
             {deviceState === "checking" ? <LoaderCircle className="spin" size={17} /> : enabled ? <CheckCircle2 size={17} /> : <Bell size={17} />}
             <div>
-              <strong>{deviceState === "checking" ? "Checking this device" : enabled ? "Alerts are active" : installRequired ? "Install the AutoPacific app first" : deviceState === "denied" ? "Permission is blocked" : deviceState === "unsupported" ? "Notifications are unavailable" : "Ready to enable"}</strong>
+              <strong>{deviceState === "checking" ? "Checking this device" : enabled ? "Alerts are active" : installRequired ? `Install ${experienceName} first` : deviceState === "denied" ? "Permission is blocked" : deviceState === "unsupported" ? "Notifications are unavailable" : "Ready to enable"}</strong>
               <p>Receive client requests, scheduled calendar reminders and flight briefings without keeping this page open.</p>
             </div>
           </div>
-          {installRequired ? <p className="tablet-notification-guidance">In Safari, tap Share → <strong>Add to Home Screen</strong>, open AutoPacific, then enable alerts here.</p> : null}
-          {deviceState === "denied" ? <p className="tablet-notification-guidance">Allow notifications for AutoPacific in iPhone Settings, then reopen the installed app.</p> : null}
+          {installRequired ? <p className="tablet-notification-guidance">In Safari, tap Share → <strong>Add to Home Screen</strong>, open {experienceName}, then enable alerts here.</p> : null}
+          {deviceState === "denied" ? <p className="tablet-notification-guidance">Allow notifications for {experienceName} in iPhone Settings, then reopen the installed app.</p> : null}
           <div className="tablet-notification-actions">
             {enabled ? <button type="button" onClick={disable} disabled={isPending}><BellOff size={14} /> Disable</button> : <button type="button" className="is-primary" onClick={enable} disabled={isPending || deviceState === "checking" || deviceState === "unsupported" || deviceState === "denied" || installRequired}><BellRing size={14} /> Enable alerts</button>}
             <button type="button" onClick={sendTest} disabled={isPending || !enabled}><Send size={14} /> Send test</button>

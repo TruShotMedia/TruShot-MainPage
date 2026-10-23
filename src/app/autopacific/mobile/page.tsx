@@ -17,6 +17,8 @@ export const viewport: Viewport = {
   themeColor: "#061017",
 };
 
-export default function AutopacificMobilePage() {
-  return <AutopacificWorkspace experience="mobile" />;
+export default async function AutopacificMobilePage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
+  const query = await searchParams;
+  const requestedView = typeof query.view === "string" ? query.view : undefined;
+  return <AutopacificWorkspace experience="mobile" requestedView={requestedView} />;
 }

@@ -15,6 +15,15 @@ describe("push notification messages", () => {
     });
   });
 
+  it("includes the current attention count when one is available", () => {
+    expect(buildClientRequestPushMessage({
+      enquiryId: "request-2",
+      name: "Sam Lee",
+      businessName: null,
+      badgeCount: 4,
+    }).badgeCount).toBe(4);
+  });
+
   it("recognises push-provider responses that require subscription cleanup", () => {
     expect(isExpiredPushSubscriptionError({ statusCode: 404 })).toBe(true);
     expect(isExpiredPushSubscriptionError({ statusCode: 410 })).toBe(true);

@@ -9,7 +9,7 @@ import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
-export async function AutopacificWorkspace({ experience }: { experience: "kiosk" | "mobile" }) {
+export async function AutopacificWorkspace({ experience, requestedView }: { experience: "kiosk" | "mobile"; requestedView?: string }) {
   const context = await getAdminContext();
   if (!context) {
     const destination = experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
@@ -62,7 +62,7 @@ export async function AutopacificWorkspace({ experience }: { experience: "kiosk"
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
       initialTasks={data.pipelineTasks}
-      initialView={parseTabletView(cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
+      initialView={parseTabletView(requestedView ?? cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
       jobOptions={data.jobOptions}
       jobStatuses={data.jobStatuses}
       pipelineJobs={data.pipelineJobs}

@@ -66,6 +66,16 @@ export function PushNotificationSettings({
     };
   }, [publicKey]);
 
+  useEffect(() => {
+    const badgeNavigator = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
+    if (document.visibilityState === "visible") void badgeNavigator.clearAppBadge?.().catch(() => undefined);
+    const clearVisibleBadge = () => {
+      if (document.visibilityState === "visible") void badgeNavigator.clearAppBadge?.().catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", clearVisibleBadge);
+    return () => document.removeEventListener("visibilitychange", clearVisibleBadge);
+  }, []);
+
   const installRequired = isIOS && !isStandalone;
   const isEnabled = deviceState === "enabled";
 

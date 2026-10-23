@@ -63,12 +63,16 @@ export async function removePushSubscription(endpoint: string) {
   return { ok: true };
 }
 
-export async function sendTestPushNotification(endpoint: string) {
+export async function sendTestPushNotification(endpoint: string, experience: "autopacific" | "trushot" = "trushot") {
+  const notificationExperience = z.enum(["autopacific", "trushot"]).parse(experience);
+  const isAutopacific = notificationExperience === "autopacific";
   return sendTestNotification(endpoint, {
-    title: "TruShot notifications are ready",
-    body: "Client-request and calendar alerts are enabled on this device.",
-    url: "/admin/settings",
+    title: `${isAutopacific ? "AutoPacific" : "TruShot"} notifications are ready`,
+    body: "Calendar, flight and client-request alerts are enabled on this device.",
+    url: isAutopacific ? "/autopacific?view=calendar" : "/admin/settings",
     tag: `notification-test-${Date.now()}`,
+    badgeCount: 1,
+    ...(isAutopacific ? { kind: "autopacific" as const } : {}),
   });
 }
 

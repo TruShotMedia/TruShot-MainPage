@@ -61,8 +61,28 @@ describe("calendar reminder timing", () => {
     const message = buildCalendarReminderPushMessage(reminder);
     expect(message.title).toBe("Production in 2 hours");
     expect(message.body).toContain("North Lakes launch shoot · Ravish Media · 9:00 am");
-    expect(message.url).toContain("/admin/calendar?");
+    expect(message.url).toContain("/tablet?view=calendar");
     expect(message.tag).toContain(event.entityId);
+    expect(message.badgeCount).toBe(1);
+  });
+
+  it("uses AutoPacific branding, icon context and route for client work", () => {
+    const [reminder] = getDueCalendarReminders({
+      events: [{ ...event, experience: "autopacific" }],
+      settings,
+      now: new Date("2026-09-13T21:00:00.000Z"),
+    });
+    const message = buildCalendarReminderPushMessage(reminder);
+    expect(message.title).toBe("AutoPacific · Production in 2 hours");
+    expect(message.kind).toBe("autopacific");
+    expect(message.url).toContain("/autopacific?view=calendar");
+  });
+
+  it("replaces an earlier alert for the same occurrence instead of stacking duplicates", () => {
+    const occurrenceAt = brisbaneOccurrence(event.date, event.time!)!;
+    const leadMessage = buildCalendarReminderPushMessage({ ...event, occurrenceAt, reminderAt: new Date(), offsetMinutes: 120 });
+    const atTimeMessage = buildCalendarReminderPushMessage({ ...event, occurrenceAt, reminderAt: occurrenceAt, offsetMinutes: 0 });
+    expect(leadMessage.tag).toBe(atTimeMessage.tag);
   });
 
   it("uses an event's own reminder choices instead of the workspace defaults", () => {

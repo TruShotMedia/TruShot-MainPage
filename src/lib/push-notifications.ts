@@ -1,6 +1,7 @@
 import "server-only";
 
 import webpush from "web-push";
+import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { BRAND } from "@/lib/config";
 import { buildClientRequestPushMessage, isExpiredPushSubscriptionError, type PushMessage } from "@/lib/push";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -85,16 +86,24 @@ export async function notifyNewClientRequest({
       return;
     }
 
-    const { data, error } = await supabase
-      .from("website-push-subscriptions")
-      .select("id,endpoint,p256dh,auth_key")
-      .eq("workspace_id", workspaceId);
-    if (error) throw error;
+    const [{ data, error }, { count: activeRequestCount, error: countError }] = await Promise.all([
+      supabase
+        .from("website-push-subscriptions")
+        .select("id,endpoint,p256dh,auth_key")
+        .eq("workspace_id", workspaceId),
+      supabase
+        .from("website-enquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspaceId)
+        .in("status", [...ACTIVE_CLIENT_REQUEST_STATUSES])
+        .is("archived_at", null),
+    ]);
+    if (error || countError) throw error ?? countError;
     if (!data?.length) return;
 
     const result = await sendPushNotifications(
       data as StoredPushSubscription[],
-      buildClientRequestPushMessage({ enquiryId, name, businessName }),
+      buildClientRequestPushMessage({ enquiryId, name, businessName, badgeCount: Math.max(1, activeRequestCount ?? 1) }),
     );
     if (result.expiredIds.length) {
       const { error: cleanupError } = await supabase

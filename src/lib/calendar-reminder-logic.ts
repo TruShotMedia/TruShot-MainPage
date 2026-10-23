@@ -28,6 +28,7 @@ export type CalendarReminderEvent = {
   date: string;
   time: string | null;
   context: string | null;
+  experience?: "autopacific" | "trushot";
   reminderOffsetsMinutes?: number[];
   flightDetails?: {
     airline: string;
@@ -143,17 +144,23 @@ export function buildCalendarReminderPushMessage(reminder: DueCalendarReminder):
         reminder.kind === "flight_arrival" ? details.onwardDetails : reminder.title,
       ].filter(Boolean).join("\n"),
       url: `/autopacific?view=calendar&flight=${encodeURIComponent(reminder.entityId)}`,
-      tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}-${reminder.offsetMinutes}`,
+      tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}`,
+      badgeCount: 1,
       kind: "flight",
       timestamp: reminder.occurrenceAt.getTime(),
     };
   }
   const context = reminder.context ? ` · ${reminder.context}` : "";
+  const isAutopacific = reminder.experience === "autopacific";
   return {
-    title: `${labels.subject} ${timing}`,
+    title: `${isAutopacific ? "AutoPacific · " : ""}${labels.subject} ${timing}`,
     body: `${reminder.title}${context} · ${eventTime}`,
-    url: `/admin/calendar?type=${encodeURIComponent(reminder.kind)}&item=${encodeURIComponent(reminder.entityId)}`,
-    tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}-${reminder.offsetMinutes}`,
+    url: isAutopacific
+      ? `/autopacific?view=calendar&type=${encodeURIComponent(reminder.kind)}&item=${encodeURIComponent(reminder.entityId)}`
+      : `/tablet?view=calendar&type=${encodeURIComponent(reminder.kind)}&item=${encodeURIComponent(reminder.entityId)}`,
+    tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}`,
+    badgeCount: 1,
+    kind: isAutopacific ? "autopacific" : undefined,
     timestamp: reminder.occurrenceAt.getTime(),
   };
 }

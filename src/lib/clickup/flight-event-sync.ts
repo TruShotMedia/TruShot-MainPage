@@ -38,6 +38,8 @@ type FlightOutboxItem = {
   attempts: number;
 };
 
+const CLICKUP_FLIGHT_MAPPING_VERSION = 2;
+
 export type ClickUpFlightEventSyncResult = {
   status: "completed" | "disabled" | "not_configured" | "unavailable";
   processed: number;
@@ -191,6 +193,7 @@ async function upsertRemoteFlight({
     source_updated_at: flight.updated_at,
     last_synced_at: now,
     last_synced_status: desiredStatus,
+    mapping_version: CLICKUP_FLIGHT_MAPPING_VERSION,
     sync_state: "linked",
     last_error: null,
   }, { onConflict: "workspace_id,flight_event_id" });
@@ -209,7 +212,7 @@ async function queueRequiredFlights(supabase: ServiceClient, integration: Flight
   const flightIds = flights.map((flight) => flight.id);
   const [{ data: links, error: linksError }, { data: active, error: activeError }] = await Promise.all([
     supabase.from("website-clickup-flight-event-links")
-      .select("flight_event_id,last_synced_status,source_updated_at")
+      .select("flight_event_id,last_synced_status,source_updated_at,mapping_version")
       .eq("workspace_id", integration.workspace_id)
       .in("flight_event_id", flightIds),
     supabase.from("website-clickup-flight-event-outbox")
@@ -226,6 +229,7 @@ async function queueRequiredFlights(supabase: ServiceClient, integration: Flight
     if (queuedIds.has(flight.id)) return false;
     const link = linksByFlight.get(flight.id);
     if (!link) return true;
+    if ((link.mapping_version ?? 1) < CLICKUP_FLIGHT_MAPPING_VERSION) return true;
     const snapshot = flight as ClickUpFlightEventSnapshot;
     const desiredStatus = isClickUpFlightEventComplete(snapshot) ? statuses.complete : statuses.open;
     return link.last_synced_status !== desiredStatus || link.source_updated_at !== flight.updated_at;

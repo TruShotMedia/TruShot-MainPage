@@ -54,6 +54,8 @@ describe("ClickUp flight event mapping", () => {
       start_date_time: true,
       due_date_time: true,
     });
+    expect(payload.start_date).toBe(Date.parse("2026-10-23T09:00:00+10:00"));
+    expect(payload.due_date).toBe(Date.parse("2026-10-23T10:30:00+10:00"));
     const description = buildClickUpFlightEventDescription(flight);
     expect(description).toContain("AutoPacific flight itinerary");
     expect(description).toContain("QF 501");

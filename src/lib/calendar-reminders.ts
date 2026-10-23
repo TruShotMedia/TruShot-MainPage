@@ -43,6 +43,7 @@ type CampaignReminderRow = {
 
 type CustomCalendarEventReminderRow = {
   id: string;
+  client_id: string | null;
   title: string;
   location: string | null;
   start_date: string;
@@ -52,6 +53,7 @@ type CustomCalendarEventReminderRow = {
 
 type FlightReminderRow = {
   id: string;
+  client_id: string | null;
   title: string;
   departure_date: string;
   departure_time: string;
@@ -105,6 +107,10 @@ function compactFlightTime(value: string) {
   const hour = Number(hourText);
   const suffix = hour >= 12 ? "pm" : "am";
   return `${hour % 12 || 12}${minuteText === "00" ? "" : `:${minuteText}`}${suffix}`;
+}
+
+function notificationExperience(clientName: string | null | undefined) {
+  return clientName?.trim().toLocaleLowerCase("en-AU") === "autopacific group" ? "autopacific" as const : "trushot" as const;
 }
 
 async function reserveDelivery(
@@ -176,13 +182,13 @@ async function processWorkspace(
       .or(`and(start_date.gte.${bounds.start},start_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase
       .from("website-calendar-events")
-      .select("id,title,location,start_date,start_time,reminder_offsets_minutes")
+      .select("id,client_id,title,location,start_date,start_time,reminder_offsets_minutes")
       .eq("workspace_id", settings.workspace_id)
       .gte("start_date", bounds.start)
       .lte("start_date", bounds.end),
     supabase
       .from("website-flight-events")
-      .select("id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,accommodation_title,accommodation_location,vehicle_title,vehicle_location")
+      .select("id,client_id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,accommodation_title,accommodation_location,vehicle_title,vehicle_location")
       .eq("workspace_id", settings.workspace_id)
       .or(`and(departure_date.gte.${bounds.start},departure_date.lte.${bounds.end}),and(arrival_date.gte.${bounds.start},arrival_date.lte.${bounds.end})`),
     supabase.from("website-clients").select("id,name").eq("workspace_id", settings.workspace_id),
@@ -210,6 +216,7 @@ async function processWorkspace(
       entityId: job.id,
       title: job.title,
       context: job.client_id ? clients.get(job.client_id) ?? null : null,
+      experience: notificationExperience(job.client_id ? clients.get(job.client_id) : null),
     };
     if (settings.notify_job_starts) addEvent(events, base, "job_start", job.shoot_date, job.shoot_time);
     if (settings.notify_job_deadlines) addEvent(events, base, "job_due", job.due_date, job.due_time);
@@ -225,6 +232,7 @@ async function processWorkspace(
         entityId: task.id,
         title: task.title,
         context,
+        experience: notificationExperience(job?.client_id ? clients.get(job.client_id) : null),
       }, "task_due", job?.due_date ?? null, task.due_time);
     }
   }
@@ -239,6 +247,7 @@ async function processWorkspace(
         entityId: asset.id,
         title: asset.title,
         context,
+        experience: notificationExperience(campaign?.client_id ? clients.get(campaign.client_id) : null),
       };
       addEvent(events, base, "campaign_start", asset.start_date, asset.start_time);
       addEvent(events, base, "campaign_due", asset.due_date, asset.due_time);
@@ -252,6 +261,7 @@ async function processWorkspace(
       entityId: calendarEvent.id,
       title: calendarEvent.title,
       context: calendarEvent.location,
+      experience: notificationExperience(calendarEvent.client_id ? clients.get(calendarEvent.client_id) : null),
       reminderOffsetsMinutes: calendarEvent.reminder_offsets_minutes,
     }, "calendar_event_start", calendarEvent.start_date, calendarEvent.start_time);
   }
@@ -269,6 +279,7 @@ async function processWorkspace(
         entityId: flight.id,
         title: flight.title,
         context: route,
+        experience: notificationExperience(flight.client_id ? clients.get(flight.client_id) : null),
         reminderOffsetsMinutes: [settings.flight_lead_minutes],
         flightDetails: {
           ...commonDetails,
@@ -284,6 +295,7 @@ async function processWorkspace(
         entityId: flight.id,
         title: flight.title,
         context: route,
+        experience: notificationExperience(flight.client_id ? clients.get(flight.client_id) : null),
         reminderOffsetsMinutes: [settings.flight_lead_minutes],
         flightDetails: {
           ...commonDetails,

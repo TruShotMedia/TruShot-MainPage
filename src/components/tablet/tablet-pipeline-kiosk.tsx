@@ -479,7 +479,7 @@ export function TabletPipelineKiosk({
 
           <div className="tablet-kiosk-actions">
             <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button>
-            {notificationPublicKey ? <TabletNotificationControl publicKey={notificationPublicKey} /> : null}
+            {notificationPublicKey ? <TabletNotificationControl experience={branding.theme === "autopacific" ? "autopacific" : "trushot"} experienceName={branding.name} publicKey={notificationPublicKey} /> : null}
             <button
               type="button"
               className={`tablet-slideshow-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}

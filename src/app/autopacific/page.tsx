@@ -16,8 +16,12 @@ export const viewport: Viewport = {
   themeColor: "#07100b",
 };
 
-export default async function AutopacificPage() {
+export default async function AutopacificPage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
+  const query = await searchParams;
+  const requestedView = typeof query.view === "string" ? query.view : undefined;
   const userAgent = (await headers()).get("user-agent") ?? "";
-  if (MOBILE_USER_AGENT_PATTERN.test(userAgent)) redirect("/autopacific/mobile");
-  return <AutopacificWorkspace experience="kiosk" />;
+  if (MOBILE_USER_AGENT_PATTERN.test(userAgent)) {
+    redirect(requestedView ? `/autopacific/mobile?view=${encodeURIComponent(requestedView)}` : "/autopacific/mobile");
+  }
+  return <AutopacificWorkspace experience="kiosk" requestedView={requestedView} />;
 }
