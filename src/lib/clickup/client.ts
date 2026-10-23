@@ -30,6 +30,27 @@ export type ClickUpList = {
 export type ClickUpTask = {
   id: string;
   url?: string;
+  name?: string;
+  markdown_description?: string;
+  description?: string;
+  status?: { status?: string };
+  start_date?: string | null;
+  start_date_time?: boolean;
+  due_date?: string | null;
+  due_date_time?: boolean;
+  date_updated?: string;
+  archived?: boolean;
+  parent?: string | null;
+  list?: { id?: string };
+  assignees?: Array<{ id: number | string }>;
+};
+
+export type ClickUpWebhook = {
+  id: string;
+  endpoint: string;
+  events?: string[];
+  secret?: string;
+  health?: { status?: string; fail_count?: number };
 };
 
 async function clickUpRequest<T>(path: string, init: RequestInit = {}) {
@@ -66,6 +87,22 @@ export function getClickUpList(listId: string) {
   return clickUpRequest<ClickUpList>(`/list/${encodeURIComponent(listId)}`);
 }
 
+export function getClickUpTask(taskId: string) {
+  return clickUpRequest<ClickUpTask>(`/task/${encodeURIComponent(taskId)}?include_markdown_description=true`);
+}
+
+export function getClickUpTasks(listId: string, { page = 0, updatedAfter }: { page?: number; updatedAfter?: number } = {}) {
+  const query = new URLSearchParams({
+    page: String(page),
+    include_closed: "true",
+    subtasks: "true",
+    order_by: "updated",
+    reverse: "true",
+  });
+  if (updatedAfter) query.set("date_updated_gt", String(updatedAfter));
+  return clickUpRequest<{ tasks: ClickUpTask[] }>(`/list/${encodeURIComponent(listId)}/task?${query}`);
+}
+
 export function createClickUpTask(listId: string, payload: Record<string, unknown>) {
   return clickUpRequest<ClickUpTask>(`/list/${encodeURIComponent(listId)}/task`, {
     method: "POST",
@@ -82,4 +119,26 @@ export function updateClickUpTask(taskId: string, payload: Record<string, unknow
 
 export function deleteClickUpTask(taskId: string) {
   return clickUpRequest<void>(`/task/${encodeURIComponent(taskId)}`, { method: "DELETE" });
+}
+
+export function getClickUpWebhooks(teamId: string) {
+  return clickUpRequest<{ webhooks: ClickUpWebhook[] }>(`/team/${encodeURIComponent(teamId)}/webhook`);
+}
+
+export function createClickUpWebhook(teamId: string, payload: Record<string, unknown>) {
+  return clickUpRequest<{ webhook: ClickUpWebhook }>(`/team/${encodeURIComponent(teamId)}/webhook`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateClickUpWebhook(webhookId: string, payload: Record<string, unknown>) {
+  return clickUpRequest<{ webhook: ClickUpWebhook }>(`/webhook/${encodeURIComponent(webhookId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteClickUpWebhook(webhookId: string) {
+  return clickUpRequest<void>(`/webhook/${encodeURIComponent(webhookId)}`, { method: "DELETE" });
 }

@@ -1,6 +1,11 @@
 import { Save } from "lucide-react";
 import { updateSettings } from "@/app/admin/actions";
-import { ClickUpSyncPanel, type ClickUpPanelIntegration } from "@/components/admin/clickup-sync-panel";
+import {
+  ClickUpSyncPanel,
+  type ClickUpAuditItem,
+  type ClickUpConflict,
+  type ClickUpPanelIntegration,
+} from "@/components/admin/clickup-sync-panel";
 import { NotionSyncPanel } from "@/components/admin/notion-sync-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import { PushNotificationSettings } from "@/components/admin/push-notification-settings";
@@ -15,15 +20,20 @@ export default async function SettingsPage() {
   if (!context) return null;
   const notionConfiguration = getNotionConfigurationSummary();
   const clickUpConfiguration = getClickUpConfigurationSummary();
-  const [{ data: settings }, { data: tax }, { data: notionSync }, pushSubscriptions, clickUpIntegration, clickUpLinks, clickUpPending, clickUpFailed] = await Promise.all([
+  const [{ data: settings }, { data: tax }, { data: notionSync }, pushSubscriptions, clickUpIntegration, clickUpLinks, clickUpPending, clickUpFailed, clickUpInboundPending, clickUpInboundFailed, clickUpConflicts, clickUpConflictJobs, clickUpAudit] = await Promise.all([
     context.supabase.from("website-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
     context.supabase.from("website-tax-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).single(),
     context.supabase.from("website-notion-sync-state").select("status,last_successful_at,last_error,last_result").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
     context.supabase.from("website-push-subscriptions").select("id", { count: "exact", head: true }).eq("user_id", context.claims.sub),
-    context.supabase.from("website-clickup-integrations").select("enabled,list_id,list_name,assigned_user_name,status_mapping,last_connected_at,last_sync_completed_at,last_error").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
+    context.supabase.from("website-clickup-integrations").select("enabled,list_id,list_name,assigned_user_name,status_mapping,last_connected_at,last_sync_completed_at,last_error,inbound_mode,import_new_tasks,archive_on_remote_delete,reconciliation_enabled,webhook_id,webhook_health,webhook_fail_count,last_webhook_received_at,last_reconciled_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
     context.supabase.from("website-clickup-job-links").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     context.supabase.from("website-clickup-sync-outbox").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).in("status", ["pending", "retry", "processing"]),
     context.supabase.from("website-clickup-sync-outbox").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
+    context.supabase.from("website-clickup-webhook-events").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).in("status", ["pending", "retry", "processing"]),
+    context.supabase.from("website-clickup-webhook-events").select("id", { count: "exact", head: true }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
+    context.supabase.from("website-clickup-conflicts").select("id,job_id,clickup_task_id,conflict_type,changed_fields,crm_snapshot,clickup_snapshot,created_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "open").order("created_at", { ascending: false }).limit(10),
+    context.supabase.from("website-jobs").select("id,title").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase.from("website-clickup-sync-audit").select("id,direction,action,outcome,detail,created_at").eq("workspace_id", TRUSHOT_WORKSPACE_ID).order("created_at", { ascending: false }).limit(8),
   ]);
   return (
     <>
@@ -47,10 +57,18 @@ export default async function SettingsPage() {
       />
       <ClickUpSyncPanel
         configured={clickUpConfiguration.configured}
+        webhookEncryptionConfigured={clickUpConfiguration.webhookEncryptionConfigured}
         failedCount={clickUpFailed.count ?? 0}
+        inboundFailedCount={clickUpInboundFailed.count ?? 0}
+        inboundPendingCount={clickUpInboundPending.count ?? 0}
         integration={(clickUpIntegration.data as ClickUpPanelIntegration) ?? null}
         linkedCount={clickUpLinks.count ?? 0}
         pendingCount={clickUpPending.count ?? 0}
+        conflicts={((clickUpConflicts.data ?? []) as Omit<ClickUpConflict, "job_title">[]).map((conflict) => ({
+          ...conflict,
+          job_title: clickUpConflictJobs.data?.find((job) => job.id === conflict.job_id)?.title ?? null,
+        }))}
+        audit={(clickUpAudit.data ?? []) as ClickUpAuditItem[]}
       />
     </>
   );

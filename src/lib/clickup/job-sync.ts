@@ -2,8 +2,10 @@ import "server-only";
 
 import { after } from "next/server";
 import { CLICKUP_LIST_ID, CLICKUP_LIST_NAME, CLICKUP_STATUS_MAPPING, getClickUpToken } from "@/lib/clickup/config";
-import { ClickUpApiError, createClickUpTask, deleteClickUpTask, getClickUpAuthorizedUser, getClickUpList, updateClickUpTask } from "@/lib/clickup/client";
-import { buildClickUpJobPayload, buildClickUpJobUpdatePayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
+import { ClickUpApiError, createClickUpTask, deleteClickUpTask, getClickUpAuthorizedUser, getClickUpList, getClickUpTask, updateClickUpTask } from "@/lib/clickup/client";
+import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, buildClickUpOwnedFieldsPayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
+import { changedSharedFields, sharedStateFromClickUp, sharedStateFromCrm, sharedStateHash } from "@/lib/clickup/shared-state";
+import { ensureClickUpWebhook } from "@/lib/clickup/webhook-registration";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -39,7 +41,7 @@ export type ClickUpSyncResult = {
 function safeMessage(error: unknown) {
   if (error instanceof ClickUpApiError) {
     if (error.status === 401) return "ClickUp rejected the API token. Generate a new personal token and update CLICKUP_API_TOKEN in Vercel.";
-    if (error.status === 403) return "Your ClickUp profile does not have permission to update the APG/Amotiv List.";
+    if (error.status === 403) return "Your ClickUp profile does not have permission to update the John / Jobs List.";
     if (error.status === 429) return "ClickUp is temporarily rate limiting the sync. This job will retry automatically.";
   }
   return (error instanceof Error ? error.message : "The ClickUp sync failed.").slice(0, 500);
@@ -96,13 +98,60 @@ async function removeRemoteTask({
   if (error) throw error;
   if (!link) return;
 
-  if (operation === "delete") {
-    await deleteClickUpTask(link.clickup_task_id);
-    await supabase.from("website-clickup-job-links").delete().eq("id", link.id);
-  } else {
-    await updateClickUpTask(link.clickup_task_id, { archived: true });
-    await supabase.from("website-clickup-job-links").update({ last_synced_at: new Date().toISOString(), last_error: null }).eq("id", link.id);
+  try {
+    if (operation === "delete") await deleteClickUpTask(link.clickup_task_id);
+    else await updateClickUpTask(link.clickup_task_id, { archived: true });
+  } catch (error) {
+    if (!(error instanceof ClickUpApiError) || error.status !== 404) throw error;
   }
+  await supabase.from("website-clickup-job-links").delete().eq("id", link.id);
+}
+
+async function recordOutboundConflict({
+  clickUpSnapshot,
+  crmSnapshot,
+  integration,
+  jobId,
+  supabase,
+  taskId,
+}: {
+  clickUpSnapshot: unknown;
+  crmSnapshot: unknown;
+  integration: Integration;
+  jobId: string;
+  supabase: NonNullable<ReturnType<typeof createServiceClient>>;
+  taskId: string;
+}) {
+  const changedFields = changedSharedFields(
+    crmSnapshot as Parameters<typeof changedSharedFields>[0],
+    clickUpSnapshot as Parameters<typeof changedSharedFields>[1],
+  );
+  const { data: existing } = await supabase.from("website-clickup-conflicts").select("id")
+    .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).eq("status", "open").maybeSingle();
+  const payload = {
+    job_id: jobId,
+    conflict_type: "concurrent_update",
+    changed_fields: changedFields,
+    crm_snapshot: crmSnapshot,
+    clickup_snapshot: clickUpSnapshot,
+  };
+  if (existing) await supabase.from("website-clickup-conflicts").update(payload).eq("id", existing.id);
+  else await supabase.from("website-clickup-conflicts").insert({
+    workspace_id: integration.workspace_id,
+    clickup_task_id: taskId,
+    ...payload,
+  });
+  await Promise.all([
+    supabase.from("website-clickup-job-links").update({ sync_state: "conflict" }).eq("workspace_id", integration.workspace_id).eq("job_id", jobId),
+    supabase.from("website-notifications").insert({
+      workspace_id: integration.workspace_id,
+      type: "clickup_conflict",
+      title: "ClickUp sync needs review",
+      body: `Both systems changed: ${changedFields.join(", ")}.`,
+      entity_type: "job",
+      entity_id: jobId,
+    }),
+  ]);
 }
 
 async function upsertRemoteTask({
@@ -153,7 +202,7 @@ async function upsertRemoteTask({
   };
   const { data: link, error: linkError } = await supabase
     .from("website-clickup-job-links")
-    .select("id,clickup_task_id")
+    .select("id,clickup_task_id,last_shared_hash")
     .eq("workspace_id", integration.workspace_id)
     .eq("job_id", job.id)
     .maybeSingle();
@@ -161,10 +210,39 @@ async function upsertRemoteTask({
 
   let taskId = link?.clickup_task_id ?? null;
   let taskUrl: string | null = null;
+  const desiredState = sharedStateFromCrm(job, clickUpStatus);
+  const desiredHash = sharedStateHash(desiredState);
   if (taskId) {
     try {
-      const task = await updateClickUpTask(taskId, buildClickUpJobUpdatePayload({ assignedUserId: integration.assigned_user_id, job: snapshot, status: clickUpStatus }));
-      taskUrl = task.url ?? `https://app.clickup.com/t/${taskId}`;
+      const currentTask = await getClickUpTask(taskId);
+      const remoteState = sharedStateFromClickUp(currentTask);
+      const remoteHash = sharedStateHash(remoteState);
+      const lastHash = link?.last_shared_hash as string | null;
+      if (remoteHash === desiredHash) {
+        if ((currentTask.markdown_description ?? "") !== buildClickUpJobDescription(snapshot)) {
+          await updateClickUpTask(taskId, buildClickUpOwnedFieldsPayload({ assignedUserId: integration.assigned_user_id, job: snapshot }));
+        }
+        taskUrl = currentTask.url ?? `https://app.clickup.com/t/${taskId}`;
+      } else if (lastHash && remoteHash !== lastHash && desiredHash !== lastHash) {
+        await recordOutboundConflict({ clickUpSnapshot: remoteState, crmSnapshot: desiredState, integration, jobId: job.id, supabase, taskId });
+        return "conflict" as const;
+      } else if (lastHash && remoteHash !== lastHash && desiredHash === lastHash) {
+        await supabase.from("website-clickup-webhook-events").upsert({
+          workspace_id: integration.workspace_id,
+          webhook_id: "outbound-guard",
+          dedupe_key: `outbound-guard:${taskId}:${currentTask.date_updated ?? remoteHash}`,
+          clickup_task_id: taskId,
+          event_type: "outboundGuard",
+          payload: { event: "outboundGuard", task_id: taskId },
+          status: "pending",
+          attempts: 0,
+          available_at: new Date().toISOString(),
+        }, { onConflict: "dedupe_key", ignoreDuplicates: true });
+        return "deferred" as const;
+      } else {
+        const task = await updateClickUpTask(taskId, buildClickUpJobUpdatePayload({ assignedUserId: integration.assigned_user_id, job: snapshot, status: clickUpStatus }));
+        taskUrl = task.url ?? `https://app.clickup.com/t/${taskId}`;
+      }
     } catch (error) {
       if (!(error instanceof ClickUpApiError) || error.status !== 404) throw error;
       await supabase.from("website-clickup-job-links").delete().eq("id", link?.id);
@@ -184,11 +262,15 @@ async function upsertRemoteTask({
     job_id: job.id,
     clickup_task_id: taskId,
     clickup_task_url: taskUrl,
+    ...(!link ? { origin: "crm" } : {}),
     source_updated_at: job.updated_at,
+    last_shared_hash: desiredHash,
     last_synced_at: now,
+    sync_state: "linked",
     last_error: null,
   }, { onConflict: "workspace_id,job_id" });
   if (saveError) throw saveError;
+  return "synced" as const;
 }
 
 export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<ClickUpSyncResult> {
@@ -235,9 +317,18 @@ export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<Click
     }).eq("id", candidate.id).in("status", ["pending", "retry"]).select("id").maybeSingle();
     if (!claimed) continue;
     try {
-      if (candidate.operation === "upsert") await upsertRemoteTask({ integration, jobId: candidate.job_id, supabase });
-      else await removeRemoteTask({ integration, jobId: candidate.job_id, operation: candidate.operation, supabase });
+      const outcome = candidate.operation === "upsert"
+        ? await upsertRemoteTask({ integration, jobId: candidate.job_id, supabase })
+        : await removeRemoteTask({ integration, jobId: candidate.job_id, operation: candidate.operation, supabase }).then(() => "synced" as const);
       await markEventComplete(supabase, candidate.id);
+      await supabase.from("website-clickup-sync-audit").insert({
+        workspace_id: integration.workspace_id,
+        direction: "outbound",
+        action: candidate.operation,
+        outcome: outcome === "conflict" ? "conflict" : outcome === "deferred" ? "ignored" : "completed",
+        detail: outcome === "conflict" ? "Both systems changed; queued for review." : outcome === "deferred" ? "A newer ClickUp change was queued for inbound processing." : "ClickUp mirror updated.",
+        job_id: candidate.job_id,
+      });
       succeeded += 1;
     } catch (error) {
       lastError = await markEventFailure(supabase, candidate, error);
@@ -282,7 +373,7 @@ export async function connectClickUpJobSync() {
   const availableStatuses = new Set((list.statuses ?? []).map((item) => item.status.trim().toUpperCase()));
   const requiredStatuses = Object.values(CLICKUP_STATUS_MAPPING);
   const missingStatuses = requiredStatuses.filter((status) => !availableStatuses.has(status));
-  if (missingStatuses.length) throw new Error(`The APG/Amotiv List is missing these statuses: ${missingStatuses.join(", ")}.`);
+  if (missingStatuses.length) throw new Error(`The John / Jobs List is missing these statuses: ${missingStatuses.join(", ")}.`);
 
   const { data: client, error: clientError } = await supabase
     .from("website-clients")
@@ -343,5 +434,13 @@ export async function connectClickUpJobSync() {
   }
 
   const sync = await dispatchClickUpJobSync({ limit: 100 });
-  return { user, list, queued: jobs?.length ?? 0, sync };
+  let webhook: Awaited<ReturnType<typeof ensureClickUpWebhook>> | null = null;
+  let webhookWarning: string | null = null;
+  try {
+    webhook = await ensureClickUpWebhook();
+  } catch (error) {
+    webhookWarning = error instanceof Error ? error.message : "Inbound ClickUp observation could not be registered.";
+    await supabase.from("website-clickup-integrations").update({ last_error: webhookWarning }).eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  }
+  return { user, list, queued: jobs?.length ?? 0, sync, webhook, webhookWarning };
 }

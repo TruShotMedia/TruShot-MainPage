@@ -71,3 +71,14 @@ export function buildClickUpJobUpdatePayload(input: Parameters<typeof buildClick
     assignees: { add: [input.assignedUserId], rem: [] },
   };
 }
+
+export function buildClickUpOwnedFieldsPayload({
+  assignedUserId,
+  job,
+}: Pick<Parameters<typeof buildClickUpJobPayload>[0], "assignedUserId" | "job">) {
+  return {
+    markdown_content: buildClickUpJobDescription(job),
+    archived: false,
+    assignees: { add: [assignedUserId], rem: [] },
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
+import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, buildClickUpOwnedFieldsPayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
 
 const job: ClickUpJobSnapshot = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -42,5 +42,18 @@ describe("ClickUp job mapping", () => {
     const payload = buildClickUpJobUpdatePayload({ assignedUserId: 183, job, status: "APPROVAL" });
     expect(payload.assignees).toEqual({ add: [183], rem: [] });
     expect(payload.archived).toBe(false);
+  });
+
+  it("can refresh CRM-owned detail without overwriting ClickUp-owned shared fields", () => {
+    const payload = buildClickUpOwnedFieldsPayload({ assignedUserId: 183, job });
+    expect(payload).toMatchObject({
+      assignees: { add: [183], rem: [] },
+      archived: false,
+    });
+    expect(payload.markdown_content).toContain("Prioritise the hero model.");
+    expect(payload).not.toHaveProperty("name");
+    expect(payload).not.toHaveProperty("status");
+    expect(payload).not.toHaveProperty("start_date");
+    expect(payload).not.toHaveProperty("due_date");
   });
 });
