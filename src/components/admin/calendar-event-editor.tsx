@@ -4,7 +4,7 @@ import { useState, type CSSProperties, type FormEvent, type MouseEvent } from "r
 import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide-react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
 import { calendarEventWindowError } from "@/lib/calendar-event";
-import type { CalendarCustomEvent } from "@/lib/types";
+import type { CalendarCustomEvent, SelectOption } from "@/lib/types";
 
 const reminderOptions = [
   { value: 1440, label: "1 day before" },
@@ -18,6 +18,8 @@ const reminderOptions = [
 const eventColors = ["#1f5e41", "#3975ad", "#9b5d39", "#74558f", "#b54d45", "#68706a"];
 
 type CalendarEventEditorProps = {
+  clientOptions?: SelectOption[];
+  defaultClientId?: string | null;
   event: CalendarCustomEvent | null;
   defaultDate: string;
   onClose: () => void;
@@ -25,7 +27,7 @@ type CalendarEventEditorProps = {
   onSaved: (event: CalendarCustomEvent) => void;
 };
 
-export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
+export function CalendarEventEditor({ clientOptions = [], defaultClientId = null, event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
   const [allDay, setAllDay] = useState(event?.is_all_day ?? false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -36,6 +38,7 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
   const [endDate, setEndDate] = useState(event?.end_date ?? defaultDate);
   const [startTime, setStartTime] = useState(defaultStartTime);
   const [endTime, setEndTime] = useState(defaultEndTime);
+  const fixedClientId = defaultClientId ? (event ? event.client_id : defaultClientId) : null;
 
   function handleBackdropClick(clickEvent: MouseEvent<HTMLDivElement>) {
     if (clickEvent.target === clickEvent.currentTarget) onClose();
@@ -98,9 +101,11 @@ export function CalendarEventEditor({ event, defaultDate, onClose, onDeleted, on
         </header>
 
         {event ? <input type="hidden" name="id" value={event.id} /> : null}
+        {defaultClientId ? <input type="hidden" name="client_id" value={fixedClientId ?? ""} /> : null}
         <div className="calendar-event-editor-fields">
           <label className="calendar-event-title-field">Event title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Campaign planning session" /></label>
           <label><MapPin size={13} /> Location<input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
+          {!defaultClientId && clientOptions.length ? <label>Client / workspace<select name="client_id" defaultValue={event?.client_id ?? ""}><option value="">General calendar event</option>{clientOptions.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><small>AutoPacific events are mirrored into ClickUp automatically.</small></label> : null}
           <label className="calendar-event-notes-field">Notes<textarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder="People, preparation, links or anything useful…" /></label>
         </div>
 

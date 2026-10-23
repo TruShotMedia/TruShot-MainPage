@@ -53,6 +53,7 @@ export async function AutopacificWorkspace({ experience }: { experience: "kiosk"
       calendarTasks={data.calendarTasks}
       calendarCampaignAssets={data.calendarCampaignAssets}
       calendarEvents={data.calendarEvents}
+      calendarEventClientId={data.clientOptions[0]?.id ?? null}
       calendarDensity="capacity"
       experience={experience}
       flightEvents={data.flightEvents}

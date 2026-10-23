@@ -89,6 +89,8 @@ describe("calendar range layout", () => {
     const calendarEvent: CalendarCustomEvent = {
       id: "99999999-9999-4999-8999-999999999999",
       entity_type: "calendar-event",
+      client_id: null,
+      client_name: null,
       title: "Interstate production",
       description: null,
       location: "Sydney",

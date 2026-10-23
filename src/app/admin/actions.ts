@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
 import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
+import { scheduleClickUpCalendarEventSync } from "@/lib/clickup/calendar-event-sync";
 import { scheduleClickUpJobSync } from "@/lib/clickup/job-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { slugify } from "@/lib/format";
@@ -841,6 +842,7 @@ export async function updateCalendarItem(formData: FormData) {
 
 function parseCalendarEvent(formData: FormData) {
   const parsedInput = z.object({
+    client_id: z.string().uuid().or(z.literal("")),
     title: z.string().trim().min(2).max(180),
     description: z.string().trim().max(4_000),
     location: z.string().trim().max(300),
@@ -849,7 +851,7 @@ function parseCalendarEvent(formData: FormData) {
     end_date: calendarDateSchema,
     end_time: optionalTimeSchema,
     color: calendarEventColorSchema,
-  }).safeParse(calendarEventFormEntries(formData));
+  }).safeParse({ ...calendarEventFormEntries(formData), client_id: formData.get("client_id") ?? "" });
   if (!parsedInput.success) {
     return { ok: false as const, error: "Check the event title, dates and times, then try again." };
   }
@@ -871,6 +873,7 @@ function parseCalendarEvent(formData: FormData) {
   return {
     ok: true as const,
     data: {
+      client_id: input.client_id || null,
       title: input.title,
       description: input.description || null,
       location: input.location || null,
@@ -890,6 +893,10 @@ export async function createCalendarEvent(formData: FormData): Promise<CalendarE
   if (!parsed.ok) return parsed;
   const context = await getAdminContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
+  const client = parsed.data.client_id
+    ? await context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("id", parsed.data.client_id).is("archived_at", null).maybeSingle()
+    : null;
+  if (client?.error || (parsed.data.client_id && !client?.data)) return { ok: false, error: "Choose an active client from this workspace." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
     .insert({
@@ -898,12 +905,15 @@ export async function createCalendarEvent(formData: FormData): Promise<CalendarE
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
-    .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be created. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
-  return { ok: true, event: { ...data, entity_type: "calendar-event" as const } };
+  revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
+  scheduleClickUpCalendarEventSync();
+  return { ok: true, event: { ...data, client_name: client?.data?.name ?? null, entity_type: "calendar-event" as const } };
 }
 
 export async function updateCalendarEvent(formData: FormData): Promise<CalendarEventSaveResult> {
@@ -913,17 +923,24 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
   if (!parsed.ok) return parsed;
   const context = await getAdminContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
+  const client = parsed.data.client_id
+    ? await context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("id", parsed.data.client_id).is("archived_at", null).maybeSingle()
+    : null;
+  if (client?.error || (parsed.data.client_id && !client?.data)) return { ok: false, error: "Choose an active client from this workspace." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
     .update({ ...parsed.data, updated_by: context.claims.sub })
     .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-    .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be updated. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
-  return { ok: true, event: { ...data, entity_type: "calendar-event" as const } };
+  revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
+  scheduleClickUpCalendarEventSync();
+  return { ok: true, event: { ...data, client_name: client?.data?.name ?? null, entity_type: "calendar-event" as const } };
 }
 
 export async function deleteCalendarEvent(formData: FormData): Promise<CalendarEventDeleteResult> {
@@ -941,6 +958,9 @@ export async function deleteCalendarEvent(formData: FormData): Promise<CalendarE
   if (error || !data) return { ok: false, error: "The calendar event could not be deleted. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
+  scheduleClickUpCalendarEventSync();
   return { ok: true };
 }
 

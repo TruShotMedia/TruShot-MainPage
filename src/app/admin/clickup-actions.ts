@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { dispatchClickUpCalendarEventSync, scheduleClickUpCalendarEventSync } from "@/lib/clickup/calendar-event-sync";
 import { dispatchClickUpInboundSync, reconcileClickUpJobs } from "@/lib/clickup/inbound-sync";
 import { connectClickUpJobSync, dispatchClickUpJobSync, scheduleClickUpJobSync } from "@/lib/clickup/job-sync";
 import { sharedStateHash, type ClickUpSharedState } from "@/lib/clickup/shared-state";
@@ -20,29 +21,36 @@ async function requireIntegrationAdmin() {
 export async function connectClickUpIntegration() {
   await requireIntegrationAdmin();
   const result = await connectClickUpJobSync();
+  const eventSync = await dispatchClickUpCalendarEventSync({ limit: 100 });
   revalidatePath("/admin/settings");
   return {
     ok: true as const,
-    message: `Connected ${result.user.username} to ${result.list.name}. ${result.sync.message}${result.webhookWarning ? ` Inbound setup: ${result.webhookWarning}` : " Inbound observation is registered."}`,
+    message: `Connected ${result.user.username} to ${result.list.name}. ${result.sync.message} ${eventSync.message}${result.webhookWarning ? ` Inbound setup: ${result.webhookWarning}` : " Inbound observation is registered."}`,
   };
 }
 
 export async function syncClickUpIntegration() {
   const context = await requireIntegrationAdmin();
   const now = new Date().toISOString();
-  const [outboundRetry, inboundRetry] = await Promise.all([
+  const [outboundRetry, eventRetry, inboundRetry] = await Promise.all([
     context.supabase.from("website-clickup-sync-outbox").update({
+      status: "retry", attempts: 0, available_at: now, processing_started_at: null, completed_at: null, last_error: null,
+    }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
+    context.supabase.from("website-clickup-calendar-event-outbox").update({
       status: "retry", attempts: 0, available_at: now, processing_started_at: null, completed_at: null, last_error: null,
     }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
     context.supabase.from("website-clickup-webhook-events").update({
       status: "retry", attempts: 0, available_at: now, processing_started_at: null, completed_at: null, last_error: null,
     }).eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("status", "failed"),
   ]);
-  if (outboundRetry.error || inboundRetry.error) throw new Error(outboundRetry.error?.message ?? inboundRetry.error?.message ?? "Failed sync events could not be retried.");
+  if (outboundRetry.error || eventRetry.error || inboundRetry.error) throw new Error(outboundRetry.error?.message ?? eventRetry.error?.message ?? inboundRetry.error?.message ?? "Failed sync events could not be retried.");
   const inbound = await reconcileClickUpJobs({ force: true });
-  const outbound = await dispatchClickUpJobSync({ limit: 100 });
+  const [outbound, events] = await Promise.all([
+    dispatchClickUpJobSync({ limit: 100 }),
+    dispatchClickUpCalendarEventSync({ limit: 100 }),
+  ]);
   revalidatePath("/admin/settings");
-  return { ok: outbound.status === "completed", message: `${inbound.message} ${outbound.message}` };
+  return { ok: outbound.status === "completed" && events.status === "completed", message: `${inbound.message} ${outbound.message} ${events.message}` };
 }
 
 export async function setClickUpIntegrationEnabled(enabled: boolean) {
@@ -54,7 +62,10 @@ export async function setClickUpIntegrationEnabled(enabled: boolean) {
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "The ClickUp integration could not be updated.");
-  if (enabled) scheduleClickUpJobSync();
+  if (enabled) {
+    scheduleClickUpJobSync();
+    scheduleClickUpCalendarEventSync();
+  }
   revalidatePath("/admin/settings");
   return { ok: true as const, message: enabled ? "ClickUp mirroring resumed." : "ClickUp mirroring paused." };
 }

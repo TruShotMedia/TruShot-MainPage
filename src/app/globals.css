@@ -1270,9 +1270,10 @@ img { max-width: 100%; }
 .calendar-event-editor-fields label:nth-child(2) { position: relative; }
 .calendar-event-editor-fields label:nth-child(2) > svg { position: absolute; top: 35px; left: 11px; z-index: 1; color: #7c857e; }
 .calendar-event-editor-fields label:nth-child(2) input { padding-left: 32px; }
-.calendar-event-editor-fields input, .calendar-event-editor-fields textarea, .calendar-event-time-panel input { width: 100%; min-height: 43px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 11px; color: #303631; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.calendar-event-editor-fields input, .calendar-event-editor-fields select, .calendar-event-editor-fields textarea, .calendar-event-time-panel input { width: 100%; min-height: 43px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 11px; color: #303631; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.calendar-event-editor-fields small { color: #8a918b; font-size: 9px; font-weight: 600; letter-spacing: 0; line-height: 1.35; text-transform: none; }
 .calendar-event-editor-fields textarea { min-height: 82px; resize: vertical; padding-top: 11px; line-height: 1.5; }
-.calendar-event-editor-fields input:focus, .calendar-event-editor-fields textarea:focus, .calendar-event-time-panel input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,94,65,.1); }
+.calendar-event-editor-fields input:focus, .calendar-event-editor-fields select:focus, .calendar-event-editor-fields textarea:focus, .calendar-event-time-panel input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31,94,65,.1); }
 .calendar-event-notes-field { grid-column: 1 / -1; }
 .calendar-event-time-panel { border: 1px solid #dce2dc; border-radius: 13px; background: #f1f5f1; padding: 13px; }
 .calendar-event-all-day { min-height: 42px; flex-direction: row !important; align-items: center; justify-content: space-between; border-bottom: 1px solid #dbe2dc; padding: 0 2px 12px; }
@@ -2134,7 +2135,7 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
 .tablet-record-editor-fields .invoice-search-results button:hover, .tablet-record-editor-fields .invoice-search-results button[data-active="true"] { background: #183323; }
 .tablet-record-editor-fields .invoice-search-results small, .tablet-record-editor-fields .job-search-deadline { color: #7f8b82; }
 .tablet-kiosk .calendar-event-editor-fields label, .tablet-kiosk .calendar-event-time-panel label { color: #9aa59d; }
-.tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input { border-color: #344139; background: #151e18; color: #edf2ee; }
+.tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields select, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input { border-color: #344139; background: #151e18; color: #edf2ee; }
 .tablet-kiosk .calendar-event-time-panel { border-color: #2f3c33; background: #111a14; }
 .tablet-kiosk .calendar-event-all-day { border-color: #2f3c33; }
 .tablet-kiosk .calendar-event-all-day strong { color: #b9c6bd; }
@@ -2365,7 +2366,7 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
   .tablet-record-editor-fields, .tablet-kiosk .calendar-event-editor-fields, .tablet-kiosk .calendar-event-time-panel > div, .tablet-kiosk .calendar-event-options-grid, .tablet-kiosk .flight-event-overview, .tablet-kiosk .flight-passenger-grid, .tablet-kiosk .flight-support-grid, .tablet-kiosk .flight-leg-grid { grid-template-columns: 1fr; }
   .tablet-record-editor-fields .form-span, .tablet-kiosk .calendar-event-notes-field { grid-column: auto; }
   .tablet-record-editor-fields > *, .tablet-kiosk .calendar-event-editor-fields > *, .tablet-kiosk .calendar-event-time-panel > div > *, .tablet-kiosk .flight-event-overview > *, .tablet-kiosk .flight-passenger-grid > *, .tablet-kiosk .flight-leg-grid > *, .tablet-kiosk .flight-support-grid > * { min-width: 0; }
-  .tablet-record-editor-fields input, .tablet-record-editor-fields select, .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input, .tablet-kiosk .flight-event-overview input, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-passenger-grid input, .tablet-kiosk .flight-leg-card input, .tablet-kiosk .flight-support-grid input, .tablet-kiosk .flight-support-grid textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 48px; font-size: 16px; }
+  .tablet-record-editor-fields input, .tablet-record-editor-fields select, .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields select, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input, .tablet-kiosk .flight-event-overview input, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-passenger-grid input, .tablet-kiosk .flight-leg-card input, .tablet-kiosk .flight-support-grid input, .tablet-kiosk .flight-support-grid textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 48px; font-size: 16px; }
   .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-support-grid textarea { resize: none; }
   .tablet-kiosk .calendar-editor-error { margin-top: 12px; margin-bottom: 12px; }
   .tablet-kiosk .calendar-editor > footer { position: sticky; z-index: 7; bottom: 0; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,.08); background: #0d1510; margin: 0; padding: 12px 16px calc(12px + var(--tablet-mobile-bottom-inset)); }

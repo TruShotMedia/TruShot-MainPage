@@ -17,7 +17,7 @@ describe("buildTabletTodayAgenda", () => {
         { id: "working", entity_type: "task", title: "Active cut", job_title: "Launch", client_name: "Autopacific Group", due_date: "2026-10-20", due_time: null, priority: "normal", status_label: "Ready For Revision", status_color: "#5d91b0", is_complete: false },
         { id: "done", entity_type: "task", title: "Finished", job_title: "Launch", client_name: "Autopacific Group", due_date: "2026-10-16", due_time: null, priority: "normal", status_label: "Posted / Done", status_color: "#777", is_complete: true },
       ],
-      customEvents: [{ id: "meeting", entity_type: "calendar-event", title: "Autopac review", description: null, location: "Boardroom", start_date: "2026-10-16", start_time: "11:00", end_date: "2026-10-16", end_time: "12:00", is_all_day: false, color: "#5d91b0", reminder_offsets_minutes: [], created_at: "2026-10-01", updated_at: "2026-10-01" }],
+      customEvents: [{ id: "meeting", entity_type: "calendar-event", client_id: "client-ap", client_name: "Autopacific Group", title: "Autopac review", description: null, location: "Boardroom", start_date: "2026-10-16", start_time: "11:00", end_date: "2026-10-16", end_time: "12:00", is_all_day: false, color: "#5d91b0", reminder_offsets_minutes: [], created_at: "2026-10-01", updated_at: "2026-10-01" }],
       flightEvents: [],
     });
 
@@ -33,7 +33,7 @@ describe("buildTabletTodayAgenda", () => {
       today: "2026-10-16",
       jobs: [],
       tasks: [],
-      customEvents: [{ id: "event", entity_type: "calendar-event", title: "Conference", description: null, location: "Brisbane", start_date: "2026-10-15", start_time: "09:00", end_date: "2026-10-17", end_time: "17:00", is_all_day: false, color: "#777", reminder_offsets_minutes: [], created_at: "2026-10-01", updated_at: "2026-10-01" }],
+      customEvents: [{ id: "event", entity_type: "calendar-event", client_id: null, client_name: null, title: "Conference", description: null, location: "Brisbane", start_date: "2026-10-15", start_time: "09:00", end_date: "2026-10-17", end_time: "17:00", is_all_day: false, color: "#777", reminder_offsets_minutes: [], created_at: "2026-10-01", updated_at: "2026-10-01" }],
       flightEvents: [{ id: "flight", entity_type: "flight-event", title: "Sydney trip", departure_date: "2026-10-16", departure_time: "07:30", arrival_date: "2026-10-16", arrival_time: "09:00", origin_location: "BNE", destination_location: "SYD", departure_airline: "Qantas", arrival_airline: "Qantas", departure_flight_number: "QF501", arrival_flight_number: "QF501", departure_terminal: "D", arrival_terminal: "3", travel_class: "Economy", seat_number: "12A", notes: null, accommodation_title: null, accommodation_location: null, accommodation_notes: null, vehicle_title: null, vehicle_location: null, vehicle_notes: null, color: "#5d91b0", created_at: "2026-10-01", updated_at: "2026-10-01" }],
     });
 

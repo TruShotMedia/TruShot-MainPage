@@ -37,6 +37,8 @@ const tasks: CalendarTask[] = [{
 const customEvents: CalendarCustomEvent[] = [{
   id: "33333333-3333-4333-8333-333333333333",
   entity_type: "calendar-event",
+  client_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  client_name: "Autopacific Group",
   title: "First day AUTOPACIFIC",
   description: null,
   location: "Geebung",
@@ -160,6 +162,8 @@ describe("TabletCalendar", () => {
     const studioEvent: CalendarCustomEvent = {
       ...customEvents[0],
       id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      client_id: null,
+      client_name: null,
       title: "Studio planning",
       start_date: "2026-08-19",
       end_date: "2026-08-19",

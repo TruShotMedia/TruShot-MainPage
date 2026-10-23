@@ -158,6 +158,8 @@ describe("CalendarManager completed work", () => {
     const events: CalendarCustomEvent[] = [{
       id: "66666666-6666-4666-8666-666666666666",
       entity_type: "calendar-event",
+      client_id: null,
+      client_name: null,
       title: "First day AUTOPACIFIC",
       description: null,
       location: "Geebung",

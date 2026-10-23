@@ -19,7 +19,7 @@ import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, Chevro
 import { updateCalendarItem } from "@/app/admin/actions";
 import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, SelectOption } from "@/lib/types";
 
 type CalendarFilter = "all" | "events" | "jobs" | "tasks" | "campaigns";
 type AdminScheduleRangeItem = CalendarJob | CalendarCampaignAsset | CalendarCustomEvent;
@@ -140,7 +140,7 @@ function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<Admin
   );
 }
 
-export function CalendarManager({ jobs, tasks, campaignAssets = [], events: initialCustomEvents = [], initialItemId }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; events?: CalendarCustomEvent[]; initialItemId?: string }) {
+export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = [], events: initialCustomEvents = [], initialItemId }: { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; clients?: SelectOption[]; events?: CalendarCustomEvent[]; initialItemId?: string }) {
   const router = useRouter();
   const initialItems = [...jobs, ...tasks, ...campaignAssets];
   const [items, setItems] = useState<CalendarItem[]>(initialItems);
@@ -419,7 +419,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], events: init
           </form>
         </div>
       ) : null}
-      {eventEditorDate ? <CalendarEventEditor key={selectedCustomEvent?.id ?? `new-${eventEditorDate}`} event={selectedCustomEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleEventDeleted} onSaved={handleEventSaved} /> : null}
+      {eventEditorDate ? <CalendarEventEditor clientOptions={clients} key={selectedCustomEvent?.id ?? `new-${eventEditorDate}`} event={selectedCustomEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleEventDeleted} onSaved={handleEventSaved} /> : null}
     </>
   );
 }

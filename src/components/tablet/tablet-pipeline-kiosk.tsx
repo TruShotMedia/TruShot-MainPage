@@ -138,6 +138,7 @@ export function TabletPipelineKiosk({
   calendarTasks,
   calendarCampaignAssets = [],
   calendarEvents = [],
+  calendarEventClientId = null,
   flightEvents = [],
   calendarDensity = "standard",
   branding = defaultTabletKioskBranding,
@@ -163,6 +164,7 @@ export function TabletPipelineKiosk({
   calendarTasks: CalendarTask[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
   calendarEvents?: CalendarCustomEvent[];
+  calendarEventClientId?: string | null;
   flightEvents?: CalendarFlightEvent[];
   calendarDensity?: "standard" | "capacity";
   branding?: TabletKioskBranding;
@@ -689,7 +691,7 @@ export function TabletPipelineKiosk({
         {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={initialStatuses} type="job" /> : null}
         {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
-        {eventEditorDate ? <CalendarEventEditor key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
+        {eventEditorDate ? <CalendarEventEditor defaultClientId={calendarEventClientId} key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
         {flightEditorDate ? <FlightEventEditor key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 
         {isScreensaverVisible ? (

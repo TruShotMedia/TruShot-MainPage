@@ -1,5 +1,6 @@
 import "server-only";
 
+import { extractClickUpCalendarEventId } from "@/lib/clickup/calendar-event-mapping";
 import { ClickUpApiError, getClickUpTask, getClickUpTasks, type ClickUpTask } from "@/lib/clickup/client";
 import { claimClickUpImport } from "@/lib/clickup/import-claim";
 import {
@@ -181,6 +182,18 @@ async function processDeletion(
   integration: InboundIntegration,
   taskId: string,
 ): Promise<EventOutcome> {
+  const { data: eventLink, error: eventLinkError } = await supabase.from("website-clickup-calendar-event-links")
+    .select("calendar_event_id")
+    .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
+  if (eventLinkError) throw eventLinkError;
+  if (eventLink) {
+    await supabase.from("website-clickup-calendar-event-links").update({
+      sync_state: "paused",
+      last_inbound_at: new Date().toISOString(),
+      last_error: "The mirrored ClickUp task was deleted. Edit the CRM event to recreate it.",
+    }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
+    return { status: "ignored", detail: "A CRM-managed calendar event task was deleted in ClickUp; the CRM event was preserved." };
+  }
   const { data: link } = await supabase.from("website-clickup-job-links").select("job_id")
     .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
   if (!link) return { status: "ignored", detail: "Deleted ClickUp task was not linked to a CRM job." };
@@ -216,6 +229,43 @@ async function processRemoteTask(
   task: ClickUpTask,
 ): Promise<EventOutcome> {
   const taskId = task.id;
+  const { data: eventLink, error: eventLinkError } = await supabase.from("website-clickup-calendar-event-links")
+    .select("calendar_event_id")
+    .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
+  if (eventLinkError) throw eventLinkError;
+  if (eventLink) {
+    await supabase.from("website-clickup-calendar-event-links").update({
+      last_inbound_at: new Date().toISOString(),
+    }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
+    return { status: "ignored", detail: "Ignored an inbound change to a CRM-managed calendar event task." };
+  }
+  const markedEventId = extractClickUpCalendarEventId(task.markdown_description ?? task.description);
+  if (markedEventId) {
+    const { data: event, error: eventError } = await supabase.from("website-calendar-events")
+      .select("id,updated_at")
+      .eq("workspace_id", integration.workspace_id)
+      .eq("client_id", integration.target_client_id)
+      .eq("id", markedEventId)
+      .maybeSingle();
+    if (eventError) throw eventError;
+    if (event) {
+      const now = new Date().toISOString();
+      const { error: recoveryError } = await supabase.from("website-clickup-calendar-event-links").upsert({
+        workspace_id: integration.workspace_id,
+        calendar_event_id: event.id,
+        clickup_task_id: taskId,
+        clickup_task_url: task.url ?? `https://app.clickup.com/t/${taskId}`,
+        source_updated_at: event.updated_at,
+        last_synced_at: now,
+        last_synced_status: task.status?.status ?? null,
+        last_inbound_at: now,
+        sync_state: "linked",
+        last_error: null,
+      }, { onConflict: "workspace_id,calendar_event_id" });
+      if (recoveryError) throw recoveryError;
+    }
+    return { status: "ignored", detail: "Recovered a CRM-managed calendar event mirror without importing a duplicate job." };
+  }
   const { data: link } = await supabase.from("website-clickup-job-links")
     .select("job_id,last_shared_hash,sync_state")
     .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();

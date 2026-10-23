@@ -239,6 +239,8 @@ export type CalendarItem = CalendarJob | CalendarTask | CalendarCampaignAsset;
 export type CalendarCustomEvent = {
   id: string;
   entity_type: "calendar-event";
+  client_id: string | null;
+  client_name: string | null;
   title: string;
   description: string | null;
   location: string | null;

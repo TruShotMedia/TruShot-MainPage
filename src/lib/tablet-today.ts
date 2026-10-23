@@ -76,10 +76,9 @@ function isAccentItem(
   accentClientName?: string,
   accentKeywords: string[] = [],
 ) {
+  void accentKeywords;
   if (!accentClientName) return true;
-  if ("client_name" in item) return normalize(item.client_name) === normalize(accentClientName);
-  const searchValue = normalize(`${item.title} ${item.description ?? ""}`);
-  return [accentClientName, ...accentKeywords].map(normalize).filter(Boolean).some((keyword) => searchValue.includes(keyword));
+  return normalize(item.client_name) === normalize(accentClientName);
 }
 
 function isInProgress(statusLabel: string) {

@@ -250,7 +250,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .is("archived_at", null),
     supabase
       .from("website-calendar-events")
-      .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),
@@ -372,6 +372,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
   const calendarEvents = (calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
     ...event,
     entity_type: "calendar-event",
+    client_name: event.client_id ? clientsById.get(event.client_id)?.name ?? null : null,
     reminder_offsets_minutes: Array.isArray(event.reminder_offsets_minutes)
       ? event.reminder_offsets_minutes.map(Number).filter(Number.isFinite)
       : [],
@@ -792,7 +793,7 @@ export async function getCalendarData() {
     flight_lead_minutes: 180,
     timezone: BRISBANE_TIMEZONE,
   };
-  if (!context) return { jobs: [], tasks: [], campaignAssets: [], events: [], reminderSettings: defaultReminderSettings };
+  if (!context) return { jobs: [], tasks: [], campaignAssets: [], events: [], clients: [], reminderSettings: defaultReminderSettings };
 
   const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult] = await Promise.all([
     context.supabase
@@ -817,7 +818,7 @@ export async function getCalendarData() {
       .is("archived_at", null),
     context.supabase
       .from("website-calendar-events")
-      .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),
@@ -908,10 +909,13 @@ export async function getCalendarData() {
     events: (calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
       ...event,
       entity_type: "calendar-event",
+      client_name: event.client_id ? clients.get(event.client_id) ?? null : null,
       reminder_offsets_minutes: Array.isArray(event.reminder_offsets_minutes)
         ? event.reminder_offsets_minutes.map(Number).filter(Number.isFinite)
         : [],
     })),
+    clients: (clientsResult.data ?? []).map((client) => ({ id: client.id, name: client.name }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
     reminderSettings: (reminderSettingsResult.data ?? defaultReminderSettings) as CalendarReminderSettings,
   };
 }

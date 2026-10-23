@@ -53,18 +53,7 @@ function normalizeMatchValue(value: string) {
 
 function itemBelongsToAccentClient(item: CalendarStandardRangeItem | CalendarItem, palette: CalendarPalette) {
   if (!palette.accentClientName) return true;
-  if ("client_name" in item) {
-    return normalizeMatchValue(item.client_name ?? "") === normalizeMatchValue(palette.accentClientName);
-  }
-
-  const searchable = normalizeMatchValue([
-    item.title,
-    item.entity_type === "calendar-event" ? item.description ?? "" : "",
-  ].join(" "));
-  const keywords = [palette.accentClientName, ...(palette.accentKeywords ?? [])]
-    .map(normalizeMatchValue)
-    .filter(Boolean);
-  return keywords.some((keyword) => searchable.includes(keyword));
+  return normalizeMatchValue(item.client_name ?? "") === normalizeMatchValue(palette.accentClientName);
 }
 
 function isOverdueAccentJob(item: CalendarStandardRangeItem | CalendarItem, palette: CalendarPalette, today: string) {
