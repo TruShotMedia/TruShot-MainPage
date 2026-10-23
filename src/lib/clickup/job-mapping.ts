@@ -35,7 +35,7 @@ export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
     details.join("  \n"),
     clean(job.description),
     clean(job.notes) ? `**Production notes**\n${job.notes?.trim()}` : null,
-    `---\nSynced from TruShot CRM · Job ID: \`${job.id}\``,
+    `---\nSynced from John's CRM · Job ID: \`${job.id}\``,
   ].filter(Boolean);
   return sections.join("\n\n");
 }

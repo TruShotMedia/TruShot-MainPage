@@ -46,8 +46,11 @@ describe("ClickUp calendar event mapping", () => {
       start_date_time: true,
       due_date_time: true,
     });
-    expect(buildClickUpCalendarEventDescription(event)).toContain("AutoPacific calendar event");
-    expect(buildClickUpCalendarEventDescription(event)).toContain(event.id);
-    expect(extractClickUpCalendarEventId(buildClickUpCalendarEventDescription(event))).toBe(event.id);
+    const description = buildClickUpCalendarEventDescription(event);
+    expect(description).toContain("AutoPacific calendar event");
+    expect(description).toContain("Synced from John's CRM");
+    expect(description).not.toContain("Synced from TruShot CRM");
+    expect(description).toContain(event.id);
+    expect(extractClickUpCalendarEventId(description)).toBe(event.id);
   });
 });

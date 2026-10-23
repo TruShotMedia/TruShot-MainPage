@@ -244,6 +244,38 @@ describe("TabletCalendar", () => {
     expect(container.querySelector(".tablet-calendar-legend .is-overdue")?.parentElement?.textContent).toContain("Overdue");
   });
 
+  it("marks completed AutoPacific jobs, tasks, events, and flights green", async () => {
+    const completedJob: CalendarJob = {
+      ...jobs[0],
+      client_name: "Autopacific Group",
+      is_complete: true,
+    };
+
+    await act(async () => root.render(
+      <TabletCalendar
+        accentColor="#5d91b0"
+        accentClientName="Autopacific Group"
+        completedColor="#3f9b68"
+        currentTime="12:00"
+        customEvents={customEvents}
+        flightEvents={flightEvents}
+        jobs={[completedJob]}
+        tasks={tasks}
+        today="2026-08-25"
+      />,
+    ));
+
+    const completedItems = [
+      container.querySelector<HTMLElement>('[aria-label^="Launch campaign"]'),
+      container.querySelector<HTMLElement>('[title^="Asset due: Published reel"]'),
+      container.querySelector<HTMLElement>(".tablet-calendar-job-range.is-calendar-event"),
+      container.querySelector<HTMLElement>(".tablet-calendar-flight-range"),
+    ];
+    expect(completedItems.every((item) => item?.classList.contains("is-complete"))).toBe(true);
+    expect(completedItems.every((item) => item?.style.getPropertyValue("--tablet-calendar-color") === "#3f9b68")).toBe(true);
+    expect(container.querySelector<HTMLElement>(".tablet-calendar-legend .is-complete")?.style.background).toBe("rgb(63, 155, 104)");
+  });
+
   it("renders a double-height flight itinerary with route details and editing", async () => {
     const onEditFlight = vi.fn();
     await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} flightEvents={flightEvents} onEditFlight={onEditFlight} today="2026-08-25" />));

@@ -61,7 +61,7 @@ export function buildClickUpCalendarEventDescription(event: ClickUpCalendarEvent
   return [
     details.join("  \n"),
     clean(event.description),
-    `---\nSynced from TruShot CRM · Calendar event ID: \`${event.id}\`\n[TRUSHOT_CALENDAR_EVENT_ID:${event.id}]`,
+    `---\nSynced from John's CRM · Calendar event ID: \`${event.id}\`\n[TRUSHOT_CALENDAR_EVENT_ID:${event.id}]`,
   ].filter(Boolean).join("\n\n");
 }
 

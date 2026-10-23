@@ -31,6 +31,7 @@ export async function AutopacificWorkspace({ experience }: { experience: "kiosk"
         calendarAccentColor: "#5d91b0",
         calendarAccentClientName: AUTOPACIFIC_CLIENT_NAME,
         calendarAccentKeywords: ["autopacific", "autopac"],
+        calendarCompletedColor: "#3f9b68",
         calendarMutedColor: "#687177",
         calendarOverdueColor: "#c5524a",
         logoAlt: "Autopacific Group",

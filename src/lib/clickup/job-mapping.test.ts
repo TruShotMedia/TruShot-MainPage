@@ -22,6 +22,8 @@ describe("ClickUp job mapping", () => {
     expect(description).toContain("**CRM job:** JOB-0042");
     expect(description).toContain("[Open delivered files](https://files.example.com/spring-launch)");
     expect(description).toContain("Prioritise the hero model.");
+    expect(description).toContain("Synced from John's CRM");
+    expect(description).not.toContain("Synced from TruShot CRM");
     expect(description).toContain(job.id);
   });
 

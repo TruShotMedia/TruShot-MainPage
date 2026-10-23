@@ -32,6 +32,7 @@ type TabletKioskBranding = {
   calendarAccentColor?: string;
   calendarAccentClientName?: string;
   calendarAccentKeywords?: string[];
+  calendarCompletedColor?: string;
   calendarMutedColor?: string;
   calendarOverdueColor?: string;
   logoAlt: string;
@@ -69,6 +70,13 @@ const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-wo
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Australia/Brisbane",
+});
+
+const timeKeyFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  hourCycle: "h23",
   minute: "2-digit",
   timeZone: "Australia/Brisbane",
 });
@@ -623,6 +631,8 @@ export function TabletPipelineKiosk({
             accentColor={branding.calendarAccentColor}
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
+            completedColor={branding.calendarCompletedColor}
+            currentTime={timeKeyFormatter.format(now)}
             mutedColor={branding.calendarMutedColor}
             overdueColor={branding.calendarOverdueColor}
             density={calendarDensity}

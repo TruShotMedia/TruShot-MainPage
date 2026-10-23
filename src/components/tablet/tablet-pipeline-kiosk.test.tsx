@@ -137,6 +137,7 @@ describe("TabletPipelineKiosk", () => {
       <TabletPipelineKiosk
         branding={{
           calendarAccentColor: "#5d91b0",
+          calendarCompletedColor: "#3f9b68",
           logoAlt: "Autopacific Group",
           logoHeight: 312,
           logoSrc: "/brand/autopacific-logo-clean.png",
@@ -172,7 +173,7 @@ describe("TabletPipelineKiosk", () => {
     expect(headerLogo?.getAttribute("aria-label")).toBe("Autopacific Group");
     expect(container.querySelector(".tablet-kiosk-brandmark")?.classList.contains("is-light-backed")).toBe(true);
     expect(container.querySelector(".tablet-kiosk")?.classList.contains("theme-autopacific")).toBe(true);
-    expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ accentColor: "#5d91b0" });
+    expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ accentColor: "#5d91b0", completedColor: "#3f9b68", currentTime: "10:00" });
 
     await act(async () => vi.advanceTimersByTime(60_000));
     const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
