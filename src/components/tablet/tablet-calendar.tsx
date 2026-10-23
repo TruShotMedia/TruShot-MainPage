@@ -28,6 +28,7 @@ type TabletCalendarEvent = {
   detail: string;
   color: string;
   isComplete: boolean;
+  isOverdue: boolean;
   item: CalendarItem;
 };
 
@@ -43,6 +44,7 @@ type CalendarPalette = {
   accentColor?: string;
   accentKeywords?: string[];
   mutedColor?: string;
+  overdueColor?: string;
 };
 
 function normalizeMatchValue(value: string) {
@@ -65,8 +67,20 @@ function itemBelongsToAccentClient(item: CalendarStandardRangeItem | CalendarIte
   return keywords.some((keyword) => searchable.includes(keyword));
 }
 
-function calendarItemColor(item: CalendarStandardRangeItem | CalendarItem, palette: CalendarPalette) {
+function isOverdueAccentJob(item: CalendarStandardRangeItem | CalendarItem, palette: CalendarPalette, today: string) {
+  return Boolean(
+    palette.overdueColor
+    && item.entity_type === "job"
+    && !item.is_complete
+    && item.due_date
+    && item.due_date < today
+    && itemBelongsToAccentClient(item, palette),
+  );
+}
+
+function calendarItemColor(item: CalendarStandardRangeItem | CalendarItem, palette: CalendarPalette, today: string) {
   const originalColor = item.entity_type === "calendar-event" ? item.color : item.status_color;
+  if (isOverdueAccentJob(item, palette, today)) return palette.overdueColor!;
   if (!palette.accentColor) return originalColor;
   if (itemBelongsToAccentClient(item, palette)) return palette.accentColor;
   return palette.mutedColor ?? "#687177";
@@ -145,16 +159,19 @@ function dateFallsInRange(date: string, range: { end: string; start: string; wee
   return weekday !== 0 && weekday !== 6;
 }
 
-function MobileRangeAgendaCard({ editable, onOpen, palette, range }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; range: ReturnType<typeof getCalendarScheduleRanges>[number] }) {
+function MobileRangeAgendaCard({ editable, onOpen, palette, range, today }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; range: ReturnType<typeof getCalendarScheduleRanges>[number]; today: string }) {
   const item = range.item;
   const isFlight = item.entity_type === "flight-event";
   const isCalendarEvent = item.entity_type === "calendar-event";
   const isComplete = isCalendarEvent || isFlight ? false : item.is_complete;
-  const color = isFlight ? item.color : calendarItemColor(item, palette);
+  const isOverdue = !isFlight && !isCalendarEvent && isOverdueAccentJob(item, palette, today);
+  const color = isFlight ? item.color : calendarItemColor(item, palette, today);
   const kicker = isFlight
     ? "Flight itinerary"
     : isCalendarEvent
       ? "Calendar event"
+      : isOverdue
+        ? "Overdue job"
       : item.entity_type === "campaign-asset"
         ? "Campaign"
         : "Job window";
@@ -169,7 +186,7 @@ function MobileRangeAgendaCard({ editable, onOpen, palette, range }: { editable:
 
   return (
     <article
-      className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${isOverdue ? "is-overdue" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       style={{ "--tablet-calendar-color": color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -192,7 +209,7 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
   const Icon = event.kind === "task" ? ListTodo : event.kind === "campaign" ? Megaphone : BriefcaseBusiness;
   return (
     <article
-      className={`tablet-calendar-mobile-entry is-deadline ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       style={{ "--tablet-calendar-color": event.color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -254,11 +271,12 @@ function FlightRange({ editable, onOpen, segment }: { editable: boolean; onOpen:
   );
 }
 
-function JobRange({ editable, onOpen, palette, segment }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem> }) {
+function JobRange({ editable, onOpen, palette, segment, today }: { editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
-  const rangeColor = calendarItemColor(segment.item, palette);
+  const isOverdue = isOverdueAccentJob(segment.item, palette, today);
+  const rangeColor = calendarItemColor(segment.item, palette, today);
   const context = segment.item.entity_type === "calendar-event"
     ? segment.item.location
     : segment.item.entity_type === "campaign-asset"
@@ -267,8 +285,8 @@ function JobRange({ editable, onOpen, palette, segment }: { editable: boolean; o
   const statusLabel = segment.item.entity_type === "calendar-event" ? "Calendar event" : segment.item.status_label;
   return (
     <article
-      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isComplete ? ", completed" : ""}`}
-      className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
+      className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
       onClick={editable ? () => onOpen(segment.item) : undefined}
@@ -292,7 +310,7 @@ function JobRange({ editable, onOpen, palette, segment }: { editable: boolean; o
   );
 }
 
-export function TabletCalendar({ accentColor, accentClientName, accentKeywords, mutedColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
+export function TabletCalendar({ accentColor, accentClientName, accentKeywords, mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
   const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -301,12 +319,17 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const capacityWindowDays = isCapacityCalendar
     ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
     : undefined;
-  const palette = useMemo(() => ({ accentClientName, accentColor, accentKeywords, mutedColor }), [accentClientName, accentColor, accentKeywords, mutedColor]);
+  const palette = useMemo(() => ({ accentClientName, accentColor, accentKeywords, mutedColor, overdueColor }), [accentClientName, accentColor, accentKeywords, mutedColor, overdueColor]);
   const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...flightEvents]), [campaignAssets, customEvents, flightEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate, capacityWindowDays), [capacityWindowDays, currentMonth, todayDate]);
   const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
+  const firstCalendarDay = format(calendarWindow.start, "yyyy-MM-dd");
+  const lastCalendarDay = format(calendarWindow.end, "yyyy-MM-dd");
+  const activeMobileDate = selectedMobileDate < firstCalendarDay || selectedMobileDate > lastCalendarDay
+    ? firstCalendarDay
+    : selectedMobileDate;
   const events = useMemo(() => {
     const jobEvents = jobs.flatMap((job): TabletCalendarEvent[] => {
       if (rangedItemKeys.has(`job:${job.id}`)) return [];
@@ -318,8 +341,9 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         label: "Production",
         title: job.title,
         detail: job.client_name ?? "No client",
-        color: calendarItemColor(job, palette),
+        color: calendarItemColor(job, palette, today),
         isComplete: job.is_complete,
+        isOverdue: isOverdueAccentJob(job, palette, today),
         item: job,
       });
       if (job.due_date && job.due_date !== job.shoot_date) eventsForJob.push({
@@ -329,8 +353,9 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         label: "Job due",
         title: job.title,
         detail: job.client_name ?? "No client",
-        color: calendarItemColor(job, palette),
+        color: calendarItemColor(job, palette, today),
         isComplete: job.is_complete,
+        isOverdue: isOverdueAccentJob(job, palette, today),
         item: job,
       });
       return eventsForJob;
@@ -342,8 +367,9 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
       label: "Asset due",
       title: task.title,
       detail: task.job_title,
-      color: calendarItemColor(task, palette),
+      color: calendarItemColor(task, palette, today),
       isComplete: task.is_complete,
+      isOverdue: false,
       item: task,
     }] : []);
     const campaignEvents = campaignAssets.flatMap((asset): TabletCalendarEvent[] => {
@@ -355,23 +381,24 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         label: "Campaign asset",
         title: asset.title,
         detail: asset.campaign_title,
-        color: calendarItemColor(asset, palette),
+        color: calendarItemColor(asset, palette, today),
         isComplete: asset.is_complete,
+        isOverdue: false,
         item: asset,
       }];
     });
     return [...jobEvents, ...taskEvents, ...campaignEvents];
-  }, [campaignAssets, jobs, palette, rangedItemKeys, tasks]);
+  }, [campaignAssets, jobs, palette, rangedItemKeys, tasks, today]);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, TabletCalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
     return grouped;
   }, [events]);
   const selectedMobileRanges = useMemo(
-    () => scheduleRanges.filter((range) => dateFallsInRange(selectedMobileDate, range)),
-    [scheduleRanges, selectedMobileDate],
+    () => scheduleRanges.filter((range) => dateFallsInRange(activeMobileDate, range)),
+    [activeMobileDate, scheduleRanges],
   );
-  const selectedMobileEvents = eventsByDay.get(selectedMobileDate) ?? [];
+  const selectedMobileEvents = eventsByDay.get(activeMobileDate) ?? [];
   const mobileDayCounts = useMemo(() => new Map(calendarDays.map((day) => {
     const dateKey = format(day, "yyyy-MM-dd");
     const rangeCount = scheduleRanges.filter((range) => dateFallsInRange(dateKey, range)).length;
@@ -386,12 +413,6 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     media.addEventListener?.("change", sync);
     return () => media.removeEventListener?.("change", sync);
   }, [isCapacityCalendar]);
-
-  useEffect(() => {
-    const firstDay = format(calendarWindow.start, "yyyy-MM-dd");
-    const lastDay = format(calendarWindow.end, "yyyy-MM-dd");
-    if (selectedMobileDate < firstDay || selectedMobileDate > lastDay) setSelectedMobileDate(firstDay);
-  }, [calendarWindow, selectedMobileDate]);
 
   function moveCalendar(direction: -1 | 1) {
     if (isCapacityCalendar) {
@@ -433,6 +454,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
           <span><i className="is-campaign" /> Campaign</span>
           <span><i className="is-calendar-event" /> Event</span>
           <span><i className="is-flight" /> Flight</span>
+          {overdueColor ? <span><i className="is-overdue" style={{ background: overdueColor }} /> Overdue</span> : null}
           <span><i className="is-complete" /> Completed</span>
         </div>
       </header>
@@ -444,19 +466,19 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
               const dateKey = format(day, "yyyy-MM-dd");
               const count = mobileDayCounts.get(dateKey) ?? 0;
               return (
-                <button type="button" role="tab" aria-selected={selectedMobileDate === dateKey} className={`${selectedMobileDate === dateKey ? "is-selected" : ""} ${dateKey === today ? "is-today" : ""}`} onClick={() => setSelectedMobileDate(dateKey)} key={dateKey}>
+                <button type="button" role="tab" aria-selected={activeMobileDate === dateKey} className={`${activeMobileDate === dateKey ? "is-selected" : ""} ${dateKey === today ? "is-today" : ""}`} onClick={() => setSelectedMobileDate(dateKey)} key={dateKey}>
                   <span>{format(day, "EEE")}</span><strong>{format(day, "d")}</strong>{count ? <i aria-label={`${count} scheduled items`}>{count}</i> : <i aria-hidden="true" />}
                 </button>
               );
             })}
           </div>
-          <section className="tablet-calendar-mobile-agenda" aria-label={`Schedule for ${format(parseISO(selectedMobileDate), "d MMMM yyyy")}`}>
+          <section className="tablet-calendar-mobile-agenda" aria-label={`Schedule for ${format(parseISO(activeMobileDate), "d MMMM yyyy")}`}>
             <header>
-              <div><span>{selectedMobileDate === today ? "Today" : format(parseISO(selectedMobileDate), "EEEE")}</span><h2>{format(parseISO(selectedMobileDate), "d MMMM yyyy")}</h2></div>
-              {editable ? <button type="button" onClick={() => onCreateEvent?.(selectedMobileDate)} aria-label={`Add event on ${format(parseISO(selectedMobileDate), "d MMMM yyyy")}`}><Plus size={16} /> Add</button> : null}
+              <div><span>{activeMobileDate === today ? "Today" : format(parseISO(activeMobileDate), "EEEE")}</span><h2>{format(parseISO(activeMobileDate), "d MMMM yyyy")}</h2></div>
+              {editable ? <button type="button" onClick={() => onCreateEvent?.(activeMobileDate)} aria-label={`Add event on ${format(parseISO(activeMobileDate), "d MMMM yyyy")}`}><Plus size={16} /> Add</button> : null}
             </header>
             <div className="tablet-calendar-mobile-list">
-              {selectedMobileRanges.map((range) => <MobileRangeAgendaCard editable={editable} key={range.id} onOpen={openRangeItem} palette={palette} range={range} />)}
+              {selectedMobileRanges.map((range) => <MobileRangeAgendaCard editable={editable} key={range.id} onOpen={openRangeItem} palette={palette} range={range} today={today} />)}
               {selectedMobileEvents.map((event) => <MobileDeadlineAgendaCard editable={editable} event={event} key={event.id} onOpen={onEditItem} />)}
               {!selectedMobileRanges.length && !selectedMobileEvents.length ? <div className="tablet-calendar-mobile-empty"><Clock3 size={22} /><strong>Clear day</strong><span>Nothing is scheduled for this date.</span></div> : null}
             </div>
@@ -493,7 +515,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                         <div className="tablet-calendar-day-events">
                           {dayEvents.slice(0, displayedEventLimit).map((event) => (
                             <article
-                              className={`tablet-calendar-event is-${event.kind} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
+                              className={`tablet-calendar-event is-${event.kind} ${event.isOverdue ? "is-overdue" : ""} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
                               style={{ "--tablet-calendar-color": event.color } as CSSProperties}
                               title={`${event.label}: ${event.title} · ${event.detail}`}
                               role={editable ? "button" : undefined}
@@ -519,7 +541,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                 </div>
                 {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange editable={editable} onOpen={openRangeItem} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}

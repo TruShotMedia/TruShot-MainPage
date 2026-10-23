@@ -193,6 +193,53 @@ describe("TabletCalendar", () => {
     expect(flight?.style.getPropertyValue("--tablet-calendar-color")).toBe("#3975ad");
   });
 
+  it("marks unfinished overdue AutoPacific jobs red without recolouring unrelated or completed jobs", async () => {
+    const overdueJob: CalendarJob = {
+      ...jobs[0],
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      title: "Overdue AutoPacific job",
+      client_name: "Autopacific Group",
+      shoot_date: "2026-08-20",
+      due_date: "2026-08-24",
+    };
+    const unrelatedJob: CalendarJob = {
+      ...overdueJob,
+      id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      title: "Overdue other-client job",
+      client_name: "Ravish Media",
+    };
+    const completedJob: CalendarJob = {
+      ...overdueJob,
+      id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      title: "Completed AutoPacific job",
+      is_complete: true,
+    };
+
+    await act(async () => root.render(
+      <TabletCalendar
+        accentColor="#5d91b0"
+        accentClientName="Autopacific Group"
+        mutedColor="#687177"
+        overdueColor="#c5524a"
+        jobs={[overdueJob, unrelatedJob, completedJob]}
+        tasks={[]}
+        today="2026-08-25"
+      />,
+    ));
+
+    const overdueRange = container.querySelector<HTMLElement>('[aria-label^="Overdue AutoPacific job"]');
+    const unrelatedRange = container.querySelector<HTMLElement>('[aria-label^="Overdue other-client job"]');
+    const completedRange = container.querySelector<HTMLElement>('[aria-label^="Completed AutoPacific job"]');
+    expect(overdueRange?.classList.contains("is-overdue")).toBe(true);
+    expect(overdueRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#c5524a");
+    expect(overdueRange?.getAttribute("aria-label")).toContain("overdue");
+    expect(unrelatedRange?.classList.contains("is-overdue")).toBe(false);
+    expect(unrelatedRange?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
+    expect(completedRange?.classList.contains("is-overdue")).toBe(false);
+    expect(completedRange?.classList.contains("is-complete")).toBe(true);
+    expect(container.querySelector(".tablet-calendar-legend .is-overdue")?.parentElement?.textContent).toContain("Overdue");
+  });
+
   it("renders a double-height flight itinerary with route details and editing", async () => {
     const onEditFlight = vi.fn();
     await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} flightEvents={flightEvents} onEditFlight={onEditFlight} today="2026-08-25" />));

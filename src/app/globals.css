@@ -2202,7 +2202,7 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
 .tablet-kiosk.theme-autopacific .tablet-job-card-progress,
 .tablet-kiosk.theme-autopacific .tablet-calendar-month-controls span { color: #79acc7; }
 .tablet-kiosk.theme-autopacific .tablet-calendar-month-controls > button:hover { border-color: rgba(127,180,208,.58); color: #9dc8de; }
-.tablet-kiosk.theme-autopacific .tablet-calendar-legend i:not(.is-flight):not(.is-complete) { background: #5d91b0; }
+.tablet-kiosk.theme-autopacific .tablet-calendar-legend i:not(.is-flight):not(.is-complete):not(.is-overdue) { background: #5d91b0; }
 .tablet-kiosk.theme-autopacific .tablet-calendar-day.is-today > time { background: #5d91b0; }
 .tablet-kiosk.theme-autopacific .tablet-calendar-day-add { border-color: rgba(127,180,208,.38); background: rgba(93,145,176,.3); color: #a7d1e5; }
 .tablet-kiosk.theme-autopacific .tablet-calendar-day:hover .tablet-calendar-day-add,

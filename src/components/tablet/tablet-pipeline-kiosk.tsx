@@ -33,6 +33,7 @@ type TabletKioskBranding = {
   calendarAccentClientName?: string;
   calendarAccentKeywords?: string[];
   calendarMutedColor?: string;
+  calendarOverdueColor?: string;
   logoAlt: string;
   logoHeight: number;
   logoSrc: string;
@@ -621,6 +622,7 @@ export function TabletPipelineKiosk({
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
             mutedColor={branding.calendarMutedColor}
+            overdueColor={branding.calendarOverdueColor}
             density={calendarDensity}
             jobs={calendarJobs}
             tasks={calendarTasks}
