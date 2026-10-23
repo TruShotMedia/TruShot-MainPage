@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ClickUpApiError, getClickUpTask, getClickUpTasks, type ClickUpTask } from "@/lib/clickup/client";
+import { claimClickUpImport } from "@/lib/clickup/import-claim";
 import {
   changedSharedFields,
   clickUpUpdatedAt,
@@ -277,7 +278,52 @@ async function processRemoteTask(
 
   if (!link) {
     if (!integration.import_new_tasks) return { status: "ignored", detail: "New ClickUp task imports are disabled." };
+    const now = new Date().toISOString();
+
+    // ClickUp commonly emits taskCreated, taskStatusUpdated, and
+    // taskAssigneeUpdated within milliseconds of one another. Separate
+    // serverless invocations can therefore reach this branch at the same
+    // time. Claim the remote task through its unique link before creating the
+    // CRM row so only one invocation can win the import.
+    const claim = await claimClickUpImport({
+      insertClaim: async (jobId) => {
+        const { error } = await supabase.from("website-clickup-job-links").insert({
+          workspace_id: integration.workspace_id,
+          job_id: jobId,
+          clickup_task_id: taskId,
+          clickup_task_url: task.url ?? `https://app.clickup.com/t/${taskId}`,
+          origin: "clickup",
+          last_shared_hash: remoteHash,
+          source_updated_at: now,
+          last_clickup_updated_at: clickUpUpdatedAt(task),
+          last_inbound_at: now,
+          last_synced_at: now,
+          sync_state: "linked",
+        });
+        return error;
+      },
+      findWinningJobId: async () => {
+        const { data: winningLink, error: winningLinkError } = await supabase
+          .from("website-clickup-job-links")
+          .select("job_id")
+          .eq("workspace_id", integration.workspace_id)
+          .eq("clickup_task_id", taskId)
+          .maybeSingle();
+        if (winningLinkError) throw winningLinkError;
+        return winningLink?.job_id ?? null;
+      },
+    });
+    if (!claim.won) {
+      return {
+        status: "completed",
+        detail: "Another ClickUp delivery already imported this job.",
+        jobId: claim.jobId,
+      };
+    }
+    const jobId = claim.jobId;
+
     const { data: job, error } = await supabase.from("website-jobs").insert({
+      id: jobId,
       workspace_id: integration.workspace_id,
       client_id: integration.target_client_id,
       status_id: statusId,
@@ -289,22 +335,13 @@ async function processRemoteTask(
       description: "Created from the AutoPacific ClickUp Jobs List.",
       photos_delivered: 0,
     }).select("id").single();
-    if (error || !job) throw error ?? new Error("The ClickUp task could not create a CRM job.");
-    const now = new Date().toISOString();
-    const { error: linkError } = await supabase.from("website-clickup-job-links").insert({
-      workspace_id: integration.workspace_id,
-      job_id: job.id,
-      clickup_task_id: taskId,
-      clickup_task_url: task.url ?? `https://app.clickup.com/t/${taskId}`,
-      origin: "clickup",
-      last_shared_hash: remoteHash,
-      source_updated_at: now,
-      last_clickup_updated_at: clickUpUpdatedAt(task),
-      last_inbound_at: now,
-      last_synced_at: now,
-      sync_state: "linked",
-    });
-    if (linkError) throw linkError;
+    if (error || !job) {
+      await supabase.from("website-clickup-job-links").delete()
+        .eq("workspace_id", integration.workspace_id)
+        .eq("job_id", jobId)
+        .eq("clickup_task_id", taskId);
+      throw error ?? new Error("The ClickUp task could not create a CRM job.");
+    }
     await supabase.from("website-notifications").insert({
       workspace_id: integration.workspace_id,
       type: "clickup_job_imported",
@@ -313,7 +350,7 @@ async function processRemoteTask(
       entity_type: "job",
       entity_id: job.id,
     });
-    return { status: "completed", detail: "Created a new CRM job from ClickUp.", jobId: job.id };
+    return { status: "completed", detail: "Created a new CRM job from ClickUp.", jobId };
   }
 
   const { data: job, error: jobError } = await supabase.from("website-jobs")
