@@ -139,6 +139,7 @@ describe("calendar range layout", () => {
     const flight: CalendarFlightEvent = {
       id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       entity_type: "flight-event",
+      client_id: null,
       title: "Sydney production trip",
       departure_date: "2026-08-14",
       departure_time: "07:30:00",

@@ -6,6 +6,7 @@ import { createFlightEvent, deleteFlightEvent, updateFlightEvent } from "@/app/a
 import type { CalendarFlightEvent } from "@/lib/types";
 
 type FlightEventEditorProps = {
+  defaultClientId?: string | null;
   defaultDate: string;
   event?: CalendarFlightEvent | null;
   onClose: () => void;
@@ -13,7 +14,7 @@ type FlightEventEditorProps = {
   onSaved: () => void;
 };
 
-export function FlightEventEditor({ defaultDate, event, onClose, onDeleted, onSaved }: FlightEventEditorProps) {
+export function FlightEventEditor({ defaultClientId = null, defaultDate, event, onClose, onDeleted, onSaved }: FlightEventEditorProps) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -84,6 +85,7 @@ export function FlightEventEditor({ defaultDate, event, onClose, onDeleted, onSa
         </header>
 
         {event ? <input type="hidden" name="id" value={event.id} /> : null}
+        <input type="hidden" name="client_id" value={event?.client_id ?? defaultClientId ?? ""} />
         <div className="flight-event-overview">
           <label>Trip title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Sydney campaign shoot" autoFocus /></label>
           <label>Trip notes<textarea name="notes" maxLength={4000} defaultValue={event?.notes ?? ""} placeholder="Booking notes, baggage, contacts or production details…" /></label>

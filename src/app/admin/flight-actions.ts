@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { scheduleClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext } from "@/lib/data/admin";
 import type { FlightEventDeleteResult, FlightEventSaveResult } from "@/lib/types";
@@ -11,6 +12,7 @@ const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const optionalText = (maximum: number) => z.string().trim().max(maximum);
 
 const flightEventSchema = z.object({
+  client_id: z.union([z.string().uuid(), z.literal("")]).default(""),
   title: z.string().trim().min(2).max(180),
   departure_date: dateSchema,
   departure_time: timeSchema,
@@ -35,7 +37,7 @@ const flightEventSchema = z.object({
   vehicle_notes: optionalText(2_000),
 });
 
-const flightEventFields = "id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at";
+const flightEventFields = "id,client_id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at";
 
 function nullable(value: string) {
   return value || null;
@@ -56,6 +58,7 @@ function parseFlightEvent(formData: FormData) {
   return {
     ok: true as const,
     data: {
+      client_id: nullable(input.client_id),
       title: input.title,
       departure_date: input.departure_date,
       departure_time: input.departure_time,
@@ -107,6 +110,7 @@ export async function createFlightEvent(formData: FormData): Promise<FlightEvent
 
   if (error || !data) return { ok: false, error: "The flight itinerary could not be created. Please try again." };
   revalidateFlightCalendars();
+  scheduleClickUpFlightEventSync();
   return { ok: true, event: { ...data, entity_type: "flight-event" as const } };
 }
 
@@ -128,6 +132,7 @@ export async function updateFlightEvent(formData: FormData): Promise<FlightEvent
 
   if (error || !data) return { ok: false, error: "The flight itinerary could not be updated. Please try again." };
   revalidateFlightCalendars();
+  scheduleClickUpFlightEventSync();
   return { ok: true, event: { ...data, entity_type: "flight-event" as const } };
 }
 
@@ -147,5 +152,6 @@ export async function deleteFlightEvent(formData: FormData): Promise<FlightEvent
 
   if (error || !data) return { ok: false, error: "The flight itinerary could not be deleted. Please try again." };
   revalidateFlightCalendars();
+  scheduleClickUpFlightEventSync();
   return { ok: true };
 }

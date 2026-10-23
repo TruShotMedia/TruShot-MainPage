@@ -1,6 +1,7 @@
 import "server-only";
 
 import { extractClickUpCalendarEventId } from "@/lib/clickup/calendar-event-mapping";
+import { extractClickUpFlightEventId } from "@/lib/clickup/flight-event-mapping";
 import { ClickUpApiError, getClickUpTask, getClickUpTasks, type ClickUpTask } from "@/lib/clickup/client";
 import { claimClickUpImport } from "@/lib/clickup/import-claim";
 import {
@@ -194,6 +195,18 @@ async function processDeletion(
     }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
     return { status: "ignored", detail: "A CRM-managed calendar event task was deleted in ClickUp; the CRM event was preserved." };
   }
+  const { data: flightLink, error: flightLinkError } = await supabase.from("website-clickup-flight-event-links")
+    .select("flight_event_id")
+    .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
+  if (flightLinkError) throw flightLinkError;
+  if (flightLink) {
+    await supabase.from("website-clickup-flight-event-links").update({
+      sync_state: "paused",
+      last_inbound_at: new Date().toISOString(),
+      last_error: "The mirrored ClickUp task was deleted. Edit the CRM flight to recreate it.",
+    }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
+    return { status: "ignored", detail: "A CRM-managed flight task was deleted in ClickUp; the CRM itinerary was preserved." };
+  }
   const { data: link } = await supabase.from("website-clickup-job-links").select("job_id")
     .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
   if (!link) return { status: "ignored", detail: "Deleted ClickUp task was not linked to a CRM job." };
@@ -238,6 +251,43 @@ async function processRemoteTask(
       last_inbound_at: new Date().toISOString(),
     }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
     return { status: "ignored", detail: "Ignored an inbound change to a CRM-managed calendar event task." };
+  }
+  const { data: flightLink, error: flightLinkError } = await supabase.from("website-clickup-flight-event-links")
+    .select("flight_event_id")
+    .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
+  if (flightLinkError) throw flightLinkError;
+  if (flightLink) {
+    await supabase.from("website-clickup-flight-event-links").update({
+      last_inbound_at: new Date().toISOString(),
+    }).eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId);
+    return { status: "ignored", detail: "Ignored an inbound change to a CRM-managed flight task." };
+  }
+  const markedFlightId = extractClickUpFlightEventId(task.markdown_description ?? task.description);
+  if (markedFlightId) {
+    const { data: flight, error: flightError } = await supabase.from("website-flight-events")
+      .select("id,updated_at")
+      .eq("workspace_id", integration.workspace_id)
+      .eq("client_id", integration.target_client_id)
+      .eq("id", markedFlightId)
+      .maybeSingle();
+    if (flightError) throw flightError;
+    if (flight) {
+      const now = new Date().toISOString();
+      const { error: recoveryError } = await supabase.from("website-clickup-flight-event-links").upsert({
+        workspace_id: integration.workspace_id,
+        flight_event_id: flight.id,
+        clickup_task_id: taskId,
+        clickup_task_url: task.url ?? `https://app.clickup.com/t/${taskId}`,
+        source_updated_at: flight.updated_at,
+        last_synced_at: now,
+        last_synced_status: task.status?.status ?? null,
+        last_inbound_at: now,
+        sync_state: "linked",
+        last_error: null,
+      }, { onConflict: "workspace_id,flight_event_id" });
+      if (recoveryError) throw recoveryError;
+    }
+    return { status: "ignored", detail: "Recovered a CRM-managed flight mirror without importing a duplicate job." };
   }
   const markedEventId = extractClickUpCalendarEventId(task.markdown_description ?? task.description);
   if (markedEventId) {

@@ -258,6 +258,7 @@ export type CalendarCustomEvent = {
 export type CalendarFlightEvent = {
   id: string;
   entity_type: "flight-event";
+  client_id: string | null;
   title: string;
   departure_date: string;
   departure_time: string;

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { dispatchCalendarReminders } from "@/lib/calendar-reminders";
 import { dispatchClickUpCalendarEventSync } from "@/lib/clickup/calendar-event-sync";
+import { dispatchClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync";
 import { dispatchClickUpJobSync } from "@/lib/clickup/job-sync";
 import { reconcileClickUpJobs } from "@/lib/clickup/inbound-sync";
 import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
@@ -23,11 +24,12 @@ export async function POST(request: Request) {
   try {
     const clickUpSync = (async () => {
       const inbound = await reconcileClickUpJobs();
-      const [jobs, events] = await Promise.all([
+      const [jobs, events, flights] = await Promise.all([
         dispatchClickUpJobSync({ limit: 50 }),
         dispatchClickUpCalendarEventSync({ limit: 50 }),
+        dispatchClickUpFlightEventSync({ limit: 50 }),
       ]);
-      return { inbound, outbound: { jobs, events } };
+      return { inbound, outbound: { jobs, events, flights } };
     })().catch((error) => {
       console.error("ClickUp sync failed without interrupting calendar reminders.", error);
       return {

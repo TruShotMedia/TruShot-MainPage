@@ -139,7 +139,7 @@ export function ClickUpSyncPanel({
       <div>
         <p className="card-label">Integration</p>
         <h2>AutoPacific · ClickUp</h2>
-        <p>Safely mirrors AutoPacific jobs with John / Jobs. TruShot-only finance and production fields remain protected from ClickUp edits.</p>
+        <p>Safely mirrors AutoPacific jobs, calendar events and flights with John / Jobs. TruShot-only finance and production fields remain protected from ClickUp edits.</p>
       </div>
       <div className="notion-sync-panel">
         <header>
@@ -168,7 +168,7 @@ export function ClickUpSyncPanel({
         <div className="notion-sync-metrics">
           <div><span>Destination</span><strong>John / {integration?.list_name ?? "Jobs"}</strong></div>
           <div><span>Assigned profile</span><strong>{integration?.assigned_user_name ?? "Awaiting connection"}</strong></div>
-          <div><span>Mirrored jobs</span><strong>{linkedCount}</strong></div>
+          <div><span>Mirrored records</span><strong>{linkedCount}</strong></div>
           <div><span>Outbound queue</span><strong>{pendingCount} pending · {failedCount} failed</strong></div>
           <div><span>Inbound queue</span><strong>{inboundPendingCount} pending · {inboundFailedCount} failed</strong></div>
           <div><span>Open conflicts</span><strong>{conflicts.length}</strong></div>

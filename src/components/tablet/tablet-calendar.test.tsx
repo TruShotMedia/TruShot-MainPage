@@ -56,6 +56,7 @@ const customEvents: CalendarCustomEvent[] = [{
 const flightEvents: CalendarFlightEvent[] = [{
   id: "44444444-4444-4444-8444-444444444444",
   entity_type: "flight-event",
+  client_id: null,
   title: "Sydney production trip",
   departure_date: "2026-08-12",
   departure_time: "07:30:00",
