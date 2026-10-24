@@ -599,7 +599,7 @@ body:has(.lifestyle-root) {
 .lifestyle-settings-card.is-safety > p { color: #b5c2ba; font-size: 12px; line-height: 1.65; }
 .lifestyle-settings-card.is-safety > a { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--life-warm); font-size: 11px; text-decoration: none; }
 .lifestyle-acknowledgement { display: block; margin-top: 20px; }
-.lifestyle-acknowledgement > input { position: absolute; opacity: 0; pointer-events: none; }
+.lifestyle-acknowledgement > input { position: absolute; width: 1px; max-width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); opacity: 0; pointer-events: none; }
 .lifestyle-acknowledgement > span { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--life-line); border-radius: 13px; cursor: pointer; }
 .lifestyle-acknowledgement i { display: grid; flex: 0 0 auto; width: 25px; height: 25px; place-items: center; border: 1px solid var(--life-line); border-radius: 8px; color: #062114; background: rgba(255,255,255,.02); }
 .lifestyle-acknowledgement input:checked + span i { border-color: var(--life-mint); background: var(--life-mint); }
@@ -715,7 +715,7 @@ body:has(.lifestyle-root) {
 .lifestyle-onboarding > div svg { flex: 0 0 auto; }
 .lifestyle-onboarding > div p { margin: 0; font-size: 11px; line-height: 1.5; }
 .lifestyle-onboarding > label { display: block; margin-top: 18px; }
-.lifestyle-onboarding > label > input { position: absolute; opacity: 0; }
+.lifestyle-onboarding > label > input { position: absolute; width: 1px; max-width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); opacity: 0; }
 .lifestyle-onboarding > label > span { display: flex; align-items: center; gap: 11px; color: #b9c5bd; font-size: 11px; line-height: 1.45; cursor: pointer; }
 .lifestyle-onboarding > label i { display: grid; flex: 0 0 auto; width: 28px; height: 28px; place-items: center; border: 1px solid var(--life-line); border-radius: 9px; color: #062114; }
 .lifestyle-onboarding > label input:checked + span i { border-color: var(--life-mint); background: var(--life-mint); }
@@ -760,6 +760,12 @@ body:has(.lifestyle-root) {
   .lifestyle-root input,
   .lifestyle-root select,
   .lifestyle-root textarea { font-size: 16px; }
+  .lifestyle-checkin-fields input,
+  .lifestyle-checkin-fields select,
+  .lifestyle-checkin-fields textarea,
+  .lifestyle-setting-row input,
+  .lifestyle-setting-row select,
+  .lifestyle-login-card input { font-size: 16px; }
   .lifestyle-hero { min-height: 0; padding: 30px 25px; border-radius: 28px; }
   .lifestyle-hero h1 { font-size: clamp(39px,11vw,62px); }
   .lifestyle-week-ring { width: 130px; margin-left: 18px; }
