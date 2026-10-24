@@ -75,13 +75,6 @@ const VIEWS: { key: View; label: string; Icon: typeof Activity }[] = [
   { key: "settings", label: "Settings", Icon: Settings2 },
 ];
 
-const REMINDER_OPTIONS = [
-  { value: 600, label: "Morning nudge" },
-  { value: 120, label: "2 hours before" },
-  { value: 30, label: "30 minutes before" },
-  { value: 0, label: "At start time" },
-];
-
 function parseView(value?: string): View {
   return VIEWS.some((view) => view.key === value) ? value as View : "today";
 }
@@ -425,12 +418,10 @@ function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: L
   const [time, setTime] = useState(profile.preferred_start_time.slice(0, 5));
   const [height, setHeight] = useState(profile.height_cm?.toString() ?? "");
   const [weight, setWeight] = useState(profile.weight_kg?.toString() ?? "");
-  const [reminders, setReminders] = useState(profile.reminder_offsets_minutes);
+  const [dailyGymReminderEnabled, setDailyGymReminderEnabled] = useState(profile.daily_gym_reminder_enabled);
+  const [hydrationRemindersEnabled, setHydrationRemindersEnabled] = useState(profile.hydration_reminders_enabled);
   const [acknowledged, setAcknowledged] = useState(Boolean(profile.safety_acknowledged_at));
   const [message, setMessage] = useState("");
-  function toggleReminder(value: number) {
-    setReminders((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value].sort((a, b) => b - a));
-  }
   function save() {
     startTransition(async () => {
       try {
@@ -438,7 +429,8 @@ function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: L
           daysPerWeek: days,
           sessionDurationMinutes: duration,
           preferredStartTime: time,
-          reminderOffsetsMinutes: reminders,
+          dailyGymReminderEnabled,
+          hydrationRemindersEnabled,
           heightCm: height ? Number(height) : null,
           weightKg: weight ? Number(weight) : null,
           safetyAcknowledged: acknowledged,
@@ -456,14 +448,17 @@ function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: L
           <header><div><span>01</span><strong>Training rhythm</strong></div><RotateCcw /></header>
           <label className="lifestyle-setting-label">Sessions per week <small>Start repeatable. Three is the recommended return point.</small></label>
           <div className="lifestyle-segmented">{[2, 3, 4, 5].map((value) => <button key={value} type="button" className={days === value ? "is-active" : ""} onClick={() => setDays(value)}><strong>{value}</strong><span>days</span></button>)}</div>
-          <div className="lifestyle-setting-row"><label>Preferred start<input type="time" value={time} onChange={(event) => setTime(event.target.value)} /></label><label>Session length<select value={duration} onChange={(event) => setDuration(Number(event.target.value))}><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={75}>75 minutes</option><option value={90}>90 minutes</option></select></label></div>
+          <div className="lifestyle-setting-row"><label>Training + daily nudge time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} /></label><label>Session length<select value={duration} onChange={(event) => setDuration(Number(event.target.value))}><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={75}>75 minutes</option><option value={90}>90 minutes</option></select></label></div>
           <p className="lifestyle-setting-note"><ShieldCheck size={15} /> Lifestyle will try nearby times and days before accepting a clash with an existing timed event.</p>
         </section>
         <section className="lifestyle-settings-card">
           <header><div><span>02</span><strong>Profile + reminders</strong></div><BellRing /></header>
           <div className="lifestyle-setting-row"><label>Height <span>cm</span><input type="number" inputMode="decimal" value={height} onChange={(event) => setHeight(event.target.value)} /></label><label>Weight <span>kg</span><input type="number" inputMode="decimal" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} /></label></div>
-          <label className="lifestyle-setting-label">Reminder moments <small>Choose up to four; later reminders replace earlier ones on screen.</small></label>
-          <div className="lifestyle-reminder-grid">{REMINDER_OPTIONS.map((option) => <button key={option.value} type="button" className={reminders.includes(option.value) ? "is-active" : ""} onClick={() => toggleReminder(option.value)}><span>{reminders.includes(option.value) ? <Check size={15} /> : null}</span>{option.label}</button>)}</div>
+          <label className="lifestyle-setting-label">Daily accountability <small>These run every day—not only on scheduled training days. Each new Lifestyle nudge replaces the previous one.</small></label>
+          <div className="lifestyle-reminder-grid">
+            <button type="button" aria-pressed={dailyGymReminderEnabled} className={dailyGymReminderEnabled ? "is-active" : ""} onClick={() => setDailyGymReminderEnabled((enabled) => !enabled)}><span>{dailyGymReminderEnabled ? <Check size={15} /> : null}</span><strong>Gym + wellbeing check</strong><small>Every day at {time ? displayTime(`${time}:00`) : "your chosen time"}</small></button>
+            <button type="button" aria-pressed={hydrationRemindersEnabled} className={hydrationRemindersEnabled ? "is-active" : ""} onClick={() => setHydrationRemindersEnabled((enabled) => !enabled)}><span>{hydrationRemindersEnabled ? <Check size={15} /> : null}</span><strong>Hydration nudges</strong><small>Twice daily at varied daytime moments</small></button>
+          </div>
         </section>
         <section className="lifestyle-settings-card is-safety">
           <header><div><span>03</span><strong>Training readiness</strong></div><HeartPulse /></header>
@@ -496,7 +491,8 @@ function SafetyOnboarding({ profile, onComplete }: { profile: LifestyleProfile; 
           daysPerWeek: profile.days_per_week,
           sessionDurationMinutes: profile.session_duration_minutes,
           preferredStartTime: profile.preferred_start_time.slice(0, 5),
-          reminderOffsetsMinutes: profile.reminder_offsets_minutes,
+          dailyGymReminderEnabled: profile.daily_gym_reminder_enabled,
+          hydrationRemindersEnabled: profile.hydration_reminders_enabled,
           heightCm: profile.height_cm,
           weightKg: profile.weight_kg,
           safetyAcknowledged: checked,

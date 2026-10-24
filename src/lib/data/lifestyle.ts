@@ -20,6 +20,8 @@ export type LifestyleProfile = {
   preferred_start_time: string;
   preferred_days: number[];
   reminder_offsets_minutes: number[];
+  daily_gym_reminder_enabled: boolean;
+  hydration_reminders_enabled: boolean;
   height_cm: number | null;
   weight_kg: number | null;
   training_goal: string;
@@ -176,7 +178,7 @@ async function loadBusyWindows(
 async function ensureProfile(context: NonNullable<Awaited<ReturnType<typeof getLifestyleContext>>>) {
   const { data: existing, error: readError } = await context.supabase
     .from("website-lifestyle-profiles")
-    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
     .eq("user_id", context.claims.sub)
     .maybeSingle();
   if (readError) throw new Error(`Lifestyle settings could not be loaded: ${readError.message}`);
@@ -191,7 +193,7 @@ async function ensureProfile(context: NonNullable<Awaited<ReturnType<typeof getL
       height_cm: 180,
       weight_kg: 70,
     })
-    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
     .single();
   if (error || !created) throw new Error(`Lifestyle settings could not be created: ${error?.message ?? "Unknown error"}`);
   return created as LifestyleProfile;

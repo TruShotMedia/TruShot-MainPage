@@ -19,7 +19,8 @@ const settingsSchema = z.object({
   daysPerWeek: z.number().int().min(2).max(5),
   sessionDurationMinutes: z.number().int().min(30).max(120),
   preferredStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  reminderOffsetsMinutes: z.array(z.number().int().min(0).max(10080)).max(4),
+  dailyGymReminderEnabled: z.boolean(),
+  hydrationRemindersEnabled: z.boolean(),
   heightCm: z.number().min(100).max(250).nullable(),
   weightKg: z.number().min(30).max(300).nullable(),
   safetyAcknowledged: z.boolean(),
@@ -82,13 +83,14 @@ export async function saveLifestyleSettings(input: unknown) {
       session_duration_minutes: values.sessionDurationMinutes,
       preferred_start_time: values.preferredStartTime,
       preferred_days: preferredDays,
-      reminder_offsets_minutes: values.reminderOffsetsMinutes,
+      daily_gym_reminder_enabled: values.dailyGymReminderEnabled,
+      hydration_reminders_enabled: values.hydrationRemindersEnabled,
       height_cm: values.heightCm,
       weight_kg: values.weightKg,
       safety_acknowledged_at: now,
     })
     .eq("user_id", context.claims.sub)
-    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
     .single();
   if (error || !profile) throw new Error(`Lifestyle settings could not be saved: ${error?.message ?? "Unknown error"}`);
 
@@ -237,7 +239,7 @@ export async function sendLifestyleTestNotification(endpoint: string) {
   if (error || !data?.length) throw new Error("Enable reminders on this device first.");
   const result = await sendPushNotifications(data as StoredPushSubscription[], {
     title: "Lifestyle is awake",
-    body: "Hey pooky — this is your extremely official gym reminder test.",
+    body: "Hey pookie — this is your extremely official gym reminder test.",
     url: "/lifestyle?view=today",
     tag: `lifestyle-test-${Date.now()}`,
     kind: "lifestyle",

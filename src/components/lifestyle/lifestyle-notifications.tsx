@@ -59,7 +59,7 @@ export function LifestyleNotifications({ publicKey, deviceCount }: { publicKey: 
         if (!serialised.endpoint || !serialised.keys?.p256dh || !serialised.keys.auth) throw new Error("The browser returned an incomplete subscription.");
         await saveLifestylePushSubscription({ endpoint: serialised.endpoint, expirationTime: serialised.expirationTime ?? null, keys: serialised.keys });
         setState("enabled");
-        setMessage("Gym-day reminders are enabled on this device.");
+        setMessage("Daily gym and hydration reminders are enabled on this device.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Reminders could not be enabled.");
       }
@@ -105,7 +105,7 @@ export function LifestyleNotifications({ publicKey, deviceCount }: { publicKey: 
       </header>
       <div className="lifestyle-notification-copy">
         <span><BellRing size={24} /></span>
-        <div><strong>Friendly accountability</strong><p>Receive a rotating, slightly cheeky reminder before each scheduled session.</p></div>
+        <div><strong>Friendly accountability</strong><p>Receive a daily gym check-in plus two varied hydration nudges. Each new Lifestyle reminder replaces the previous one instead of stacking.</p></div>
       </div>
       {installRequired ? <p className="lifestyle-guidance">On iPhone, use Safari → Share → <strong>Add to Home Screen</strong>, then open Lifestyle from its icon.</p> : null}
       <div className="lifestyle-notification-actions">

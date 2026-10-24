@@ -303,7 +303,7 @@ export function preferredDaysForFrequency(daysPerWeek: number) {
 }
 
 export const LIFESTYLE_NOTIFICATION_LINES = [
-  "Hey pooky — Future You called. It’s training day.",
+  "Hey pookie — Future You called. It’s time to look after yourself.",
   "Your glutes filed a missing-person report. Gym time.",
   "A very official reminder: go pick up heavy things.",
   "Back to strong. Today’s session is ready when you are.",
