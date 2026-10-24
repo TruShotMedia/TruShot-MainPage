@@ -4,7 +4,7 @@ export type PushMessage = {
   url: string;
   tag: string;
   badgeCount?: number;
-  kind?: "autopacific" | "flight" | "ingreign";
+  kind?: "autopacific" | "flight" | "ingreign" | "lifestyle";
   timestamp?: number;
 };
 

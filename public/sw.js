@@ -21,9 +21,13 @@ self.addEventListener("push", (event) => {
       ? "autopacific"
       : message.kind === "ingreign"
         ? "ingreign"
-        : "default";
+        : message.kind === "lifestyle"
+          ? "lifestyle"
+          : "default";
   const notificationIcon = kind === "ingreign"
     ? "/ingreign/icon-192.png"
+    : kind === "lifestyle"
+      ? "/lifestyle/icons/192"
     : kind === "flight" || kind === "autopacific"
       ? "/autopacific/icons/192"
       : "/icons/trushot-app-192.png";

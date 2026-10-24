@@ -1,0 +1,811 @@
+:root {
+  --life-bg: #06110c;
+  --life-panel: #0c1b13;
+  --life-panel-2: #10241a;
+  --life-line: rgba(190, 230, 207, 0.14);
+  --life-soft-line: rgba(190, 230, 207, 0.09);
+  --life-green: #4bc486;
+  --life-deep-green: #1f6b49;
+  --life-mint: #a5e8c3;
+  --life-cream: #edf4ef;
+  --life-muted: #92a298;
+  --life-warm: #e4c287;
+  --life-danger: #f48d80;
+  --life-radius: 26px;
+  --life-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+  --life-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --life-display: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html:has(.lifestyle-root),
+body:has(.lifestyle-root) {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: var(--life-bg);
+  overscroll-behavior-x: none;
+}
+
+.lifestyle-root,
+.lifestyle-root * {
+  box-sizing: border-box;
+}
+
+.lifestyle-root {
+  min-height: 100dvh;
+  overflow-x: clip;
+  color: var(--life-cream);
+  background:
+    radial-gradient(circle at 10% 5%, rgba(54, 139, 94, 0.16), transparent 29rem),
+    radial-gradient(circle at 92% 42%, rgba(75, 196, 134, 0.08), transparent 32rem),
+    var(--life-bg);
+  font-family: var(--life-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lifestyle-root button,
+.lifestyle-root input,
+.lifestyle-root select,
+.lifestyle-root textarea {
+  max-width: 100%;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.lifestyle-root button,
+.lifestyle-root a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lifestyle-app {
+  min-height: 100dvh;
+}
+
+.lifestyle-topbar {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  height: calc(78px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) clamp(24px, 4vw, 64px) 0;
+  border-bottom: 1px solid var(--life-line);
+  background: rgba(6, 17, 12, 0.86);
+  backdrop-filter: blur(20px) saturate(135%);
+}
+
+.lifestyle-brand,
+.lifestyle-desktop-nav button,
+.lifestyle-mobile-nav button,
+.lifestyle-period-controls button,
+.lifestyle-mode-switch button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.lifestyle-brand {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+}
+
+.lifestyle-brand > span:last-child {
+  display: grid;
+  line-height: 1;
+}
+
+.lifestyle-brand strong {
+  font-family: var(--life-display);
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.lifestyle-brand small {
+  margin-top: 5px;
+  color: var(--life-muted);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.lifestyle-app-mark,
+.lifestyle-login-mark {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(165, 232, 195, 0.34);
+  border-radius: 21px;
+  background: linear-gradient(145deg, #2c885f, #144d35);
+  box-shadow: inset 0 1px rgba(255,255,255,.13), 0 15px 40px rgba(14, 65, 43, .35);
+}
+
+.lifestyle-app-mark svg,
+.lifestyle-login-mark svg {
+  position: absolute;
+  color: white;
+}
+
+.lifestyle-app-mark svg:first-child,
+.lifestyle-login-mark svg:first-child { width: 37px; height: 37px; opacity: .44; }
+.lifestyle-app-mark svg:last-child,
+.lifestyle-login-mark svg:last-child { width: 30px; height: 30px; stroke-width: 1.65; transform: rotate(-12deg); }
+.lifestyle-app-mark.is-compact { width: 42px; height: 42px; border-radius: 14px; }
+.lifestyle-app-mark.is-compact svg:first-child { width: 26px; height: 26px; }
+.lifestyle-app-mark.is-compact svg:last-child { width: 21px; height: 21px; }
+
+.lifestyle-desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--life-line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+}
+
+.lifestyle-desktop-nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border-radius: 11px;
+  color: var(--life-muted);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+
+.lifestyle-desktop-nav button:hover { color: var(--life-cream); transform: translateY(-1px); }
+.lifestyle-desktop-nav button.is-active { color: var(--life-mint); background: rgba(75,196,134,.12); }
+
+.lifestyle-status {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 9px;
+  color: var(--life-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lifestyle-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--life-green);
+  box-shadow: 0 0 18px var(--life-green);
+}
+
+.lifestyle-main {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: clamp(26px, 4vw, 64px) clamp(20px, 4vw, 64px) 80px;
+}
+
+.lifestyle-view { animation: lifestyle-enter .42s cubic-bezier(.2,.78,.26,1); }
+@keyframes lifestyle-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.lifestyle-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 330px;
+  overflow: hidden;
+  padding: clamp(32px, 6vw, 84px);
+  border: 1px solid rgba(165,232,195,.2);
+  border-radius: 38px;
+  background:
+    linear-gradient(110deg, rgba(20, 71, 48, .92), rgba(9, 31, 21, .96)),
+    var(--life-panel);
+  box-shadow: var(--life-shadow);
+}
+
+.lifestyle-hero::after {
+  position: absolute;
+  right: -11%;
+  bottom: -55%;
+  width: min(620px, 57vw);
+  aspect-ratio: 1;
+  border: 1px solid rgba(165,232,195,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 50px rgba(165,232,195,.025), 0 0 0 110px rgba(165,232,195,.018);
+  content: "";
+}
+
+.lifestyle-hero-copy { position: relative; z-index: 1; max-width: 800px; }
+.lifestyle-hero-copy > span,
+.lifestyle-page-title > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--life-mint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.lifestyle-hero h1,
+.lifestyle-page-title h1,
+.lifestyle-login-art h1,
+.lifestyle-onboarding h2 {
+  margin: 18px 0;
+  font-family: var(--life-display);
+  font-size: clamp(42px, 6vw, 86px);
+  font-weight: 700;
+  line-height: .98;
+  letter-spacing: -.065em;
+}
+
+.lifestyle-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: #c7d5cc;
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 1.6;
+}
+
+.lifestyle-hero-copy > button,
+.lifestyle-checkin > button,
+.lifestyle-save-bar > button,
+.lifestyle-onboarding > button,
+.lifestyle-login-card > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+  padding: 14px 19px;
+  border: 0;
+  border-radius: 13px;
+  color: #062114;
+  background: var(--life-mint);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+
+.lifestyle-hero-copy > button:hover,
+.lifestyle-save-bar > button:hover,
+.lifestyle-login-card > button:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(89, 208, 145, .18); }
+
+.lifestyle-week-ring {
+  --progress: 0%;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: clamp(145px, 17vw, 210px);
+  aspect-ratio: 1;
+  margin-left: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--life-mint) var(--progress), rgba(255,255,255,.1) 0);
+}
+
+.lifestyle-week-ring::before { position: absolute; inset: 8px; border-radius: inherit; background: #0d2a1d; content: ""; }
+.lifestyle-week-ring > div { position: relative; display: grid; place-items: center; }
+.lifestyle-week-ring strong { font-family: var(--life-display); font-size: clamp(38px, 5vw, 62px); letter-spacing: -.06em; }
+.lifestyle-week-ring strong small { color: var(--life-muted); font-size: .45em; }
+.lifestyle-week-ring span { color: var(--life-muted); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+.lifestyle-today-grid,
+.lifestyle-progress-grid,
+.lifestyle-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.lifestyle-focus-card,
+.lifestyle-next-card,
+.lifestyle-weekly-chart,
+.lifestyle-checkin,
+.lifestyle-settings-card,
+.lifestyle-notification-card,
+.lifestyle-evidence {
+  min-width: 0;
+  padding: clamp(23px, 3vw, 36px);
+  border: 1px solid var(--life-line);
+  border-radius: var(--life-radius);
+  background: linear-gradient(145deg, rgba(17,39,28,.96), rgba(9,25,17,.96));
+}
+
+.lifestyle-focus-card > header,
+.lifestyle-next-card > header,
+.lifestyle-weekly-chart > header,
+.lifestyle-checkin > header,
+.lifestyle-settings-card > header,
+.lifestyle-notification-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lifestyle-focus-card > header span,
+.lifestyle-next-card > header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--life-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.lifestyle-focus-card > header i { padding: 6px 9px; border-radius: 99px; color: var(--life-mint); background: rgba(75,196,134,.1); font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .11em; }
+.lifestyle-focus-card h2 { margin: 38px 0 10px; font: 700 clamp(29px, 3vw, 44px)/1 var(--life-display); letter-spacing: -.05em; }
+.lifestyle-focus-card p { max-width: 640px; margin: 0; color: var(--life-muted); line-height: 1.62; }
+.lifestyle-focus-card > div { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 31px; }
+.lifestyle-focus-card > div span { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--life-line); border-radius: 99px; color: #bdcdc3; font-size: 11px; }
+
+.lifestyle-session-pill {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  margin-top: 26px;
+  padding: 18px;
+  border: 1px solid rgba(165,232,195,.18);
+  border-radius: 18px;
+  color: var(--life-cream);
+  background: rgba(75,196,134,.07);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.lifestyle-session-pill:hover { transform: translateY(-2px); border-color: rgba(165,232,195,.4); }
+.lifestyle-session-pill > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px; color: var(--life-mint); background: rgba(75,196,134,.13); }
+.lifestyle-session-pill > div { display: grid; min-width: 0; gap: 4px; }
+.lifestyle-session-pill strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.lifestyle-session-pill small { color: var(--life-muted); font-size: 11px; }
+.lifestyle-session-pill.is-completed { border-color: rgba(75,196,134,.25); background: rgba(75,196,134,.1); }
+.lifestyle-session-pill.is-skipped { opacity: .55; }
+.lifestyle-next-card > small { display: flex; align-items: center; gap: 7px; margin-top: 18px; color: var(--life-muted); }
+
+.lifestyle-rules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.lifestyle-rules article { display: flex; gap: 15px; padding: 20px; border-top: 1px solid var(--life-line); }
+.lifestyle-rules article > span { display: grid; flex: 0 0 auto; width: 38px; height: 38px; place-items: center; border-radius: 12px; color: var(--life-mint); background: rgba(75,196,134,.09); }
+.lifestyle-rules article > span svg { width: 18px; }
+.lifestyle-rules strong { display: block; font-size: 13px; }
+.lifestyle-rules p { margin: 6px 0 0; color: var(--life-muted); font-size: 12px; line-height: 1.5; }
+
+.lifestyle-page-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(250px, .8fr);
+  align-items: end;
+  gap: 40px;
+  margin-bottom: clamp(30px, 4vw, 54px);
+}
+
+.lifestyle-page-title h1 { margin-bottom: 0; font-size: clamp(42px, 5vw, 74px); }
+.lifestyle-page-title > p { max-width: 530px; margin: 0 0 8px auto; color: var(--life-muted); font-size: 16px; line-height: 1.65; }
+
+.lifestyle-calendar-shell {
+  overflow: hidden;
+  border: 1px solid var(--life-line);
+  border-radius: 30px;
+  background: rgba(10, 27, 18, .89);
+  box-shadow: var(--life-shadow);
+}
+
+.lifestyle-calendar-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 19px 22px;
+  border-bottom: 1px solid var(--life-line);
+}
+
+.lifestyle-calendar-toolbar > strong { font: 700 16px var(--life-display); }
+.lifestyle-period-controls { display: flex; align-items: center; gap: 4px; }
+.lifestyle-period-controls button { display: grid; min-width: 38px; height: 38px; padding: 0 12px; place-items: center; border: 1px solid var(--life-line); border-radius: 11px; color: var(--life-muted); font-size: 12px; font-weight: 700; }
+.lifestyle-period-controls svg { width: 16px; }
+.lifestyle-mode-switch { display: flex; justify-self: end; gap: 4px; padding: 4px; border: 1px solid var(--life-line); border-radius: 12px; }
+.lifestyle-mode-switch button { padding: 8px 11px; border-radius: 8px; color: var(--life-muted); font-size: 11px; font-weight: 800; text-transform: capitalize; }
+.lifestyle-mode-switch button.is-active { color: var(--life-mint); background: rgba(75,196,134,.12); }
+
+.lifestyle-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+}
+
+.lifestyle-calendar-weekday { padding: 13px 15px; border-bottom: 1px solid var(--life-soft-line); color: var(--life-muted); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.lifestyle-calendar-day {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 150px;
+  flex-direction: column;
+  gap: 15px;
+  padding: 14px;
+  border: 0;
+  border-right: 1px solid var(--life-soft-line);
+  border-bottom: 1px solid var(--life-soft-line);
+  color: var(--life-muted);
+  background: transparent;
+  text-align: left;
+}
+
+.lifestyle-calendar-day:not(:disabled) { cursor: pointer; }
+.lifestyle-calendar-day > span { align-self: flex-end; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; font-size: 11px; font-weight: 800; }
+.lifestyle-calendar-day.is-today > span { color: #062114; background: var(--life-mint); }
+.lifestyle-calendar-day.is-outside { opacity: .3; }
+.lifestyle-calendar-day > div { display: grid; min-width: 0; gap: 5px; padding: 12px; border: 1px solid rgba(75,196,134,.24); border-radius: 13px; color: var(--life-cream); background: rgba(75,196,134,.11); }
+.lifestyle-calendar-day > div i { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 8px; color: var(--life-mint); background: rgba(75,196,134,.15); }
+.lifestyle-calendar-day > div strong { overflow: hidden; font-size: 11px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.lifestyle-calendar-day > div small { color: var(--life-muted); font-size: 10px; }
+.lifestyle-calendar-day.is-completed > div { border-color: rgba(75,196,134,.34); background: rgba(75,196,134,.16); }
+.lifestyle-calendar-day.is-skipped > div { border-color: rgba(228,194,135,.18); background: rgba(228,194,135,.07); opacity: .62; }
+.lifestyle-rest-label { color: rgba(146,162,152,.38); font-size: 9px; text-transform: uppercase; }
+.lifestyle-calendar-shell > footer { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 15px 21px; color: var(--life-muted); font-size: 10px; }
+.lifestyle-calendar-shell > footer span { display: inline-flex; align-items: center; gap: 7px; }
+.lifestyle-calendar-shell > footer i { width: 8px; height: 8px; border-radius: 50%; background: rgba(75,196,134,.45); }
+.lifestyle-calendar-shell > footer i.is-completed { background: var(--life-green); }
+.lifestyle-calendar-shell > footer i.is-skipped { background: var(--life-warm); }
+.lifestyle-calendar-shell > footer small { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+
+.lifestyle-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 13px;
+}
+
+.lifestyle-stat-grid article { display: grid; min-width: 0; padding: 24px; border: 1px solid var(--life-line); border-radius: 21px; background: rgba(13,31,21,.85); }
+.lifestyle-stat-grid article > span { color: var(--life-mint); }
+.lifestyle-stat-grid svg { width: 20px; }
+.lifestyle-stat-grid strong { margin-top: 24px; font: 700 clamp(28px,4vw,48px) var(--life-display); letter-spacing: -.05em; }
+.lifestyle-stat-grid p { margin: 3px 0 0; color: var(--life-muted); font-size: 11px; }
+
+.lifestyle-weekly-chart > header > div,
+.lifestyle-checkin > header > div,
+.lifestyle-settings-card > header > div { display: grid; gap: 4px; }
+.lifestyle-weekly-chart > header span,
+.lifestyle-checkin > header span,
+.lifestyle-settings-card > header span { color: var(--life-muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.lifestyle-weekly-chart > header svg,
+.lifestyle-checkin > header svg,
+.lifestyle-settings-card > header svg { color: var(--life-mint); }
+.lifestyle-weekly-chart > div { display: grid; grid-template-columns: repeat(4,1fr); align-items: end; gap: 20px; height: 240px; margin-top: 30px; }
+.lifestyle-weekly-chart > div > div { display: grid; height: 100%; grid-template-rows: 1fr auto auto; gap: 5px; text-align: center; }
+.lifestyle-weekly-chart > div > div > span { display: flex; align-items: end; justify-content: center; min-height: 0; border-radius: 12px; background: rgba(255,255,255,.025); }
+.lifestyle-weekly-chart > div > div i { width: 100%; border-radius: 12px; background: linear-gradient(var(--life-mint), var(--life-deep-green)); }
+.lifestyle-weekly-chart > div > div strong { font-size: 12px; }
+.lifestyle-weekly-chart > div > div small { color: var(--life-muted); font-size: 9px; }
+
+.lifestyle-checkin-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 25px; }
+.lifestyle-checkin-fields label,
+.lifestyle-setting-row label,
+.lifestyle-login-card label { position: relative; display: grid; gap: 8px; color: #bdc9c1; font-size: 11px; font-weight: 700; }
+.lifestyle-checkin-fields label > span,
+.lifestyle-setting-row label > span { position: absolute; z-index: 1; top: 43px; right: 14px; color: var(--life-muted); font-size: 10px; }
+.lifestyle-checkin-fields input,
+.lifestyle-checkin-fields select,
+.lifestyle-checkin-fields textarea,
+.lifestyle-setting-row input,
+.lifestyle-setting-row select,
+.lifestyle-login-card input {
+  width: 100%;
+  border: 1px solid var(--life-line);
+  border-radius: 13px;
+  outline: none;
+  color: var(--life-cream);
+  background: rgba(0,0,0,.16);
+}
+.lifestyle-checkin-fields input,
+.lifestyle-checkin-fields select,
+.lifestyle-setting-row input,
+.lifestyle-setting-row select,
+.lifestyle-login-card input { height: 48px; padding: 0 14px; }
+.lifestyle-checkin-fields textarea { resize: vertical; padding: 13px; }
+.lifestyle-checkin-fields .is-wide { grid-column: 1 / -1; }
+.lifestyle-checkin > button { margin-top: 17px; }
+.lifestyle-checkin > p { color: var(--life-mint); font-size: 11px; }
+
+.lifestyle-settings-grid { align-items: start; }
+.lifestyle-settings-card,
+.lifestyle-notification-card { min-height: 100%; }
+.lifestyle-settings-card > header,
+.lifestyle-notification-card > header { margin-bottom: 27px; }
+.lifestyle-setting-label { display: grid; gap: 5px; margin: 23px 0 12px; color: #c7d3cb; font-size: 12px; font-weight: 700; }
+.lifestyle-setting-label small { color: var(--life-muted); font-size: 10px; font-weight: 400; }
+.lifestyle-segmented { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; }
+.lifestyle-segmented button { display: grid; gap: 2px; padding: 13px 8px; border: 1px solid var(--life-line); border-radius: 12px; color: var(--life-muted); background: transparent; cursor: pointer; }
+.lifestyle-segmented strong { font-size: 17px; }
+.lifestyle-segmented span { font-size: 9px; }
+.lifestyle-segmented button.is-active { border-color: rgba(165,232,195,.5); color: var(--life-mint); background: rgba(75,196,134,.11); }
+.lifestyle-setting-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 21px; }
+.lifestyle-setting-note { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0 0; color: var(--life-muted); font-size: 10px; line-height: 1.45; }
+.lifestyle-reminder-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.lifestyle-reminder-grid button { display: flex; align-items: center; gap: 9px; padding: 12px; border: 1px solid var(--life-line); border-radius: 11px; color: var(--life-muted); background: transparent; font-size: 10px; font-weight: 700; text-align: left; cursor: pointer; }
+.lifestyle-reminder-grid button > span { display: grid; flex: 0 0 auto; width: 20px; height: 20px; place-items: center; border: 1px solid var(--life-line); border-radius: 6px; }
+.lifestyle-reminder-grid button.is-active { color: var(--life-cream); border-color: rgba(165,232,195,.32); background: rgba(75,196,134,.08); }
+.lifestyle-reminder-grid button.is-active > span { color: #062114; border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-settings-card.is-safety { border-color: rgba(228,194,135,.21); background: linear-gradient(145deg, rgba(52,42,24,.44), rgba(10,25,17,.95)); }
+.lifestyle-settings-card.is-safety > p { color: #b5c2ba; font-size: 12px; line-height: 1.65; }
+.lifestyle-settings-card.is-safety > a { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--life-warm); font-size: 11px; text-decoration: none; }
+.lifestyle-acknowledgement { display: block; margin-top: 20px; }
+.lifestyle-acknowledgement > input { position: absolute; opacity: 0; pointer-events: none; }
+.lifestyle-acknowledgement > span { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--life-line); border-radius: 13px; cursor: pointer; }
+.lifestyle-acknowledgement i { display: grid; flex: 0 0 auto; width: 25px; height: 25px; place-items: center; border: 1px solid var(--life-line); border-radius: 8px; color: #062114; background: rgba(255,255,255,.02); }
+.lifestyle-acknowledgement input:checked + span i { border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-acknowledgement strong { font-size: 10px; line-height: 1.45; }
+
+.lifestyle-notification-card > header > span { display: inline-flex; align-items: center; gap: 6px; color: var(--life-muted); font-size: 10px; }
+.lifestyle-device-state { display: inline-flex; align-items: center; gap: 8px; color: var(--life-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
+.lifestyle-device-state.is-enabled { color: var(--life-mint); }
+.lifestyle-device-state.is-attention { color: var(--life-warm); }
+.lifestyle-spin { animation: lifestyle-spin 1s linear infinite; }
+@keyframes lifestyle-spin { to { transform: rotate(360deg); } }
+.lifestyle-notification-copy { display: flex; align-items: flex-start; gap: 16px; margin-top: 34px; }
+.lifestyle-notification-copy > span { display: grid; flex: 0 0 auto; width: 50px; height: 50px; place-items: center; border-radius: 15px; color: var(--life-mint); background: rgba(75,196,134,.1); }
+.lifestyle-notification-copy strong { display: block; }
+.lifestyle-notification-copy p { margin: 7px 0 0; color: var(--life-muted); font-size: 12px; line-height: 1.5; }
+.lifestyle-guidance { padding: 13px; border: 1px solid rgba(228,194,135,.19); border-radius: 12px; color: var(--life-warm); background: rgba(228,194,135,.06); font-size: 10px; line-height: 1.45; }
+.lifestyle-notification-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.lifestyle-notification-actions button { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1px solid var(--life-line); border-radius: 11px; color: #c3d0c8; background: transparent; font-size: 10px; font-weight: 800; cursor: pointer; }
+.lifestyle-notification-actions button.is-primary { color: #062114; border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-notification-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.lifestyle-notification-message { margin: 13px 0 0; color: var(--life-mint); font-size: 10px; }
+
+.lifestyle-save-bar { position: sticky; z-index: 5; bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 18px; padding: 14px 17px 14px 22px; border: 1px solid rgba(165,232,195,.24); border-radius: 18px; background: rgba(10,29,19,.9); box-shadow: var(--life-shadow); backdrop-filter: blur(16px); }
+.lifestyle-save-bar > div { display: grid; gap: 3px; }
+.lifestyle-save-bar > div span { color: var(--life-muted); font-size: 10px; }
+.lifestyle-save-bar > button { margin: 0; }
+.lifestyle-save-bar > button:disabled { opacity: .45; }
+.lifestyle-settings-message { color: var(--life-mint); text-align: center; }
+.lifestyle-evidence { margin-top: 18px; }
+.lifestyle-evidence > strong { display: flex; align-items: center; gap: 8px; }
+.lifestyle-evidence > p { color: var(--life-muted); font-size: 11px; line-height: 1.55; }
+.lifestyle-evidence > div { display: flex; flex-wrap: wrap; gap: 12px; }
+.lifestyle-evidence a { color: var(--life-mint); font-size: 10px; }
+.lifestyle-signout { display: flex; justify-content: center; margin-top: 24px; }
+.lifestyle-signout button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 13px; border: 1px solid var(--life-line); border-radius: 10px; color: var(--life-muted); background: transparent; cursor: pointer; }
+
+.lifestyle-sheet-layer,
+.lifestyle-onboarding-layer {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 3vw, 34px);
+}
+.lifestyle-sheet-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgba(1,8,4,.75); backdrop-filter: blur(10px); }
+.lifestyle-workout-sheet {
+  position: relative;
+  display: flex;
+  width: min(840px, 100%);
+  max-height: calc(100dvh - clamp(20px, 6vw, 68px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(165,232,195,.21);
+  border-radius: 30px;
+  background: #0a1a12;
+  box-shadow: 0 40px 100px rgba(0,0,0,.55);
+  animation: lifestyle-sheet .35s cubic-bezier(.2,.8,.25,1);
+}
+@keyframes lifestyle-sheet { from { opacity: 0; transform: translateY(20px) scale(.985); } }
+.lifestyle-workout-sheet > header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--life-line); }
+.lifestyle-workout-sheet > header button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--life-line); border-radius: 12px; color: var(--life-muted); background: transparent; cursor: pointer; }
+.lifestyle-workout-sheet > header span { color: var(--life-muted); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.lifestyle-workout-sheet > header i { justify-self: end; color: var(--life-mint); font-size: 11px; font-style: normal; font-weight: 800; }
+.lifestyle-workout-heading { padding: 28px 28px 22px; }
+.lifestyle-workout-heading > span { display: inline-flex; align-items: center; gap: 7px; color: var(--life-mint); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.lifestyle-workout-heading h2 { margin: 12px 0 7px; font: 700 clamp(28px,5vw,49px)/1 var(--life-display); letter-spacing: -.05em; }
+.lifestyle-workout-heading p { margin: 0; color: var(--life-muted); line-height: 1.55; }
+.lifestyle-progress-track { height: 6px; margin-top: 22px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.06); }
+.lifestyle-progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--life-green); transition: width .4s ease; }
+.lifestyle-workout-heading > small { display: block; margin-top: 8px; color: var(--life-muted); font-size: 10px; }
+.lifestyle-workout-safety { display: flex; align-items: flex-start; gap: 9px; margin: 0 28px 18px; padding: 12px; border: 1px solid rgba(228,194,135,.16); border-radius: 12px; color: var(--life-warm); background: rgba(228,194,135,.05); }
+.lifestyle-workout-safety svg { flex: 0 0 auto; }
+.lifestyle-workout-safety p { margin: 0; font-size: 10px; line-height: 1.5; }
+.lifestyle-exercise-list { display: grid; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 28px 24px; }
+.lifestyle-exercise-card { display: grid; grid-template-columns: auto 100px minmax(0,1fr); align-items: start; gap: 14px; padding: 15px; border: 1px solid var(--life-line); border-radius: 18px; background: rgba(255,255,255,.018); transition: border-color .2s ease, opacity .2s ease; }
+.lifestyle-exercise-card.is-complete { border-color: rgba(75,196,134,.28); background: rgba(75,196,134,.045); }
+.lifestyle-exercise-check { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--life-line); border-radius: 11px; color: var(--life-muted); background: transparent; cursor: pointer; }
+.lifestyle-exercise-card.is-complete .lifestyle-exercise-check { color: #062114; border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-movement { width: 100px; height: 78px; padding: 6px; border-radius: 13px; stroke: var(--life-mint); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; fill: none; background: rgba(75,196,134,.06); }
+.lifestyle-movement circle { fill: var(--life-mint); stroke: none; }
+.lifestyle-movement rect { fill: rgba(75,196,134,.14); }
+.lifestyle-motion-line { opacity: .5; stroke-dasharray: 3 5; }
+.lifestyle-exercise-copy { min-width: 0; }
+.lifestyle-exercise-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%; padding: 0; border: 0; color: var(--life-cream); background: transparent; text-align: left; cursor: pointer; }
+.lifestyle-exercise-title > span { display: grid; min-width: 0; gap: 5px; }
+.lifestyle-exercise-title strong { font-size: 14px; }
+.lifestyle-exercise-title small { color: var(--life-muted); font-size: 10px; }
+.lifestyle-exercise-log { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 13px; }
+.lifestyle-exercise-log label { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 7px; padding: 7px 8px; border: 1px solid var(--life-soft-line); border-radius: 10px; color: var(--life-muted); font-size: 9px; }
+.lifestyle-exercise-log input { width: 100%; border: 0; outline: 0; color: var(--life-cream); background: transparent; text-align: right; }
+.lifestyle-exercise-log label span { color: var(--life-muted); }
+.lifestyle-form-guide { margin-top: 14px; padding: 14px; border-radius: 12px; background: rgba(0,0,0,.18); }
+.lifestyle-form-guide > strong { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
+.lifestyle-form-guide ol { margin: 10px 0 0; padding-left: 18px; color: #b9c8bf; font-size: 11px; line-height: 1.6; }
+.lifestyle-form-guide p { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--life-warm); font-size: 9px; }
+.lifestyle-workout-sheet > footer { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--life-line); background: rgba(6,17,12,.96); }
+.lifestyle-workout-sheet > footer button { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border: 1px solid var(--life-line); border-radius: 11px; font-size: 11px; font-weight: 800; cursor: pointer; }
+.lifestyle-workout-sheet > footer button.is-quiet { color: var(--life-muted); background: transparent; }
+.lifestyle-workout-sheet > footer button.is-primary { color: #062114; border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-workout-sheet > footer button:disabled { opacity: .45; }
+
+.lifestyle-toast { position: fixed; z-index: 120; right: 20px; bottom: 22px; display: flex; align-items: center; gap: 10px; max-width: min(430px, calc(100vw - 40px)); padding: 13px 15px; border: 1px solid rgba(165,232,195,.27); border-radius: 14px; color: var(--life-cream); background: #143425; box-shadow: var(--life-shadow); text-align: left; cursor: pointer; }
+.lifestyle-toast > span { min-width: 0; font-size: 11px; line-height: 1.4; }
+
+.lifestyle-onboarding-layer { background: rgba(1,8,4,.87); backdrop-filter: blur(16px); }
+.lifestyle-onboarding { position: relative; width: min(570px,100%); max-height: calc(100dvh - 28px); overflow-y: auto; padding: clamp(27px,6vw,54px); border: 1px solid rgba(165,232,195,.25); border-radius: 30px; background: linear-gradient(145deg,#123523,#081a11); box-shadow: var(--life-shadow); }
+.lifestyle-onboarding > span { display: block; margin-top: 30px; color: var(--life-mint); font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.lifestyle-onboarding h2 { font-size: clamp(36px,7vw,61px); }
+.lifestyle-onboarding > p { color: #bdcbc2; line-height: 1.65; }
+.lifestyle-onboarding > div { display: flex; align-items: flex-start; gap: 11px; margin-top: 21px; padding: 15px; border: 1px solid rgba(228,194,135,.2); border-radius: 14px; color: var(--life-warm); background: rgba(228,194,135,.06); }
+.lifestyle-onboarding > div svg { flex: 0 0 auto; }
+.lifestyle-onboarding > div p { margin: 0; font-size: 11px; line-height: 1.5; }
+.lifestyle-onboarding > label { display: block; margin-top: 18px; }
+.lifestyle-onboarding > label > input { position: absolute; opacity: 0; }
+.lifestyle-onboarding > label > span { display: flex; align-items: center; gap: 11px; color: #b9c5bd; font-size: 11px; line-height: 1.45; cursor: pointer; }
+.lifestyle-onboarding > label i { display: grid; flex: 0 0 auto; width: 28px; height: 28px; place-items: center; border: 1px solid var(--life-line); border-radius: 9px; color: #062114; }
+.lifestyle-onboarding > label input:checked + span i { border-color: var(--life-mint); background: var(--life-mint); }
+.lifestyle-onboarding > button:disabled { opacity: .4; cursor: not-allowed; }
+.lifestyle-onboarding > small { display: block; margin-top: 12px; color: var(--life-danger); }
+
+.lifestyle-login {
+  display: grid;
+  grid-template-columns: minmax(0,1.1fr) minmax(420px,.9fr);
+  min-height: 100dvh;
+  overflow: hidden;
+}
+.lifestyle-login-art { position: relative; display: flex; min-height: 100dvh; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: clamp(42px,7vw,110px); background: linear-gradient(145deg,#123f2a,#07140d); }
+.lifestyle-login-art::after { position: absolute; inset: 0; background: linear-gradient(transparent 60%,rgba(3,11,7,.35)); content:""; pointer-events:none; }
+.lifestyle-login-art > *:not(.lifestyle-orbit) { position: relative; z-index: 2; }
+.lifestyle-login-art > p { margin: 42px 0 0; color: var(--life-mint); font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.lifestyle-login-art h1 { margin-bottom: 24px; font-size: clamp(58px,7vw,104px); }
+.lifestyle-login-art > small { color: rgba(237,244,239,.56); letter-spacing: .12em; text-transform: uppercase; }
+.lifestyle-orbit { position: absolute; border: 1px solid rgba(165,232,195,.13); border-radius: 50%; }
+.lifestyle-orbit-one { width: 680px; height: 680px; top: -190px; right: -160px; }
+.lifestyle-orbit-two { width: 480px; height: 480px; top: -90px; right: -60px; box-shadow: 0 0 0 70px rgba(165,232,195,.018),0 0 0 150px rgba(165,232,195,.012); }
+.lifestyle-login-panel { display: grid; min-height: 100dvh; place-items: center; padding: clamp(28px,6vw,90px); background: #07110c; }
+.lifestyle-login-card { width: min(430px,100%); }
+.lifestyle-secure { display: inline-flex; align-items: center; gap: 8px; color: var(--life-mint); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.lifestyle-login-card h2 { margin: 25px 0 13px; font: 700 clamp(39px,5vw,60px)/1.04 var(--life-display); letter-spacing: -.06em; }
+.lifestyle-login-card > p { margin: 0 0 34px; color: var(--life-muted); line-height: 1.55; }
+.lifestyle-login-card label { gap: 10px; }
+.lifestyle-login-card input { height: 58px; }
+.lifestyle-login-card > button { width: 100%; height: 54px; margin-top: 15px; }
+.lifestyle-login-card > button span { margin-left: auto; }
+.lifestyle-login-card > small { display: block; margin-top: 18px; color: rgba(146,162,152,.55); font-size: 9px; text-align: center; text-transform: uppercase; letter-spacing: .1em; }
+.lifestyle-login-error { margin-top: 12px; padding: 11px 13px; border: 1px solid rgba(244,141,128,.2); border-radius: 11px; color: var(--life-danger); background: rgba(244,141,128,.06); font-size: 11px; }
+
+.lifestyle-mobile-nav { display: none; }
+
+@media (max-width: 900px) {
+  .lifestyle-topbar { grid-template-columns: 1fr auto; height: calc(68px + env(safe-area-inset-top)); padding-inline: 20px; }
+  .lifestyle-desktop-nav { display: none; }
+  .lifestyle-brand strong { font-size: 16px; }
+  .lifestyle-status span { display: none; }
+  .lifestyle-main { padding: 20px 16px calc(92px + env(safe-area-inset-bottom)); }
+  .lifestyle-hero { min-height: 0; padding: 30px 25px; border-radius: 28px; }
+  .lifestyle-hero h1 { font-size: clamp(39px,11vw,62px); }
+  .lifestyle-week-ring { width: 130px; margin-left: 18px; }
+  .lifestyle-today-grid,
+  .lifestyle-progress-grid,
+  .lifestyle-settings-grid { grid-template-columns: 1fr; }
+  .lifestyle-rules { grid-template-columns: 1fr; }
+  .lifestyle-page-title { grid-template-columns: 1fr; gap: 17px; }
+  .lifestyle-page-title > p { margin: 0; }
+  .lifestyle-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .lifestyle-calendar-day { min-height: 112px; padding: 9px; }
+  .lifestyle-calendar-day > div { padding: 8px; }
+  .lifestyle-calendar-day > div small { display: none; }
+  .lifestyle-mobile-nav {
+    position: fixed;
+    z-index: 50;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 12px;
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    height: 64px;
+    padding: 6px;
+    border: 1px solid rgba(165,232,195,.18);
+    border-radius: 20px;
+    background: rgba(7,20,13,.92);
+    box-shadow: 0 14px 40px rgba(0,0,0,.42);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+  .lifestyle-mobile-nav button { display: grid; place-items: center; align-content: center; gap: 3px; border-radius: 14px; color: var(--life-muted); font-size: 9px; font-weight: 800; }
+  .lifestyle-mobile-nav button.is-active { color: var(--life-mint); background: rgba(75,196,134,.12); }
+  .lifestyle-mobile-nav button svg { width: 19px; height: 19px; }
+  .lifestyle-login { grid-template-columns: 1fr; }
+  .lifestyle-login-art { display: none; }
+  .lifestyle-login-panel { padding: calc(42px + env(safe-area-inset-top)) 24px calc(32px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 620px) {
+  .lifestyle-topbar { padding-inline: 16px; }
+  .lifestyle-status { font-size: 0; }
+  .lifestyle-hero { grid-template-columns: 1fr; gap: 25px; padding: 27px 22px; }
+  .lifestyle-hero-copy > span { font-size: 9px; }
+  .lifestyle-hero h1 { margin: 14px 0; font-size: clamp(38px,13vw,57px); }
+  .lifestyle-hero p { font-size: 14px; }
+  .lifestyle-week-ring { width: 115px; margin: 0; }
+  .lifestyle-week-ring strong { font-size: 36px; }
+  .lifestyle-focus-card,
+  .lifestyle-next-card,
+  .lifestyle-weekly-chart,
+  .lifestyle-checkin,
+  .lifestyle-settings-card,
+  .lifestyle-notification-card,
+  .lifestyle-evidence { padding: 20px; border-radius: 21px; }
+  .lifestyle-page-title h1 { font-size: clamp(39px,13vw,57px); }
+  .lifestyle-page-title > p { font-size: 13px; }
+  .lifestyle-calendar-shell { border-radius: 20px; }
+  .lifestyle-calendar-toolbar { grid-template-columns: 1fr; justify-items: stretch; gap: 12px; }
+  .lifestyle-calendar-toolbar > strong { grid-row: 1; }
+  .lifestyle-period-controls { grid-row: 2; }
+  .lifestyle-period-controls button:nth-child(2) { flex: 1; }
+  .lifestyle-mode-switch { grid-row: 3; justify-self: stretch; }
+  .lifestyle-mode-switch button { flex: 1; }
+  .lifestyle-calendar-weekday { padding: 9px 3px; text-align: center; }
+  .lifestyle-calendar-day { min-height: 83px; gap: 6px; padding: 6px; }
+  .lifestyle-calendar-day > span { align-self: center; width: 23px; height: 23px; }
+  .lifestyle-calendar-day > div { align-items: center; padding: 5px; text-align: center; }
+  .lifestyle-calendar-day > div i { width: 20px; height: 20px; margin: auto; }
+  .lifestyle-calendar-day > div strong { width: 100%; font-size: 0; }
+  .lifestyle-calendar-day > div strong::after { font-size: 8px; content: "TRAIN"; }
+  .lifestyle-rest-label { display: none; }
+  .lifestyle-calendar-shell > footer { gap: 9px; padding: 12px; }
+  .lifestyle-calendar-shell > footer small { width: 100%; margin: 0; }
+  .lifestyle-stat-grid article { padding: 18px; }
+  .lifestyle-stat-grid strong { margin-top: 16px; }
+  .lifestyle-progress-grid { grid-template-columns: 1fr; }
+  .lifestyle-weekly-chart > div { height: 190px; }
+  .lifestyle-checkin-fields,
+  .lifestyle-setting-row { grid-template-columns: 1fr; }
+  .lifestyle-reminder-grid { grid-template-columns: 1fr; }
+  .lifestyle-save-bar { bottom: calc(83px + env(safe-area-inset-bottom)); align-items: stretch; flex-direction: column; padding: 14px; }
+  .lifestyle-save-bar > button { width: 100%; }
+  .lifestyle-sheet-layer { align-items: end; padding: 0; }
+  .lifestyle-workout-sheet { width: 100%; max-height: 94dvh; border-radius: 27px 27px 0 0; border-bottom: 0; }
+  .lifestyle-workout-sheet > header { padding-top: 11px; }
+  .lifestyle-workout-heading { padding: 22px 18px 16px; }
+  .lifestyle-workout-safety { margin: 0 18px 15px; }
+  .lifestyle-exercise-list { padding: 0 14px 18px; }
+  .lifestyle-exercise-card { grid-template-columns: auto 68px minmax(0,1fr); gap: 9px; padding: 12px; }
+  .lifestyle-movement { width: 68px; height: 68px; }
+  .lifestyle-exercise-title strong { font-size: 12px; }
+  .lifestyle-exercise-title small { font-size: 9px; }
+  .lifestyle-exercise-log { grid-template-columns: 1fr; }
+  .lifestyle-workout-sheet > footer { display: grid; grid-template-columns: 1fr 1.45fr; }
+  .lifestyle-onboarding-layer { padding: 8px; }
+  .lifestyle-onboarding { border-radius: 24px; }
+  .lifestyle-toast { right: 12px; bottom: calc(87px + env(safe-area-inset-bottom)); left: 12px; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifestyle-root *,
+  .lifestyle-root *::before,
+  .lifestyle-root *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

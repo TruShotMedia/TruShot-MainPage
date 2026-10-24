@@ -5,6 +5,7 @@ import { dispatchClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync"
 import { dispatchClickUpJobSync } from "@/lib/clickup/job-sync";
 import { reconcileClickUpJobs } from "@/lib/clickup/inbound-sync";
 import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
+import { dispatchLifestyleReminders } from "@/lib/lifestyle-reminders";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,12 +38,13 @@ export async function POST(request: Request) {
         message: "ClickUp could not be reached during this reminder run.",
       };
     });
-    const [calendar, ingreign, clickup] = await Promise.all([
+    const [calendar, ingreign, lifestyle, clickup] = await Promise.all([
       dispatchCalendarReminders(),
       dispatchIngreignReminders(),
+      dispatchLifestyleReminders(),
       clickUpSync,
     ]);
-    return Response.json({ ok: true, calendar, ingreign, clickup });
+    return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup });
   } catch (error) {
     console.error("Calendar reminder dispatch failed.", error);
     return Response.json({ error: "Calendar reminders could not be processed." }, { status: 500 });
