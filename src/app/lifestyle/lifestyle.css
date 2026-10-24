@@ -48,7 +48,7 @@ body:has(.lifestyle-root) {
 }
 
 .lifestyle-root button,
-.lifestyle-root input,
+.lifestyle-root input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
 .lifestyle-root select,
 .lifestyle-root textarea {
   max-width: 100%;
@@ -65,6 +65,8 @@ body:has(.lifestyle-root) {
   min-inline-size: 0;
   max-inline-size: 100%;
 }
+
+.lifestyle-root input[type="hidden"] { display: none; }
 
 .lifestyle-main,
 .lifestyle-view,
