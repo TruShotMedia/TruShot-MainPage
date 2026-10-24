@@ -11,8 +11,10 @@ import {
 import { LIFESTYLE_NOTIFICATION_LINES } from "@/lib/lifestyle";
 
 const profile: LifestyleReminderProfile = {
+  id: "profile-john",
   workspace_id: "workspace-1",
   user_id: "user-1",
+  display_name: "John",
   preferred_start_time: "17:30:00",
   daily_gym_reminder_enabled: true,
   hydration_reminders_enabled: true,
@@ -51,9 +53,9 @@ describe("Lifestyle wellness reminders", () => {
   });
 
   it("chooses deterministic varied hydration times inside sensible daytime windows", () => {
-    const first = lifestyleHydrationReminderTimes(profile.user_id, "2026-10-24");
-    const repeated = lifestyleHydrationReminderTimes(profile.user_id, "2026-10-24");
-    const nextDay = lifestyleHydrationReminderTimes(profile.user_id, "2026-10-25");
+    const first = lifestyleHydrationReminderTimes(profile.id, "2026-10-24");
+    const repeated = lifestyleHydrationReminderTimes(profile.id, "2026-10-24");
+    const nextDay = lifestyleHydrationReminderTimes(profile.id, "2026-10-25");
 
     expect(repeated).toEqual(first);
     expect(nextDay).not.toEqual(first);
@@ -75,7 +77,7 @@ describe("Lifestyle wellness reminders", () => {
 
   it("schedules both hydration nudges independently and respects settings", () => {
     const date = "2026-10-24";
-    const times = lifestyleHydrationReminderTimes(profile.user_id, date);
+    const times = lifestyleHydrationReminderTimes(profile.id, date);
     const hydrationOnly = { ...profile, daily_gym_reminder_enabled: false };
 
     const morning = dueLifestyleWellnessReminders(

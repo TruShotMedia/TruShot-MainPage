@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { addDays, eachDayOfInterval, format, parseISO, startOfDay } from "date-fns";
+import { cookies } from "next/headers";
 import {
   findLifestyleWorkout,
   getLifestyleExercise,
@@ -11,10 +12,22 @@ import {
 import { buildLifestyleSchedule, type LifestyleBusyWindow } from "@/lib/lifestyle-schedule";
 import { createClient } from "@/lib/supabase/server";
 
+export const LIFESTYLE_PROFILE_COOKIE = "lifestyle-profile";
+export const LIFESTYLE_PROFILE_KEYS = ["john", "izzy"] as const;
+export type LifestyleProfileKey = (typeof LIFESTYLE_PROFILE_KEYS)[number];
+
+const PROFILE_DEFAULTS: Record<LifestyleProfileKey, { displayName: string; heightCm: number | null; weightKg: number | null }> = {
+  john: { displayName: "John", heightCm: 180, weightKg: 70 },
+  izzy: { displayName: "Izzy", heightCm: null, weightKg: null },
+};
+
+const PROFILE_FIELDS = "id,workspace_id,user_id,profile_key,display_name,program_style,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at";
+
 export type LifestyleProfile = {
   id: string;
   workspace_id: string;
   user_id: string;
+  profile_key: LifestyleProfileKey;
   display_name: string;
   program_style: LifestyleProgramStyle;
   days_per_week: number;
@@ -31,6 +44,10 @@ export type LifestyleProfile = {
   focus_areas: string[];
   safety_acknowledged_at: string | null;
 };
+
+export function isLifestyleProfileKey(value: unknown): value is LifestyleProfileKey {
+  return typeof value === "string" && LIFESTYLE_PROFILE_KEYS.includes(value as LifestyleProfileKey);
+}
 
 export type LifestyleExercise = {
   id: string;
@@ -177,28 +194,50 @@ async function loadBusyWindows(
   return windows;
 }
 
-async function ensureProfile(context: NonNullable<Awaited<ReturnType<typeof getLifestyleContext>>>) {
+export async function ensureLifestyleProfile(
+  context: NonNullable<Awaited<ReturnType<typeof getLifestyleContext>>>,
+  profileKey: LifestyleProfileKey,
+) {
   const { data: existing, error: readError } = await context.supabase
     .from("website-lifestyle-profiles")
-    .select("id,workspace_id,user_id,display_name,program_style,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select(PROFILE_FIELDS)
     .eq("user_id", context.claims.sub)
+    .eq("profile_key", profileKey)
     .maybeSingle();
   if (readError) throw new Error(`Lifestyle settings could not be loaded: ${readError.message}`);
   if (existing) return existing as LifestyleProfile;
 
+  const defaults = PROFILE_DEFAULTS[profileKey];
   const { data: created, error } = await context.supabase
     .from("website-lifestyle-profiles")
     .insert({
       workspace_id: context.membership.workspace_id,
       user_id: context.claims.sub,
-      display_name: context.membership.display_name ?? "John",
-      height_cm: 180,
-      weight_kg: 70,
+      profile_key: profileKey,
+      display_name: defaults.displayName,
+      height_cm: defaults.heightCm,
+      weight_kg: defaults.weightKg,
     })
-    .select("id,workspace_id,user_id,display_name,program_style,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select(PROFILE_FIELDS)
     .single();
   if (error || !created) throw new Error(`Lifestyle settings could not be created: ${error?.message ?? "Unknown error"}`);
   return created as LifestyleProfile;
+}
+
+export async function ensureLifestyleProfiles(context: NonNullable<Awaited<ReturnType<typeof getLifestyleContext>>>) {
+  const profiles = await Promise.all(LIFESTYLE_PROFILE_KEYS.map((profileKey) => ensureLifestyleProfile(context, profileKey)));
+  return profiles.sort((left, right) => LIFESTYLE_PROFILE_KEYS.indexOf(left.profile_key) - LIFESTYLE_PROFILE_KEYS.indexOf(right.profile_key));
+}
+
+async function selectedLifestyleProfileKey() {
+  const cookieStore = await cookies();
+  const value = cookieStore.get(LIFESTYLE_PROFILE_COOKIE)?.value;
+  return isLifestyleProfileKey(value) ? value : null;
+}
+
+export async function getActiveLifestyleProfile(context: NonNullable<Awaited<ReturnType<typeof getLifestyleContext>>>) {
+  const profileKey = await selectedLifestyleProfileKey();
+  return profileKey ? ensureLifestyleProfile(context, profileKey) : null;
 }
 
 export async function ensureLifestyleSchedule(
@@ -211,7 +250,7 @@ export async function ensureLifestyleSchedule(
     context.supabase
       .from("website-lifestyle-workout-sessions")
       .select("id,session_date")
-      .eq("user_id", context.claims.sub)
+      .eq("profile_id", profile.id)
       .gte("session_date", startDate)
       .lte("session_date", rangeEnd),
     loadBusyWindows(context, startDate, rangeEnd),
@@ -234,6 +273,7 @@ export async function ensureLifestyleSchedule(
     const { error } = await context.supabase.from("website-lifestyle-workout-sessions").insert(planned.map((session) => ({
       workspace_id: context.membership.workspace_id,
       user_id: context.claims.sub,
+      profile_id: profile.id,
       session_date: session.sessionDate,
       start_time: session.startTime,
       end_time: session.endTime,
@@ -249,7 +289,7 @@ export async function ensureLifestyleSchedule(
   const { data: sessions, error: sessionsError } = await context.supabase
     .from("website-lifestyle-workout-sessions")
     .select("id,workout_key")
-    .eq("user_id", context.claims.sub)
+    .eq("profile_id", profile.id)
     .gte("session_date", startDate)
     .lte("session_date", rangeEnd);
   if (sessionsError) throw new Error(`Lifestyle sessions could not be reloaded: ${sessionsError.message}`);
@@ -266,6 +306,7 @@ export async function ensureLifestyleSchedule(
     return getLifestyleWorkout(session.workout_key).exercises.map((exercise, position) => ({
       workspace_id: context.membership.workspace_id,
       user_id: context.claims.sub,
+      profile_id: profile.id,
       session_id: session.id,
       exercise_key: exercise.key,
       name: exercise.name,
@@ -287,7 +328,11 @@ export async function ensureLifestyleSchedule(
 export async function getLifestyleData() {
   const context = await getLifestyleContext();
   if (!context) return null;
-  const profile = await ensureProfile(context);
+  const [profiles, selectedProfileKey] = await Promise.all([ensureLifestyleProfiles(context), selectedLifestyleProfileKey()]);
+  const profile = selectedProfileKey ? profiles.find((item) => item.profile_key === selectedProfileKey) ?? null : null;
+  if (!profile) {
+    return { today: localDate(), profiles, profile: null, sessions: [], checkins: [], subscriptionCount: 0 };
+  }
   await ensureLifestyleSchedule(context, profile);
   const today = localDate();
   const historyStart = localDate(addDays(new Date(), -84));
@@ -296,20 +341,20 @@ export async function getLifestyleData() {
     context.supabase
       .from("website-lifestyle-workout-sessions")
       .select("id,session_date,start_time,end_time,workout_key,title,focus,sequence_index,status,source,scheduling_note,completed_at")
-      .eq("user_id", context.claims.sub)
+      .eq("profile_id", profile.id)
       .gte("session_date", historyStart)
       .lte("session_date", futureEnd)
       .order("session_date"),
     context.supabase
       .from("website-lifestyle-checkins")
       .select("id,checkin_date,weight_kg,energy,sleep_hours,note")
-      .eq("user_id", context.claims.sub)
+      .eq("profile_id", profile.id)
       .order("checkin_date", { ascending: false })
       .limit(24),
     context.supabase
       .from("website-lifestyle-push-subscriptions")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", context.claims.sub),
+      .eq("profile_id", profile.id),
   ]);
   const error = sessionsResult.error ?? checkinsResult.error ?? subscriptionsResult.error;
   if (error) throw new Error(`Lifestyle could not be loaded: ${error.message}`);
@@ -334,6 +379,7 @@ export async function getLifestyleData() {
   });
   return {
     today,
+    profiles,
     profile,
     sessions: sessionRows.map((session) => {
       const currentWorkout = findLifestyleWorkout(session.workout_key);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { BellOff, BellRing, CheckCircle2, LoaderCircle, Send, Smartphone, TriangleAlert } from "lucide-react";
-import { removeLifestylePushSubscription, saveLifestylePushSubscription, sendLifestyleTestNotification } from "@/app/lifestyle/actions";
+import { getLifestylePushSubscriptionState, removeLifestylePushSubscription, saveLifestylePushSubscription, sendLifestyleTestNotification } from "@/app/lifestyle/actions";
 
 type DeviceState = "checking" | "unsupported" | "ready" | "enabled" | "denied";
 
@@ -35,7 +35,12 @@ export function LifestyleNotifications({ publicKey, deviceCount }: { publicKey: 
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         const subscription = await registration.pushManager.getSubscription();
-        if (active) setState(subscription ? "enabled" : "ready");
+        if (!subscription) {
+          if (active) setState("ready");
+          return;
+        }
+        const profileState = await getLifestylePushSubscriptionState(subscription.endpoint);
+        if (active) setState(profileState.enabled ? "enabled" : "ready");
       } catch {
         if (active) setState("unsupported");
       }
@@ -71,9 +76,9 @@ export function LifestyleNotifications({ publicKey, deviceCount }: { publicKey: 
       try {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
-        if (subscription) { await removeLifestylePushSubscription(subscription.endpoint); await subscription.unsubscribe(); }
+        if (subscription) await removeLifestylePushSubscription(subscription.endpoint);
         setState("ready");
-        setMessage("Gym reminders are disabled on this device.");
+        setMessage("Gym reminders are disabled for this profile on this device.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Reminders could not be disabled.");
       }
@@ -101,7 +106,7 @@ export function LifestyleNotifications({ publicKey, deviceCount }: { publicKey: 
           {state === "checking" ? <LoaderCircle className="lifestyle-spin" size={17} /> : enabled ? <CheckCircle2 size={17} /> : unavailable ? <TriangleAlert size={17} /> : <BellRing size={17} />}
           <span>{state === "checking" ? "Checking this device" : enabled ? "Enabled here" : installRequired ? "Install app first" : state === "denied" ? "Permission blocked" : state === "unsupported" ? "Unavailable here" : "Ready to enable"}</span>
         </div>
-        <span><Smartphone size={15} /> {deviceCount} {deviceCount === 1 ? "device" : "devices"}</span>
+        <span><Smartphone size={15} /> {deviceCount} {deviceCount === 1 ? "profile device" : "profile devices"}</span>
       </header>
       <div className="lifestyle-notification-copy">
         <span><BellRing size={24} /></span>

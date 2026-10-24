@@ -8,8 +8,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 export type LifestyleWellnessReminderSlot = "gym" | "hydration-morning" | "hydration-afternoon";
 
 export type LifestyleReminderProfile = {
+  id: string;
   workspace_id: string;
   user_id: string;
+  display_name: string;
   preferred_start_time: string;
   daily_gym_reminder_enabled: boolean;
   hydration_reminders_enabled: boolean;
@@ -58,9 +60,9 @@ function scheduledAt(date: string, time: string) {
   return new Date(`${date}T${time.slice(0, 5)}:00${BRISBANE_OFFSET}`);
 }
 
-export function lifestyleHydrationReminderTimes(userId: string, date: string) {
-  const morning = 9 * 60 + 30 + (seededNumber(`${userId}:${date}:morning`) % 121);
-  const afternoon = 13 * 60 + 30 + (seededNumber(`${userId}:${date}:afternoon`) % 121);
+export function lifestyleHydrationReminderTimes(profileId: string, date: string) {
+  const morning = 9 * 60 + 30 + (seededNumber(`${profileId}:${date}:morning`) % 121);
+  const afternoon = 13 * 60 + 30 + (seededNumber(`${profileId}:${date}:afternoon`) % 121);
   return {
     "hydration-morning": timeFromMinutes(morning),
     "hydration-afternoon": timeFromMinutes(afternoon),
@@ -76,7 +78,7 @@ export function buildLifestyleWellnessReminderMessage(
   if (slot === "gym") {
     return {
       title: lifestyleNotificationLine(`${profile.user_id}:${reminderDate}:gym`),
-      body: "Have you made time for the gym today? A short, sensible session still counts.",
+      body: `${profile.display_name}, have you made time for the gym today? A short, sensible session still counts.`,
       url: "/lifestyle?view=today",
       tag: "lifestyle-daily-care",
       kind: "lifestyle",
@@ -85,7 +87,7 @@ export function buildLifestyleWellnessReminderMessage(
     };
   }
 
-  const copy = HYDRATION_COPY[seededNumber(`${profile.user_id}:${reminderDate}:${slot}`) % HYDRATION_COPY.length];
+  const copy = HYDRATION_COPY[seededNumber(`${profile.id}:${reminderDate}:${slot}`) % HYDRATION_COPY.length];
   return {
     ...copy,
     url: "/lifestyle?view=today",
@@ -107,7 +109,7 @@ export function dueLifestyleWellnessReminders(
       candidates.push({ slot: "gym", time: profile.preferred_start_time.slice(0, 5) });
     }
     if (profile.hydration_reminders_enabled) {
-      const hydrationTimes = lifestyleHydrationReminderTimes(profile.user_id, reminderDate);
+      const hydrationTimes = lifestyleHydrationReminderTimes(profile.id, reminderDate);
       candidates.push(
         { slot: "hydration-morning", time: hydrationTimes["hydration-morning"] },
         { slot: "hydration-afternoon", time: hydrationTimes["hydration-afternoon"] },
@@ -129,7 +131,7 @@ export async function dispatchLifestyleReminders(now = new Date()) {
 
   const { data: profiles, error: profileError } = await supabase
     .from("website-lifestyle-profiles")
-    .select("workspace_id,user_id,preferred_start_time,daily_gym_reminder_enabled,hydration_reminders_enabled");
+    .select("id,workspace_id,user_id,display_name,preferred_start_time,daily_gym_reminder_enabled,hydration_reminders_enabled");
   if (profileError) throw profileError;
 
   const due = dueLifestyleWellnessReminders((profiles ?? []) as LifestyleReminderProfile[], now);
@@ -142,6 +144,7 @@ export async function dispatchLifestyleReminders(now = new Date()) {
       .insert({
         workspace_id: reminder.profile.workspace_id,
         user_id: reminder.profile.user_id,
+        profile_id: reminder.profile.id,
         reminder_date: reminder.reminderDate,
         reminder_slot: reminder.slot,
         scheduled_for: reminder.scheduledFor.toISOString(),
@@ -154,7 +157,7 @@ export async function dispatchLifestyleReminders(now = new Date()) {
     const { data: subscriptions, error: subscriptionError } = await supabase
       .from("website-lifestyle-push-subscriptions")
       .select("id,endpoint,p256dh,auth_key")
-      .eq("user_id", reminder.profile.user_id);
+      .eq("profile_id", reminder.profile.id);
     if (subscriptionError) throw subscriptionError;
 
     const result = await sendPushNotifications(

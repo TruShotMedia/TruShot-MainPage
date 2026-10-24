@@ -7,7 +7,7 @@ export default async function LifestylePage({ searchParams }: { searchParams: Pr
   if (!data) redirect("/lifestyle/login");
   return (
     <LifestyleApp
-      key={`${data.profile.days_per_week}:${data.profile.preferred_start_time}:${data.sessions.map((session) => `${session.id}:${session.status}:${session.exercises.filter((exercise) => exercise.completed).length}`).join("|")}`}
+      key={`${data.profile?.id ?? "choose-profile"}:${data.profile?.days_per_week ?? ""}:${data.profile?.preferred_start_time ?? ""}:${data.sessions.map((session) => `${session.id}:${session.status}:${session.exercises.filter((exercise) => exercise.completed).length}`).join("|")}`}
       initialData={data}
       initialView={typeof query.view === "string" ? query.view : undefined}
       requestedSessionId={typeof query.session === "string" ? query.session : undefined}

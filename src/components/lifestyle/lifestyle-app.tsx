@@ -39,6 +39,7 @@ import {
   Target,
   TimerReset,
   TrendingUp,
+  UserRound,
   X,
   Zap,
 } from "lucide-react";
@@ -50,17 +51,19 @@ import {
   saveLifestyleCheckin,
   saveLifestyleExercise,
   saveLifestyleSettings,
+  selectLifestyleProfile,
   signOutOfLifestyle,
   skipLifestyleSession,
 } from "@/app/lifestyle/actions";
 import { LifestyleNotifications } from "@/components/lifestyle/lifestyle-notifications";
-import type { LifestyleCheckin, LifestyleExercise, LifestyleProfile, LifestyleSession } from "@/lib/data/lifestyle";
+import type { LifestyleCheckin, LifestyleExercise, LifestyleProfile, LifestyleProfileKey, LifestyleSession } from "@/lib/data/lifestyle";
 import type { LifestyleProgramStyle } from "@/lib/lifestyle";
 import { getLifestyleExerciseGuide } from "@/lib/lifestyle-exercise-guides";
 
 type LifestyleData = {
   today: string;
-  profile: LifestyleProfile;
+  profiles: LifestyleProfile[];
+  profile: LifestyleProfile | null;
   sessions: LifestyleSession[];
   checkins: LifestyleCheckin[];
   subscriptionCount: number;
@@ -113,6 +116,83 @@ function AppMark({ compact = false }: { compact?: boolean }) {
       <Activity />
       <Dumbbell />
     </span>
+  );
+}
+
+const PROFILE_LABELS: Record<LifestyleProfileKey, { label: string; subtitle: string }> = {
+  john: { label: "John", subtitle: "Green profile" },
+  izzy: { label: "Izzy", subtitle: "Pink profile" },
+};
+
+function ProfileAvatar({ profile, size = "regular" }: { profile: LifestyleProfile; size?: "small" | "regular" | "large" }) {
+  return <span className={`lifestyle-profile-avatar is-${profile.profile_key} is-${size}`} aria-hidden="true">{profile.display_name.slice(0, 1).toUpperCase()}</span>;
+}
+
+function ProfileChooser({ profiles }: { profiles: LifestyleProfile[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState("");
+  function selectProfile(profileKey: LifestyleProfileKey) {
+    startTransition(async () => {
+      try {
+        await selectLifestyleProfile(profileKey);
+        router.refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "That profile could not be opened.");
+      }
+    });
+  }
+  return (
+    <section className="lifestyle-profile-choice" aria-labelledby="lifestyle-profile-choice-title">
+      <div className="lifestyle-profile-choice-card">
+        <AppMark />
+        <span>Welcome to Lifestyle</span>
+        <h1 id="lifestyle-profile-choice-title">Who’s training<br />today?</h1>
+        <p>Choose your profile to keep your plan, progress, check-ins and device reminders personal.</p>
+        <div className="lifestyle-profile-options">
+          {profiles.map((profile) => (
+            <button type="button" key={profile.id} onClick={() => selectProfile(profile.profile_key)} disabled={pending}>
+              <ProfileAvatar profile={profile} size="large" />
+              <span><strong>{PROFILE_LABELS[profile.profile_key].label}</strong><small>{PROFILE_LABELS[profile.profile_key].subtitle}</small></span>
+              <ChevronRight size={20} />
+            </button>
+          ))}
+        </div>
+        {message ? <p className="lifestyle-profile-choice-error" role="alert">{message}</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function ProfileSwitcher({ profile, profiles, onSelect, pending }: { profile: LifestyleProfile; profiles: LifestyleProfile[]; onSelect: (profileKey: LifestyleProfileKey) => void; pending: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="lifestyle-profile-switcher">
+      <button type="button" className="lifestyle-profile-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu">
+        <ProfileAvatar profile={profile} size="small" />
+        <span><strong>{profile.display_name}</strong><small>Profile</small></span>
+        <ChevronDown size={15} />
+      </button>
+      {open ? (
+        <div className="lifestyle-profile-menu" role="menu" aria-label="Switch Lifestyle profile">
+          <span>Switch profile</span>
+          {profiles.map((candidate) => (
+            <button
+              type="button"
+              role="menuitem"
+              key={candidate.id}
+              className={candidate.id === profile.id ? "is-active" : ""}
+              disabled={pending || candidate.id === profile.id}
+              onClick={() => { setOpen(false); onSelect(candidate.profile_key); }}
+            >
+              <ProfileAvatar profile={candidate} size="small" />
+              <span><strong>{candidate.display_name}</strong><small>{candidate.id === profile.id ? "Active now" : "Open profile"}</small></span>
+              {candidate.id === profile.id ? <Check size={15} /> : <UserRound size={15} />}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -591,12 +671,28 @@ export function LifestyleApp({ initialData, initialView, requestedSessionId, not
       catch (error) { setToast(error instanceof Error ? error.message : "Workout could not be skipped."); }
     });
   }
+  function switchProfile(profileKey: LifestyleProfileKey) {
+    startTransition(async () => {
+      try {
+        await selectLifestyleProfile(profileKey);
+        router.refresh();
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : "That profile could not be opened.");
+      }
+    });
+  }
+  if (!profile) {
+    return <main className="lifestyle-app"><ProfileChooser profiles={initialData.profiles} /></main>;
+  }
   return (
     <main className="lifestyle-app">
       <header className="lifestyle-topbar">
         <button type="button" className="lifestyle-brand" onClick={() => navigate("today")}><AppMark compact /><span><strong>Lifestyle</strong><small>by TruShot</small></span></button>
         <div className="lifestyle-desktop-nav">{VIEWS.map(({ key, label, Icon }) => <button type="button" key={key} className={view === key ? "is-active" : ""} onClick={() => navigate(key)}><Icon size={17} />{label}</button>)}</div>
-        <div className="lifestyle-status"><i /><span>Plan active</span></div>
+        <div className="lifestyle-topbar-actions">
+          <div className="lifestyle-status"><i /><span>Plan active</span></div>
+          <ProfileSwitcher profile={profile} profiles={initialData.profiles} onSelect={switchProfile} pending={pending} />
+        </div>
       </header>
       <div className="lifestyle-main">
         {view === "today" ? <TodayView today={initialData.today} sessions={sessions} onOpen={openSession} /> : null}
@@ -607,7 +703,7 @@ export function LifestyleApp({ initialData, initialView, requestedSessionId, not
       <nav className="lifestyle-mobile-nav" aria-label="Lifestyle navigation">{VIEWS.map(({ key, label, Icon }) => <button type="button" key={key} className={view === key ? "is-active" : ""} onClick={() => navigate(key)}><Icon size={20} /><span>{label}</span></button>)}</nav>
       {selected ? <WorkoutSheet session={selected} onClose={closeSession} onExerciseSave={saveExercise} onComplete={completeSession} onSkip={skipSession} pending={pending} /> : null}
       {toast ? <button type="button" className="lifestyle-toast" onClick={() => setToast("")}><CheckCircle2 size={17} /><span>{toast}</span><X size={15} /></button> : null}
-      {!profile.safety_acknowledged_at ? <SafetyOnboarding profile={profile} onComplete={() => { setProfile((current) => ({ ...current, safety_acknowledged_at: new Date().toISOString() })); refresh(); }} /> : null}
+      {!profile.safety_acknowledged_at ? <SafetyOnboarding profile={profile} onComplete={() => { setProfile((current) => current ? { ...current, safety_acknowledged_at: new Date().toISOString() } : current); refresh(); }} /> : null}
     </main>
   );
 }
