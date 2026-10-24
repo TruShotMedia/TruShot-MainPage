@@ -1,6 +1,8 @@
 export const LIFESTYLE_LOGIN_EMAIL = "info@fearlessau.com";
 export const LIFESTYLE_TIMEZONE = "Australia/Brisbane";
 
+export type LifestyleProgramStyle = "upper_lower" | "full_body";
+
 export type LifestyleMovementPattern =
   | "squat"
   | "hinge"
@@ -271,15 +273,20 @@ const WORKOUTS: Record<string, LifestyleWorkoutDefinition> = {
   },
 };
 
-const PROGRAM_KEYS: Record<number, string[]> = {
-  2: ["full_a", "full_b"],
-  3: ["full_a", "full_b", "full_c"],
+const UPPER_LOWER_PROGRAM_KEYS: Record<number, string[]> = {
+  2: ["lower_a", "upper_a"],
+  3: ["lower_a", "upper_a", "full_b"],
   4: ["lower_a", "upper_a", "lower_b", "upper_b"],
-  5: ["lower_a", "upper_a", "full_b", "upper_b", "glute_accessory"],
+  5: ["lower_a", "upper_a", "full_b", "lower_b", "upper_b"],
 };
 
-export function getLifestyleProgram(daysPerWeek: number) {
-  const keys = PROGRAM_KEYS[Math.min(5, Math.max(2, daysPerWeek))] ?? PROGRAM_KEYS[3];
+const FULL_BODY_PROGRAM_KEYS = ["full_a", "full_b", "full_c"];
+
+export function getLifestyleProgram(daysPerWeek: number, style: LifestyleProgramStyle = "upper_lower") {
+  const safeDays = Math.min(5, Math.max(2, daysPerWeek));
+  const keys = style === "full_body"
+    ? FULL_BODY_PROGRAM_KEYS
+    : UPPER_LOWER_PROGRAM_KEYS[safeDays] ?? UPPER_LOWER_PROGRAM_KEYS[3];
   return keys.map((key) => WORKOUTS[key]);
 }
 

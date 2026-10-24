@@ -55,6 +55,7 @@ import {
 } from "@/app/lifestyle/actions";
 import { LifestyleNotifications } from "@/components/lifestyle/lifestyle-notifications";
 import type { LifestyleCheckin, LifestyleExercise, LifestyleProfile, LifestyleSession } from "@/lib/data/lifestyle";
+import type { LifestyleProgramStyle } from "@/lib/lifestyle";
 import { getLifestyleExerciseGuide } from "@/lib/lifestyle-exercise-guides";
 
 type LifestyleData = {
@@ -86,6 +87,13 @@ function displayTime(value: string) {
 
 function percentage(value: number, total: number) {
   return total ? Math.round((value / total) * 100) : 0;
+}
+
+function upperLowerSummary(days: number) {
+  if (days === 2) return "One lower day and one upper day.";
+  if (days === 3) return "One lower day, one upper day and one balanced full-body day.";
+  if (days === 4) return "Two lower days and two upper days, each with a different emphasis.";
+  return "Two lower days, two upper days and one balanced full-body day.";
 }
 
 function friendlyDate(value: string) {
@@ -413,6 +421,7 @@ function ProgressView({ today, sessions, checkins, onSaved }: { today: string; s
 
 function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: LifestyleProfile; publicKey: string; deviceCount: number; onSaved: () => void }) {
   const [pending, startTransition] = useTransition();
+  const [programStyle, setProgramStyle] = useState<LifestyleProgramStyle>(profile.program_style);
   const [days, setDays] = useState(profile.days_per_week);
   const [duration, setDuration] = useState(profile.session_duration_minutes);
   const [time, setTime] = useState(profile.preferred_start_time.slice(0, 5));
@@ -426,6 +435,7 @@ function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: L
     startTransition(async () => {
       try {
         await saveLifestyleSettings({
+          programStyle,
           daysPerWeek: days,
           sessionDurationMinutes: duration,
           preferredStartTime: time,
@@ -447,7 +457,18 @@ function SettingsView({ profile, publicKey, deviceCount, onSaved }: { profile: L
         <section className="lifestyle-settings-card">
           <header><div><span>01</span><strong>Training rhythm</strong></div><RotateCcw /></header>
           <label className="lifestyle-setting-label">Sessions per week <small>Start repeatable. Three is the recommended return point.</small></label>
-          <div className="lifestyle-segmented">{[2, 3, 4, 5].map((value) => <button key={value} type="button" className={days === value ? "is-active" : ""} onClick={() => setDays(value)}><strong>{value}</strong><span>days</span></button>)}</div>
+          <div className="lifestyle-segmented">{[2, 3, 4, 5].map((value) => <button key={value} type="button" aria-pressed={days === value} className={days === value ? "is-active" : ""} onClick={() => setDays(value)}><strong>{value}</strong><span>days</span></button>)}</div>
+          <label className="lifestyle-setting-label">Programming style <small>Both approaches train the whole body across the week. Choose the rhythm you are most likely to enjoy and repeat.</small></label>
+          <div className="lifestyle-program-style-grid">
+            <button type="button" aria-pressed={programStyle === "upper_lower"} className={programStyle === "upper_lower" ? "is-active" : ""} onClick={() => setProgramStyle("upper_lower")}>
+              <span><Dumbbell size={17} /><strong>Upper / lower focus</strong></span>
+              <small>{upperLowerSummary(days)}</small>
+            </button>
+            <button type="button" aria-pressed={programStyle === "full_body"} className={programStyle === "full_body" ? "is-active" : ""} onClick={() => setProgramStyle("full_body")}>
+              <span><Activity size={17} /><strong>Full-body rotation</strong></span>
+              <small>Each session trains the whole body with a rotating squat, single-leg or press emphasis.</small>
+            </button>
+          </div>
           <div className="lifestyle-setting-row"><label>Training + daily nudge time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} /></label><label>Session length<select value={duration} onChange={(event) => setDuration(Number(event.target.value))}><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={75}>75 minutes</option><option value={90}>90 minutes</option></select></label></div>
           <p className="lifestyle-setting-note"><ShieldCheck size={15} /> Lifestyle will try nearby times and days before accepting a clash with an existing timed event.</p>
         </section>
@@ -488,6 +509,7 @@ function SafetyOnboarding({ profile, onComplete }: { profile: LifestyleProfile; 
     startTransition(async () => {
       try {
         await saveLifestyleSettings({
+          programStyle: profile.program_style,
           daysPerWeek: profile.days_per_week,
           sessionDurationMinutes: profile.session_duration_minutes,
           preferredStartTime: profile.preferred_start_time.slice(0, 5),

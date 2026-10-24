@@ -16,6 +16,7 @@ const subscriptionSchema = z.object({
 });
 
 const settingsSchema = z.object({
+  programStyle: z.enum(["upper_lower", "full_body"]),
   daysPerWeek: z.number().int().min(2).max(5),
   sessionDurationMinutes: z.number().int().min(30).max(120),
   preferredStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -79,6 +80,7 @@ export async function saveLifestyleSettings(input: unknown) {
   const { data: profile, error } = await context.supabase
     .from("website-lifestyle-profiles")
     .update({
+      program_style: values.programStyle,
       days_per_week: values.daysPerWeek,
       session_duration_minutes: values.sessionDurationMinutes,
       preferred_start_time: values.preferredStartTime,
@@ -90,7 +92,7 @@ export async function saveLifestyleSettings(input: unknown) {
       safety_acknowledged_at: now,
     })
     .eq("user_id", context.claims.sub)
-    .select("id,workspace_id,user_id,display_name,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
+    .select("id,workspace_id,user_id,display_name,program_style,days_per_week,session_duration_minutes,preferred_start_time,preferred_days,reminder_offsets_minutes,daily_gym_reminder_enabled,hydration_reminders_enabled,height_cm,weight_kg,training_goal,experience_level,focus_areas,safety_acknowledged_at")
     .single();
   if (error || !profile) throw new Error(`Lifestyle settings could not be saved: ${error?.message ?? "Unknown error"}`);
 
