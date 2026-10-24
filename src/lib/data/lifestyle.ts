@@ -1,6 +1,12 @@
 import { cache } from "react";
 import { addDays, eachDayOfInterval, format, parseISO, startOfDay } from "date-fns";
-import { getLifestyleProgram, getLifestyleWorkout, LIFESTYLE_LOGIN_EMAIL } from "@/lib/lifestyle";
+import {
+  findLifestyleWorkout,
+  getLifestyleExercise,
+  getLifestyleProgram,
+  getLifestyleWorkout,
+  LIFESTYLE_LOGIN_EMAIL,
+} from "@/lib/lifestyle";
 import { buildLifestyleSchedule, type LifestyleBusyWindow } from "@/lib/lifestyle-schedule";
 import { createClient } from "@/lib/supabase/server";
 
@@ -314,14 +320,26 @@ export async function getLifestyleData() {
   if (exerciseError) throw new Error(`Lifestyle exercises could not be loaded: ${exerciseError.message}`);
   const exercisesBySession = new Map<string, LifestyleExercise[]>();
   ((exerciseRows ?? []) as LifestyleExercise[]).forEach((exercise) => {
+    const currentDefinition = getLifestyleExercise(exercise.exercise_key);
+    const hydratedExercise = currentDefinition
+      ? { ...exercise, name: currentDefinition.name, form_cues: currentDefinition.cues }
+      : exercise;
     const exercises = exercisesBySession.get(exercise.session_id) ?? [];
-    exercises.push(exercise);
+    exercises.push(hydratedExercise);
     exercisesBySession.set(exercise.session_id, exercises);
   });
   return {
     today,
     profile,
-    sessions: sessionRows.map((session) => ({ ...session, exercises: exercisesBySession.get(session.id) ?? [] })),
+    sessions: sessionRows.map((session) => {
+      const currentWorkout = findLifestyleWorkout(session.workout_key);
+      return {
+        ...session,
+        title: currentWorkout?.title ?? session.title,
+        focus: currentWorkout?.focus ?? session.focus,
+        exercises: exercisesBySession.get(session.id) ?? [],
+      };
+    }),
     checkins: (checkinsResult.data ?? []) as LifestyleCheckin[],
     subscriptionCount: subscriptionsResult.count ?? 0,
   };

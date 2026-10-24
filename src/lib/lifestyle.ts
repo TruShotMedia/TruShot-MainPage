@@ -215,22 +215,22 @@ const EXERCISES = {
 const WORKOUTS: Record<string, LifestyleWorkoutDefinition> = {
   full_a: {
     key: "full_a",
-    title: "Foundation A",
-    focus: "Glutes, squat strength, horizontal push and pull",
+    title: "Full body · Squat + glutes",
+    focus: "Build squat confidence and glute strength, then train chest, back and trunk control.",
     estimatedMinutes: 58,
     exercises: [EXERCISES.gobletSquat, EXERCISES.hipThrust, EXERCISES.benchPress, EXERCISES.cableRow, EXERCISES.deadBug],
   },
   full_b: {
     key: "full_b",
-    title: "Foundation B",
-    focus: "Single-leg strength, hamstrings, vertical pull and trunk control",
+    title: "Full body · Single-leg + back",
+    focus: "Train one-leg control, hamstrings, upper-back strength and resistance to unwanted rotation.",
     estimatedMinutes: 56,
     exercises: [EXERCISES.splitSquat, EXERCISES.hamstringCurl, EXERCISES.latPulldown, EXERCISES.shoulderPress, EXERCISES.pallof],
   },
   full_c: {
     key: "full_c",
-    title: "Foundation C",
-    focus: "Leg strength, glute volume, upper body and loaded carries",
+    title: "Full body · Press + carry",
+    focus: "Build leg and glute strength, add balanced upper-body work, then finish with a loaded carry.",
     estimatedMinutes: 60,
     exercises: [EXERCISES.legPress, EXERCISES.hipThrust, EXERCISES.inclinePress, EXERCISES.chestSupportedRow, EXERCISES.farmerCarry],
   },
@@ -285,6 +285,14 @@ export function getLifestyleProgram(daysPerWeek: number) {
 
 export function getLifestyleWorkout(key: string) {
   return WORKOUTS[key] ?? WORKOUTS.full_a;
+}
+
+export function findLifestyleWorkout(key: string) {
+  return WORKOUTS[key] ?? null;
+}
+
+export function getLifestyleExercise(key: string) {
+  return Object.values(EXERCISES).find((exercise) => exercise.key === key) ?? null;
 }
 
 export function preferredDaysForFrequency(daysPerWeek: number) {

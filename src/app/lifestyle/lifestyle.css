@@ -676,27 +676,73 @@ body:has(.lifestyle-root) {
 .lifestyle-workout-safety svg { flex: 0 0 auto; }
 .lifestyle-workout-safety p { margin: 0; font-size: 10px; line-height: 1.5; }
 .lifestyle-exercise-list { display: grid; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 28px 24px; }
-.lifestyle-exercise-card { display: grid; grid-template-columns: auto 100px minmax(0,1fr); align-items: start; gap: 14px; padding: 15px; border: 1px solid var(--life-line); border-radius: 18px; background: rgba(255,255,255,.018); transition: border-color .2s ease, opacity .2s ease; }
+.lifestyle-exercise-card { display: grid; grid-template-columns: auto 100px minmax(0,1fr); align-items: start; gap: 14px; padding: 15px; overflow: hidden; border: 1px solid var(--life-line); border-radius: 18px; background: rgba(255,255,255,.018); transition: border-color .2s ease, opacity .2s ease; }
 .lifestyle-exercise-card.is-complete { border-color: rgba(75,196,134,.28); background: rgba(75,196,134,.045); }
 .lifestyle-exercise-check { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--life-line); border-radius: 11px; color: var(--life-muted); background: transparent; cursor: pointer; }
 .lifestyle-exercise-card.is-complete .lifestyle-exercise-check { color: #062114; border-color: var(--life-mint); background: var(--life-mint); }
-.lifestyle-movement { width: 100px; height: 78px; padding: 6px; border-radius: 13px; stroke: var(--life-mint); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; fill: none; background: rgba(75,196,134,.06); }
-.lifestyle-movement circle { fill: var(--life-mint); stroke: none; }
-.lifestyle-movement rect { fill: rgba(75,196,134,.14); }
-.lifestyle-motion-line { opacity: .5; stroke-dasharray: 3 5; }
+.lifestyle-movement-study {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: clamp(230px, 41vw, 340px);
+  margin: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(165,232,195,.13);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(75,196,134,.12), transparent 57%),
+    linear-gradient(145deg, rgba(255,255,255,.028), rgba(2,11,7,.34));
+}
+.lifestyle-movement-study::before { position: absolute; z-index: 0; width: 54%; height: 54%; border: 1px solid rgba(165,232,195,.08); border-radius: 999px; content: ""; }
+.lifestyle-movement-study img { position: relative; z-index: 1; width: 100%; height: 100%; padding: 12px; object-fit: contain; filter: drop-shadow(0 14px 18px rgba(0,0,0,.24)); }
+.lifestyle-movement-study figcaption { position: absolute; z-index: 2; right: 16px; bottom: 13px; left: 16px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; color: var(--life-muted); font-size: 8px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+.lifestyle-movement-study figcaption i { height: 1px; background: linear-gradient(90deg, rgba(244,141,128,.65), rgba(165,232,195,.65)); }
+.lifestyle-movement-study.is-compact { width: 100px; height: 78px; border-radius: 13px; }
+.lifestyle-movement-study.is-compact::before { width: 62%; height: 62%; }
+.lifestyle-movement-study.is-compact img { padding: 3px; filter: drop-shadow(0 5px 7px rgba(0,0,0,.2)); }
+.lifestyle-movement-study.is-fallback { color: var(--life-mint); background: rgba(75,196,134,.06); }
+.lifestyle-movement-study.is-fallback svg { width: 28px; height: 28px; }
 .lifestyle-exercise-copy { min-width: 0; }
 .lifestyle-exercise-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%; padding: 0; border: 0; color: var(--life-cream); background: transparent; text-align: left; cursor: pointer; }
 .lifestyle-exercise-title > span { display: grid; min-width: 0; gap: 5px; }
 .lifestyle-exercise-title strong { font-size: 14px; }
 .lifestyle-exercise-title small { color: var(--life-muted); font-size: 10px; }
+.lifestyle-exercise-title > svg { flex: 0 0 auto; transition: transform .2s ease; }
+.lifestyle-exercise-title[aria-expanded="true"] > svg { transform: rotate(180deg); }
 .lifestyle-exercise-log { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 13px; }
-.lifestyle-exercise-log label { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 7px; padding: 7px 8px; border: 1px solid var(--life-soft-line); border-radius: 10px; color: var(--life-muted); font-size: 9px; }
+.lifestyle-exercise-log label { position: relative; display: grid; min-width: 0; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 7px; overflow: hidden; padding: 7px 8px; border: 1px solid var(--life-soft-line); border-radius: 10px; color: var(--life-muted); font-size: 9px; }
 .lifestyle-exercise-log input { display: block; width: 100%; min-width: 0; max-width: 100%; border: 0; outline: 0; color: var(--life-cream); background: transparent; text-align: right; }
 .lifestyle-exercise-log label span { color: var(--life-muted); }
-.lifestyle-form-guide { margin-top: 14px; padding: 14px; border-radius: 12px; background: rgba(0,0,0,.18); }
-.lifestyle-form-guide > strong { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
-.lifestyle-form-guide ol { margin: 10px 0 0; padding-left: 18px; color: #b9c8bf; font-size: 11px; line-height: 1.6; }
-.lifestyle-form-guide p { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--life-warm); font-size: 9px; }
+.lifestyle-form-guide { grid-column: 1 / -1; min-width: 0; margin-top: 3px; padding: clamp(14px,3vw,22px); overflow: hidden; border: 1px solid rgba(165,232,195,.1); border-radius: 16px; background: rgba(0,0,0,.2); animation: lifestyle-guide-in .26s ease; }
+@keyframes lifestyle-guide-in { from { opacity: 0; transform: translateY(-5px); } }
+.lifestyle-form-guide > header { display: grid; gap: 8px; margin: 18px 0 14px; }
+.lifestyle-form-guide > header > span { display: flex; align-items: center; gap: 7px; color: var(--life-mint); font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.lifestyle-form-guide > header > strong { max-width: 650px; font-size: clamp(15px,2vw,19px); line-height: 1.35; letter-spacing: -.015em; }
+.lifestyle-muscle-map { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 10px; }
+.lifestyle-muscle-map > div { min-width: 0; padding: 11px; border: 1px solid var(--life-soft-line); border-radius: 12px; background: rgba(255,255,255,.018); }
+.lifestyle-muscle-map span,
+.lifestyle-instruction-grid section > span { display: block; margin-bottom: 8px; color: var(--life-muted); font-size: 8px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.lifestyle-muscle-map p { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; }
+.lifestyle-muscle-map i { padding: 5px 7px; border-radius: 999px; color: #f4b1a8; background: rgba(244,141,128,.08); font-size: 9px; font-style: normal; font-weight: 750; }
+.lifestyle-muscle-map > div:last-child i { color: var(--life-mint); background: rgba(75,196,134,.08); }
+.lifestyle-instruction-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.lifestyle-instruction-grid section { min-width: 0; padding: 13px; border: 1px solid var(--life-soft-line); border-radius: 12px; background: rgba(255,255,255,.015); }
+.lifestyle-instruction-grid section > span { color: var(--life-mint); }
+.lifestyle-instruction-grid ol { margin: 0; padding-left: 18px; color: #c2d0c7; font-size: 11px; line-height: 1.58; }
+.lifestyle-instruction-grid li + li { margin-top: 7px; }
+.lifestyle-instruction-grid p { margin: 0; color: #c2d0c7; font-size: 11px; line-height: 1.58; }
+.lifestyle-instruction-grid .is-breathing { border-color: rgba(75,196,134,.16); background: rgba(75,196,134,.04); }
+.lifestyle-instruction-grid .is-mistakes { border-color: rgba(244,141,128,.14); background: rgba(244,141,128,.035); }
+.lifestyle-instruction-grid .is-mistakes > span { color: #f4a297; }
+.lifestyle-instruction-grid ul { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.lifestyle-instruction-grid ul li { padding: 6px 8px; border-radius: 8px; color: #efb6ae; background: rgba(244,141,128,.07); font-size: 9px; line-height: 1.3; }
+.lifestyle-regression { display: flex; align-items: flex-start; gap: 9px; margin-top: 8px; padding: 12px; border: 1px solid rgba(228,194,135,.14); border-radius: 12px; color: var(--life-warm); background: rgba(228,194,135,.045); }
+.lifestyle-regression > svg { flex: 0 0 auto; margin-top: 1px; }
+.lifestyle-regression p { display: grid; gap: 3px; margin: 0; font-size: 10px; line-height: 1.5; }
+.lifestyle-regression strong { font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+.lifestyle-guide-caution { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--life-warm); font-size: 9px; line-height: 1.4; }
+.lifestyle-guide-caution svg { flex: 0 0 auto; }
 .lifestyle-workout-sheet > footer { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--life-line); background: rgba(6,17,12,.96); }
 .lifestyle-workout-sheet > footer button { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border: 1px solid var(--life-line); border-radius: 11px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .lifestyle-workout-sheet > footer button.is-quiet { color: var(--life-muted); background: transparent; }
@@ -858,11 +904,15 @@ body:has(.lifestyle-root) {
   .lifestyle-workout-safety { margin: 0 18px 15px; }
   .lifestyle-exercise-list { padding: 0 14px 18px; }
   .lifestyle-exercise-card { grid-template-columns: auto 68px minmax(0,1fr); gap: 9px; padding: 12px; }
-  .lifestyle-movement { width: 68px; height: 68px; }
+  .lifestyle-movement-study.is-compact { width: 68px; height: 68px; }
+  .lifestyle-movement-study:not(.is-compact) { height: clamp(210px,75vw,310px); border-radius: 14px; }
   .lifestyle-exercise-title strong { font-size: 12px; }
   .lifestyle-exercise-title small { font-size: 9px; }
   .lifestyle-exercise-log { grid-template-columns: 1fr; }
   .lifestyle-exercise-log input { font-size: 16px; }
+  .lifestyle-form-guide { padding: 11px; }
+  .lifestyle-muscle-map,
+  .lifestyle-instruction-grid { grid-template-columns: 1fr; }
   .lifestyle-workout-sheet > footer { display: grid; grid-template-columns: 1fr 1.45fr; }
   .lifestyle-onboarding-layer { padding: 8px; }
   .lifestyle-onboarding { border-radius: 24px; }

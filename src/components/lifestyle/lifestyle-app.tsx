@@ -42,6 +42,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -54,6 +55,7 @@ import {
 } from "@/app/lifestyle/actions";
 import { LifestyleNotifications } from "@/components/lifestyle/lifestyle-notifications";
 import type { LifestyleCheckin, LifestyleExercise, LifestyleProfile, LifestyleSession } from "@/lib/data/lifestyle";
+import { getLifestyleExerciseGuide } from "@/lib/lifestyle-exercise-guides";
 
 type LifestyleData = {
   today: string;
@@ -113,32 +115,17 @@ function AppMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function MovementDiagram({ pattern }: { pattern: LifestyleExercise["movement_pattern"] }) {
-  const torso = pattern === "hinge" ? "M54 35 L72 52" : pattern === "squat" || pattern === "single_leg" ? "M58 34 L58 57" : "M58 34 L58 58";
-  const legs = pattern === "squat"
-    ? <><path d="M58 57 L42 69 L31 82" /><path d="M58 57 L75 69 L88 82" /></>
-    : pattern === "single_leg"
-      ? <><path d="M58 57 L44 75 L35 82" /><path d="M58 57 L81 62 L92 76" /></>
-      : pattern === "bridge"
-        ? <><path d="M45 54 L73 42 L91 63" /><path d="M45 54 L26 68" /></>
-        : <><path d="M58 58 L45 82" /><path d="M58 58 L72 82" /></>;
-  const arms = pattern === "push"
-    ? <><path d="M58 42 L82 35 L101 35" /><path d="M58 42 L82 49 L101 49" /></>
-    : pattern === "pull"
-      ? <><path d="M58 42 L81 32 L96 43" /><path d="M58 42 L81 52 L96 43" /></>
-      : pattern === "carry"
-        ? <><path d="M58 43 L37 64" /><path d="M58 43 L79 64" /><rect x="27" y="62" width="13" height="13" rx="3" /><rect x="77" y="62" width="13" height="13" rx="3" /></>
-        : pattern === "core"
-          ? <><path d="M58 42 L32 30" /><path d="M58 42 L84 28" /></>
-          : <><path d="M58 42 L39 57" /><path d="M58 42 L78 57" /></>;
+function MovementStudy({ exerciseKey, name, compact = false }: { exerciseKey: string; name: string; compact?: boolean }) {
+  const guide = getLifestyleExerciseGuide(exerciseKey);
+  if (!guide) {
+    return <span className={`lifestyle-movement-study ${compact ? "is-compact" : ""} is-fallback`} aria-hidden="true"><Dumbbell /></span>;
+  }
   return (
-    <svg className={`lifestyle-movement is-${pattern}`} viewBox="0 0 120 92" role="img" aria-label={`${pattern.replace("_", " ")} movement guide`}>
-      <circle cx="58" cy="22" r="9" />
-      <path d={torso} />
-      {arms}{legs}
-      {pattern === "bridge" ? <path className="lifestyle-motion-line" d="M50 49 Q70 24 89 45" /> : null}
-      {pattern === "hinge" ? <path className="lifestyle-motion-line" d="M48 34 Q72 24 84 43" /> : null}
-    </svg>
+    <figure className={`lifestyle-movement-study ${compact ? "is-compact" : ""}`}>
+      <Image src={guide.image} width={960} height={960} sizes={compact ? "(max-width: 640px) 68px, 100px" : "(max-width: 640px) calc(100vw - 84px), 680px"} alt={guide.imageAlt} />
+      {!compact ? <figcaption><span>Start</span><i aria-hidden="true" /><span>Finish</span></figcaption> : null}
+      {compact ? <span className="sr-only">Open {name} instructions to view the full movement study.</span> : null}
+    </figure>
   );
 }
 
@@ -157,6 +144,7 @@ function ExerciseCard({ exercise, onSave, disabled }: { exercise: LifestyleExerc
   const [expanded, setExpanded] = useState(false);
   const [weight, setWeight] = useState(exercise.weight_kg?.toString() ?? "");
   const [reps, setReps] = useState(exercise.reps_completed?.toString() ?? "");
+  const guide = getLifestyleExerciseGuide(exercise.exercise_key);
   return (
     <article className={`lifestyle-exercise-card ${exercise.completed ? "is-complete" : ""}`}>
       <button
@@ -172,7 +160,7 @@ function ExerciseCard({ exercise, onSave, disabled }: { exercise: LifestyleExerc
           repsCompleted: reps ? Number(reps) : null,
         })}
       >{exercise.completed ? <Check size={18} /> : <Circle size={18} />}</button>
-      <MovementDiagram pattern={exercise.movement_pattern} />
+      <MovementStudy exerciseKey={exercise.exercise_key} name={exercise.name} compact />
       <div className="lifestyle-exercise-copy">
         <button type="button" className="lifestyle-exercise-title" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
           <span><strong>{exercise.name}</strong><small>{exercise.target_sets} sets · {exercise.rep_min}–{exercise.rep_max} reps · {exercise.rest_seconds}s rest</small></span>
@@ -182,14 +170,49 @@ function ExerciseCard({ exercise, onSave, disabled }: { exercise: LifestyleExerc
           <label>Weight<input inputMode="decimal" value={weight} onChange={(event) => setWeight(event.target.value)} placeholder="—" /><span>kg</span></label>
           <label>Last reps<input inputMode="numeric" value={reps} onChange={(event) => setReps(event.target.value)} placeholder="—" /></label>
         </div>
-        {expanded ? (
-          <div className="lifestyle-form-guide">
-            <strong>Form checkpoints</strong>
-            <ol>{exercise.form_cues.map((cue) => <li key={cue}>{cue}</li>)}</ol>
-            <p><Info size={14} /> Use a pain-free range. Quality wins over load.</p>
-          </div>
-        ) : null}
       </div>
+      {expanded ? (
+        <div className="lifestyle-form-guide">
+            {guide ? (
+              <>
+                <MovementStudy exerciseKey={exercise.exercise_key} name={exercise.name} />
+                <header>
+                  <span><Activity size={15} /> Movement guide</span>
+                  <strong>{guide.goal}</strong>
+                </header>
+                <div className="lifestyle-muscle-map">
+                  <div><span>Primary</span><p>{guide.primaryMuscles.map((muscle) => <i key={muscle}>{muscle}</i>)}</p></div>
+                  <div><span>Supporting</span><p>{guide.supportingMuscles.map((muscle) => <i key={muscle}>{muscle}</i>)}</p></div>
+                </div>
+                <div className="lifestyle-instruction-grid">
+                  <section>
+                    <span>01 · Set up</span>
+                    <ol>{guide.setup.map((step) => <li key={step}>{step}</li>)}</ol>
+                  </section>
+                  <section>
+                    <span>02 · Do the rep</span>
+                    <ol>{guide.movement.map((step) => <li key={step}>{step}</li>)}</ol>
+                  </section>
+                  <section className="is-breathing">
+                    <span>03 · Breathe + brace</span>
+                    <p>{guide.breathing}</p>
+                  </section>
+                  <section className="is-mistakes">
+                    <span>Watch for</span>
+                    <ul>{guide.commonMistakes.map((mistake) => <li key={mistake}>{mistake}</li>)}</ul>
+                  </section>
+                </div>
+                <div className="lifestyle-regression"><RotateCcw size={15} /><p><strong>Make it easier</strong>{guide.easierOption}</p></div>
+              </>
+            ) : (
+              <>
+                <strong>Form checkpoints</strong>
+                <ol>{exercise.form_cues.map((cue) => <li key={cue}>{cue}</li>)}</ol>
+              </>
+            )}
+            <p className="lifestyle-guide-caution"><Info size={14} /> Use a pain-free range. Stop for sharp, radiating or worsening pain.</p>
+        </div>
+      ) : null}
     </article>
   );
 }
