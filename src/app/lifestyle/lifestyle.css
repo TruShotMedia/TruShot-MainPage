@@ -78,6 +78,7 @@ body:has(.lifestyle-root) {
 .lifestyle-reminder-grid,
 .lifestyle-notification-actions,
 .lifestyle-workout-heading,
+.lifestyle-workout-body,
 .lifestyle-exercise-list,
 .lifestyle-exercise-card,
 .lifestyle-exercise-copy,
@@ -665,6 +666,7 @@ body:has(.lifestyle-root) {
 .lifestyle-workout-sheet > header button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--life-line); border-radius: 12px; color: var(--life-muted); background: transparent; cursor: pointer; }
 .lifestyle-workout-sheet > header span { color: var(--life-muted); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .lifestyle-workout-sheet > header i { justify-self: end; color: var(--life-mint); font-size: 11px; font-style: normal; font-weight: 800; }
+.lifestyle-workout-body { min-height: 0; flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .lifestyle-workout-heading { padding: 28px 28px 22px; }
 .lifestyle-workout-heading > span { display: inline-flex; align-items: center; gap: 7px; color: var(--life-mint); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .lifestyle-workout-heading h2 { margin: 12px 0 7px; font: 700 clamp(28px,5vw,49px)/1 var(--life-display); letter-spacing: -.05em; }
@@ -675,7 +677,7 @@ body:has(.lifestyle-root) {
 .lifestyle-workout-safety { display: flex; align-items: flex-start; gap: 9px; margin: 0 28px 18px; padding: 12px; border: 1px solid rgba(228,194,135,.16); border-radius: 12px; color: var(--life-warm); background: rgba(228,194,135,.05); }
 .lifestyle-workout-safety svg { flex: 0 0 auto; }
 .lifestyle-workout-safety p { margin: 0; font-size: 10px; line-height: 1.5; }
-.lifestyle-exercise-list { display: grid; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 28px 24px; }
+.lifestyle-exercise-list { display: grid; gap: 10px; min-height: 0; padding: 0 28px 24px; }
 .lifestyle-exercise-card { display: grid; grid-template-columns: auto 100px minmax(0,1fr); align-items: start; gap: 14px; padding: 15px; overflow: hidden; border: 1px solid var(--life-line); border-radius: 18px; background: rgba(255,255,255,.018); transition: border-color .2s ease, opacity .2s ease; }
 .lifestyle-exercise-card.is-complete { border-color: rgba(75,196,134,.28); background: rgba(75,196,134,.045); }
 .lifestyle-exercise-check { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--life-line); border-radius: 11px; color: var(--life-muted); background: transparent; cursor: pointer; }

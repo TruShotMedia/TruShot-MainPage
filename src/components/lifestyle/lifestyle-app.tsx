@@ -241,16 +241,18 @@ function WorkoutSheet({ session, onClose, onExerciseSave, onComplete, onSkip, pe
           <span>{friendlyDate(session.session_date)}</span>
           <i>{completion}%</i>
         </header>
-        <div className="lifestyle-workout-heading">
-          <span><Dumbbell size={18} /> {displayTime(session.start_time)}–{displayTime(session.end_time)}</span>
-          <h2 id="lifestyle-workout-title">{session.title}</h2>
-          <p>{session.focus}</p>
-          <div className="lifestyle-progress-track"><i style={{ width: `${completion}%` }} /></div>
-          <small>{completeCount} of {session.exercises.length} movements complete</small>
-        </div>
-        <div className="lifestyle-workout-safety"><ShieldCheck size={17} /><p><strong>Train the body you have today.</strong> Stop if pain is sharp, radiating or worsening. Form first; load second.</p></div>
-        <div className="lifestyle-exercise-list">
-          {session.exercises.map((exercise) => <ExerciseCard key={exercise.id} exercise={exercise} onSave={onExerciseSave} disabled={pending} />)}
+        <div className="lifestyle-workout-body">
+          <div className="lifestyle-workout-heading">
+            <span><Dumbbell size={18} /> {displayTime(session.start_time)}–{displayTime(session.end_time)}</span>
+            <h2 id="lifestyle-workout-title">{session.title}</h2>
+            <p>{session.focus}</p>
+            <div className="lifestyle-progress-track"><i style={{ width: `${completion}%` }} /></div>
+            <small>{completeCount} of {session.exercises.length} movements complete</small>
+          </div>
+          <div className="lifestyle-workout-safety"><ShieldCheck size={17} /><p><strong>Train the body you have today.</strong> Stop if pain is sharp, radiating or worsening. Form first; load second.</p></div>
+          <div className="lifestyle-exercise-list">
+            {session.exercises.map((exercise) => <ExerciseCard key={exercise.id} exercise={exercise} onSave={onExerciseSave} disabled={pending} />)}
+          </div>
         </div>
         <footer>
           <button type="button" className="is-quiet" onClick={() => onSkip(session.id)} disabled={pending || session.status === "completed"}><Minus size={16} /> Skip today</button>
