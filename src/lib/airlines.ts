@@ -5,8 +5,7 @@ export type Airline = {
 
 // IATA carrier codes power the airline marks in the calendar. The list covers
 // the scheduled airlines most commonly encountered across Australia and
-// international production travel; “Other airline” remains available for a
-// charter or a carrier that is not listed yet.
+// international production travel.
 export const AIRLINES: Airline[] = [
   { code: "AA", name: "American Airlines" },
   { code: "AC", name: "Air Canada" },
@@ -105,10 +104,80 @@ export function findAirline(code: string | null | undefined) {
   return normalized ? AIRLINES.find((airline) => airline.code === normalized) ?? null : null;
 }
 
-export function findAirlineCodeByName(name: string | null | undefined) {
-  const normalized = name?.trim().toLocaleLowerCase("en-AU");
+const AIRLINE_ALIASES: Record<string, string> = {
+  "air nz": "NZ",
+  "american": "AA",
+  "british": "BA",
+  "cathay": "CX",
+  "delta": "DL",
+  "emirates airline": "EK",
+  "jetstar": "JQ",
+  "klm": "KL",
+  "qantas airways": "QF",
+  "qantas airlines": "QF",
+  "rex": "ZL",
+  "regional express": "ZL",
+  "singapore": "SQ",
+  "thai": "TG",
+  "virgin": "VA",
+  "virgin au": "VA",
+  "virgin aus": "VA",
+  "virgin australia airlines": "VA",
+};
+
+function normaliseAirlineName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("en-AU")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(airlines?|airways?|international|limited|ltd|company|co)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSimilarity(left: string, right: string) {
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  if (left.includes(right) || right.includes(left)) return 0.9;
+  const leftTokens = new Set(left.split(" "));
+  const rightTokens = new Set(right.split(" "));
+  let shared = 0;
+  leftTokens.forEach((token) => {
+    if (rightTokens.has(token)) shared += 1;
+  });
+  return shared / Math.max(leftTokens.size, rightTokens.size);
+}
+
+/**
+ * Resolves historic free-text airline names to a stable airline from the
+ * selector. Aliases cover common abbreviations; the conservative token match
+ * keeps unrelated names from silently becoming a different carrier.
+ */
+export function findClosestAirline(name: string | null | undefined) {
+  const raw = name?.trim();
+  if (!raw) return null;
+  const normalized = normaliseAirlineName(raw);
   if (!normalized) return null;
-  return AIRLINES.find((airline) => airline.name.toLocaleLowerCase("en-AU") === normalized)?.code ?? null;
+
+  const alias = AIRLINE_ALIASES[normalized];
+  if (alias) return findAirline(alias);
+
+  let closest: Airline | null = null;
+  let closestScore = 0;
+  for (const airline of AIRLINES) {
+    const score = tokenSimilarity(normalized, normaliseAirlineName(airline.name));
+    if (score > closestScore) {
+      closest = airline;
+      closestScore = score;
+    }
+  }
+  return closestScore >= 0.7 ? closest : null;
+}
+
+export function findAirlineCodeByName(name: string | null | undefined) {
+  return findClosestAirline(name)?.code ?? null;
 }
 
 export function airlineLogoUrl(code: string | null | undefined) {

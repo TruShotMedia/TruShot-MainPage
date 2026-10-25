@@ -5,6 +5,7 @@ import { z } from "zod";
 import { scheduleClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getAdminContext } from "@/lib/data/admin";
+import { findAirline } from "@/lib/airlines";
 import type { CalendarFlightEvent, FlightEventDeleteResult, FlightEventSaveResult } from "@/lib/types";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -55,6 +56,9 @@ function readString(formData: FormData, name: string) {
 }
 
 function parseLeg(formData: FormData, prefix: "outbound" | "return") {
+  // The dropdown's IATA code is the single source of truth. Deriving the
+  // display name here keeps persisted names, codes, and logos in step.
+  const selectedAirline = findAirline(readString(formData, `${prefix}_airline_code`));
   const parsed = legSchema.safeParse({
     departure_date: readString(formData, `${prefix}_departure_date`),
     departure_time: readString(formData, `${prefix}_departure_time`),
@@ -62,10 +66,8 @@ function parseLeg(formData: FormData, prefix: "outbound" | "return") {
     arrival_time: readString(formData, `${prefix}_arrival_time`),
     origin_location: readString(formData, `${prefix}_origin_location`),
     destination_location: readString(formData, `${prefix}_destination_location`),
-    airline: readString(formData, `${prefix}_airline`),
-    // "Other airline / charter" is a UI sentinel, never a persisted IATA
-    // code. Preserve its typed airline name while storing no logo code.
-    airline_code: readString(formData, `${prefix}_airline_code`) === "OTHER" ? "" : readString(formData, `${prefix}_airline_code`),
+    airline: selectedAirline?.name ?? "",
+    airline_code: selectedAirline?.code ?? "",
     flight_number: readString(formData, `${prefix}_flight_number`),
     departure_terminal: readString(formData, `${prefix}_departure_terminal`),
     arrival_terminal: readString(formData, `${prefix}_arrival_terminal`),
