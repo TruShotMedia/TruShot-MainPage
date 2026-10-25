@@ -75,6 +75,8 @@ describe("TabletJobPipeline", () => {
     expect(container.textContent).not.toContain("Delivered");
     expect(container.textContent).toContain("Launch campaign");
     expect(container.textContent).toContain("Ravish Media");
+    expect(container.textContent).toContain("Shoot 14 Oct 2026 · Due 16 Oct 2026");
+    expect(container.textContent).not.toContain("TS-104");
     expect(container.textContent).toContain("2open · 3 total");
     expect(container.querySelector('[aria-label="Move Launch campaign"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Mark Final review as delivered"]')).not.toBeNull();

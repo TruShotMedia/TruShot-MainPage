@@ -19,6 +19,10 @@ function sortJobs(jobs: TabletJobRecord[]) {
   });
 }
 
+function jobScheduleSummary(job: TabletJobRecord) {
+  return `Shoot ${formatDate(job.shoot_date)} · Due ${formatDate(job.due_date)}`;
+}
+
 function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
   return (
@@ -38,13 +42,13 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
         <div className="tablet-job-card-primary">
           <div className="task-client">{job.client?.name ?? "No client"}</div>
           <h3>{job.title}</h3>
-          <p>{job.job_number ? `Job ${job.job_number}` : "No job number"}</p>
+          <p>{jobScheduleSummary(job)}</p>
         </div>
       ) : (
         <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <strong>{job.title}</strong>
-          <small>{job.job_number ? `Job ${job.job_number}` : "No job number"}</small>
+          <small>{jobScheduleSummary(job)}</small>
         </button>
       )}
       <details className="tablet-job-card-operational">
