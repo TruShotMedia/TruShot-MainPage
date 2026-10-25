@@ -1,5 +1,44 @@
 /* global self, clients */
 
+const AUTOPACIFIC_FIELD_CACHE = "autopacific-field-shell-v1";
+
+async function serveAutopacificNavigation(request) {
+  const cache = await caches.open(AUTOPACIFIC_FIELD_CACHE);
+  try {
+    const live = await fetch(request);
+    // Never turn a redirected sign-in response into the field fallback. A
+    // cached workspace is only useful after this exact app route succeeded.
+    const livePath = new URL(live.url).pathname;
+    if (live.ok && (livePath === "/autopacific" || livePath === "/autopacific/mobile")) {
+      await cache.put(request, live.clone());
+    }
+    return live;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("AutoPacific has not been opened on this device while online yet.");
+  }
+}
+
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET" || request.mode !== "navigate") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname !== "/autopacific" && url.pathname !== "/autopacific/mobile") return;
+  // Always prefer the network. The cached page is an offline-only field copy,
+  // never a source of truth when a live connection is available.
+  event.respondWith(serveAutopacificNavigation(request));
+});
+
 self.addEventListener("push", (event) => {
   let message = {};
   try {

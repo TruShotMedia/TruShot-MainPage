@@ -111,7 +111,7 @@ export async function createFlightEvent(formData: FormData): Promise<FlightEvent
   if (error || !data) return { ok: false, error: "The flight itinerary could not be created. Please try again." };
   revalidateFlightCalendars();
   scheduleClickUpFlightEventSync();
-  return { ok: true, event: { ...data, entity_type: "flight-event" as const } };
+  return { ok: true, event: { ...data, client_name: null, entity_type: "flight-event" as const } };
 }
 
 export async function updateFlightEvent(formData: FormData): Promise<FlightEventSaveResult> {
@@ -133,7 +133,7 @@ export async function updateFlightEvent(formData: FormData): Promise<FlightEvent
   if (error || !data) return { ok: false, error: "The flight itinerary could not be updated. Please try again." };
   revalidateFlightCalendars();
   scheduleClickUpFlightEventSync();
-  return { ok: true, event: { ...data, entity_type: "flight-event" as const } };
+  return { ok: true, event: { ...data, client_name: null, entity_type: "flight-event" as const } };
 }
 
 export async function deleteFlightEvent(formData: FormData): Promise<FlightEventDeleteResult> {

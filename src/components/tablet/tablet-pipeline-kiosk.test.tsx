@@ -285,6 +285,16 @@ describe("TabletPipelineKiosk", () => {
   });
 
   it("refreshes conservatively only while the kiosk is visible and online", async () => {
+    const previousFetch = globalThis.fetch;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      kind: "schedule",
+      calendarCampaignAssets: [],
+      calendarEvents: [],
+      calendarJobs: [],
+      calendarTasks: [],
+      flightEvents: [],
+    }), { headers: { ETag: '"schedule-v1"' } }));
+    globalThis.fetch = fetchMock;
     await act(async () => root.render(
       <TabletPipelineKiosk
         calendarJobs={[]}
@@ -303,12 +313,14 @@ describe("TabletPipelineKiosk", () => {
     ));
 
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
-    expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule", expect.objectContaining({ cache: "no-store" }));
+    expect(routerMocks.refresh).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="pipeline-view"], [data-testid="calendar-view"]')).not.toBeNull();
 
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
-    expect(routerMocks.refresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    globalThis.fetch = previousFetch;
   });
 
   it("rotates immediately with measured dimensions when an old kiosk browser cannot lock orientation", async () => {

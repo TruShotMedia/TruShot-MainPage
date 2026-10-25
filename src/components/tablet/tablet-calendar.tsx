@@ -56,7 +56,6 @@ function normalizeMatchValue(value: string) {
 
 function itemBelongsToAccentClient(item: CalendarDisplayItem, palette: CalendarPalette) {
   if (!palette.accentClientName) return true;
-  if (item.entity_type === "flight-event") return false;
   return normalizeMatchValue(item.client_name ?? "") === normalizeMatchValue(palette.accentClientName);
 }
 
@@ -74,10 +73,10 @@ function isCalendarItemComplete(item: CalendarDisplayItem, today: string, curren
   return item.is_complete;
 }
 
-function isOverdueAccentJob(item: CalendarDisplayItem, palette: CalendarPalette, today: string) {
+function isOverdueAccentWork(item: CalendarDisplayItem, palette: CalendarPalette, today: string) {
   return Boolean(
     palette.overdueColor
-    && item.entity_type === "job"
+    && (item.entity_type === "job" || item.entity_type === "task" || item.entity_type === "campaign-asset")
     && !item.is_complete
     && item.due_date
     && item.due_date < today
@@ -88,7 +87,7 @@ function isOverdueAccentJob(item: CalendarDisplayItem, palette: CalendarPalette,
 function calendarItemColor(item: CalendarDisplayItem, palette: CalendarPalette, today: string, currentTime: string) {
   const originalColor = item.entity_type === "calendar-event" || item.entity_type === "flight-event" ? item.color : item.status_color;
   if (palette.completedColor && isCalendarItemComplete(item, today, currentTime)) return palette.completedColor;
-  if (isOverdueAccentJob(item, palette, today)) return palette.overdueColor!;
+  if (isOverdueAccentWork(item, palette, today)) return palette.overdueColor!;
   if (!palette.accentColor) return originalColor;
   if (itemBelongsToAccentClient(item, palette)) return palette.accentColor;
   return palette.mutedColor ?? "#687177";
@@ -172,7 +171,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
   const isFlight = item.entity_type === "flight-event";
   const isCalendarEvent = item.entity_type === "calendar-event";
   const isComplete = isCalendarItemComplete(item, today, currentTime);
-  const isOverdue = !isFlight && !isCalendarEvent && isOverdueAccentJob(item, palette, today);
+  const isOverdue = !isFlight && !isCalendarEvent && isOverdueAccentWork(item, palette, today);
   const color = calendarItemColor(item, palette, today, currentTime);
   const kicker = isFlight
     ? "Flight itinerary"
@@ -285,7 +284,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = isCalendarItemComplete(segment.item, today, currentTime);
-  const isOverdue = isOverdueAccentJob(segment.item, palette, today);
+  const isOverdue = isOverdueAccentWork(segment.item, palette, today);
   const rangeColor = calendarItemColor(segment.item, palette, today, currentTime);
   const context = segment.item.entity_type === "calendar-event"
     ? segment.item.location
@@ -353,7 +352,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         detail: job.client_name ?? "No client",
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
-        isOverdue: isOverdueAccentJob(job, palette, today),
+        isOverdue: isOverdueAccentWork(job, palette, today),
         item: job,
       });
       if (job.due_date && job.due_date !== job.shoot_date) eventsForJob.push({
@@ -365,7 +364,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         detail: job.client_name ?? "No client",
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
-        isOverdue: isOverdueAccentJob(job, palette, today),
+        isOverdue: isOverdueAccentWork(job, palette, today),
         item: job,
       });
       return eventsForJob;
@@ -379,7 +378,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
       detail: task.job_title,
       color: calendarItemColor(task, palette, today, currentTime),
       isComplete: task.is_complete,
-      isOverdue: false,
+      isOverdue: isOverdueAccentWork(task, palette, today),
       item: task,
     }] : []);
     const campaignEvents = campaignAssets.flatMap((asset): TabletCalendarEvent[] => {
@@ -393,7 +392,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         detail: asset.campaign_title,
         color: calendarItemColor(asset, palette, today, currentTime),
         isComplete: asset.is_complete,
-        isOverdue: false,
+        isOverdue: isOverdueAccentWork(asset, palette, today),
         item: asset,
       }];
     });

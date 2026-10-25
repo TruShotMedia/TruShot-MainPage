@@ -13,6 +13,13 @@ import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { TabletToday } from "@/components/tablet/tablet-today";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
+import {
+  queueAutopacificOfflineMutation,
+  readAutopacificOfflineQueue,
+  removeAutopacificOfflineMutations,
+  writeAutopacificOfflineSnapshot,
+  type AutopacificOfflineMutation,
+} from "@/lib/autopacific-offline";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
@@ -95,6 +102,37 @@ const lockscreenDateFormatter = new Intl.DateTimeFormat("en-AU", {
   weekday: "long",
   year: "numeric",
 });
+
+type TabletScheduleSnapshot = Pick<{
+  calendarCampaignAssets: CalendarCampaignAsset[];
+  calendarEvents: CalendarCustomEvent[];
+  calendarJobs: CalendarJob[];
+  calendarTasks: CalendarTask[];
+  flightEvents: CalendarFlightEvent[];
+}, "calendarCampaignAssets" | "calendarEvents" | "calendarJobs" | "calendarTasks" | "flightEvents"> & { version: string };
+
+type AutopacificTabPayload =
+  | {
+    kind: "jobs";
+    jobStatuses: JobStatus[];
+    pipelineJobs: TabletJobRecord[];
+  }
+  | {
+    kind: "tasks";
+    pipelineTasks: PipelineTask[];
+    statuses: TaskStatus[];
+  }
+  | ({ kind: "schedule" } & Omit<TabletScheduleSnapshot, "version">);
+
+function scheduleVersionFor(snapshot: Omit<TabletScheduleSnapshot, "version">) {
+  return [
+    ...snapshot.calendarJobs.map((item) => `job:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
+    ...snapshot.calendarTasks.map((item) => `task:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
+    ...snapshot.calendarCampaignAssets.map((item) => `campaign:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
+    ...snapshot.calendarEvents.map((item) => `event:${item.id}:${item.updated_at}`),
+    ...snapshot.flightEvents.map((item) => `flight:${item.id}:${item.updated_at}`),
+  ].join("|");
+}
 
 function TabletViewTabs({
   activeView,
@@ -195,6 +233,8 @@ export function TabletPipelineKiosk({
   today: string;
 }) {
   const router = useRouter();
+  const jobStatusVersion = useMemo(() => jobStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_closed}`).join("|"), [jobStatuses]);
+  const taskStatusVersion = useMemo(() => initialStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_open}`).join("|"), [initialStatuses]);
   const [activeView, setActiveView] = useState<TabletView>(initialView === "today" && !showTodayView ? "pipeline" : initialView);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
@@ -211,6 +251,19 @@ export function TabletPipelineKiosk({
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
   const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
+  const [liveJobSnapshot, setLiveJobSnapshot] = useState(() => ({ jobs: pipelineJobs, version: pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|") }));
+  const [liveJobStatusSnapshot, setLiveJobStatusSnapshot] = useState(() => ({ statuses: jobStatuses, version: jobStatusVersion }));
+  const [liveTaskStatusSnapshot, setLiveTaskStatusSnapshot] = useState(() => ({ statuses: initialStatuses, version: taskStatusVersion }));
+  const [liveScheduleSnapshot, setLiveScheduleSnapshot] = useState<TabletScheduleSnapshot>(() => {
+    const snapshot = { calendarCampaignAssets, calendarEvents, calendarJobs, calendarTasks, flightEvents };
+    return { ...snapshot, version: scheduleVersionFor(snapshot) };
+  });
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<AutopacificOfflineMutation[]>([]);
+  const [offlineNotice, setOfflineNotice] = useState("");
+  const offlineSyncInFlight = useRef(false);
+  const tabETags = useRef(new Map<"jobs" | "tasks" | "schedule", string>());
+  const tabRefreshInFlight = useRef(new Set<"jobs" | "tasks" | "schedule">());
   const [now, setNow] = useState(() => new Date(initialNow));
   const [preferredOrientation, setPreferredOrientation] = useState<TabletOrientation | null>(null);
   const [currentViewportOrientation, setCurrentViewportOrientation] = useState<TabletOrientation | null>(null);
@@ -219,6 +272,16 @@ export function TabletPipelineKiosk({
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
   const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
+  const liveJobs = liveJobSnapshot.version === jobPipelineVersion ? liveJobSnapshot.jobs : pipelineJobs;
+  const liveJobStatuses = liveJobStatusSnapshot.version === jobStatusVersion ? liveJobStatusSnapshot.statuses : jobStatuses;
+  const liveTaskStatuses = liveTaskStatusSnapshot.version === taskStatusVersion ? liveTaskStatusSnapshot.statuses : initialStatuses;
+  const incomingSchedule = useMemo(() => ({ calendarCampaignAssets, calendarEvents, calendarJobs, calendarTasks, flightEvents }), [calendarCampaignAssets, calendarEvents, calendarJobs, calendarTasks, flightEvents]);
+  const scheduleVersion = useMemo(() => scheduleVersionFor(incomingSchedule), [incomingSchedule]);
+  const liveSchedule = useMemo(() => (
+    liveScheduleSnapshot.version === scheduleVersion
+      ? liveScheduleSnapshot
+      : { ...incomingSchedule, version: scheduleVersion }
+  ), [incomingSchedule, liveScheduleSnapshot, scheduleVersion]);
   const isDedicatedMobile = experience === "mobile";
   const isMobileViewport = isDedicatedMobile || Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
   const effectiveOrientation = isDedicatedMobile
@@ -235,13 +298,13 @@ export function TabletPipelineKiosk({
     width: branding.logoWidth,
   };
   const kioskSummary = useMemo(() => {
-    const openStatusIds = new Set(initialStatuses.filter((status) => status.is_open).map((status) => status.id));
+    const openStatusIds = new Set(liveTaskStatuses.filter((status) => status.is_open).map((status) => status.id));
     const outstandingTasks = liveTasks.filter((task) => openStatusIds.has(task.status_id));
     return {
       jobs: new Set(outstandingTasks.map((task) => task.job_id).filter(Boolean)).size,
       tasks: outstandingTasks.length,
     };
-  }, [initialStatuses, liveTasks]);
+  }, [liveTaskStatuses, liveTasks]);
   const viewportStyle = viewportSize && !isMobileViewport && !isDedicatedMobile ? {
     "--tablet-viewport-height": `${viewportSize.height}px`,
     "--tablet-viewport-width": `${viewportSize.width}px`,
@@ -258,9 +321,74 @@ export function TabletPipelineKiosk({
   }, []);
 
   const refresh = useCallback(() => {
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      setOfflineNotice("Still offline—the last saved AutoPacific workspace remains available.");
+      return;
+    }
+    setIsOnline(true);
     lastRefreshAt.current = Date.now();
     router.refresh();
   }, [router]);
+
+  const refreshTab = useCallback(async (view: TabletView) => {
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      setOfflineNotice("Still offline—the last saved AutoPacific workspace remains available.");
+      return;
+    }
+
+    const tab = view === "jobs" ? "jobs" : view === "pipeline" ? "tasks" : "schedule";
+    if (tabRefreshInFlight.current.has(tab)) return;
+    tabRefreshInFlight.current.add(tab);
+    setIsOnline(true);
+
+    try {
+      const headers = new Headers();
+      const eTag = tabETags.current.get(tab);
+      if (eTag) headers.set("If-None-Match", eTag);
+      const response = await fetch(`/api/autopacific/tab?view=${tab}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers,
+      });
+      lastRefreshAt.current = Date.now();
+      if (response.status === 304) return;
+      if (!response.ok) throw new Error("The latest workspace data is unavailable.");
+
+      const responseETag = response.headers.get("etag");
+      if (responseETag) tabETags.current.set(tab, responseETag);
+      const payload = await response.json() as AutopacificTabPayload;
+      if (payload.kind === "jobs") {
+        setLiveJobSnapshot({ jobs: payload.pipelineJobs, version: jobPipelineVersion });
+        setLiveJobStatusSnapshot({ statuses: payload.jobStatuses, version: jobStatusVersion });
+      } else if (payload.kind === "tasks") {
+        setLiveTaskSnapshot({ pipelineVersion, tasks: payload.pipelineTasks });
+        setLiveTaskStatusSnapshot({ statuses: payload.statuses, version: taskStatusVersion });
+      } else {
+        const snapshot = {
+          calendarCampaignAssets: payload.calendarCampaignAssets,
+          calendarEvents: payload.calendarEvents,
+          calendarJobs: payload.calendarJobs,
+          calendarTasks: payload.calendarTasks,
+          flightEvents: payload.flightEvents,
+        };
+        // The parent payload is intentionally not changed by a targeted fetch.
+        // Pair the latest schedule with its current parent version so it renders
+        // immediately; the next server refresh replaces it with its live source.
+        setLiveScheduleSnapshot({ ...snapshot, version: scheduleVersion });
+      }
+      if (!offlineQueue.length) setOfflineNotice("");
+    } catch {
+      setOfflineNotice("The latest field data could not be reached. Your last saved workspace remains intact.");
+    } finally {
+      tabRefreshInFlight.current.delete(tab);
+    }
+  }, [jobPipelineVersion, jobStatusVersion, offlineQueue.length, pipelineVersion, scheduleVersion, taskStatusVersion]);
+
+  const refreshActiveTab = useCallback(() => {
+    void refreshTab(activeView);
+  }, [activeView, refreshTab]);
 
   const selectView = useCallback((view: TabletView) => {
     setActiveView(view);
@@ -269,11 +397,60 @@ export function TabletPipelineKiosk({
     setIsCreateMenuOpen(false);
     setViewingJob(null);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  }, []);
+    void refreshTab(view);
+  }, [refreshTab]);
 
   const updateLiveTasks = useCallback((tasks: PipelineTask[]) => {
     setLiveTaskSnapshot({ pipelineVersion, tasks });
   }, [pipelineVersion]);
+
+  const updateLiveJobs = useCallback((jobs: TabletJobRecord[]) => {
+    setLiveJobSnapshot({ jobs, version: jobPipelineVersion });
+  }, [jobPipelineVersion]);
+
+  const queueOfflineMove = useCallback((entity: "job" | "task", mutation: { expectedUpdatedAt: string; recordId: string; statusId: string; title: string }) => {
+    const queue = queueAutopacificOfflineMutation({ entity, ...mutation });
+    setOfflineQueue(queue);
+    setOfflineNotice(`${queue.length} field ${queue.length === 1 ? "change is" : "changes are"} waiting to sync.`);
+  }, []);
+
+  const syncOfflineQueue = useCallback(async () => {
+    if (offlineSyncInFlight.current || !navigator.onLine) return;
+    const pending = readAutopacificOfflineQueue();
+    if (!pending.length) {
+      setOfflineQueue([]);
+      return;
+    }
+
+    offlineSyncInFlight.current = true;
+    try {
+      const response = await fetch("/api/autopacific/offline-sync", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations: pending }),
+      });
+      const payload = await response.json().catch(() => null) as { error?: string; results?: Array<{ clientMutationId: string; status: "synced" | "conflict" | "rejected" }> } | null;
+      if (!response.ok || !payload?.results) throw new Error(payload?.error ?? "The connection is not ready to sync yet.");
+
+      const settled = payload.results.filter((result) => result.status !== "rejected");
+      const queue = removeAutopacificOfflineMutations(settled.map((result) => result.clientMutationId));
+      setOfflineQueue(queue);
+      const conflicts = settled.filter((result) => result.status === "conflict").length;
+      setOfflineNotice(conflicts
+        ? `${conflicts} queued ${conflicts === 1 ? "change needs" : "changes need"} review—newer live data was kept.`
+        : queue.length
+          ? `${queue.length} field ${queue.length === 1 ? "change remains" : "changes remain"} queued.`
+          : "Offline field changes are now live.");
+      refresh();
+    } catch {
+      // Keep the queue intact. The next browser online event or manual refresh
+      // will retry without ever overwriting a live revision.
+      setOfflineNotice("Field changes are still safely queued until reception returns.");
+    } finally {
+      offlineSyncInFlight.current = false;
+    }
+  }, [refresh]);
 
   const toggleAutoRotation = useCallback(() => {
     setIsAutoRotationPaused((isPaused) => {
@@ -413,6 +590,44 @@ export function TabletPipelineKiosk({
   }, [isDedicatedMobile, syncViewportMetrics]);
 
   useEffect(() => {
+    const restoreFieldState = window.requestAnimationFrame(() => {
+      setOfflineQueue(readAutopacificOfflineQueue());
+      setIsOnline(navigator.onLine);
+    });
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      void syncOfflineQueue();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setOfflineNotice("Offline field mode is active. Status changes will queue safely on this device.");
+    };
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.cancelAnimationFrame(restoreFieldState);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [syncOfflineQueue]);
+
+  useEffect(() => {
+    const snapshot = {
+      calendarCampaignAssets: liveSchedule.calendarCampaignAssets,
+      calendarEvents: liveSchedule.calendarEvents,
+      calendarJobs: liveSchedule.calendarJobs,
+      calendarTasks: liveSchedule.calendarTasks,
+      flightEvents: liveSchedule.flightEvents,
+      jobStatuses: liveJobStatuses,
+      pipelineJobs: liveJobs,
+      pipelineTasks: liveTasks,
+      statuses: liveTaskStatuses,
+    };
+    writeAutopacificOfflineSnapshot(snapshot);
+  }, [liveJobStatuses, liveJobs, liveSchedule, liveTaskStatuses, liveTasks]);
+
+  useEffect(() => {
     if (isAutoRotationPaused || isEditing || isMobileViewport) return;
     let slideshowTimer = 0;
     const duration = isScreensaverVisible ? tabletScreensaverDurationMs : tabletPageDurationMs;
@@ -444,7 +659,7 @@ export function TabletPipelineKiosk({
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
     const refreshIfAvailable = () => {
       if (isEditing || document.visibilityState !== "visible" || !navigator.onLine) return;
-      refresh();
+      refreshActiveTab();
     };
     const refreshIfStale = () => {
       if (Date.now() - lastRefreshAt.current >= refreshIntervalMs) refreshIfAvailable();
@@ -458,7 +673,7 @@ export function TabletPipelineKiosk({
       document.removeEventListener("visibilitychange", refreshIfStale);
       window.removeEventListener("online", refreshIfStale);
     };
-  }, [isEditing, refresh, refreshIntervalMs]);
+  }, [isEditing, refreshActiveTab, refreshIntervalMs]);
 
   return (
     <main className={`tablet-kiosk-viewport ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
@@ -493,11 +708,19 @@ export function TabletPipelineKiosk({
             <button type="button" className="tablet-orientation-toggle" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
               {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
             </button>
-            <button type="button" className="tablet-refresh-button" onClick={refresh} aria-label="Refresh tablet data" title="Refresh"><RefreshCw size={15} /></button>
+            <button type="button" className="tablet-refresh-button" onClick={refreshActiveTab} aria-label="Refresh the current workspace tab" title="Refresh current view"><RefreshCw size={15} /></button>
             <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
             <button type="button" className={`tablet-mobile-more-toggle ${isMobileActionsOpen ? "is-active" : ""}`} onClick={() => setIsMobileActionsOpen((open) => !open)} aria-label="More AutoPacific controls" aria-expanded={isMobileActionsOpen}><MoreHorizontal size={17} /></button>
           </div>
         </header>
+
+        {!isOnline || offlineQueue.length || offlineNotice ? (
+          <p className={`tablet-offline-status ${isOnline ? "is-online" : "is-offline"}`} role="status">
+            <i />
+            <span>{!isOnline ? "Offline field mode" : offlineQueue.length ? "Syncing field changes" : "Field mode ready"}</span>
+            <small>{offlineNotice || "Your latest authorised workspace copy is kept on this device."}</small>
+          </p>
+        ) : null}
 
         <TabletViewTabs activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
 
@@ -518,7 +741,7 @@ export function TabletPipelineKiosk({
                   <span>{effectiveOrientation === "landscape" ? <RectangleVertical size={18} /> : <RectangleHorizontal size={18} />}</span>
                   <strong>Change orientation<small>Switch between portrait and landscape layouts.</small></strong>
                 </button> : null}
-                <button type="button" onClick={() => { refresh(); setIsMobileActionsOpen(false); }}>
+                <button type="button" onClick={() => { refreshActiveTab(); setIsMobileActionsOpen(false); }}>
                   <span><RefreshCw size={18} /></span>
                   <strong>Refresh workspace<small>Fetch the latest jobs, tasks and schedule.</small></strong>
                 </button>
@@ -540,8 +763,9 @@ export function TabletPipelineKiosk({
             <TabletJobPipeline
               editable={isEditing}
               key={jobPipelineVersion}
-              initialJobs={pipelineJobs}
-              statuses={jobStatuses}
+              initialJobs={liveJobs}
+              isOffline={!isOnline}
+              statuses={liveJobStatuses}
               onDuplicateJob={(job) => openDuplicateRecord("job", job)}
               onEditJob={(job) => {
                 setViewingJob(null);
@@ -550,7 +774,9 @@ export function TabletPipelineKiosk({
                 closeEventEditor();
                 setSelectedJob(job);
               }}
-              onMoveSaved={refresh}
+              onJobsChange={updateLiveJobs}
+              onMoveSaved={() => void refreshTab("jobs")}
+              onQueueMove={(mutation) => queueOfflineMove("job", mutation)}
               onViewJob={(job) => {
                 setCreateRequest(null);
                 setSelectedJob(null);
@@ -564,9 +790,10 @@ export function TabletPipelineKiosk({
           ) : activeView === "pipeline" ? (
             <PipelineBoard
               editable={isEditing}
+              isOffline={!isOnline}
               key={pipelineVersion}
               completionStatusKey="final_draft_notes"
-              initialStatuses={initialStatuses}
+              initialStatuses={liveTaskStatuses}
               initialTasks={liveTasks}
               onDuplicateTask={isEditing ? (task) => openDuplicateRecord("task", task) : undefined}
               onEditTask={isEditing ? (task) => {
@@ -576,6 +803,8 @@ export function TabletPipelineKiosk({
                 setSelectedTask(task);
               } : undefined}
               onTasksChange={updateLiveTasks}
+              onMoveSaved={() => void refreshTab("pipeline")}
+              onQueueMove={(mutation) => queueOfflineMove("task", mutation)}
               statusAliases={tabletPipelineStatusAliases}
               variant="tablet"
               visibleStatusKeys={tabletPipelineStatusKeys}
@@ -584,11 +813,11 @@ export function TabletPipelineKiosk({
           ) : activeView === "today" ? <TabletToday
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
-            jobs={calendarJobs}
-            tasks={calendarTasks}
-            campaignAssets={calendarCampaignAssets}
-            customEvents={calendarEvents}
-            flightEvents={flightEvents}
+            jobs={liveSchedule.calendarJobs}
+            tasks={liveSchedule.calendarTasks}
+            campaignAssets={liveSchedule.calendarCampaignAssets}
+            customEvents={liveSchedule.calendarEvents}
+            flightEvents={liveSchedule.flightEvents}
             editable={isEditing}
             onOpenCustomEvent={(event) => {
               setCreateRequest(null);
@@ -611,7 +840,7 @@ export function TabletPipelineKiosk({
               setCreateRequest(null);
               closeEventEditor();
               if (item.entity_type === "job") {
-                const fullJob = pipelineJobs.find((job) => job.id === item.id) ?? null;
+                const fullJob = liveJobs.find((job) => job.id === item.id) ?? null;
                 setSelectedTask(null);
                 setSelectedScheduleItem(fullJob ? null : item);
                 setSelectedJob(fullJob);
@@ -636,11 +865,11 @@ export function TabletPipelineKiosk({
             mutedColor={branding.calendarMutedColor}
             overdueColor={branding.calendarOverdueColor}
             density={calendarDensity}
-            jobs={calendarJobs}
-            tasks={calendarTasks}
-            campaignAssets={calendarCampaignAssets}
-            customEvents={calendarEvents}
-            flightEvents={flightEvents}
+            jobs={liveSchedule.calendarJobs}
+            tasks={liveSchedule.calendarTasks}
+            campaignAssets={liveSchedule.calendarCampaignAssets}
+            customEvents={liveSchedule.calendarEvents}
+            flightEvents={liveSchedule.flightEvents}
             editable={isEditing}
             onCreateEvent={(date) => openCreate("event", date)}
             onEditEvent={(event) => {
@@ -664,7 +893,7 @@ export function TabletPipelineKiosk({
               setCreateRequest(null);
               closeEventEditor();
               if (item.entity_type === "job") {
-                const fullJob = pipelineJobs.find((job) => job.id === item.id) ?? null;
+                const fullJob = liveJobs.find((job) => job.id === item.id) ?? null;
                 setSelectedTask(null);
                 setSelectedScheduleItem(fullJob ? null : item);
                 setSelectedJob(fullJob);
@@ -696,10 +925,10 @@ export function TabletPipelineKiosk({
           </div>
         ) : null}
 
-        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={jobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={initialStatuses} /> : null}
+        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
         {viewingJob ? <TabletJobDetailSheet job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
-        {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={initialStatuses} type="job" /> : null}
-        {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={jobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={initialStatuses} type="task" /> : null}
+        {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
+        {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor defaultClientId={calendarEventClientId} key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
         {flightEditorDate ? <FlightEventEditor defaultClientId={calendarEventClientId} key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}

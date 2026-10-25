@@ -1946,6 +1946,14 @@ img { max-width: 100%; }
 .tablet-kiosk-actions .tablet-crm-button { border-color: var(--green); background: var(--green); color: white; padding: 0 13px; }
 .tablet-kiosk-actions .tablet-crm-button:hover { background: #2c7653; color: white; }
 .tablet-mobile-more-toggle, .tablet-mobile-actions-sheet, .tablet-mobile-sheet-backdrop, .tablet-mobile-view-heading, .tablet-create-backdrop, .tablet-calendar-mobile { display: none; }
+.tablet-offline-status { display: flex; flex: 0 0 auto; min-width: 0; align-items: center; gap: 7px; border-bottom: 1px solid rgba(127,180,208,.15); background: rgba(16,39,51,.92); padding: 6px 14px; color: #a8c9d9; font-size: 8px; font-weight: 800; line-height: 1.25; }
+.tablet-offline-status > i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #76bfdd; box-shadow: 0 0 10px rgba(118,191,221,.72); }
+.tablet-offline-status > span { flex: 0 0 auto; color: #d4e7ef; font-weight: 950; letter-spacing: .055em; text-transform: uppercase; }
+.tablet-offline-status > small { min-width: 0; overflow: hidden; color: #8ba4b0; font-size: 8px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.tablet-offline-status.is-offline { border-color: rgba(212,157,72,.32); background: rgba(54,39,18,.94); color: #f0c676; }
+.tablet-offline-status.is-offline > i { background: #f0bd62; box-shadow: 0 0 10px rgba(240,189,98,.7); }
+.tablet-offline-status.is-offline > span { color: #ffe0a2; }
+.tablet-offline-status.is-offline > small { color: #dfc188; }
 .tablet-kiosk-main { position: relative; display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 10px 12px 12px; }
 .tablet-kiosk .pipeline-status-toast { position: absolute; top: 15px; right: 18px; z-index: 8; max-width: 360px; overflow: hidden; border: 1px solid rgba(103,207,150,.32); border-radius: 999px; background: rgba(13,29,20,.96); padding: 8px 12px; color: #8cdaa9; font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
 .tablet-kiosk .pipeline-board { display: grid; min-width: 0; min-height: 0; flex: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; padding: 0; }
@@ -1978,6 +1986,14 @@ img { max-width: 100%; }
 .tablet-task-priority.priority-high, .tablet-task-priority.priority-urgent { background: rgba(185,87,68,.18); color: #e59a88; }
 .tablet-kiosk .task-meta { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 8px; padding-top: 8px; border-color: rgba(255,255,255,.08); color: #89958c; font-size: 7px; }
 .tablet-kiosk .tablet-job-card .task-client { max-width: 100%; }
+.tablet-kiosk .tablet-job-card-primary { position: relative; z-index: 2; display: block; width: 100%; min-width: 0; border: 0; background: transparent; padding: 0; color: inherit; text-align: left; }
+.tablet-kiosk button.tablet-job-card-primary { cursor: pointer; }
+.tablet-kiosk button.tablet-job-card-primary:focus-visible { outline: 2px solid #8fc4dd; outline-offset: 4px; }
+.tablet-kiosk .tablet-job-card-primary > strong { display: block; margin: 9px 0 4px; color: #f2f5f2; font-size: clamp(9px,.9vw,12px); font-weight: 850; line-height: 1.22; }
+.tablet-kiosk .tablet-job-card-primary > small { display: block; overflow: hidden; padding-right: 4px; color: #9ca69f; font-size: 8px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.tablet-kiosk .tablet-job-card-operational { position: relative; z-index: 2; margin-top: 8px; }
+.tablet-kiosk .tablet-job-card-operational > summary { display: none; }
+.tablet-kiosk .tablet-job-card-operational > div { display: block; }
 .tablet-kiosk .tablet-job-card-dates span:last-child { padding-left: 17px; }
 .tablet-job-card-progress { display: flex; align-items: center; gap: 5px; margin-top: 8px; border-radius: 8px; background: rgba(255,255,255,.045); padding: 7px 8px; color: #7fd39e; font-size: 7px; }
 .tablet-job-card-progress strong { color: white; font-size: 10px; }
@@ -2280,16 +2296,32 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
   .tablet-kiosk .pipeline-column > header h2 { font-size: 11px; letter-spacing: .035em; }
   .tablet-kiosk .pipeline-stack, .tablet-kiosk[data-orientation="portrait"] .pipeline-stack { gap: 9px; padding: 9px; -webkit-overflow-scrolling: touch; }
   .tablet-kiosk .pipeline-task, .tablet-kiosk[data-orientation="portrait"] .pipeline-task { min-height: 126px; border-radius: 13px; padding: 13px 48px 13px 13px; }
+  .tablet-kiosk .tablet-job-card { min-height: 108px; }
   .tablet-kiosk .pipeline-task.is-editable { min-height: 158px; }
+  .tablet-kiosk .tablet-job-card.is-editable { min-height: 124px; }
   .tablet-kiosk .pipeline-task h3 { margin: 10px 0 5px; font-size: 14px; line-height: 1.25; }
   .tablet-kiosk .pipeline-task > p { font-size: 10px; }
   .tablet-kiosk .task-client { font-size: 8px; }
+  .tablet-kiosk .tablet-job-card-primary > strong { display: -webkit-box; overflow: hidden; margin-top: 8px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 14px; }
+  .tablet-kiosk .tablet-job-card-primary > small { font-size: 9px; }
+  .tablet-kiosk .tablet-job-card-operational { margin-top: 8px; }
+  .tablet-kiosk .tablet-job-card-operational > summary { display: flex; min-height: 25px; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 7px; color: #82a2b1; font-size: 8px; font-weight: 850; letter-spacing: .02em; list-style: none; cursor: pointer; }
+  .tablet-kiosk .tablet-job-card-operational > summary::-webkit-details-marker { display: none; }
+  .tablet-kiosk .tablet-job-card-operational > summary svg { flex: 0 0 auto; transition: transform 160ms ease; }
+  .tablet-kiosk .tablet-job-card-operational[open] > summary svg { transform: rotate(180deg); }
+  .tablet-kiosk .tablet-job-card-operational > div { display: none; }
+  .tablet-kiosk .tablet-job-card-operational[open] > div { display: block; padding-bottom: 1px; }
+  .tablet-kiosk .tablet-job-card-dates { margin-top: 0; }
+  .tablet-kiosk .tablet-job-card-progress { margin-top: 7px; }
   .tablet-kiosk .task-meta { gap: 6px; font-size: 9px; }
   .tablet-kiosk[data-orientation="portrait"] .task-meta span:last-child { display: inline-flex; }
   .tablet-kiosk .pipeline-task-controls { top: 8px; right: 7px; gap: 4px; }
   .tablet-kiosk .drag-handle, .tablet-kiosk .pipeline-complete-button, .tablet-kiosk .tablet-card-edit-button, .tablet-kiosk .tablet-card-duplicate-button { width: 34px; height: 34px; border-radius: 10px; }
   .tablet-kiosk .pipeline-empty { min-height: 90px; border-radius: 12px; font-size: 10px; }
   .tablet-kiosk .pipeline-status-toast { top: 58px; right: 13px; left: 13px; max-width: none; border-radius: 12px; padding: 10px 12px; font-size: 9px; white-space: normal; }
+  .tablet-offline-status { gap: 6px; padding: 5px 11px; font-size: 7px; }
+  .tablet-offline-status > span { font-size: 7px; }
+  .tablet-offline-status > small { font-size: 7px; }
 
   .tablet-calendar { border: 0; border-radius: 18px; background: #0b141a; box-shadow: 0 12px 34px rgba(0,0,0,.24); }
   .tablet-calendar-toolbar { min-height: 67px; flex-direction: row; align-items: center; gap: 5px; border-color: rgba(137,184,207,.12); padding: 8px 9px; }

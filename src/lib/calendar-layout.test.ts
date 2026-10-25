@@ -140,6 +140,7 @@ describe("calendar range layout", () => {
       id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       entity_type: "flight-event",
       client_id: null,
+      client_name: null,
       title: "Sydney production trip",
       departure_date: "2026-08-14",
       departure_time: "07:30:00",

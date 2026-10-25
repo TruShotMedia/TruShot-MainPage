@@ -57,6 +57,7 @@ const flightEvents: CalendarFlightEvent[] = [{
   id: "44444444-4444-4444-8444-444444444444",
   entity_type: "flight-event",
   client_id: null,
+  client_name: null,
   title: "Sydney production trip",
   departure_date: "2026-08-12",
   departure_time: "07:30:00",
@@ -195,7 +196,7 @@ describe("TabletCalendar", () => {
     expect(otherTaskDeadline?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
     expect(calendarEvents[0]?.style.getPropertyValue("--tablet-calendar-color")).toBe("#5d91b0");
     expect(calendarEvents[1]?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
-    expect(flight?.style.getPropertyValue("--tablet-calendar-color")).toBe("#3975ad");
+    expect(flight?.style.getPropertyValue("--tablet-calendar-color")).toBe("#687177");
   });
 
   it("marks unfinished overdue AutoPacific jobs red without recolouring unrelated or completed jobs", async () => {

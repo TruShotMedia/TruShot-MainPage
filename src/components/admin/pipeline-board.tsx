@@ -50,24 +50,30 @@ function Column({ status, tasks, editable, workflowEnabled, savingId, onComplete
 
 export function PipelineBoard({
   editable = true,
+  isOffline = false,
   initialStatuses,
   initialTasks,
   completionStatusKey = "ready_to_post",
   onDuplicateTask,
   onEditTask,
+  onMoveSaved,
   onTasksChange,
+  onQueueMove,
   statusAliases = EMPTY_STATUS_ALIASES,
   variant = "admin",
   visibleStatusKeys,
   workflowEnabled,
 }: {
   editable?: boolean;
+  isOffline?: boolean;
   initialStatuses: TaskStatus[];
   initialTasks: PipelineTask[];
   completionStatusKey?: string;
   onDuplicateTask?: (task: PipelineTask) => void;
   onEditTask?: (task: PipelineTask) => void;
+  onMoveSaved?: () => void;
   onTasksChange?: (tasks: PipelineTask[]) => void;
+  onQueueMove?: (mutation: { expectedUpdatedAt: string; recordId: string; statusId: string; title: string }) => void;
   statusAliases?: Record<string, string>;
   variant?: PipelineVariant;
   visibleStatusKeys?: string[];
@@ -119,8 +125,14 @@ export function PipelineBoard({
         .sort((left, right) => Number(left.position) - Number(right.position));
       setTasks(nextTasks);
       onTasksChange?.(nextTasks);
+      if (isOffline) {
+        onQueueMove?.({ expectedUpdatedAt: current.updated_at, recordId: current.id, statusId: destination, title: current.title });
+        setMessage(`${current.title} will sync when reception returns.`);
+        return;
+      }
       await movePipelineTask(taskId, destination);
       setMessage(successMessage);
+      onMoveSaved?.();
     } catch {
       const restoredTasks = tasks
         .map((task) => task.id === taskId ? current : task)

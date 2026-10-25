@@ -381,6 +381,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
   const flightEvents = (flightEventsResult.data ?? []).map((event): CalendarFlightEvent => ({
     ...event,
     entity_type: "flight-event",
+    client_name: event.client_id ? clientsById.get(event.client_id)?.name ?? null : null,
   }));
 
   const data: TabletKioskData = {

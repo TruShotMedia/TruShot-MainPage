@@ -72,7 +72,7 @@ function readableDate(value: string) {
 }
 
 function isAccentItem(
-  item: CalendarItem | CalendarCustomEvent,
+  item: CalendarItem | CalendarCustomEvent | CalendarFlightEvent,
   accentClientName?: string,
   accentKeywords: string[] = [],
 ) {
@@ -136,7 +136,7 @@ export function buildTabletTodayAgenda({
       meta: detail,
       time,
       timeSort: isDeparture ? flight.departure_time : isArrival ? flight.arrival_time : "12:00",
-      tone: "accent",
+      tone: isAccentItem(flight, accentClientName, accentKeywords) ? "accent" : "muted",
       source: flight,
       urgency: "scheduled",
     });

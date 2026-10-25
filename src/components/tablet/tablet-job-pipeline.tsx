@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, Copy, GripVertical, ListChecks, Pencil } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Copy, GripVertical, ListChecks, Pencil } from "lucide-react";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -34,15 +34,29 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
-      {!editable ? <button type="button" className="tablet-job-card-view-target" aria-label={`View details for ${job.title}`} onClick={() => onView(job)} /> : null}
-      <div className="task-client">{job.client?.name ?? "No client"}</div>
-      <h3>{job.title}</h3>
-      <p>{job.job_number ? `Job ${job.job_number}` : "No job number"}</p>
-      <div className="task-meta tablet-job-card-dates">
-        <span><CalendarDays size={13} /> Shoot {formatDate(job.shoot_date)}</span>
-        <span>Due {formatDate(job.due_date)}</span>
-      </div>
-      <div className="tablet-job-card-progress"><ListChecks size={13} /><strong>{job.open_tasks}</strong><span>open · {job.total_tasks} total</span></div>
+      {editable ? (
+        <div className="tablet-job-card-primary">
+          <div className="task-client">{job.client?.name ?? "No client"}</div>
+          <h3>{job.title}</h3>
+          <p>{job.job_number ? `Job ${job.job_number}` : "No job number"}</p>
+        </div>
+      ) : (
+        <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
+          <span className="task-client">{job.client?.name ?? "No client"}</span>
+          <strong>{job.title}</strong>
+          <small>{job.job_number ? `Job ${job.job_number}` : "No job number"}</small>
+        </button>
+      )}
+      <details className="tablet-job-card-operational">
+        <summary><span>Operational detail</span><ChevronDown size={14} /></summary>
+        <div>
+          <div className="task-meta tablet-job-card-dates">
+            <span><CalendarDays size={13} /> Shoot {formatDate(job.shoot_date)}</span>
+            <span>Due {formatDate(job.due_date)}</span>
+          </div>
+          <div className="tablet-job-card-progress"><ListChecks size={13} /><strong>{job.open_tasks}</strong><span>open · {job.total_tasks} total</span></div>
+        </div>
+      </details>
     </article>
   );
 }
@@ -60,14 +74,16 @@ function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, 
   );
 }
 
-export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onViewJob }: {
+export function TabletJobPipeline({ editable = true, initialJobs, statuses, isOffline = false, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onQueueMove, onViewJob }: {
   editable?: boolean;
   initialJobs: TabletJobRecord[];
   statuses: JobStatus[];
+  isOffline?: boolean;
   onDuplicateJob: (job: TabletJobRecord) => void;
   onEditJob: (job: TabletJobRecord) => void;
   onJobsChange?: (jobs: TabletJobRecord[]) => void;
   onMoveSaved?: () => void;
+  onQueueMove?: (mutation: { expectedUpdatedAt: string; recordId: string; statusId: string; title: string }) => void;
   onViewJob: (job: TabletJobRecord) => void;
 }) {
   const [jobs, setJobs] = useState(initialJobs);
@@ -108,6 +124,11 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, onDu
     setJobs(nextJobs);
     onJobsChange?.(nextJobs);
     try {
+      if (isOffline) {
+        onQueueMove?.({ expectedUpdatedAt: current.updated_at, recordId: current.id, statusId, title: current.title });
+        setMessage(`${current.title} will sync when reception returns.`);
+        return;
+      }
       await bulkUpdateJobStatus([jobId], statusId);
       setMessage(`${current.title} moved to ${destination.label}.`);
       onMoveSaved?.();
