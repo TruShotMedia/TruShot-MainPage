@@ -2044,6 +2044,12 @@ img { max-width: 100%; }
 .tablet-kiosk button.tablet-job-card-primary:focus-visible { outline: 2px solid #8fc4dd; outline-offset: 4px; }
 .tablet-kiosk .tablet-job-card-primary > strong { display: block; margin: 9px 0 4px; color: #f2f5f2; font-size: clamp(9px,.9vw,12px); font-weight: 850; line-height: 1.22; }
 .tablet-kiosk .tablet-job-card-primary > small { display: block; overflow: hidden; padding-right: 4px; color: #9ca69f; font-size: 8px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.tablet-kiosk .tablet-job-card-schedule { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; margin-top: 7px; padding-right: 2px; }
+.tablet-kiosk .tablet-job-card-schedule > span { display: inline-flex; min-width: 0; align-items: center; gap: 3px; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; background: rgba(255,255,255,.045); padding: 4px 6px; color: #a6b3ab; font-size: 7px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.tablet-kiosk .tablet-job-card-schedule > span svg { width: 10px; height: 10px; color: #76b8d7; }
+.tablet-kiosk .tablet-job-card-schedule > span b { color: #d3ded7; font-size: inherit; font-weight: 900; letter-spacing: .025em; }
+.tablet-kiosk .tablet-job-card-schedule > span.is-due { border-color: rgba(127,180,208,.18); background: rgba(93,145,176,.1); }
+.tablet-kiosk .tablet-job-card-schedule > span.is-due svg { color: #9dc8de; }
 .tablet-kiosk .tablet-job-card-operational { position: relative; z-index: 2; margin-top: 8px; }
 .tablet-kiosk .tablet-job-card-operational > summary { display: none; }
 .tablet-kiosk .tablet-job-card-operational > div { display: block; }
@@ -2385,6 +2391,9 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
   .tablet-kiosk .task-client { font-size: 8px; }
   .tablet-kiosk .tablet-job-card-primary > strong { display: -webkit-box; overflow: hidden; margin-top: 8px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 14px; }
   .tablet-kiosk .tablet-job-card-primary > small { font-size: 9px; }
+  .tablet-kiosk .tablet-job-card-schedule { gap: 5px; margin-top: 9px; }
+  .tablet-kiosk .tablet-job-card-schedule > span { gap: 4px; padding: 5px 7px; font-size: 8px; }
+  .tablet-kiosk .tablet-job-card-schedule > span svg { width: 11px; height: 11px; }
   .tablet-kiosk .tablet-job-card-operational { margin-top: 8px; }
   .tablet-kiosk .tablet-job-card-operational > summary { display: flex; min-height: 25px; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 7px; color: #82a2b1; font-size: 8px; font-weight: 850; letter-spacing: .02em; list-style: none; cursor: pointer; }
   .tablet-kiosk .tablet-job-card-operational > summary::-webkit-details-marker { display: none; }

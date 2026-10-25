@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, ChevronDown, Copy, GripVertical, ListChecks, Pencil } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Copy, Flag, GripVertical, ListChecks, Pencil } from "lucide-react";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -21,6 +21,15 @@ function sortJobs(jobs: TabletJobRecord[]) {
 
 function jobScheduleSummary(job: TabletJobRecord) {
   return `Shoot ${formatDate(job.shoot_date)} · Due ${formatDate(job.due_date)}`;
+}
+
+function JobSchedulePills({ job }: { job: TabletJobRecord }) {
+  return (
+    <div className="tablet-job-card-schedule" aria-label={jobScheduleSummary(job)}>
+      <span className="is-shoot"><CalendarDays size={11} aria-hidden="true" /><b>Shoot</b>{formatDate(job.shoot_date)}</span>
+      <span className="is-due"><Flag size={11} aria-hidden="true" /><b>Due</b>{formatDate(job.due_date)}</span>
+    </div>
+  );
 }
 
 function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
@@ -42,13 +51,13 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
         <div className="tablet-job-card-primary">
           <div className="task-client">{job.client?.name ?? "No client"}</div>
           <h3>{job.title}</h3>
-          <p>{jobScheduleSummary(job)}</p>
+          <JobSchedulePills job={job} />
         </div>
       ) : (
         <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <strong>{job.title}</strong>
-          <small>{jobScheduleSummary(job)}</small>
+          <JobSchedulePills job={job} />
         </button>
       )}
       <details className="tablet-job-card-operational">
