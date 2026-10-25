@@ -1301,9 +1301,9 @@ img { max-width: 100%; }
 .flight-event-editor { width: min(980px, 100%); }
 .flight-event-overview { display: grid; grid-template-columns: .8fr 1.2fr; gap: 13px; margin: 22px 0 14px; }
 .flight-event-overview label, .flight-passenger-grid label, .flight-leg-card label, .flight-support-grid label { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: #5f665f; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
-.flight-event-overview input, .flight-event-overview textarea, .flight-passenger-grid input, .flight-leg-card input, .flight-support-grid input, .flight-support-grid textarea { width: 100%; min-height: 42px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 11px; color: #303631; font: inherit; font-size: 11px; font-weight: 650; letter-spacing: 0; text-transform: none; }
+.flight-event-overview input, .flight-event-overview textarea, .flight-passenger-grid input, .flight-leg-card input, .flight-leg-card select, .flight-support-grid input, .flight-support-grid textarea { width: 100%; min-height: 42px; border: 1px solid #d8d8d1; border-radius: 9px; outline: 0; background: white; padding: 0 11px; color: #303631; font: inherit; font-size: 11px; font-weight: 650; letter-spacing: 0; text-transform: none; }
 .flight-event-overview textarea, .flight-support-grid textarea { min-height: 74px; resize: vertical; padding-top: 10px; line-height: 1.45; }
-.flight-event-overview input:focus, .flight-event-overview textarea:focus, .flight-passenger-grid input:focus, .flight-leg-card input:focus, .flight-support-grid input:focus, .flight-support-grid textarea:focus { border-color: #3975ad; box-shadow: 0 0 0 3px rgba(57,117,173,.13); }
+.flight-event-overview input:focus, .flight-event-overview textarea:focus, .flight-passenger-grid input:focus, .flight-leg-card input:focus, .flight-leg-card select:focus, .flight-support-grid input:focus, .flight-support-grid textarea:focus { border-color: #3975ad; box-shadow: 0 0 0 3px rgba(57,117,173,.13); }
 .flight-passenger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin: 0 0 14px; border: 1px solid #d9e2e9; border-radius: 13px; background: #f7fafc; padding: 13px 15px; }
 .flight-passenger-grid label small { color: #8798a4; font-size: 6px; font-weight: 750; letter-spacing: 0; text-transform: none; }
 .flight-leg-grid { display: grid; grid-template-columns: minmax(0,1fr) 38px minmax(0,1fr); align-items: stretch; gap: 10px; }
@@ -1320,6 +1320,28 @@ img { max-width: 100%; }
 .flight-support-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 14px; }
 .flight-support-grid fieldset { border-color: #e0e1db; background: transparent; }
 .flight-support-grid legend { color: #566058; }
+.flight-plan-legs { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.flight-plan-legs-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #d9e2e9; border-radius: 12px; background: #f6f9fb; padding: 10px 13px; color: #315f85; }
+.flight-plan-legs-heading > span { display: inline-flex; align-items: center; gap: 7px; font-size: 8px; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; }
+.flight-plan-legs-heading > small { color: #7890a1; font-size: 8px; font-weight: 650; letter-spacing: 0; text-align: right; text-transform: none; }
+.flight-plan-legs .flight-leg-card { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.flight-plan-legs .flight-leg-card > label, .flight-plan-legs .flight-airline-field { min-width: 0; }
+.flight-plan-legs .flight-leg-card > label:nth-of-type(1), .flight-plan-legs .flight-leg-card > label:nth-of-type(4), .flight-plan-legs .flight-leg-card > label:nth-of-type(5) { grid-column: 1 / -1; }
+.flight-plan-legs .flight-leg-card > div:not(.flight-airline-field):not(.flight-airline-select-wrap):not(.flight-leg-passenger-fields) { display: grid; grid-template-columns: 1fr 1fr; grid-column: 1 / -1; gap: 9px; margin: 0; }
+.flight-airline-field { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: #5f665f; font-size: 8px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.flight-airline-select-wrap { position: relative; display: grid; min-width: 0; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 5px; border: 1px solid #d8d8d1; border-radius: 9px; background: white; padding: 4px 9px 4px 5px; }
+.flight-airline-select-wrap:focus-within { border-color: #3975ad; box-shadow: 0 0 0 3px rgba(57,117,173,.13); }
+.flight-airline-select-wrap select { min-width: 0; min-height: 31px; appearance: none; border: 0; border-radius: 0; background: transparent; padding: 0; box-shadow: none !important; }
+.flight-airline-select-wrap > svg { color: #7a8c99; pointer-events: none; }
+.flight-other-airline { margin-top: -1px; }
+.flight-leg-passenger-fields { display: grid; grid-column: 1 / -1; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0 !important; }
+.flight-plan-leg-connector { display: flex; height: 20px; align-items: center; justify-content: center; gap: 8px; color: #3975ad; }
+.flight-plan-leg-connector i { width: 72px; height: 1px; background: linear-gradient(90deg,transparent,#9bb7ca,transparent); }
+.flight-return-toggle { display: inline-flex; width: max-content; min-height: 35px; align-items: center; gap: 6px; align-self: center; border: 1px dashed #91aec4; border-radius: 9px; background: #f8fbfd; padding: 0 12px; color: #315f85; font: inherit; font-size: 8px; font-weight: 900; letter-spacing: .035em; text-transform: uppercase; cursor: pointer; }
+.flight-return-toggle:hover { border-style: solid; background: #edf5fa; }
+.airline-logo { display: grid; width: 24px; height: 24px; place-items: center; overflow: hidden; border: 1px solid rgba(50,80,99,.18); border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.airline-logo img { display: block; width: 19px; height: 19px; object-fit: contain; }
+.airline-logo-fallback { color: #315f85; }
 .pricing-direct-hero { min-height: 72vh; padding: clamp(180px, 19vw, 290px) clamp(24px, 5vw, 80px) clamp(90px, 10vw, 150px); background: radial-gradient(circle at 78% 20%, rgba(31,94,65,.10), transparent 34%), var(--cream); }
 .pricing-direct-hero h1 { max-width: 1300px; margin: 45px 0 0; font-size: clamp(70px, 9vw, 148px); line-height: .83; letter-spacing: -.075em; text-transform: uppercase; }
 .pricing-direct-hero h1 em { color: var(--green); font-family: Georgia, serif; font-weight: 400; text-transform: lowercase; }
@@ -2101,11 +2123,12 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
 .tablet-calendar-job-range.is-calendar-event { grid-template-columns: minmax(0,1fr); border: 1px solid #61382f; border: 1px solid color-mix(in srgb, var(--tablet-calendar-color) 52%, #26322a); border-left-width: 4px; background: #261714; background: color-mix(in srgb, var(--tablet-calendar-color) 22%, #101713); color: #f0bbb0; color: color-mix(in srgb, var(--tablet-calendar-color) 42%, #f3f5f2); }
 .tablet-calendar-flight-range { grid-template-columns: minmax(34px,auto) minmax(0,1fr) minmax(34px,auto); gap: 5px; border: 1px solid #4d8eb9; border-top-color: #75bce7; background: linear-gradient(105deg, #17364d, #234f71 48%, #163249); padding: 3px 6px; color: #ecf7ff; box-shadow: 0 4px 11px rgba(5,18,27,.42), inset 0 1px rgba(255,255,255,.1); }
 .flight-range-endpoint { display: grid; min-width: 0; grid-template-columns: 22px minmax(0,1fr); grid-template-rows: 1fr 1fr; align-items: center; column-gap: 4px; }
-.flight-range-endpoint b { display: grid; width: 22px; height: 22px; grid-row: 1 / 3; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: #f3f8fb; color: #194361; font-size: 6px; letter-spacing: -.02em; box-shadow: 0 2px 7px rgba(0,0,0,.2); }
+.flight-range-endpoint .airline-logo { width: 22px; height: 22px; grid-row: 1 / 3; border-color: rgba(255,255,255,.28); box-shadow: 0 2px 7px rgba(0,0,0,.2); }
+.flight-range-endpoint .airline-logo img { width: 18px; height: 18px; }
 .flight-range-endpoint span { align-self: end; color: white; font-size: 6px; font-weight: 950; line-height: 1; }
 .flight-range-endpoint small { align-self: start; overflow: hidden; color: #a9cee7; font-size: 5px; font-weight: 800; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
 .flight-range-endpoint.is-arrival { text-align: right; }
-.flight-range-endpoint.is-arrival b { grid-column: 2; }
+.flight-range-endpoint.is-arrival .airline-logo { grid-column: 2; }
 .flight-range-endpoint.is-arrival span, .flight-range-endpoint.is-arrival small { grid-column: 1; }
 .flight-range-endpoint.is-hidden { visibility: hidden; }
 .flight-range-title { display: grid; min-width: 0; grid-template-columns: auto minmax(0,1fr); align-content: center; align-items: center; gap: 1px 4px; text-align: center; }
@@ -2403,8 +2426,11 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
   .tablet-record-editor-fields, .tablet-kiosk .calendar-event-editor-fields, .tablet-kiosk .calendar-event-time-panel > div, .tablet-kiosk .calendar-event-options-grid, .tablet-kiosk .flight-event-overview, .tablet-kiosk .flight-passenger-grid, .tablet-kiosk .flight-support-grid, .tablet-kiosk .flight-leg-grid { grid-template-columns: 1fr; }
   .tablet-record-editor-fields .form-span, .tablet-kiosk .calendar-event-notes-field { grid-column: auto; }
   .tablet-record-editor-fields > *, .tablet-kiosk .calendar-event-editor-fields > *, .tablet-kiosk .calendar-event-time-panel > div > *, .tablet-kiosk .flight-event-overview > *, .tablet-kiosk .flight-passenger-grid > *, .tablet-kiosk .flight-leg-grid > *, .tablet-kiosk .flight-support-grid > * { min-width: 0; }
-  .tablet-record-editor-fields input, .tablet-record-editor-fields select, .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields select, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input, .tablet-kiosk .flight-event-overview input, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-passenger-grid input, .tablet-kiosk .flight-leg-card input, .tablet-kiosk .flight-support-grid input, .tablet-kiosk .flight-support-grid textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 48px; font-size: 16px; }
+  .tablet-record-editor-fields input, .tablet-record-editor-fields select, .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields input, .tablet-kiosk .calendar-event-editor-fields select, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .calendar-event-time-panel input, .tablet-kiosk .flight-event-overview input, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-passenger-grid input, .tablet-kiosk .flight-leg-card input, .tablet-kiosk .flight-leg-card select, .tablet-kiosk .flight-support-grid input, .tablet-kiosk .flight-support-grid textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 48px; font-size: 16px; }
   .tablet-record-editor-fields textarea, .tablet-kiosk .calendar-event-editor-fields textarea, .tablet-kiosk .flight-event-overview textarea, .tablet-kiosk .flight-support-grid textarea { resize: none; }
+  .tablet-kiosk .flight-plan-legs .flight-leg-card { grid-template-columns: 1fr; }
+  .tablet-kiosk .flight-plan-legs .flight-leg-card > label, .tablet-kiosk .flight-plan-legs .flight-leg-card > label:nth-of-type(n) { grid-column: auto; }
+  .tablet-kiosk .flight-plan-legs .flight-leg-card > div:not(.flight-airline-field):not(.flight-airline-select-wrap):not(.flight-leg-passenger-fields), .tablet-kiosk .flight-leg-passenger-fields { grid-column: auto; }
   .tablet-kiosk .calendar-editor-error { margin-top: 12px; margin-bottom: 12px; }
   .tablet-kiosk .calendar-editor > footer { position: sticky; z-index: 7; bottom: 0; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,.08); background: #0d1510; margin: 0; padding: 12px 16px calc(12px + var(--tablet-mobile-bottom-inset)); }
   .tablet-kiosk .calendar-editor > footer > .admin-primary-button { min-height: 46px; flex: 1; }

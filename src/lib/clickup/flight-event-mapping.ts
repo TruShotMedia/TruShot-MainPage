@@ -1,5 +1,7 @@
 export type ClickUpFlightEventSnapshot = {
   id: string;
+  leg_kind: "outbound" | "return" | "connection";
+  leg_order: number;
   title: string;
   departure_date: string;
   departure_time: string;
@@ -33,6 +35,12 @@ function brisbaneTimestamp(date: string, time: string) {
 
 function clean(value: string | null) {
   return value?.trim() || null;
+}
+
+function legLabel(flight: ClickUpFlightEventSnapshot) {
+  if (flight.leg_kind === "return") return "Return";
+  if (flight.leg_kind === "connection") return `Connection ${flight.leg_order}`;
+  return "Outbound";
 }
 
 function itineraryLine({
@@ -86,6 +94,7 @@ export function buildClickUpFlightEventDescription(flight: ClickUpFlightEventSna
   return [
     [
       "**CRM type:** AutoPacific flight itinerary",
+      `**Plan leg:** ${legLabel(flight)}`,
       `**Route:** ${flight.origin_location} → ${flight.destination_location}`,
       `**Departure:** ${itineraryLine({
         airline: flight.departure_airline,
@@ -130,7 +139,7 @@ export function buildClickUpFlightEventPayload({
   openStatus: string;
 }) {
   return {
-    name: `JOHN FLIGHT · ${flight.title}`,
+    name: `JOHN FLIGHT · ${flight.title} · ${legLabel(flight)}`,
     markdown_content: buildClickUpFlightEventDescription(flight),
     status: isClickUpFlightEventComplete(flight, now) ? completeStatus : openStatus,
     archived: false,

@@ -260,6 +260,9 @@ export type CalendarFlightEvent = {
   entity_type: "flight-event";
   client_id: string | null;
   client_name: string | null;
+  travel_plan_id: string | null;
+  leg_order: number;
+  leg_kind: "outbound" | "return" | "connection";
   title: string;
   departure_date: string;
   departure_time: string;
@@ -269,6 +272,8 @@ export type CalendarFlightEvent = {
   destination_location: string;
   departure_airline: string;
   arrival_airline: string;
+  departure_airline_code: string | null;
+  arrival_airline_code: string | null;
   departure_flight_number: string | null;
   arrival_flight_number: string | null;
   departure_terminal: string | null;
@@ -285,6 +290,7 @@ export type CalendarFlightEvent = {
   color: string;
   created_at: string;
   updated_at: string;
+  itinerary_legs?: CalendarFlightEvent[];
 };
 
 export type TabletKioskData = {

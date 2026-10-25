@@ -38,7 +38,7 @@ type FlightOutboxItem = {
   attempts: number;
 };
 
-const CLICKUP_FLIGHT_MAPPING_VERSION = 2;
+const CLICKUP_FLIGHT_MAPPING_VERSION = 3;
 
 export type ClickUpFlightEventSyncResult = {
   status: "completed" | "disabled" | "not_configured" | "unavailable";
@@ -48,7 +48,7 @@ export type ClickUpFlightEventSyncResult = {
   message: string;
 };
 
-const flightEventSelect = "id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,client_id,updated_at" as const;
+const flightEventSelect = "id,leg_kind,leg_order,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,client_id,updated_at" as const;
 
 function safeMessage(error: unknown) {
   if (error instanceof ClickUpApiError) {

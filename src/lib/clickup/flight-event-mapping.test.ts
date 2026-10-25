@@ -9,6 +9,8 @@ import {
 
 const flight: ClickUpFlightEventSnapshot = {
   id: "11111111-2222-4333-8444-555555555555",
+  leg_kind: "outbound",
+  leg_order: 1,
   title: "Sydney campaign shoot",
   departure_date: "2026-10-23",
   departure_time: "09:00:00",
@@ -48,7 +50,7 @@ describe("ClickUp flight event mapping", () => {
       openStatus: "TO DO",
     });
     expect(payload).toMatchObject({
-      name: `JOHN FLIGHT · ${flight.title}`,
+      name: `JOHN FLIGHT · ${flight.title} · Outbound`,
       status: "TO DO",
       assignees: [42],
       start_date_time: true,
@@ -58,6 +60,7 @@ describe("ClickUp flight event mapping", () => {
     expect(payload.due_date).toBe(Date.parse("2026-10-23T10:30:00+10:00"));
     const description = buildClickUpFlightEventDescription(flight);
     expect(description).toContain("AutoPacific flight itinerary");
+    expect(description).toContain("**Plan leg:** Outbound");
     expect(description).toContain("QF 501");
     expect(description).toContain("Terminal 3");
     expect(description).toContain("**Seat:** 14A");

@@ -16,7 +16,9 @@ import {
   subMonths,
 } from "date-fns";
 import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus } from "lucide-react";
+import { AirlineLogo } from "@/components/tablet/airline-logo";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
+import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 type TabletCalendarEvent = {
@@ -138,21 +140,15 @@ function compactTime(value: string) {
   return `${displayHour}${minuteText === "00" ? "" : `:${minuteText}`}${suffix}`;
 }
 
-function airlineMark(name: string) {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1) return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-  return name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase();
-}
-
 function flightHoverDetails(flight: CalendarFlightEvent) {
+  const legs = flight.itinerary_legs ?? [flight];
   return [
     flight.title,
-    `${flight.departure_airline}${flight.departure_flight_number ? ` ${flight.departure_flight_number}` : ""}: ${flight.origin_location} · ${flight.departure_date} ${compactTime(flight.departure_time)}`,
-    flight.departure_terminal ? `Departure terminal: ${flight.departure_terminal}` : null,
-    `${flight.arrival_airline}${flight.arrival_flight_number ? ` ${flight.arrival_flight_number}` : ""}: ${flight.destination_location} · ${flight.arrival_date} ${compactTime(flight.arrival_time)}`,
-    flight.arrival_terminal ? `Arrival terminal: ${flight.arrival_terminal}` : null,
-    flight.travel_class ? `Class: ${flight.travel_class}` : null,
-    flight.seat_number ? `Seat: ${flight.seat_number}` : null,
+    ...legs.flatMap((leg, index) => [
+      `${legs.length > 1 ? `${index === 0 ? "Outbound" : "Return"}: ` : ""}${leg.departure_airline}${leg.departure_flight_number ? ` ${leg.departure_flight_number}` : ""} · ${leg.origin_location} · ${leg.departure_date} ${compactTime(leg.departure_time)}`,
+      `Arrives ${leg.destination_location} · ${leg.arrival_date} ${compactTime(leg.arrival_time)}${leg.arrival_terminal ? ` · Terminal ${leg.arrival_terminal}` : ""}`,
+      leg.travel_class ? `Class: ${leg.travel_class}${leg.seat_number ? ` · Seat ${leg.seat_number}` : ""}` : leg.seat_number ? `Seat ${leg.seat_number}` : null,
+    ]),
     flight.accommodation_title ? `Accommodation: ${flight.accommodation_title}${flight.accommodation_location ? ` · ${flight.accommodation_location}` : ""}${flight.accommodation_notes ? ` · ${flight.accommodation_notes}` : ""}` : null,
     flight.vehicle_title ? `Vehicle: ${flight.vehicle_title}${flight.vehicle_location ? ` · ${flight.vehicle_location}` : ""}${flight.vehicle_notes ? ` · ${flight.vehicle_notes}` : ""}` : null,
     flight.notes,
@@ -262,7 +258,7 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
       } as CSSProperties}
     >
       <div className={`flight-range-endpoint ${showDeparture ? "" : "is-hidden"}`}>
-        <b aria-hidden="true">{airlineMark(flight.departure_airline)}</b>
+        <AirlineLogo code={flight.departure_airline_code} name={flight.departure_airline} />
         <span>{compactTime(flight.departure_time)}</span>
         <small>{flight.origin_location}</small>
       </div>
@@ -272,7 +268,7 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
         <em>{flight.origin_location} → {flight.destination_location}</em>
       </div>
       <div className={`flight-range-endpoint is-arrival ${showArrival ? "" : "is-hidden"}`}>
-        <b aria-hidden="true">{airlineMark(flight.arrival_airline)}</b>
+        <AirlineLogo code={flight.arrival_airline_code} name={flight.arrival_airline} />
         <span>{compactTime(flight.arrival_time)}</span>
         <small>{flight.destination_location}</small>
       </div>
@@ -329,7 +325,8 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
     : undefined;
   const palette = useMemo(() => ({ accentClientName, accentColor, accentKeywords, completedColor, mutedColor, overdueColor }), [accentClientName, accentColor, accentKeywords, completedColor, mutedColor, overdueColor]);
-  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...flightEvents]), [campaignAssets, customEvents, flightEvents, jobs]);
+  const calendarFlights = useMemo(() => buildFlightCalendarItineraries(flightEvents), [flightEvents]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...calendarFlights]), [calendarFlights, campaignAssets, customEvents, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate, capacityWindowDays), [capacityWindowDays, currentMonth, todayDate]);
   const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);

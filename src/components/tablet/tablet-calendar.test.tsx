@@ -58,6 +58,9 @@ const flightEvents: CalendarFlightEvent[] = [{
   entity_type: "flight-event",
   client_id: null,
   client_name: null,
+  travel_plan_id: null,
+  leg_order: 1,
+  leg_kind: "outbound",
   title: "Sydney production trip",
   departure_date: "2026-08-12",
   departure_time: "07:30:00",
@@ -67,6 +70,8 @@ const flightEvents: CalendarFlightEvent[] = [{
   destination_location: "Sydney · SYD",
   departure_airline: "Qantas Airways",
   arrival_airline: "Qantas Airways",
+  departure_airline_code: "QF",
+  arrival_airline_code: "QF",
   departure_flight_number: "QF 501",
   arrival_flight_number: "QF 501",
   departure_terminal: "Domestic 3",
@@ -286,7 +291,8 @@ describe("TabletCalendar", () => {
     expect(flight).not.toBeNull();
     expect(flight.style.gridColumn).toBe("3 / span 2");
     expect(flight.style.gridRow).toBe("1 / span 2");
-    expect(flight.textContent).toContain("QA7:30amBrisbane · BNESydney production trip");
+    expect(flight.textContent).toContain("7:30amBrisbane · BNE");
+    expect(flight.querySelectorAll("img[alt='Qantas Airways logo']")).toHaveLength(2);
     expect(flight.title).toContain("Accommodation: The Old Clare · Chippendale · Late check-in");
     expect(flight.title).toContain("Vehicle: Airport transfer · Terminal 3");
     await act(async () => flight.click());

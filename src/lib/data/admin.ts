@@ -256,7 +256,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("start_time"),
     supabase
       .from("website-flight-events")
-      .select("id,client_id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
+      .select("id,client_id,travel_plan_id,leg_order,leg_kind,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_airline_code,arrival_airline_code,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("departure_date")
       .order("departure_time"),
