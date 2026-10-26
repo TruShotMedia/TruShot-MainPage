@@ -192,6 +192,14 @@ export type TabletJobRecord = {
   client: { id: string; name: string } | null;
   status: JobStatus | null;
   delay_info?: DelayInfo;
+  record_notes?: WorkRecordNote[];
+};
+
+export type WorkRecordNote = {
+  id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PipelineTask = {
@@ -210,6 +218,7 @@ export type PipelineTask = {
   updated_at: string;
   job?: { title: string; shoot_date?: string | null; client?: { name: string } | null } | null;
   delay_info?: DelayInfo;
+  record_notes?: WorkRecordNote[];
 };
 
 export type CalendarJob = {

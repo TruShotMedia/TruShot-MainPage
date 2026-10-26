@@ -20,6 +20,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
   const dateLabel = kind === "job" ? "New shoot date" : "New due date";
   const entityLabel = kind === "job" ? "job" : "task";
@@ -29,7 +30,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const frame = window.requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>("#delay-record-date")?.focus({ preventScroll: true });
+      dateInputRef.current?.focus({ preventScroll: true });
     });
     return () => {
       window.cancelAnimationFrame(frame);
@@ -88,7 +89,22 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
             <div className="delay-record-fields">
               <label>
                 {dateLabel}
-                <input id="delay-record-date" name="rescheduled_date" type="date" defaultValue={scheduledDate ?? ""} required />
+                <span className="delay-record-date-control">
+                  <input ref={dateInputRef} id="delay-record-date" name="rescheduled_date" type="date" defaultValue={scheduledDate ?? ""} required />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = dateInputRef.current;
+                      if (!input) return;
+                      if (typeof input.showPicker === "function") input.showPicker();
+                      else input.focus();
+                    }}
+                    aria-label={`Open calendar for ${dateLabel.toLowerCase()}`}
+                    title="Choose from calendar"
+                  >
+                    <CalendarClock size={15} />
+                  </button>
+                </span>
               </label>
               <label>
                 Why is it delayed?

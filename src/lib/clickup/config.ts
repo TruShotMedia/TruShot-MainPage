@@ -8,7 +8,9 @@ export const CLICKUP_WEBHOOK_ENDPOINT = "https://www.trushotmedia.com/api/integr
 
 export const CLICKUP_STATUS_MAPPING = {
   planning: "TO DO",
-  scheduled: "CONTENT CAPTURED",
+  // Rescheduled CRM work is an actionable successor. It must arrive in
+  // ClickUp as a fresh To Do rather than looking already captured.
+  scheduled: "TO DO",
   production: "EDITING",
   review: "APPROVAL",
   delayed: "DELAYED",

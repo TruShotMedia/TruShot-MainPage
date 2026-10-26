@@ -13,7 +13,7 @@ import type { PipelineTask, TaskStatus } from "@/lib/types";
 type PipelineVariant = "admin" | "tablet";
 const EMPTY_STATUS_ALIASES: Record<string, string> = {};
 
-function TaskCard({ task, editable, workflowEnabled, isSaving, canComplete, onComplete, onDuplicate, onEdit, variant }: { task: PipelineTask; editable: boolean; workflowEnabled: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; onDuplicate?: (task: PipelineTask) => void; onEdit?: (task: PipelineTask) => void; variant: PipelineVariant }) {
+function TaskCard({ task, editable, workflowEnabled, isSaving, canComplete, onComplete, onDuplicate, onEdit, onView, variant }: { task: PipelineTask; editable: boolean; workflowEnabled: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; onDuplicate?: (task: PipelineTask) => void; onEdit?: (task: PipelineTask) => void; onView?: (task: PipelineTask) => void; variant: PipelineVariant }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving || !workflowEnabled });
   return (
     <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className={`pipeline-task pipeline-task-${variant} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
@@ -23,25 +23,40 @@ function TaskCard({ task, editable, workflowEnabled, isSaving, canComplete, onCo
         {editable && onDuplicate ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${task.title}`} title="Duplicate asset" onClick={() => onDuplicate(task)} disabled={isSaving}><Copy size={13} /></button> : null}
         {workflowEnabled && canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${task.title} as posted and done`} title="Mark Posted / Done" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div> : null}
-      <div className="task-client">{task.job?.client?.name ?? "No client"}</div>
-      <h3>{task.title}</h3>
-      <p>{task.job?.title ?? "Unlinked job"}</p>
-      {variant === "tablet" ? <span className={`tablet-task-priority priority-${task.priority}`}>{task.priority}</span> : null}
-      <div className="task-meta">
-        <span><Clock3 size={13} /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
-        <span><CalendarDays size={13} /> {formatDate(task.due_date)}</span>
-      </div>
+      {onView && !editable ? (
+        <button type="button" className="tablet-task-card-primary" aria-label={`View details for ${task.title}`} onClick={() => onView(task)}>
+          <span className="task-client">{task.job?.client?.name ?? "No client"}</span>
+          <strong>{task.title}</strong>
+          <small>{task.job?.title ?? "Unlinked job"}</small>
+          {variant === "tablet" ? <em className={`tablet-task-priority priority-${task.priority}`}>{task.priority}</em> : null}
+          <span className="task-meta">
+            <span><Clock3 size={13} /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
+            <span><CalendarDays size={13} /> {formatDate(task.due_date)}</span>
+          </span>
+        </button>
+      ) : (
+        <>
+          <div className="task-client">{task.job?.client?.name ?? "No client"}</div>
+          <h3>{task.title}</h3>
+          <p>{task.job?.title ?? "Unlinked job"}</p>
+          {variant === "tablet" ? <span className={`tablet-task-priority priority-${task.priority}`}>{task.priority}</span> : null}
+          <div className="task-meta">
+            <span><Clock3 size={13} /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
+            <span><CalendarDays size={13} /> {formatDate(task.due_date)}</span>
+          </div>
+        </>
+      )}
     </article>
   );
 }
 
-function Column({ status, tasks, editable, workflowEnabled, savingId, onComplete, onDuplicateTask, onEditTask, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; editable: boolean; workflowEnabled: boolean; savingId: string | null; onComplete: (task: PipelineTask) => void; onDuplicateTask?: (task: PipelineTask) => void; onEditTask?: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
+function Column({ status, tasks, editable, workflowEnabled, savingId, onComplete, onDuplicateTask, onEditTask, onViewTask, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; editable: boolean; workflowEnabled: boolean; savingId: string | null; onComplete: (task: PipelineTask) => void; onDuplicateTask?: (task: PipelineTask) => void; onEditTask?: (task: PipelineTask) => void; onViewTask?: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}`, disabled: !workflowEnabled });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-${variant} ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b></header>
       <div className="pipeline-stack">
-        {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} workflowEnabled={workflowEnabled} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} onDuplicate={onDuplicateTask} onEdit={onEditTask} variant={variant} />)}
+        {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} workflowEnabled={workflowEnabled} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} onDuplicate={onDuplicateTask} onEdit={onEditTask} onView={onViewTask} variant={variant} />)}
         {!tasks.length && <div className="pipeline-empty">{workflowEnabled ? "Drop an asset here" : "No assets"}</div>}
       </div>
     </section>
@@ -56,6 +71,7 @@ export function PipelineBoard({
   completionStatusKey = "ready_to_post",
   onDuplicateTask,
   onEditTask,
+  onViewTask,
   onMoveSaved,
   onTasksChange,
   onQueueMove,
@@ -71,6 +87,7 @@ export function PipelineBoard({
   completionStatusKey?: string;
   onDuplicateTask?: (task: PipelineTask) => void;
   onEditTask?: (task: PipelineTask) => void;
+  onViewTask?: (task: PipelineTask) => void;
   onMoveSaved?: () => void;
   onTasksChange?: (tasks: PipelineTask[]) => void;
   onQueueMove?: (mutation: { expectedUpdatedAt: string; recordId: string; statusId: string; title: string }) => void;
@@ -175,7 +192,7 @@ export function PipelineBoard({
       {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={canUpdateWorkflow ? sensors : []} onDragEnd={onDragEnd}>
         <div className={`pipeline-board pipeline-board-${variant}`}>
-          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} variant={variant} completionStatusKey={completionStatusKey} />)}
+          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} onViewTask={onViewTask} variant={variant} completionStatusKey={completionStatusKey} />)}
         </div>
       </DndContext>
     </>

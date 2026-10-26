@@ -80,14 +80,35 @@ async function jobsPayload() {
       .is("archived_at", null)
     : { data: [], error: null };
   if (taskError) throw taskError;
+  const { data: recordNotes, error: noteError } = jobIds.length
+    ? await context.supabase
+      .from("website-work-record-notes")
+      .select("id,job_id,body,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("record_kind", "job")
+      .in("job_id", jobIds)
+      .order("created_at")
+    : { data: [], error: null };
+  if (noteError) throw noteError;
   const taskStatusById = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
   const jobStatusById = new Map((statusesResult.data ?? []).map((status) => [status.id, status]));
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  for (const note of recordNotes ?? []) {
+    if (!note.job_id) continue;
+    notesByJobId.set(note.job_id, [...(notesByJobId.get(note.job_id) ?? []), {
+      id: note.id,
+      body: note.body,
+      created_at: note.created_at,
+      updated_at: note.updated_at,
+    }]);
+  }
   const pipelineJobs: TabletJobRecord[] = jobs.map((job) => {
     const relatedTasks = (tasks ?? []).filter((task) => task.job_id === job.id);
     return {
       ...job,
       client,
       status: jobStatusById.get(job.status_id) ?? null,
+      record_notes: notesByJobId.get(job.id) ?? [],
       total_tasks: relatedTasks.length,
       open_tasks: relatedTasks.filter((task) => taskStatusById.get(task.status_id)?.is_open ?? true).length,
     };
@@ -133,13 +154,35 @@ async function tasksPayload() {
       .order("position")
     : { data: [], error: null };
   if (taskError) throw taskError;
+  const taskIds = (tasks ?? []).map((task) => task.id);
+  const { data: recordNotes, error: noteError } = taskIds.length
+    ? await context.supabase
+      .from("website-work-record-notes")
+      .select("id,task_id,body,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("record_kind", "task")
+      .in("task_id", taskIds)
+      .order("created_at")
+    : { data: [], error: null };
+  if (noteError) throw noteError;
   const jobById = new Map(jobs.map((job) => [job.id, job]));
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  for (const note of recordNotes ?? []) {
+    if (!note.task_id) continue;
+    notesByTaskId.set(note.task_id, [...(notesByTaskId.get(note.task_id) ?? []), {
+      id: note.id,
+      body: note.body,
+      created_at: note.created_at,
+      updated_at: note.updated_at,
+    }]);
+  }
   const pipelineTasks: PipelineTask[] = (tasks ?? []).map((task) => {
     const job = jobById.get(task.job_id);
     return {
       ...task,
       asset_type: task.asset_type === "Other" ? "Other" : "Asset",
       due_date: job?.due_date ?? null,
+      record_notes: notesByTaskId.get(task.id) ?? [],
       job: job ? { id: job.id, title: job.title, client } : null,
     };
   });

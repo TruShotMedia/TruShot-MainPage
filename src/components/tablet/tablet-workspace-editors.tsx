@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
-import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, Save, Trash2, X } from "lucide-react";
-import { archiveJob, archiveTask, createJob, createTask, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, MessageSquareText, PencilLine, Save, SendHorizontal, Trash2, X } from "lucide-react";
+import { archiveJob, archiveTask, createJob, createTask, saveWorkRecordNote, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
 import { DelayRecordAction } from "@/components/admin/delay-record-action";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { JobSearchField } from "@/components/admin/job-search-field";
 import { formatDate } from "@/lib/format";
-import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
+import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
 
@@ -42,6 +42,84 @@ function formatTabletTime(value: string | null) {
   const [hours, minutes] = value.split(":").map(Number);
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
   return new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, hours, minutes));
+}
+
+function formatNoteTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Just now";
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
+function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { legacyNote?: string | null; notes?: WorkRecordNote[]; recordId: string; recordKind: "job" | "task" }) {
+  const [items, setItems] = useState<WorkRecordNote[]>(notes);
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const hasLegacyFallback = !items.length && Boolean(legacyNote?.trim());
+
+  async function saveNote(noteId?: string) {
+    const body = (noteId ? editingBody : draft).trim();
+    if (!body) {
+      setErrorMessage("Write a note before saving it.");
+      return;
+    }
+    setSaving(true);
+    setErrorMessage("");
+    try {
+      const formData = new FormData();
+      formData.set("record_kind", recordKind);
+      formData.set("record_id", recordId);
+      formData.set("body", body);
+      if (noteId) formData.set("note_id", noteId);
+      const saved = await saveWorkRecordNote(formData);
+      setItems((current) => noteId
+        ? current.map((item) => item.id === noteId ? saved : item)
+        : [...current, saved],
+      );
+      setDraft("");
+      setEditingId(null);
+      setEditingBody("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "The note could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <aside className="tablet-record-notes" aria-label="Internal notes">
+      <header>
+        <div><span><MessageSquareText size={14} /> Internal notes</span><p>Private working context for this {recordKind}.</p></div>
+        <b>{items.length}</b>
+      </header>
+      <div className="tablet-record-notes-thread" aria-live="polite">
+        {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p>{legacyNote}</p></article> : null}
+        {items.length ? items.map((note) => (
+          <article className="tablet-record-note" key={note.id}>
+            <header><small>{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small><button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button></header>
+            {editingId === note.id ? (
+              <div className="tablet-record-note-edit">
+                <textarea value={editingBody} onChange={(event) => setEditingBody(event.target.value)} maxLength={4000} rows={4} disabled={saving} autoFocus />
+                <div><button type="button" onClick={() => { setEditingId(null); setEditingBody(""); }} disabled={saving}>Cancel</button><button type="button" className="admin-primary-button" onClick={() => { void saveNote(note.id); }} disabled={saving}>{saving ? "Saving…" : "Save note"}</button></div>
+              </div>
+            ) : <p>{note.body}</p>}
+          </article>
+        )) : !hasLegacyFallback ? <div className="tablet-record-notes-empty"><MessageSquareText size={17} /><strong>No internal notes yet</strong><span>Capture context, decisions or handover details here.</span></div> : null}
+      </div>
+      <div className="tablet-record-note-compose">
+        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={4000} rows={4} placeholder="Add an internal note…" disabled={saving} />
+        <button type="button" onClick={() => { void saveNote(); }} disabled={saving || !draft.trim()}><SendHorizontal size={14} /> {saving ? "Saving" : "Add note"}</button>
+      </div>
+      {errorMessage ? <p className="tablet-record-note-error" role="alert">{errorMessage}</p> : null}
+    </aside>
+  );
 }
 
 export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; onClose: () => void }) {
@@ -92,13 +170,70 @@ export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; o
           <div><dt>Job number</dt><dd>{job.job_number || "Not assigned"}</dd></div>
           <div><dt><MapPin size={14} /> Location</dt><dd>{job.location || "Not specified"}</dd></div>
           {job.description ? <div className="is-wide"><dt>Description</dt><dd>{job.description}</dd></div> : null}
-          {job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
+          {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
         </dl>
 
         <footer>
           {job.delivery_url ? <a className="tablet-job-delivery-link" href={job.delivery_url} target="_blank" rel="noreferrer"><Link2 size={14} /> Open client files <ArrowUpRight size={13} /></a> : <span />}
           <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>
         </footer>
+      </section>
+    </div>
+  );
+}
+
+export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; onClose: () => void }) {
+  useEscapeToClose(onClose);
+
+  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
+  return (
+    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
+      <section className="calendar-editor tablet-job-detail-sheet tablet-task-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="tablet-task-detail-title">
+        <header>
+          <div>
+            <span><ListTodo size={13} /> Task details</span>
+            <h2 id="tablet-task-detail-title">{task.title}</h2>
+            <p>{task.job?.client?.name ?? "No client"}{task.job?.title ? ` · ${task.job.title}` : ""}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close task details"><X size={17} /></button>
+        </header>
+
+        <DelayHistoryBanner delayInfo={task.delay_info} />
+
+        <div className="tablet-job-detail-summary tablet-task-detail-summary">
+          <article>
+            <span><CalendarDays size={15} /> Due</span>
+            <strong>{formatDate(task.due_date)}</strong>
+            <small>{formatTabletTime(task.due_time)}</small>
+          </article>
+          <article>
+            <span><ListChecks size={15} /> Priority</span>
+            <strong>{task.priority}</strong>
+            <small>Production focus</small>
+          </article>
+          <article>
+            <span><ListTodo size={15} /> Type</span>
+            <strong>{task.asset_type ?? "Asset"}</strong>
+            <small>Work item</small>
+          </article>
+          <article>
+            <span><CalendarDays size={15} /> Hours</span>
+            <strong>{task.hours == null ? "Unset" : `${task.hours}h`}</strong>
+            <small>Planned effort</small>
+          </article>
+        </div>
+
+        <dl className="tablet-job-detail-list">
+          <div><dt>Attached job</dt><dd>{task.job?.title ?? "Unlinked job"}</dd></div>
+          <div><dt>Task status</dt><dd>{task.completed_at ? "Completed" : "Active"}</dd></div>
+          {task.description ? <div className="is-wide"><dt>Description</dt><dd>{task.description}</dd></div> : null}
+          {task.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{task.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : null}
+        </dl>
+
+        <footer><span /><button className="admin-primary-button" type="button" onClick={onClose}>Done</button></footer>
       </section>
     </div>
   );
@@ -259,10 +394,12 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
         </header>
         <input type="hidden" name="id" value={record.id} />
 
-        <DelayHistoryBanner delayInfo={record.delay_info} />
+        <div className="tablet-record-editor-layout">
+          <section className="tablet-record-editor-details">
+            <DelayHistoryBanner delayInfo={record.delay_info} />
 
-        {job ? (
-          <div className="tablet-record-editor-fields">
+            {job ? (
+              <div className="tablet-record-editor-fields">
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} autoFocus /></label>
             <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>
             <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
@@ -275,10 +412,10 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
-            <label className="form-span">Internal notes<textarea name="notes" rows={3} maxLength={4000} defaultValue={job.notes ?? ""} /></label>
-          </div>
-        ) : task ? (
-          <div className="tablet-record-editor-fields">
+            <input type="hidden" name="notes" value={job.notes ?? ""} />
+              </div>
+            ) : task ? (
+              <div className="tablet-record-editor-fields">
             <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={task.title} autoFocus /></label>
             <JobSearchField jobs={jobOptions} defaultJobId={task.job_id} />
             <label>Status<select name="status_id" required defaultValue={task.status_id}>{taskStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
@@ -287,8 +424,11 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
             <label>Due time<input name="due_time" type="time" defaultValue={task.due_time?.slice(0, 5) ?? ""} /></label>
             <label>Priority<select name="priority" defaultValue={task.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={task.description ?? ""} /></label>
-          </div>
-        ) : null}
+              </div>
+            ) : null}
+          </section>
+          <RecordNotesPanel legacyNote={job?.notes} notes={record.record_notes} recordId={record.id} recordKind={isJob ? "job" : "task"} />
+        </div>
 
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
         <footer className="tablet-record-editor-footer">

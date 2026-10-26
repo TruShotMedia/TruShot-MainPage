@@ -19,7 +19,7 @@ vi.mock("@/components/admin/notion-auto-sync", () => ({ NotionAutoSync: () => nu
 vi.mock("@/components/tablet/tablet-calendar", () => ({ TabletCalendar: (props: unknown) => { componentMocks.calendar(props); return <div data-testid="calendar-view">Calendar board</div>; } }));
 vi.mock("@/components/tablet/tablet-job-pipeline", () => ({ TabletJobPipeline: (props: unknown) => { componentMocks.jobPipeline(props); return <div data-testid="job-pipeline-view">Job pipeline</div>; } }));
 vi.mock("@/components/tablet/tablet-today", () => ({ TabletToday: (props: unknown) => { componentMocks.today(props); return <div data-testid="today-view">Today itinerary</div>; } }));
-vi.mock("@/components/tablet/tablet-workspace-editors", () => ({ TabletJobDetailSheet: ({ job }: { job: { title: string } }) => <div data-testid="job-detail-sheet">{job.title}</div>, TabletRecordCreateEditor: () => <div data-testid="record-editor" />, TabletRecordEditEditor: () => <div data-testid="record-edit-editor" />, TabletScheduleEditor: () => <div data-testid="schedule-editor" /> }));
+vi.mock("@/components/tablet/tablet-workspace-editors", () => ({ TabletJobDetailSheet: ({ job }: { job: { title: string } }) => <div data-testid="job-detail-sheet">{job.title}</div>, TabletTaskDetailSheet: ({ task }: { task: { title: string } }) => <div data-testid="task-detail-sheet">{task.title}</div>, TabletRecordCreateEditor: () => <div data-testid="record-editor" />, TabletRecordEditEditor: () => <div data-testid="record-edit-editor" />, TabletScheduleEditor: () => <div data-testid="schedule-editor" /> }));
 
 describe("TabletPipelineKiosk", () => {
   let container: HTMLDivElement;

@@ -250,7 +250,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult, workRecordNotesResult] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -312,9 +312,14 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .from("website-task-delay-history")
       .select("id,source_task_id,successor_task_id,reason,source_due_date,rescheduled_due_date,created_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    supabase
+      .from("website-work-record-notes")
+      .select("id,record_kind,job_id,task_id,body,created_at,updated_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .order("created_at"),
   ]);
 
-  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult]
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult, workRecordNotesResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error("The tablet workspace could not be refreshed.");
 
@@ -344,6 +349,19 @@ export async function getTabletKioskData(options: { clientName?: string; include
     rescheduled_date: item.rescheduled_due_date,
     created_at: item.created_at,
   })));
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  for (const note of workRecordNotesResult.data ?? []) {
+    const target = note.record_kind === "job" ? note.job_id : note.task_id;
+    if (!target) continue;
+    const targetMap = note.record_kind === "job" ? notesByJobId : notesByTaskId;
+    targetMap.set(target, [...(targetMap.get(target) ?? []), {
+      id: note.id,
+      body: note.body,
+      created_at: note.created_at,
+      updated_at: note.updated_at,
+    }]);
+  }
 
   const pipelineTasks = tasks.map((task) => {
     const job = jobsById.get(task.job_id);
@@ -353,6 +371,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       asset_type: task.asset_type === "Other" ? "Other" : "Asset",
       due_date: task.due_date ?? job?.due_date ?? null,
       delay_info: delayInfoByTaskId.get(task.id),
+      record_notes: notesByTaskId.get(task.id) ?? [],
       job: job ? { id: job.id, title: job.title, client } : null,
     };
   }) as PipelineTask[];
@@ -364,6 +383,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       client: job.client_id ? clientsById.get(job.client_id) ?? null : null,
       status: jobStatusesById.get(job.status_id) ?? null,
       delay_info: delayInfoByJobId.get(job.id),
+      record_notes: notesByJobId.get(job.id) ?? [],
       total_tasks: relatedTasks.length,
       open_tasks: relatedTasks.filter((task) => taskStatusesById.get(task.status_id)?.is_open ?? true).length,
     };

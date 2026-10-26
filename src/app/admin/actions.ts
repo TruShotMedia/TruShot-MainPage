@@ -55,6 +55,12 @@ const delayRecordInputSchema = z.object({
   rescheduled_date: calendarDateSchema,
   reason: z.string().trim().min(2, "Add a short reason for the delay.").max(4_000),
 });
+const workRecordNoteInputSchema = z.object({
+  body: z.string().trim().min(1, "Write a note before saving.").max(4_000),
+  note_id: z.string().uuid().optional(),
+  record_id: z.string().uuid(),
+  record_kind: z.enum(["job", "task"]),
+});
 
 function revalidateInvoicePages() {
   revalidatePath("/admin/invoices");
@@ -797,6 +803,66 @@ export async function delayTask(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidateProductionPages();
   return { successorTaskId: (data as Array<{ successor_task_id: string }> | null)?.[0]?.successor_task_id ?? null };
+}
+
+/**
+ * Saves a single entry in the record-side internal note history. The record
+ * itself is re-read on the server so a valid-looking ID can never write notes
+ * outside the caller's workspace.
+ */
+export async function saveWorkRecordNote(formData: FormData) {
+  const raw = Object.fromEntries(formData);
+  const input = workRecordNoteInputSchema.parse({
+    ...raw,
+    note_id: raw.note_id || undefined,
+  });
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+
+  if (input.record_kind === "job") {
+    await requireJob(context, input.record_id);
+  } else {
+    const { data: task, error: taskError } = await context.supabase
+      .from("website-job-tasks")
+      .select("id")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("id", input.record_id)
+      .is("archived_at", null)
+      .maybeSingle();
+    if (taskError || !task) throw new Error("That task is no longer available.");
+  }
+
+  const recordMatch = input.record_kind === "job" ? { job_id: input.record_id } : { task_id: input.record_id };
+  if (input.note_id) {
+    const { data: updated, error } = await context.supabase
+      .from("website-work-record-notes")
+      .update({ body: input.body, updated_by: context.claims.sub, updated_at: new Date().toISOString() })
+      .eq("id", input.note_id)
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+      .eq("record_kind", input.record_kind)
+      .match(recordMatch)
+      .select("id,body,created_at,updated_at")
+      .single();
+    if (error || !updated) throw new Error(error?.message ?? "That note could not be updated.");
+    revalidateProductionPages();
+    return updated;
+  }
+
+  const { data: created, error } = await context.supabase
+    .from("website-work-record-notes")
+    .insert({
+      workspace_id: TRUSHOT_WORKSPACE_ID,
+      record_kind: input.record_kind,
+      ...recordMatch,
+      body: input.body,
+      created_by: context.claims.sub,
+      updated_by: context.claims.sub,
+    })
+    .select("id,body,created_at,updated_at")
+    .single();
+  if (error || !created) throw new Error(error?.message ?? "That note could not be saved.");
+  revalidateProductionPages();
+  return created;
 }
 
 export async function updateCalendarItem(formData: FormData) {

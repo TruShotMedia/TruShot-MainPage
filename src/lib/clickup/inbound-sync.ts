@@ -323,6 +323,22 @@ async function processRemoteTask(
   if (integration.inbound_mode === "paused") return { status: "ignored", detail: "Inbound syncing was paused.", jobId: link?.job_id };
   if (integration.inbound_mode === "observe") return { status: "observed", detail: "Validated the ClickUp event in observation mode.", jobId: link?.job_id };
 
+  // A source that has been delayed is immutable CRM history. ClickUp may
+  // replay a pre-delay webhook after the CRM transaction has already created
+  // its successor; never let that stale remote event resurrect the source.
+  if (link?.job_id) {
+    const { data: delaySource, error: delaySourceError } = await supabase
+      .from("website-job-delay-history")
+      .select("id")
+      .eq("workspace_id", integration.workspace_id)
+      .eq("source_job_id", link.job_id)
+      .maybeSingle();
+    if (delaySourceError) throw delaySourceError;
+    if (delaySource) {
+      return { status: "ignored", detail: "The CRM delay history owns this completed source record.", jobId: link.job_id };
+    }
+  }
+
   const listMatches = String(task.list?.id ?? "") === integration.list_id;
   const assigned = taskIsAssigned(task, integration.assigned_user_id);
   const eligible = listMatches && assigned && !task.parent && !task.archived;

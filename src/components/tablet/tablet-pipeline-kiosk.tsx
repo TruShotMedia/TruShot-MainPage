@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, MoreHorizontal, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
@@ -73,6 +73,7 @@ const FlightEventEditor = dynamic(() => import("@/components/tablet/flight-event
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
 const TabletJobDetailSheet = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletJobDetailSheet));
+const TabletTaskDetailSheet = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletTaskDetailSheet));
 const TabletScheduleEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletScheduleEditor));
 
 const timeFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -247,6 +248,8 @@ export function TabletPipelineKiosk({
   const [selectedJob, setSelectedJob] = useState<TabletJobRecord | null>(null);
   const [viewingJob, setViewingJob] = useState<TabletJobRecord | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
+  const [viewingTask, setViewingTask] = useState<PipelineTask | null>(null);
+  const [colorMode, setColorMode] = useState<"dark" | "light">("dark");
   const [isAutoRotationPaused, setIsAutoRotationPaused] = useState(false);
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
@@ -283,6 +286,7 @@ export function TabletPipelineKiosk({
       : { ...incomingSchedule, version: scheduleVersion }
   ), [incomingSchedule, liveScheduleSnapshot, scheduleVersion]);
   const isDedicatedMobile = experience === "mobile";
+  const colorModeStorageKey = branding.theme === "autopacific" ? "autopacific-color-mode" : "tablet-color-mode";
   const isMobileViewport = isDedicatedMobile || Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
   const effectiveOrientation = isDedicatedMobile
     ? "portrait"
@@ -396,6 +400,7 @@ export function TabletPipelineKiosk({
     setIsMobileActionsOpen(false);
     setIsCreateMenuOpen(false);
     setViewingJob(null);
+    setViewingTask(null);
     document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
     void refreshTab(view);
   }, [refreshTab]);
@@ -468,6 +473,7 @@ export function TabletPipelineKiosk({
       setIsMobileActionsOpen(false);
       setIsCreateMenuOpen(false);
       setViewingJob(null);
+      setViewingTask(null);
       if (!next) {
         setCreateRequest(null);
         setEventEditorDate(null);
@@ -485,6 +491,7 @@ export function TabletPipelineKiosk({
   const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
     setIsCreateMenuOpen(false);
     setViewingJob(null);
+    setViewingTask(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
@@ -521,6 +528,7 @@ export function TabletPipelineKiosk({
   const openDuplicateRecord = useCallback((kind: TabletRecordCreateRequest["kind"], sourceRecord: TabletJobRecord | PipelineTask) => {
     setIsCreateMenuOpen(false);
     setViewingJob(null);
+    setViewingTask(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
@@ -535,13 +543,15 @@ export function TabletPipelineKiosk({
   const handleMutationSaved = useCallback(() => {
     setCreateRequest(null);
     setViewingJob(null);
+    setViewingTask(null);
     setSelectedScheduleItem(null);
     setSelectedJob(null);
     setSelectedTask(null);
     closeEventEditor();
     closeFlightEditor();
+    void refreshTab(activeView);
     refresh();
-  }, [closeEventEditor, closeFlightEditor, refresh]);
+  }, [activeView, closeEventEditor, closeFlightEditor, refresh, refreshTab]);
 
   const rotateOrientation = useCallback(() => {
     const nextOrientation: TabletOrientation = effectiveOrientation === "landscape" ? "portrait" : "landscape";
@@ -571,6 +581,27 @@ export function TabletPipelineKiosk({
       document.body.classList.remove("tablet-kiosk-active");
     };
   }, []);
+
+  useEffect(() => {
+    const storedMode = window.localStorage.getItem(colorModeStorageKey);
+    if (storedMode !== "light" && storedMode !== "dark") return;
+    // Defer the persisted preference restore until after the initial paint. Apart
+    // from avoiding an SSR/client mismatch, this keeps React from treating the
+    // restore as a synchronous state update caused by the effect itself.
+    const restore = window.setTimeout(() => setColorMode(storedMode), 0);
+    return () => window.clearTimeout(restore);
+  }, [colorModeStorageKey]);
+
+  useEffect(() => {
+    document.documentElement.dataset.tabletColorMode = colorMode;
+    const themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const previousThemeColor = themeMeta?.content;
+    if (themeMeta) themeMeta.content = colorMode === "light" ? "#eef4f6" : "#061017";
+    return () => {
+      delete document.documentElement.dataset.tabletColorMode;
+      if (themeMeta && previousThemeColor) themeMeta.content = previousThemeColor;
+    };
+  }, [colorMode]);
 
   useEffect(() => {
     const restoreOrientation = window.requestAnimationFrame(() => {
@@ -676,8 +707,8 @@ export function TabletPipelineKiosk({
   }, [isEditing, refreshActiveTab, refreshIntervalMs]);
 
   return (
-    <main className={`tablet-kiosk-viewport ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isCssRotated ? "is-css-rotated" : ""}`} style={viewportStyle}>
-      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isEditing ? "is-editing" : "is-read-only"}`} data-orientation={effectiveOrientation} data-experience={experience}>
+    <main className={`tablet-kiosk-viewport ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isCssRotated ? "is-css-rotated" : ""} is-${colorMode}`} style={viewportStyle}>
+      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isEditing ? "is-editing" : "is-read-only"} is-${colorMode}`} data-orientation={effectiveOrientation} data-experience={experience}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
@@ -710,7 +741,19 @@ export function TabletPipelineKiosk({
             </button>
             <button type="button" className="tablet-refresh-button" onClick={refreshActiveTab} aria-label="Refresh the current workspace tab" title="Refresh current view"><RefreshCw size={15} /></button>
             <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
-            <button type="button" className={`tablet-mobile-more-toggle ${isMobileActionsOpen ? "is-active" : ""}`} onClick={() => setIsMobileActionsOpen((open) => !open)} aria-label="More AutoPacific controls" aria-expanded={isMobileActionsOpen}><MoreHorizontal size={17} /></button>
+            <button
+              type="button"
+              className="tablet-theme-toggle"
+              onClick={() => setColorMode((current) => {
+                const next = current === "dark" ? "light" : "dark";
+                window.localStorage.setItem(colorModeStorageKey, next);
+                return next;
+              })}
+              aria-label={`Switch to ${colorMode === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${colorMode === "dark" ? "light" : "dark"} mode`}
+            >
+              {colorMode === "dark" ? <SunMedium size={16} /> : <Moon size={16} />}
+            </button>
           </div>
         </header>
 
@@ -769,6 +812,7 @@ export function TabletPipelineKiosk({
               onDuplicateJob={(job) => openDuplicateRecord("job", job)}
               onEditJob={(job) => {
                 setViewingJob(null);
+                setViewingTask(null);
                 setSelectedTask(null);
                 setSelectedScheduleItem(null);
                 closeEventEditor();
@@ -781,6 +825,7 @@ export function TabletPipelineKiosk({
                 setCreateRequest(null);
                 setSelectedJob(null);
                 setSelectedTask(null);
+                setViewingTask(null);
                 setSelectedScheduleItem(null);
                 closeEventEditor();
                 closeFlightEditor();
@@ -797,10 +842,21 @@ export function TabletPipelineKiosk({
               initialTasks={liveTasks}
               onDuplicateTask={isEditing ? (task) => openDuplicateRecord("task", task) : undefined}
               onEditTask={isEditing ? (task) => {
+                setViewingTask(null);
                 setSelectedJob(null);
                 setSelectedScheduleItem(null);
                 closeEventEditor();
                 setSelectedTask(task);
+              } : undefined}
+              onViewTask={!isEditing ? (task) => {
+                setCreateRequest(null);
+                setViewingJob(null);
+                setSelectedJob(null);
+                setSelectedTask(null);
+                setSelectedScheduleItem(null);
+                closeEventEditor();
+                closeFlightEditor();
+                setViewingTask(task);
               } : undefined}
               onTasksChange={updateLiveTasks}
               onMoveSaved={() => void refreshTab("pipeline")}
@@ -927,6 +983,7 @@ export function TabletPipelineKiosk({
 
         {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
         {viewingJob ? <TabletJobDetailSheet job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
+        {viewingTask ? <TabletTaskDetailSheet task={viewingTask} onClose={() => setViewingTask(null)} /> : null}
         {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
         {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
