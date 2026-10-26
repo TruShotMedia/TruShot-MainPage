@@ -3,6 +3,8 @@
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, Save, Trash2, X } from "lucide-react";
 import { archiveJob, archiveTask, createJob, createTask, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
+import { DelayRecordAction } from "@/components/admin/delay-record-action";
+import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { JobSearchField } from "@/components/admin/job-search-field";
 import { formatDate } from "@/lib/format";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
@@ -60,6 +62,8 @@ export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; o
           </div>
           <button type="button" onClick={onClose} aria-label="Close job details"><X size={17} /></button>
         </header>
+
+        <DelayHistoryBanner delayInfo={job.delay_info} />
 
         <div className="tablet-job-detail-summary">
           <article>
@@ -255,6 +259,8 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
         </header>
         <input type="hidden" name="id" value={record.id} />
 
+        <DelayHistoryBanner delayInfo={record.delay_info} />
+
         {job ? (
           <div className="tablet-record-editor-fields">
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} autoFocus /></label>
@@ -287,6 +293,8 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
         <footer className="tablet-record-editor-footer">
           <button type="button" className="tablet-delete-record" onClick={() => { void remove(); }} disabled={saving}><Trash2 size={14} /> Delete</button>
+          {job && !job.status?.is_closed ? <DelayRecordAction compact kind="job" recordId={job.id} recordTitle={job.title} scheduledDate={job.shoot_date ?? job.due_date} onDelayed={onSaved} /> : null}
+          {task && taskStatuses.find((status) => status.id === task.status_id)?.is_open !== false ? <DelayRecordAction compact kind="task" recordId={task.id} recordTitle={task.title} scheduledDate={task.due_date} onDelayed={onSaved} /> : null}
           <span />
           <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> Save changes</>}</button>

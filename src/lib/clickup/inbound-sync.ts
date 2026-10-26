@@ -361,6 +361,25 @@ async function processRemoteTask(
     }
     return { status: "ignored", detail: `ClickUp status '${remoteState.status}' is not mapped.` };
   }
+  // Delaying is a CRM-native operation because it must preserve a reason and
+  // create a linked successor. A direct ClickUp status move cannot supply that
+  // history safely, so surface it for review instead of corrupting the chain.
+  if (statusKey === "delayed") {
+    if (link) {
+      await createConflict({
+        changedFields: ["status"],
+        clickUpSnapshot: remoteState,
+        conflictType: "delay_requires_crm_workflow",
+        crmSnapshot: null,
+        integration,
+        jobId: link.job_id,
+        supabase,
+        taskId,
+      });
+      return { status: "conflict", detail: "Use the CRM delay action so the reschedule reason and successor are retained.", jobId: link.job_id };
+    }
+    return { status: "ignored", detail: "A new ClickUp task marked DELAYED was not imported because it needs CRM delay history." };
+  }
   if (!datesAreValid(remoteState)) {
     await createConflict({
       changedFields: ["shoot_date", "due_date"],

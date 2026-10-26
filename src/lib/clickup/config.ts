@@ -2,7 +2,7 @@ import "server-only";
 
 export const CLICKUP_LIST_ID = "1300350000002054";
 export const CLICKUP_LIST_NAME = "Jobs";
-export const CLICKUP_FOLDER_NAME = "John";
+export const CLICKUP_FOLDER_NAME = "Content & Planning";
 export const CLICKUP_TEAM_ID = "9003084068";
 export const CLICKUP_WEBHOOK_ENDPOINT = "https://www.trushotmedia.com/api/integrations/clickup/webhook";
 
@@ -11,6 +11,7 @@ export const CLICKUP_STATUS_MAPPING = {
   scheduled: "CONTENT CAPTURED",
   production: "EDITING",
   review: "APPROVAL",
+  delayed: "DELAYED",
   delivered: "COMPLETE",
 } as const;
 

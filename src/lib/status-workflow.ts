@@ -28,5 +28,5 @@ export function sortWorkflowStatuses<T extends WorkflowStatus>(statuses: T[]) {
 }
 
 export function visiblePipelineStatuses<T extends WorkflowStatus>(statuses: T[]) {
-  return sortWorkflowStatuses(statuses).filter((status) => status.key !== "posted_done");
+  return sortWorkflowStatuses(statuses).filter((status) => status.key !== "posted_done" && status.key !== "delayed");
 }

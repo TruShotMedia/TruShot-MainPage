@@ -6,6 +6,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Copy, GripVertical, Link2, Pencil, X } from "lucide-react";
 import { bulkUpdateJobStatus, bulkUpdateTaskStatus, duplicateJob, duplicateTask, linkJobsToInvoice, updateJob, updateTask } from "@/app/admin/actions";
 import { ActionPopover } from "@/components/admin/action-popover";
+import { DelayRecordAction } from "@/components/admin/delay-record-action";
+import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admin/invoice-relation-picker";
 import { JobExportDialog } from "@/components/admin/job-export-dialog";
 import { JobSearchField } from "@/components/admin/job-search-field";
@@ -124,6 +126,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
           formClassName="quick-form wide"
         >
           <input type="hidden" name="id" value={job.id} />
+          <DelayHistoryBanner delayInfo={job.delay_info} />
           <label>Job title<input name="title" required defaultValue={job.title} /></label>
           <label>Job number<input name="job_number" defaultValue={job.job_number ?? ""} /></label>
           <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
@@ -140,6 +143,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
           <JobInvoiceRelationsField invoices={invoices} relations={job.related_invoices} />
           <SubmitButton pendingLabel="Saving…">Save job</SubmitButton>
         </ActionPopover>
+        {job.status?.is_closed ? null : <DelayRecordAction kind="job" recordId={job.id} recordTitle={job.title} scheduledDate={job.shoot_date ?? job.due_date} />}
         <DuplicateRowAction id={job.id} kind="jobs" />
         </div>
       </td>
@@ -148,6 +152,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
 }
 
 function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: JobSearchOption[]; statuses: TaskStatus[] }) {
+  const currentStatus = statuses.find((status) => status.id === task.status_id);
   return (
     <>
       <td><strong>{task.title}</strong><small>{task.job?.client?.name ?? "No client"}</small></td>
@@ -167,6 +172,7 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: JobSear
           formClassName="quick-form wide"
         >
           <input type="hidden" name="id" value={task.id} />
+          <DelayHistoryBanner delayInfo={task.delay_info} />
           <label>Title<input name="title" required defaultValue={task.title} /></label>
           <JobSearchField jobs={jobs} defaultJobId={task.job_id} />
           <label>Status<select name="status_id" required defaultValue={task.status_id}>{statuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
@@ -177,6 +183,7 @@ function TaskCells({ task, jobs, statuses }: { task: PipelineTask; jobs: JobSear
           <label className="form-span">Description<textarea name="description" rows={3} defaultValue={task.description ?? ""} /></label>
           <SubmitButton pendingLabel="Saving…">Save asset</SubmitButton>
         </ActionPopover>
+        {currentStatus && !currentStatus.is_open ? null : <DelayRecordAction kind="task" recordId={task.id} recordTitle={task.title} scheduledDate={task.due_date} />}
         <DuplicateRowAction id={task.id} kind="tasks" />
         </div>
       </td>

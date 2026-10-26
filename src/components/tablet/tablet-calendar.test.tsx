@@ -283,6 +283,51 @@ describe("TabletCalendar", () => {
     expect(container.querySelector<HTMLElement>(".tablet-calendar-legend .is-complete")?.style.background).toBe("rgb(63, 155, 104)");
   });
 
+  it("keeps delayed history distinct and marks its scheduled successor", async () => {
+    const delayedSource: CalendarJob = {
+      ...jobs[0],
+      id: "abababab-abab-4bab-8bab-abababababab",
+      title: "Weather-delayed shoot",
+      is_complete: true,
+      delay_info: {
+        delayed_from: null,
+        delayed_to: {
+          id: "delay-one",
+          source_id: "abababab-abab-4bab-8bab-abababababab",
+          successor_id: "cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+          reason: "Rain moved the shoot.",
+          source_date: "2026-08-14",
+          rescheduled_date: "2026-08-18",
+          created_at: "2026-08-12T00:00:00.000Z",
+        },
+        history: [],
+      },
+    };
+    const rescheduledJob: CalendarJob = {
+      ...delayedSource,
+      id: "cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+      title: "Rescheduled shoot",
+      shoot_date: "2026-08-18",
+      due_date: "2026-08-20",
+      is_complete: false,
+      delay_info: {
+        delayed_from: delayedSource.delay_info!.delayed_to,
+        delayed_to: null,
+        history: [],
+      },
+    };
+
+    await act(async () => root.render(<TabletCalendar jobs={[delayedSource, rescheduledJob]} tasks={[]} today="2026-08-25" />));
+
+    const source = container.querySelector<HTMLElement>('[aria-label^="Weather-delayed shoot"]');
+    const successor = container.querySelector<HTMLElement>('[aria-label^="Rescheduled shoot"]');
+    expect(source?.classList.contains("is-delayed-source")).toBe(true);
+    expect(source?.style.getPropertyValue("--tablet-calendar-color")).toBe("#C45A45");
+    expect(successor?.classList.contains("is-rescheduled")).toBe(true);
+    expect(successor?.style.getPropertyValue("--tablet-calendar-color")).toBe("#B47448");
+    expect(successor?.getAttribute("title")).toContain("Rain moved the shoot.");
+  });
+
   it("renders a double-height flight itinerary with route details and editing", async () => {
     const onEditFlight = vi.fn();
     await act(async () => root.render(<TabletCalendar editable jobs={[]} tasks={[]} flightEvents={flightEvents} onEditFlight={onEditFlight} today="2026-08-25" />));

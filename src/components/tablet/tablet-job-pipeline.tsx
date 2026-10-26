@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, ChevronDown, Copy, Flag, GripVertical, ListChecks, Pencil } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Copy, Flag, GripVertical, ListChecks, Pencil, RotateCcw } from "lucide-react";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -32,6 +32,11 @@ function JobSchedulePills({ job }: { job: TabletJobRecord }) {
   );
 }
 
+function DelayedJobMarker({ job }: { job: TabletJobRecord }) {
+  if (!job.delay_info?.delayed_from) return null;
+  return <span className="tablet-delay-indicator" title={`Rescheduled because: ${job.delay_info.delayed_from.reason}`}><RotateCcw size={11} /> Rescheduled</span>;
+}
+
 function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
   return (
@@ -50,12 +55,14 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
       {editable ? (
         <div className="tablet-job-card-primary">
           <div className="task-client">{job.client?.name ?? "No client"}</div>
+          <DelayedJobMarker job={job} />
           <h3>{job.title}</h3>
           <JobSchedulePills job={job} />
         </div>
       ) : (
         <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
+          <DelayedJobMarker job={job} />
           <strong>{job.title}</strong>
           <JobSchedulePills job={job} />
         </button>
@@ -107,7 +114,9 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, isOf
     useSensor(KeyboardSensor),
   );
   const orderedStatuses = useMemo(
-    () => statuses.filter((status) => status.key !== "delivered").sort((left, right) => left.position - right.position),
+    // Delayed records are immutable history; their linked successor is the
+    // actionable card. Keep the active board focused on work that can move.
+    () => statuses.filter((status) => status.key !== "delivered" && status.key !== "delayed").sort((left, right) => left.position - right.position),
     [statuses],
   );
   const deliveredStatus = useMemo(() => statuses.find((status) => status.key === "delivered") ?? null, [statuses]);

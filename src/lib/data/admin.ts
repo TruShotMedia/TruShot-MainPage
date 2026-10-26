@@ -2,6 +2,7 @@ import { cache } from "react";
 import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar-reminder-logic";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
+import { buildDelayInfoByRecord } from "@/lib/delay-history";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TabletJobRecord, TabletKioskData, TaskStatus } from "@/lib/types";
@@ -126,7 +127,7 @@ export async function getClients() {
 export async function getJobs() {
   const context = await getAdminContext();
   if (!context) return [];
-  const [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult] = await Promise.all([
+  const [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult, delayHistoryResult] = await Promise.all([
     context.supabase.from("website-job-metrics").select("*").order("due_date", { ascending: true, nullsFirst: false }),
     context.supabase.from("website-jobs").select("id,location,delivery_url,description,notes,shoot_time,due_time,delivered_at,updated_at").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name"),
@@ -141,8 +142,12 @@ export async function getJobs() {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("issue_date", { ascending: false }),
+    context.supabase
+      .from("website-job-delay-history")
+      .select("id,source_job_id,successor_job_id,reason,source_shoot_date,rescheduled_shoot_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
-  const queryError = [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult]
+  const queryError = [metricsResult, baseJobsResult, clientsResult, statusesResult, allocationsResult, invoicesResult, delayHistoryResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error(`Jobs could not be loaded: ${queryError.message}`);
   const metrics = metricsResult.data;
@@ -151,6 +156,15 @@ export async function getJobs() {
   const statuses = statusesResult.data;
   const allocations = allocationsResult.data;
   const invoices = invoicesResult.data;
+  const delayInfoByJobId = buildDelayInfoByRecord((delayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_job_id,
+    successor_id: item.successor_job_id,
+    reason: item.reason,
+    source_date: item.source_shoot_date,
+    rescheduled_date: item.rescheduled_shoot_date,
+    created_at: item.created_at,
+  })));
   const baseById = new Map((baseJobs ?? []).map((job) => [job.id, job]));
   const clientById = new Map((clients ?? []).map((client) => [client.id, client]));
   const statusById = new Map((statuses ?? []).map((status) => [status.id, status]));
@@ -170,6 +184,7 @@ export async function getJobs() {
       ...baseJob,
       client: job.client_id ? clientById.get(job.client_id) ?? null : null,
       status: statusById.get(job.status_id) ?? null,
+      delay_info: delayInfoByJobId.get(job.id),
       related_invoices: (allocationsByJobId.get(job.id) ?? []).flatMap((allocation) => {
         const invoice = invoiceById.get(allocation.invoice_id);
         return invoice ? [{ ...invoice, is_locked: allocation.is_locked }] : [];
@@ -181,18 +196,31 @@ export async function getJobs() {
 export async function getPipeline() {
   const context = await getAdminContext();
   if (!context) return { statuses: [], tasks: [], jobOptions: [] };
-  const [statusesResult, tasksResult, jobsResult, clientsResult] = await Promise.all([
+  const [statusesResult, tasksResult, jobsResult, clientsResult, delayHistoryResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
     context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id,job_number,shoot_date,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
+    context.supabase
+      .from("website-task-delay-history")
+      .select("id,source_task_id,successor_task_id,reason,source_due_date,rescheduled_due_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
-  const queryError = [statusesResult, tasksResult, jobsResult, clientsResult].find((result) => result.error)?.error;
+  const queryError = [statusesResult, tasksResult, jobsResult, clientsResult, delayHistoryResult].find((result) => result.error)?.error;
   if (queryError) throw new Error(`Tasks could not be loaded: ${queryError.message}`);
   const statuses = statusesResult.data ?? [];
   const tasks = tasksResult.data ?? [];
   const jobs = jobsResult.data ?? [];
   const clients = clientsResult.data ?? [];
+  const delayInfoByTaskId = buildDelayInfoByRecord((delayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_task_id,
+    successor_id: item.successor_task_id,
+    reason: item.reason,
+    source_date: item.source_due_date,
+    rescheduled_date: item.rescheduled_due_date,
+    created_at: item.created_at,
+  })));
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const jobById = new Map(jobs.map((job) => [job.id, job]));
   return {
@@ -209,7 +237,8 @@ export async function getPipeline() {
       return {
         ...task,
         asset_type: task.asset_type === "Other" ? "Other" : "Asset",
-        due_date: job?.due_date ?? null,
+        due_date: task.due_date ?? job?.due_date ?? null,
+        delay_info: delayInfoByTaskId.get(task.id),
         job: job ? { ...job, client: job.client_id ? clientById.get(job.client_id) ?? null : null } : null,
       };
     }),
@@ -221,7 +250,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -275,9 +304,17 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .in("status", [...ACTIVE_CLIENT_REQUEST_STATUSES])
       .is("archived_at", null),
+    supabase
+      .from("website-job-delay-history")
+      .select("id,source_job_id,successor_job_id,reason,source_shoot_date,rescheduled_shoot_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    supabase
+      .from("website-task-delay-history")
+      .select("id,source_task_id,successor_task_id,reason,source_due_date,rescheduled_due_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
 
-  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult]
+  const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error("The tablet workspace could not be refreshed.");
 
@@ -289,6 +326,24 @@ export async function getTabletKioskData(options: { clientName?: string; include
   const campaignsById = new Map((campaignsResult.data ?? []).map((campaign) => [campaign.id, campaign]));
   const taskStatusesById = new Map(allTaskStatuses.map((status) => [status.id, status]));
   const jobStatusesById = new Map((jobStatusesResult.data ?? []).map((status) => [status.id, status]));
+  const delayInfoByJobId = buildDelayInfoByRecord((jobDelayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_job_id,
+    successor_id: item.successor_job_id,
+    reason: item.reason,
+    source_date: item.source_shoot_date,
+    rescheduled_date: item.rescheduled_shoot_date,
+    created_at: item.created_at,
+  })));
+  const delayInfoByTaskId = buildDelayInfoByRecord((taskDelayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_task_id,
+    successor_id: item.successor_task_id,
+    reason: item.reason,
+    source_date: item.source_due_date,
+    rescheduled_date: item.rescheduled_due_date,
+    created_at: item.created_at,
+  })));
 
   const pipelineTasks = tasks.map((task) => {
     const job = jobsById.get(task.job_id);
@@ -296,7 +351,8 @@ export async function getTabletKioskData(options: { clientName?: string; include
     return {
       ...task,
       asset_type: task.asset_type === "Other" ? "Other" : "Asset",
-      due_date: job?.due_date ?? null,
+      due_date: task.due_date ?? job?.due_date ?? null,
+      delay_info: delayInfoByTaskId.get(task.id),
       job: job ? { id: job.id, title: job.title, client } : null,
     };
   }) as PipelineTask[];
@@ -307,6 +363,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       ...job,
       client: job.client_id ? clientsById.get(job.client_id) ?? null : null,
       status: jobStatusesById.get(job.status_id) ?? null,
+      delay_info: delayInfoByJobId.get(job.id),
       total_tasks: relatedTasks.length,
       open_tasks: relatedTasks.filter((task) => taskStatusesById.get(task.status_id)?.is_open ?? true).length,
     };
@@ -326,6 +383,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       status_label: status?.label ?? "Unknown",
       status_color: status?.color ?? "#777d76",
       is_complete: status?.is_closed ?? false,
+      delay_info: delayInfoByJobId.get(job.id),
     };
   });
 
@@ -339,12 +397,13 @@ export async function getTabletKioskData(options: { clientName?: string; include
       title: task.title,
       job_title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
-      due_date: job.due_date,
+      due_date: task.due_date ?? job.due_date,
       due_time: task.due_time,
       priority: task.priority as CalendarTask["priority"],
       status_label: status?.label ?? "Unknown",
       status_color: status?.color ?? "#777d76",
       is_complete: !(status?.is_open ?? true),
+      delay_info: delayInfoByTaskId.get(task.id),
     }];
   });
 
@@ -796,7 +855,7 @@ export async function getCalendarData() {
   };
   if (!context) return { jobs: [], tasks: [], campaignAssets: [], events: [], clients: [], reminderSettings: defaultReminderSettings };
 
-  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult] = await Promise.all([
+  const [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult, reminderSettingsResult, jobDelayHistoryResult, taskDelayHistoryResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
       .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
@@ -840,8 +899,16 @@ export async function getCalendarData() {
       .select("workspace_id,enabled,default_event_time,lead_minutes,send_at_event_time,notify_job_starts,notify_job_deadlines,notify_task_deadlines,notify_campaign_assets,notify_flights,flight_lead_minutes,timezone")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .maybeSingle(),
+    context.supabase
+      .from("website-job-delay-history")
+      .select("id,source_job_id,successor_job_id,reason,source_shoot_date,rescheduled_shoot_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
+    context.supabase
+      .from("website-task-delay-history")
+      .select("id,source_task_id,successor_task_id,reason,source_due_date,rescheduled_due_date,created_at")
+      .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
   ]);
-  const queryError = [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult]
+  const queryError = [jobsResult, tasksResult, campaignsResult, campaignAssetsResult, calendarEventsResult, clientsResult, jobStatusesResult, taskStatusesResult, jobDelayHistoryResult, taskDelayHistoryResult]
     .find((result) => result.error)?.error;
   if (queryError) throw new Error(`Calendar data could not be loaded: ${queryError.message}`);
   if (reminderSettingsResult.error) throw new Error(`Calendar reminder settings could not be loaded: ${reminderSettingsResult.error.message}`);
@@ -851,6 +918,24 @@ export async function getCalendarData() {
   const taskStatuses = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
   const jobsById = new Map((jobsResult.data ?? []).map((job) => [job.id, job]));
   const campaignsById = new Map((campaignsResult.data ?? []).map((campaign) => [campaign.id, campaign]));
+  const delayInfoByJobId = buildDelayInfoByRecord((jobDelayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_job_id,
+    successor_id: item.successor_job_id,
+    reason: item.reason,
+    source_date: item.source_shoot_date,
+    rescheduled_date: item.rescheduled_shoot_date,
+    created_at: item.created_at,
+  })));
+  const delayInfoByTaskId = buildDelayInfoByRecord((taskDelayHistoryResult.data ?? []).map((item) => ({
+    id: item.id,
+    source_id: item.source_task_id,
+    successor_id: item.successor_task_id,
+    reason: item.reason,
+    source_date: item.source_due_date,
+    rescheduled_date: item.rescheduled_due_date,
+    created_at: item.created_at,
+  })));
 
   return {
     jobs: (jobsResult.data ?? []).map((job) => {
@@ -867,6 +952,7 @@ export async function getCalendarData() {
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
         is_complete: status?.is_closed ?? false,
+        delay_info: delayInfoByJobId.get(job.id),
       };
     }),
     tasks: (tasksResult.data ?? []).flatMap((task) => {
@@ -879,12 +965,13 @@ export async function getCalendarData() {
         title: task.title,
         job_title: job.title,
         client_name: job.client_id ? clients.get(job.client_id) ?? null : null,
-        due_date: job.due_date,
+        due_date: task.due_date ?? job.due_date,
         due_time: task.due_time,
         priority: task.priority as "low" | "normal" | "high" | "urgent",
         status_label: status?.label ?? "Unknown",
         status_color: status?.color ?? "#777d76",
         is_complete: !(status?.is_open ?? true),
+        delay_info: delayInfoByTaskId.get(task.id),
       }];
     }),
     campaignAssets: (campaignAssetsResult.data ?? []).flatMap((asset): CalendarCampaignAsset[] => {

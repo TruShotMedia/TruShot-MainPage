@@ -15,7 +15,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus, RotateCcw } from "lucide-react";
 import { AirlineLogo } from "@/components/tablet/airline-logo";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
 import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
@@ -31,6 +31,7 @@ type TabletCalendarEvent = {
   color: string;
   isComplete: boolean;
   isOverdue: boolean;
+  isRescheduled: boolean;
   item: CalendarItem;
 };
 
@@ -86,8 +87,20 @@ function isOverdueAccentWork(item: CalendarDisplayItem, palette: CalendarPalette
   );
 }
 
+function delayState(item: CalendarDisplayItem) {
+  if (!("delay_info" in item)) return { isDelayedSource: false, isRescheduled: false, reason: null as string | null };
+  return {
+    isDelayedSource: Boolean(item.delay_info?.delayed_to),
+    isRescheduled: Boolean(item.delay_info?.delayed_from),
+    reason: item.delay_info?.delayed_from?.reason ?? item.delay_info?.delayed_to?.reason ?? null,
+  };
+}
+
 function calendarItemColor(item: CalendarDisplayItem, palette: CalendarPalette, today: string, currentTime: string) {
   const originalColor = item.entity_type === "calendar-event" || item.entity_type === "flight-event" ? item.color : item.status_color;
+  const delay = delayState(item);
+  if (delay.isDelayedSource) return "#C45A45";
+  if (delay.isRescheduled) return "#B47448";
   if (palette.completedColor && isCalendarItemComplete(item, today, currentTime)) return palette.completedColor;
   if (isOverdueAccentWork(item, palette, today)) return palette.overdueColor!;
   if (!palette.accentColor) return originalColor;
@@ -212,7 +225,7 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
   const Icon = event.kind === "task" ? ListTodo : event.kind === "campaign" ? Megaphone : BriefcaseBusiness;
   return (
     <article
-      className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       style={{ "--tablet-calendar-color": event.color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -224,8 +237,8 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
         }
       } : undefined}
     >
-      <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
-      <span className="tablet-calendar-mobile-entry-copy"><small>{event.label}</small><strong>{event.title}</strong><em>{event.detail}</em></span>
+      <span className="tablet-calendar-mobile-entry-icon">{event.isRescheduled ? <RotateCcw size={17} /> : <Icon size={17} />}</span>
+      <span className="tablet-calendar-mobile-entry-copy"><small>{event.isRescheduled ? "Rescheduled" : event.label}</small><strong>{event.title}</strong><em>{event.detail}</em></span>
       <span className="tablet-calendar-mobile-entry-side">{event.isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
     </article>
   );
@@ -281,6 +294,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = isCalendarItemComplete(segment.item, today, currentTime);
   const isOverdue = isOverdueAccentWork(segment.item, palette, today);
+  const delay = delayState(segment.item);
   const rangeColor = calendarItemColor(segment.item, palette, today, currentTime);
   const context = segment.item.entity_type === "calendar-event"
     ? segment.item.location
@@ -291,7 +305,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   return (
     <article
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
-      className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
       onClick={editable ? () => onOpen(segment.item) : undefined}
@@ -301,14 +315,14 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
           onOpen(segment.item);
         }
       } : undefined}
-      title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}`}
+      title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}${delay.reason ? ` · Delayed: ${delay.reason}` : ""}`}
       style={{
         "--tablet-calendar-color": rangeColor,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
         gridRow: `${segment.lane + 1} / span ${segment.laneSpan}`,
       } as CSSProperties}
     >
-      <strong>{segment.item.title}</strong>
+      <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
       {!isCalendarEvent ? <em>{context}</em> : null}
       {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </article>
@@ -350,6 +364,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
         isOverdue: isOverdueAccentWork(job, palette, today),
+        isRescheduled: delayState(job).isRescheduled,
         item: job,
       });
       if (job.due_date && job.due_date !== job.shoot_date) eventsForJob.push({
@@ -362,6 +377,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
         isOverdue: isOverdueAccentWork(job, palette, today),
+        isRescheduled: delayState(job).isRescheduled,
         item: job,
       });
       return eventsForJob;
@@ -376,6 +392,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
       color: calendarItemColor(task, palette, today, currentTime),
       isComplete: task.is_complete,
       isOverdue: isOverdueAccentWork(task, palette, today),
+      isRescheduled: delayState(task).isRescheduled,
       item: task,
     }] : []);
     const campaignEvents = campaignAssets.flatMap((asset): TabletCalendarEvent[] => {
@@ -390,6 +407,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(asset, palette, today, currentTime),
         isComplete: asset.is_complete,
         isOverdue: isOverdueAccentWork(asset, palette, today),
+        isRescheduled: false,
         item: asset,
       }];
     });

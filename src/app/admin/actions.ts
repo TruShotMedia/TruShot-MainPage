@@ -50,6 +50,11 @@ const jobEditorInputSchema = z.object({
   description: z.string().trim().max(2_000),
   notes: z.string().trim().max(4_000),
 });
+const delayRecordInputSchema = z.object({
+  id: z.string().uuid(),
+  rescheduled_date: calendarDateSchema,
+  reason: z.string().trim().min(2, "Add a short reason for the delay.").max(4_000),
+});
 
 function revalidateInvoicePages() {
   revalidatePath("/admin/invoices");
@@ -155,7 +160,15 @@ async function requireInvoices(context: AdminContext, invoiceIds: string[]) {
 }
 
 async function syncTasksToJobDeadline(context: AdminContext, jobId: string, dueDate: string | null) {
-  const { error } = await context.supabase
+  // A delayed task has its own explicit successor deadline. Do not silently
+  // replace that date when its parent job is edited later.
+  const { data: rescheduledTasks, error: historyError } = await context.supabase
+    .from("website-task-delay-history")
+    .select("successor_task_id")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID);
+  if (historyError) throw new Error("The job was saved, but its delayed task history could not be read safely.");
+
+  let update = context.supabase
     .from("website-job-tasks")
     .update({
       due_date: dueDate,
@@ -164,6 +177,9 @@ async function syncTasksToJobDeadline(context: AdminContext, jobId: string, dueD
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .eq("job_id", jobId)
     .is("archived_at", null);
+  const rescheduledTaskIds = (rescheduledTasks ?? []).map((entry) => entry.successor_task_id);
+  if (rescheduledTaskIds.length) update = update.not("id", "in", `(${rescheduledTaskIds.join(",")})`);
+  const { error } = await update;
   if (error) throw new Error("The job was saved, but its task deadlines could not be synchronised.");
 }
 
@@ -252,6 +268,7 @@ function revalidateProductionPages() {
   revalidatePath("/admin/clients");
   revalidatePath("/tablet");
   revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
 }
 
 export async function signIn(formData: FormData) {
@@ -564,6 +581,25 @@ export async function updateTabletJob(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Atomically marks the current job as Delayed and creates its linked, scheduled
+ * successor. The database function preserves every edge in the reschedule chain.
+ */
+export async function delayJob(formData: FormData) {
+  const input = delayRecordInputSchema.parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  const { data, error } = await context.supabase.rpc("website-delay-job", {
+    p_source_job_id: input.id,
+    p_rescheduled_shoot_date: input.rescheduled_date,
+    p_reason: input.reason,
+  });
+  if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
+  revalidateProductionPages();
+  return { successorJobId: (data as Array<{ successor_job_id: string }> | null)?.[0]?.successor_job_id ?? null };
+}
+
 export async function archiveJob(formData: FormData) {
   const jobId = z.string().uuid().parse(formData.get("id"));
   const context = await getAdminContext();
@@ -743,6 +779,24 @@ export async function updateTask(formData: FormData) {
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+}
+
+/**
+ * Atomically closes the source task as Delayed and creates a linked Not Started
+ * successor on the requested deadline. Task history remains immutable.
+ */
+export async function delayTask(formData: FormData) {
+  const input = delayRecordInputSchema.parse(Object.fromEntries(formData));
+  const context = await getAdminContext();
+  if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
+  const { data, error } = await context.supabase.rpc("website-delay-task", {
+    p_source_task_id: input.id,
+    p_rescheduled_due_date: input.rescheduled_date,
+    p_reason: input.reason,
+  });
+  if (error) throw new Error(error.message);
+  revalidateProductionPages();
+  return { successorTaskId: (data as Array<{ successor_task_id: string }> | null)?.[0]?.successor_task_id ?? null };
 }
 
 export async function updateCalendarItem(formData: FormData) {

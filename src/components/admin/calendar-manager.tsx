@@ -15,8 +15,9 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, ChevronLeft, ChevronRight, CircleDot, Clock3, ListTodo, LoaderCircle, Rocket, RotateCcw, X } from "lucide-react";
 import { updateCalendarItem } from "@/app/admin/actions";
+import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, SelectOption } from "@/lib/types";
@@ -37,6 +38,22 @@ const priorityWeight: Record<CalendarTask["priority"], number> = { low: 0, norma
 
 function getDueDate(item: CalendarItem) {
   return item.due_date;
+}
+
+function delayState(item: CalendarItem | CalendarCustomEvent) {
+  if (!("delay_info" in item)) return { isDelayedSource: false, isRescheduled: false, reason: null as string | null };
+  return {
+    isDelayedSource: Boolean(item.delay_info?.delayed_to),
+    isRescheduled: Boolean(item.delay_info?.delayed_from),
+    reason: item.delay_info?.delayed_from?.reason ?? item.delay_info?.delayed_to?.reason ?? null,
+  };
+}
+
+function calendarItemColor(item: CalendarItem | CalendarCustomEvent) {
+  const delay = delayState(item);
+  if (delay.isDelayedSource) return "#C45A45";
+  if (delay.isRescheduled) return "#B47448";
+  return item.entity_type === "calendar-event" ? item.color : item.status_color;
 }
 
 function getCalendarEvents(items: CalendarItem[]): CalendarDisplayEvent[] {
@@ -84,10 +101,11 @@ function formatJobWindow(range: CalendarJobRange<AdminScheduleRangeItem>) {
 }
 
 function CalendarEventButton({ event, onOpen }: { event: CalendarDisplayEvent; onOpen: (item: CalendarItem) => void }) {
+  const delay = delayState(event.item);
   return (
-    <button type="button" className={`calendar-event calendar-event-${event.kind} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}${event.time ? ` at ${displayTime(event.time)}` : ""}: ${event.item.title}${event.item.is_complete ? " (completed)" : ""}`}>
+    <button type="button" className={`calendar-event calendar-event-${event.kind} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${event.item.is_complete ? "is-complete" : ""}`} onClick={() => onOpen(event.item)} title={`${event.label}${event.time ? ` at ${displayTime(event.time)}` : ""}: ${event.item.title}${delay.reason ? ` · Delayed: ${delay.reason}` : ""}${event.item.is_complete ? " (completed)" : ""}`}>
       <span />
-      <strong>{event.label}{event.time ? ` · ${displayTime(event.time)}` : ""}</strong>
+      <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{delay.isRescheduled ? "Rescheduled" : event.label}{event.time ? ` · ${displayTime(event.time)}` : ""}</strong>
       <em>{event.item.title}</em>
     </button>
   );
@@ -97,7 +115,8 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
   const windowLabel = formatJobWindow(segment);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = segment.item.entity_type === "calendar-event" ? false : segment.item.is_complete;
-  const rangeColor = segment.item.entity_type === "calendar-event" ? segment.item.color : segment.item.status_color;
+  const delay = delayState(segment.item);
+  const rangeColor = calendarItemColor(segment.item);
   const contextLabel = segment.item.entity_type === "campaign-asset"
     ? segment.item.campaign_title
     : segment.item.entity_type === "job"
@@ -107,16 +126,16 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
     <button
       type="button"
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
-      className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
+      className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       onClick={() => onOpen(segment.item)}
-      title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${isComplete ? " · completed" : ""}`}
+      title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${delay.reason ? ` · Delayed: ${delay.reason}` : ""}${isComplete ? " · completed" : ""}`}
       style={{
         "--calendar-range-color": rangeColor,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
         gridRow: segment.lane + 1,
       } as CSSProperties}
     >
-      <strong>{segment.item.title}</strong>
+      <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
       {!isCalendarEvent ? <em>{contextLabel}</em> : null}
       {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </button>
@@ -127,11 +146,12 @@ function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<Admin
   const windowLabel = formatJobWindow(range);
   const isCalendarEvent = range.item.entity_type === "calendar-event";
   const isComplete = range.item.entity_type === "calendar-event" ? false : range.item.is_complete;
-  const rangeColor = range.item.entity_type === "calendar-event" ? range.item.color : range.item.status_color;
+  const delay = delayState(range.item);
+  const rangeColor = calendarItemColor(range.item);
   return (
-    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
+    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
       <span style={{ background: rangeColor }} />
-      {!isCalendarEvent ? <strong>{range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong> : null}
+      {!isCalendarEvent ? <strong>{delay.isRescheduled ? <RotateCcw size={11} aria-label="Rescheduled" /> : null}{delay.isRescheduled ? "Rescheduled" : range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong> : null}
       <div>
         <em>{range.item.title}</em>
         {!isCalendarEvent ? <small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small> : null}
@@ -392,6 +412,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
             </header>
             <input type="hidden" name="entity_type" value={selectedItem.entity_type} />
             <input type="hidden" name="id" value={selectedItem.id} />
+            <DelayHistoryBanner delayInfo={"delay_info" in selectedItem ? selectedItem.delay_info : undefined} />
             {selectedItem.entity_type === "job" ? (
               <div className="calendar-editor-fields">
                 <label>Job start / production date<input type="date" name="shoot_date" defaultValue={selectedItem.shoot_date ?? ""} /></label>
@@ -409,7 +430,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
               </div>
             ) : (
               <div className="calendar-editor-fields">
-                <label>Inherited job deadline<input type="date" value={selectedItem.due_date ?? ""} readOnly disabled /><small>Change the job deadline to update every related task.</small></label>
+                <label>{selectedItem.delay_info?.delayed_from ? "Rescheduled task deadline" : "Inherited job deadline"}<input type="date" value={selectedItem.due_date ?? ""} readOnly disabled /><small>{selectedItem.delay_info?.delayed_from ? "This task has its own rescheduled deadline." : "Change the job deadline to update every related task."}</small></label>
                 <label>Deadline time<input type="time" name="due_time" defaultValue={selectedItem.due_time?.slice(0, 5) ?? ""} /></label>
                 <label>Priority<select name="priority" defaultValue={selectedItem.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
               </div>

@@ -97,6 +97,25 @@ export type JobStatus = {
   is_closed: boolean;
 };
 
+export type DelayHistoryEntry = {
+  id: string;
+  source_id: string;
+  successor_id: string;
+  reason: string;
+  source_date: string | null;
+  rescheduled_date: string;
+  created_at: string;
+};
+
+export type DelayInfo = {
+  /** The delay that created this record, if it is a rescheduled successor. */
+  delayed_from: DelayHistoryEntry | null;
+  /** The delay created from this record, if it has been superseded. */
+  delayed_to: DelayHistoryEntry | null;
+  /** Full ancestor/descendant chain, retained even after multiple delays. */
+  history: DelayHistoryEntry[];
+};
+
 export type SelectOption = {
   id: string;
   name: string;
@@ -147,6 +166,7 @@ export type JobRecord = {
   updated_at: string;
   client: { id: string; name: string } | null;
   status: JobStatus | null;
+  delay_info?: DelayInfo;
   related_invoices: JobInvoiceRelation[];
 };
 
@@ -171,6 +191,7 @@ export type TabletJobRecord = {
   total_tasks: number;
   client: { id: string; name: string } | null;
   status: JobStatus | null;
+  delay_info?: DelayInfo;
 };
 
 export type PipelineTask = {
@@ -188,6 +209,7 @@ export type PipelineTask = {
   completed_at: string | null;
   updated_at: string;
   job?: { title: string; shoot_date?: string | null; client?: { name: string } | null } | null;
+  delay_info?: DelayInfo;
 };
 
 export type CalendarJob = {
@@ -202,6 +224,7 @@ export type CalendarJob = {
   status_label: string;
   status_color: string;
   is_complete: boolean;
+  delay_info?: DelayInfo;
 };
 
 export type CalendarTask = {
@@ -216,6 +239,7 @@ export type CalendarTask = {
   status_label: string;
   status_color: string;
   is_complete: boolean;
+  delay_info?: DelayInfo;
 };
 
 export type CalendarCampaignAsset = {

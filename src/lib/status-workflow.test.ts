@@ -29,14 +29,15 @@ describe("status workflow helpers", () => {
     });
   });
 
-  it("orders statuses and hides Posted / Done only from the pipeline", () => {
+  it("orders statuses and hides completed or delayed history from the active pipeline", () => {
     const statuses = [
       { id: "done", key: "posted_done", position: 60 },
+      { id: "delayed", key: "delayed", position: 55 },
       { id: "ready", key: "ready_to_post", position: 50 },
       { id: "started", key: "not_started", position: 10 },
     ];
 
-    expect(sortWorkflowStatuses(statuses).map((status) => status.id)).toEqual(["started", "ready", "done"]);
+    expect(sortWorkflowStatuses(statuses).map((status) => status.id)).toEqual(["started", "ready", "delayed", "done"]);
     expect(visiblePipelineStatuses(statuses).map((status) => status.id)).toEqual(["started", "ready"]);
   });
 });
