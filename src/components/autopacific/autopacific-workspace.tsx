@@ -81,7 +81,7 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
       notionSyncIntervalMinutes={notion.syncIntervalMinutes}
       notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}
-      showTodayView={!isMarketing}
+      showTodayView
       today={todayDateInput()}
     />
   );

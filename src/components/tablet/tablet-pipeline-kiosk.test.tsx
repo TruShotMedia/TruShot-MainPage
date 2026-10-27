@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
+import type { CalendarTask, PipelineTask } from "@/lib/types";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
 const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), jobPipeline: vi.fn(), pipeline: vi.fn(), today: vi.fn() }));
@@ -31,7 +32,7 @@ describe("TabletPipelineKiosk", () => {
     try {
       await act(async () => root.render(<TabletPipelineKiosk workspaceMode="marketing" canOpenCrm={true} calendarJobs={[]} calendarTasks={[]} initialNow="2026-10-27T00:00:00.000Z" initialStatuses={[]} initialTasks={[]} initialView="pipeline" jobStatuses={[{ id: "plan", key: "planning", label: "Planning", color: "#777", position: 1, is_closed: false }, { id: "scheduled", key: "scheduled", label: "Scheduled", color: "#579", position: 2, is_closed: false }]} pendingRequestCount={0} pipelineVersion="empty" notionSyncEnabled={false} notionSyncIntervalMinutes={15} refreshIntervalMinutes={15} showTodayView today="2026-10-27" />));
       const nav = container.querySelector('.tablet-kiosk-tabs-desktop')!;
-      expect([...nav.querySelectorAll("button")].map((button) => button.textContent)).toEqual([" Jobs", " Tasks", " Calendar"]);
+      expect([...nav.querySelectorAll("button")].map((button) => button.textContent)).toEqual([" Jobs", " Tasks", " Calendar", " Today"]);
       expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false, approvalOnly: true, workflowEnabled: false });
       expect(document.title).toBe("Tasks | AutoPacific Marketing");
       expect(container.querySelector('.tablet-edit-toggle,.tablet-alert-toggle,.tablet-slideshow-toggle,.tablet-crm-button')).toBeNull();
@@ -45,6 +46,31 @@ describe("TabletPipelineKiosk", () => {
       await act(async()=>[...container.querySelectorAll<HTMLButtonElement>(".marketing-job-views button")].find(button=>button.textContent==="Planning")!.click());
       expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({editable:true,visibleStatusKeys:["planning"],enableCompletion:false});
       expect(document.title).toBe("Planning | AutoPacific Marketing");
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("opens Marketing Today on mobile and keeps tasks view-only", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const task: PipelineTask = { id: "task", title: "Review launch reel", job_id: "job", status_id: "review", asset_type: "Asset", hours: null, due_date: "2026-10-27", due_time: "14:00", priority: "normal", description: null, position: 1, completed_at: null, updated_at: "2026-10-27T00:00:00Z" };
+    const calendarTask: CalendarTask = { id: task.id, entity_type: "task", title: task.title, job_title: "Launch", client_name: "Autopacific Group", due_date: task.due_date, due_time: task.due_time, priority: "normal", status_label: "Review", status_color: "#579", is_complete: false };
+    const fetchMock = vi.fn().mockResolvedValue({ status: 304 });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await act(async () => root.render(<TabletPipelineKiosk workspaceMode="marketing" experience="mobile" branding={{ theme: "autopacific", name: "Autopacific Group", location: "Marketing", logoAlt: "AutoPacific Group", logoSrc: "/brand/autopacific-logo-clean.png", logoHeight: 312, logoWidth: 1800 }} calendarJobs={[]} calendarTasks={[calendarTask]} initialNow="2026-10-27T00:00:00Z" initialStatuses={[]} initialTasks={[task]} initialView="today" pendingRequestCount={0} pipelineVersion="task" notionSyncEnabled={false} notionSyncIntervalMinutes={15} refreshIntervalMinutes={15} showTodayView today="2026-10-27" />));
+      await act(async () => vi.advanceTimersByTime(20));
+      const nav = container.querySelector(".tablet-kiosk-tabs-mobile")!;
+      expect([...nav.querySelectorAll("button")].map(button => button.textContent?.trim())).toEqual(["Jobs", "Tasks", "Campaigns", "Calendar", "Today"]);
+      expect(container.querySelector('[data-testid="today-view"]')).not.toBeNull();
+      expect(document.title).toBe("Today | AutoPacific Marketing");
+      const props = componentMocks.today.mock.lastCall?.[0] as { onOpenItem: (item: CalendarTask) => void };
+      await act(async () => props.onOpenItem(calendarTask));
+      expect(container.querySelector('[data-testid="task-detail-sheet"]')?.textContent).toBe(task.title);
+      expect(container.querySelector('[data-testid="record-edit-editor"]')).toBeNull();
+      await act(async () => [...nav.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Jobs")!.click());
+      await act(async () => [...nav.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Today")!.click());
+      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule", expect.anything());
+      expect(document.cookie).toContain("autopacific-marketing-view=today");
     } finally { vi.unstubAllGlobals(); }
   });
 

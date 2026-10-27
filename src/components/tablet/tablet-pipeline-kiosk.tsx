@@ -151,7 +151,6 @@ function TabletViewTabs({
   label,
   onSelect,
   showTodayView,
-  isMarketing = false,
   showCampaigns = false,
 }: {
   activeView: TabletView;
@@ -159,16 +158,15 @@ function TabletViewTabs({
   label: string;
   onSelect: (view: TabletView) => void;
   showTodayView: boolean;
-  isMarketing?: boolean;
   showCampaigns?: boolean;
 }) {
   return (
-    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${(!isMarketing && showTodayView ? 4 : 3) + Number(showCampaigns)}, minmax(0, 1fr))` }}>
+    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${(showTodayView ? 4 : 3) + Number(showCampaigns)}, minmax(0, 1fr))` }}>
       <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => onSelect("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
       <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
       {showCampaigns ? <button type="button" className={activeView === "campaigns" ? "is-active" : ""} onClick={() => onSelect("campaigns")} aria-current={activeView === "campaigns" ? "page" : undefined}><FolderKanban size={15} /> Campaigns</button> : null}
       <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => onSelect("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
-      {!isMarketing && showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
+      {showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
     </nav>
   );
 }
@@ -751,7 +749,7 @@ export function TabletPipelineKiosk({
             </div>
           </div>
 
-          <TabletViewTabs showCampaigns={branding.theme === "autopacific"} isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
+          <TabletViewTabs showCampaigns={branding.theme === "autopacific"} activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
 
           <div className="tablet-kiosk-actions">
             {!isMarketing ? <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button> : null}
@@ -796,7 +794,7 @@ export function TabletPipelineKiosk({
           </p>
         ) : null}
 
-        <TabletViewTabs showCampaigns={branding.theme === "autopacific"} isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
+        <TabletViewTabs showCampaigns={branding.theme === "autopacific"} activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
 
         {isMobileActionsOpen ? (
           <>
@@ -931,6 +929,11 @@ export function TabletPipelineKiosk({
             onOpenItem={(item) => {
               setCreateRequest(null);
               closeEventEditor();
+              if (isMarketing && item.entity_type !== "job") {
+                const task = liveTasks.find(task => task.id === item.id);
+                if (task) setViewingTask(task);
+                return;
+              }
               if (item.entity_type === "job") {
                 const fullJob = liveJobs.find((job) => job.id === item.id) ?? null;
                 setSelectedTask(null);

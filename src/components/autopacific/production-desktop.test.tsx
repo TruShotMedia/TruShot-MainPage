@@ -24,7 +24,7 @@ describe("shared desktop workspace",()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
   try{await act(async()=>root.render(<ProductionDesktop data={data} mode="marketing" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
-    expect([...container.querySelectorAll("nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar"]);
+    expect([...container.querySelectorAll("nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar","Today"]);
     expect(document.title).toBe("Jobs | AutoPacific Marketing");
     expect(container.textContent).not.toContain("Undated planning brief");
     await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Planning")!.click());expect(container.textContent).toContain("Undated planning brief");
@@ -36,15 +36,17 @@ describe("shared desktop workspace",()=>{
   }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
  it("opens a brief from a stable deep link",()=>{const html=renderToStaticMarkup(<ProductionDesktop data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>);expect(html).toContain("Edit full brief");expect(html).toContain("desktop-brief-panel");});
- it("opens the day agenda when switching from Calendar to Today",async()=>{
+ it.each(["production","marketing"] as const)("opens the day agenda when switching from Calendar to Today in %s",async(mode)=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
   try{
-   await act(async()=>root.render(<ProductionDesktop data={data} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
+   await act(async()=>root.render(<ProductionDesktop data={data} mode={mode} initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
    expect(container.querySelector('[aria-label="Production calendar"]')).not.toBeNull();
    await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("nav button")].find(button=>button.textContent==="Today")!.click());
    expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
    expect(container.querySelector('[aria-label="Production calendar"]')).toBeNull();
+   expect(document.title).toBe(`Today | AutoPacific ${mode === "marketing" ? "Marketing" : "Production"}`);
+   expect(document.cookie).toContain(`${mode === "marketing" ? "autopacific-marketing-view" : "trushot-tablet-view"}=today`);
   }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
  it("merges overlapping tab refreshes without discarding either response",async()=>{

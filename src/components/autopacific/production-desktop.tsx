@@ -318,7 +318,7 @@ export function ProductionDesktop({
   const [snapshot, setSnapshot] = useState({ source: data, data });
   const live = snapshot.source === data ? snapshot.data : data;
   const [view, setView] = useState<TabletView>(
-    workspaceInitialView(parseTabletView(initialView), mode, !marketing, true),
+    workspaceInitialView(parseTabletView(initialView), mode, true, true),
   );
   const [jobView, setJobView] = useState<"active" | "planning" | "completed">(
     initialView === "planning" ? "planning" : "active",
@@ -554,7 +554,7 @@ export function ProductionDesktop({
         />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
         <nav aria-label="Workspace pages">
-          {workspaceViews(mode, !marketing, true).map((key) => (
+          {workspaceViews(mode, true, true).map((key) => (
             <button
               type="button"
               key={key}
