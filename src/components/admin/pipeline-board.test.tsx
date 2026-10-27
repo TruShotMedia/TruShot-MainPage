@@ -8,9 +8,11 @@ import { PipelineBoard } from "./pipeline-board";
 
 const actionMocks = vi.hoisted(() => ({
   movePipelineTask: vi.fn(async () => ({ ok: true })),
+  approveProductionTask: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/app/admin/actions", () => actionMocks);
+vi.mock("@/app/autopacific/brief-actions",()=>({approveProductionTask:actionMocks.approveProductionTask}));
 
 const statuses: TaskStatus[] = [
   { id: "11111111-1111-4111-8111-111111111111", key: "not_started", label: "Not Started", color: "#777773", position: 10, is_open: true },
@@ -48,6 +50,16 @@ const completedTask: PipelineTask = {
 describe("PipelineBoard tablet variant", () => {
   let container: HTMLDivElement;
   let root: Root;
+
+  it("allows Marketing review approval without drag, edit or duplicate controls",async()=>{
+    await act(async()=>root.render(<PipelineBoard initialStatuses={statuses} initialTasks={[readyTask]} editable={false} workflowEnabled={false} approvalOnly completionStatusKey="final_draft_notes" statusAliases={{ready_to_post:"final_draft_notes"}} visibleStatusKeys={["not_started","in_progress","final_draft_notes"]} onViewTask={vi.fn()} variant="tablet"/>));
+    expect(container.querySelector('.drag-handle,.tablet-card-edit-button,.tablet-card-duplicate-button')).toBeNull();
+    const tick=container.querySelector<HTMLButtonElement>('[aria-label="Approve and complete Launch reel"]')!;
+    expect(tick).not.toBeNull();await act(async()=>tick.click());
+    expect(actionMocks.approveProductionTask).toHaveBeenCalledWith(readyTask.id);
+    expect(actionMocks.movePipelineTask).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="View details for Launch reel"]')).toBeNull();
+  });
 
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

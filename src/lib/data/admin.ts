@@ -281,7 +281,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -415,6 +415,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
       shoot_date: job.shoot_date,
+      shoot_end_time: job.shoot_end_time,
       shoot_time: job.shoot_time,
       due_date: job.due_date,
       due_time: job.due_time,

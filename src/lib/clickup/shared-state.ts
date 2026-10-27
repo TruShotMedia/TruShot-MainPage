@@ -75,6 +75,11 @@ export function sharedStateHash(state: ClickUpSharedState) {
   return createHash("sha256").update(JSON.stringify(state)).digest("hex");
 }
 
+/** A one-time status rename is not a concurrent content edit. All other fields must match the old baseline. */
+export function isLegacyStatusRename(state: ClickUpSharedState, lastHash: string | null) {
+  return Boolean(lastHash && state.status === "SCHEDULED" && sharedStateHash({ ...state, status: "TO DO" }) === lastHash);
+}
+
 export function changedSharedFields(left: ClickUpSharedState, right: ClickUpSharedState) {
   return (Object.keys(left) as Array<keyof ClickUpSharedState>).filter((key) => left[key] !== right[key]);
 }

@@ -6,6 +6,7 @@ import { ClickUpApiError, getClickUpTask, getClickUpTasks, type ClickUpTask } fr
 import { claimClickUpImport } from "@/lib/clickup/import-claim";
 import {
   changedSharedFields,
+  isLegacyStatusRename,
   clickUpUpdatedAt,
   sharedStateFromClickUp,
   sharedStateFromCrm,
@@ -502,6 +503,10 @@ async function processRemoteTask(
   const crmHash = sharedStateHash(crmState);
   const changedFields = changedSharedFields(crmState, remoteState);
   const lastHash = link.last_shared_hash as string | null;
+
+  if (isLegacyStatusRename(remoteState,lastHash)) {
+    return {status:"ignored",detail:"ClickUp renamed TO DO to SCHEDULED. The queued CRM sync preserves the distinct Planning/Scheduled stages.",jobId:job.id};
+  }
 
   if (crmHash === remoteHash) {
     await supabase.from("website-clickup-job-links").update({

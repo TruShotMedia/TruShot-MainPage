@@ -160,7 +160,7 @@ function TabletViewTabs({
   return (
     <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${!isMarketing && showTodayView ? 4 : 3}, minmax(0, 1fr))` }}>
       <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => onSelect("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
-      {isMarketing ? <button type="button" className={activeView === "planning" ? "is-active" : ""} onClick={() => onSelect("planning")} aria-current={activeView === "planning" ? "page" : undefined}><ListChecks size={15} /> Planning</button> : <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>}
+      <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
       <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => onSelect("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
       {!isMarketing && showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
     </nav>
@@ -190,6 +190,7 @@ function readViewportMetrics(): TabletViewportMetrics {
 }
 
 export function TabletPipelineKiosk({
+  initialJobId,
   workspaceMode = "production",
   canOpenCrm = true,
   calendarJobs,
@@ -219,6 +220,7 @@ export function TabletPipelineKiosk({
   today,
 }: {
   workspaceMode?: WorkspaceMode;
+  initialJobId?: string;
   canOpenCrm?: boolean;
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
@@ -248,6 +250,7 @@ export function TabletPipelineKiosk({
 }) {
   const router = useRouter();
   const isMarketing = workspaceMode === "marketing";
+  const [showPlanning,setShowPlanning]=useState(initialView === "planning");
   const jobStatusVersion = useMemo(() => jobStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_closed}`).join("|"), [jobStatuses]);
   const taskStatusVersion = useMemo(() => initialStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_open}`).join("|"), [initialStatuses]);
   const [selectedView, setActiveView] = useState<TabletView>(workspaceInitialView(initialView, workspaceMode, showTodayView));
@@ -262,7 +265,7 @@ export function TabletPipelineKiosk({
   const [selectedFlightEvent, setSelectedFlightEvent] = useState<CalendarFlightEvent | null>(null);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<CalendarItem | null>(null);
   const [selectedJob, setSelectedJob] = useState<TabletJobRecord | null>(null);
-  const [viewingJob, setViewingJob] = useState<TabletJobRecord | null>(null);
+  const [viewingJob, setViewingJob] = useState<TabletJobRecord | null>(()=>pipelineJobs.find(job=>job.id===initialJobId)??null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [viewingTask, setViewingTask] = useState<PipelineTask | null>(null);
   const [colorMode, setColorMode] = useState<"dark" | "light">("dark");
@@ -818,14 +821,15 @@ export function TabletPipelineKiosk({
         ) : null}
 
         <section className={`tablet-kiosk-main ${isMarketing && activeView === "planning" ? "marketing-planning-board" : ""}`} aria-label={activeView === "planning" ? "Marketing planning jobs" : activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : activeView === "today" ? "Tablet today itinerary" : "Tablet production calendar"}>
+          {isMarketing && activeView === "jobs" ? <div className="marketing-job-views"><button type="button" aria-pressed={!showPlanning} onClick={()=>setShowPlanning(false)}>Active jobs</button><button type="button" aria-pressed={showPlanning} onClick={()=>setShowPlanning(true)}>Planning</button></div> : null}
           <header className="tablet-mobile-view-heading">
             <div><span>{tabletViewCopy[activeView].eyebrow}</span><h1>{tabletViewCopy[activeView].title}</h1></div>
             <small className={isEditing ? "is-editing" : ""}><i /> {isEditing ? "Editing on" : "Live workspace"}</small>
           </header>
           {activeView === "jobs" || activeView === "planning" ? (
             <TabletJobPipeline
-              visibleStatusKeys={isMarketing ? activeView === "planning" ? ["planning"] : liveJobStatuses.filter((status) => status.key !== "planning").map((status) => status.key) : undefined}
-              enableCompletion={activeView !== "planning"}
+              visibleStatusKeys={isMarketing ? showPlanning ? ["planning"] : liveJobStatuses.filter((status) => status.key !== "planning").map((status) => status.key) : undefined}
+              enableCompletion={!showPlanning}
               editable={isEditing}
               key={jobPipelineVersion}
               initialJobs={liveJobs}
@@ -856,21 +860,22 @@ export function TabletPipelineKiosk({
             />
           ) : activeView === "pipeline" ? (
             <PipelineBoard
-              editable={isEditing}
+              editable={isEditing && !isMarketing}
+              approvalOnly={isMarketing}
               isOffline={!isOnline}
               key={pipelineVersion}
               completionStatusKey="final_draft_notes"
-              initialStatuses={liveTaskStatuses}
+              initialStatuses={isMarketing ? liveTaskStatuses.map(status=>status.key==="final_draft_notes"?{...status,label:"Review"}:status) : liveTaskStatuses}
               initialTasks={liveTasks}
-              onDuplicateTask={isEditing ? (task) => openDuplicateRecord("task", task) : undefined}
-              onEditTask={isEditing ? (task) => {
+              onDuplicateTask={isEditing && !isMarketing ? (task) => openDuplicateRecord("task", task) : undefined}
+              onEditTask={isEditing && !isMarketing ? (task) => {
                 setViewingTask(null);
                 setSelectedJob(null);
                 setSelectedScheduleItem(null);
                 closeEventEditor();
                 setSelectedTask(task);
               } : undefined}
-              onViewTask={!isEditing ? (task) => {
+              onViewTask={!isEditing || isMarketing ? (task) => {
                 setCreateRequest(null);
                 setViewingJob(null);
                 setSelectedJob(null);
@@ -883,16 +888,16 @@ export function TabletPipelineKiosk({
               onTasksChange={updateLiveTasks}
               onMoveSaved={() => void refreshTab("pipeline")}
               onQueueMove={(mutation) => queueOfflineMove("task", mutation)}
-              statusAliases={tabletPipelineStatusAliases}
+              statusAliases={isMarketing ? {...tabletPipelineStatusAliases,ready_for_revision:"final_draft_notes"} : tabletPipelineStatusAliases}
               variant="tablet"
-              visibleStatusKeys={tabletPipelineStatusKeys}
-              workflowEnabled
+              visibleStatusKeys={isMarketing ? ["not_started","in_progress","final_draft_notes"] : tabletPipelineStatusKeys}
+              workflowEnabled={!isMarketing}
             />
           ) : activeView === "today" ? <TabletToday
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
             jobs={liveSchedule.calendarJobs}
-            tasks={isMarketing ? [] : liveSchedule.calendarTasks}
+            tasks={liveSchedule.calendarTasks}
             campaignAssets={isMarketing ? [] : liveSchedule.calendarCampaignAssets}
             customEvents={liveSchedule.calendarEvents}
             flightEvents={isMarketing ? [] : liveSchedule.flightEvents}
@@ -944,7 +949,7 @@ export function TabletPipelineKiosk({
             overdueColor={branding.calendarOverdueColor}
             density={calendarDensity}
             jobs={liveSchedule.calendarJobs}
-            tasks={isMarketing ? [] : liveSchedule.calendarTasks}
+            tasks={liveSchedule.calendarTasks}
             campaignAssets={isMarketing ? [] : liveSchedule.calendarCampaignAssets}
             customEvents={liveSchedule.calendarEvents}
             flightEvents={isMarketing ? [] : liveSchedule.flightEvents}
@@ -970,6 +975,7 @@ export function TabletPipelineKiosk({
             onEditItem={(item) => {
               setCreateRequest(null);
               closeEventEditor();
+              if(isMarketing&&item.entity_type!=="job") {const task=liveTasks.find(task=>task.id===item.id);if(task)setViewingTask(task);return;}
               if (item.entity_type === "job") {
                 const fullJob = liveJobs.find((job) => job.id === item.id) ?? null;
                 setSelectedTask(null);
@@ -1003,7 +1009,7 @@ export function TabletPipelineKiosk({
           </div>
         ) : null}
 
-        {createRequest ? <TabletRecordCreateEditor initialStatusId={isMarketing ? liveJobStatuses.find((status) => status.key === (activeView === "planning" ? "planning" : "scheduled"))?.id : undefined} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
+        {createRequest ? <TabletRecordCreateEditor initialStatusId={isMarketing ? liveJobStatuses.find((status) => status.key === (showPlanning || !createRequest.date ? "planning" : "scheduled"))?.id : undefined} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
         {viewingJob ? <TabletJobDetailSheet allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} isAutopacific={branding.theme === "autopacific"} job={liveJobs.find((job) => job.id === viewingJob.id) ?? viewingJob} onClose={() => setViewingJob(null)} /> : null}
         {viewingTask ? <TabletTaskDetailSheet task={viewingTask} onClose={() => setViewingTask(null)} /> : null}
         {selectedJob ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}

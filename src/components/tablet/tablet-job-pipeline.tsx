@@ -53,21 +53,12 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
-      {editable ? (
-        <div className="tablet-job-card-primary">
-          <div className="task-client">{job.client?.name ?? "No client"}</div>
-          <DelayedJobMarker job={job} />
-          <h3>{job.title}</h3>
-          <JobSchedulePills job={job} />
-        </div>
-      ) : (
-        <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
+      <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <DelayedJobMarker job={job} />
           <strong>{job.title}</strong>
           <JobSchedulePills job={job} />
-        </button>
-      )}
+      </button>
       <details className="tablet-job-card-operational">
         <summary><span>Operational detail</span><ChevronDown size={14} /></summary>
         <div>

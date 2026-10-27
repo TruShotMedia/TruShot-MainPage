@@ -74,7 +74,7 @@ export function WorkspaceDialog({ backdropClassName = "", busy = false, children
 
   return (
     <div className={`calendar-editor-backdrop tablet-editor-backdrop workspace-dialog-backdrop ${backdropClassName}`} role="presentation" onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      {onSubmit ? <form {...shared} ref={(node) => { surfaceRef.current = node; }} onSubmit={(event) => { event.stopPropagation(); onSubmit(event); }}>{content}</form> : <section {...shared} ref={(node) => { surfaceRef.current = node; }}>{content}</section>}
+      {onSubmit ? <form {...shared} ref={(node) => { surfaceRef.current = node; }} onInvalidCapture={(event)=>{let parent:HTMLElement|null=event.target as HTMLElement;while(parent&&parent!==surfaceRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}}} onSubmit={(event) => { event.stopPropagation(); onSubmit(event); }}>{content}</form> : <section {...shared} ref={(node) => { surfaceRef.current = node; }}>{content}</section>}
     </div>
   );
 }

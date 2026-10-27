@@ -1,4 +1,8 @@
+import { briefAsMarkdown, type JobBrief } from "@/lib/job-brief";
+import type { JobDeliverable } from "@/lib/job-deliverable-model";
 export type ClickUpJobSnapshot = {
+  brief_details?: JobBrief;
+  deliverables?: JobDeliverable[];
   id: string;
   title: string;
   job_number: string | null;
@@ -34,6 +38,9 @@ export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
   const sections = [
     details.join("  \n"),
     clean(job.description),
+    briefAsMarkdown(job.brief_details),
+    job.deliverables?.length ? `**Deliverables**\n${job.deliverables.map(item=>`- ${item.name} — ${item.date??job.due_date??"No deadline set"}`).join("\n")}` : null,
+    `[Open full brief & private attachments](https://www.trushotmedia.com/autopacific?job=${job.id})`,
     clean(job.notes) ? `**Production notes**\n${job.notes?.trim()}` : null,
     `---\nSynced from John's CRM · Job ID: \`${job.id}\``,
   ].filter(Boolean);

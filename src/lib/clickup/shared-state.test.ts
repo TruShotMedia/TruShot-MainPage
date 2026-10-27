@@ -9,6 +9,12 @@ beforeAll(async () => {
 });
 
 describe("ClickUp shared job state", () => {
+  it("recognises only the old TO DO rename, never unrelated concurrent edits",()=>{
+    const old=sharedState.sharedStateFromCrm({title:"Brief",shoot_date:null,shoot_time:null,due_date:null,due_time:null},"TO DO");const baseline=sharedState.sharedStateHash(old);
+    expect(sharedState.isLegacyStatusRename({...old,status:"SCHEDULED"},baseline)).toBe(true);
+    expect(sharedState.isLegacyStatusRename({...old,status:"SCHEDULED",title:"Changed in ClickUp"},baseline)).toBe(false);
+    expect(sharedState.isLegacyStatusRename({...old,status:"PLANNING"},baseline)).toBe(false);
+  });
   it("normalises CRM values before hashing", () => {
     const first = sharedState.sharedStateFromCrm({
       title: "  Launch film  ",

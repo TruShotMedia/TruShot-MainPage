@@ -8,7 +8,6 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDot,
-  Clock3,
   ListTodo,
   ListChecks,
   Megaphone,
@@ -16,6 +15,8 @@ import {
   Plane,
 } from "lucide-react";
 import { buildTabletTodayAgenda, type TabletTodayEntry, type TabletTodaySource } from "@/lib/tablet-today";
+import { TimedSchedule } from "@/components/autopacific/production-calendar";
+import "@/components/autopacific/production-desktop.css";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
 function EntryIcon({ kind }: { kind: TabletTodayEntry["kind"] }) {
@@ -150,15 +151,7 @@ export function TabletToday({
       </header>
 
       <div className="tablet-today-grid">
-        <AgendaSection
-          editable={editable}
-          empty="No events, flights or shoots scheduled."
-          entries={agenda.schedule}
-          eyebrow="In time order"
-          icon={<Clock3 size={16} />}
-          onOpen={openEntry}
-          title="Schedule"
-        />
+        <TimedSchedule data={{calendarJobs:jobs,calendarTasks:tasks,calendarEvents:customEvents,flightEvents}} dates={[today]} today={today} onOpen={source=>{if(editable)openEntry(source);}} />
         <div className="tablet-today-action-column">
           <AgendaSection
             editable={editable}

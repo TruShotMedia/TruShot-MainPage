@@ -3,10 +3,10 @@ import { workspaceInitialView, workspaceViews } from "./workspace-mode";
 import { datedJobDeliverablesInputSchema } from "./job-deliverables";
 
 describe("marketing capabilities", () => {
-  it("only exposes jobs, planning and calendar, regardless of Today support", () => {
-    expect(workspaceViews("marketing", true)).toEqual(["jobs", "planning", "calendar"]);
-    expect(workspaceInitialView("pipeline", "marketing", true)).toBe("planning");
-    expect(workspaceInitialView("today", "marketing", true)).toBe("planning");
+  it("exposes jobs, review-only tasks and calendar; planning stays inside Jobs", () => {
+    expect(workspaceViews("marketing", true)).toEqual(["jobs", "pipeline", "calendar"]);
+    expect(workspaceInitialView("pipeline", "marketing", true)).toBe("pipeline");
+    expect(workspaceInitialView("today", "marketing", true)).toBe("jobs");
     expect(workspaceInitialView("planning", "production", true)).toBe("pipeline");
   });
 });

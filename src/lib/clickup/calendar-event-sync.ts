@@ -61,7 +61,7 @@ function retryDelaySeconds(attempts: number) {
 
 function eventStatuses(integration: EventIntegration) {
   return {
-    open: integration.status_mapping.planning ?? "TO DO",
+    open: integration.status_mapping.scheduled ?? "SCHEDULED",
     complete: integration.status_mapping.delivered ?? "COMPLETE",
   };
 }

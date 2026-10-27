@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, MessageSquareText, PencilLine, Save, SendHorizontal, Trash2, X } from "lucide-react";
 import { archiveJob, archiveTask, createJob, createTask, saveWorkRecordNote, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
 import { DelayRecordAction } from "@/components/admin/delay-record-action";
@@ -10,7 +10,11 @@ import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { JobDeliverablesField } from "@/components/shared/job-deliverables-field";
 import { JobScheduleFields } from "@/components/shared/job-schedule-fields";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
+import { JobBriefFields } from "@/components/autopacific/job-brief-fields";
+import { JobFiles } from "@/components/autopacific/job-supporting-data";
+import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
 import { getJobDeliverables } from "@/lib/job-deliverable-model";
+import { briefSectionLabels } from "@/lib/job-brief";
 import { formatDate } from "@/lib/format";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
@@ -52,8 +56,9 @@ function formatNoteTimestamp(value: string) {
   }).format(date);
 }
 
-function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { legacyNote?: string | null; notes?: WorkRecordNote[]; recordId: string; recordKind: "job" | "task" }) {
-  const [items, setItems] = useState<WorkRecordNote[]>(notes);
+export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { legacyNote?: string | null; notes?: WorkRecordNote[]; recordId: string; recordKind: "job" | "task" }) {
+  const [localItems, setItems] = useState<WorkRecordNote[]>(notes);
+  const items=useMemo(()=>{const byId=new Map(notes.map(note=>[note.id,note]));for(const note of localItems){const current=byId.get(note.id);if(!current||new Date(note.updated_at).getTime()>new Date(current.updated_at).getTime())byId.set(note.id,note);}return [...byId.values()].sort((a,b)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime());},[localItems,notes]);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
@@ -119,7 +124,16 @@ function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { le
   );
 }
 
-export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allowDeliverableTasks = false }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean; allowDeliverableTasks?: boolean }) {
+export function JobBriefReadout({job}:{job:TabletJobRecord}) {
+  const brief=job.brief_details;
+  if(!brief) return null;
+  return <div className="job-brief-readout">{brief.objective?<section><h3>Objective</h3><p>{brief.objective}</p></section>:null}{brief.audience?<section><h3>Audience</h3><p>{brief.audience}</p></section>:null}
+    {[brief.contact_name,brief.contact_email,brief.contact_phone].some(Boolean)?<section><h3>Production contact</h3><p>{[brief.contact_name,brief.contact_email,brief.contact_phone].filter(Boolean).join(" · ")}</p></section>:null}
+    {brief.sections?.filter(section=>section.body).map(section=><section key={section.key}><h3>{briefSectionLabels[section.key]}</h3><p>{section.body}</p></section>)}
+  </div>;
+}
+
+export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allowDeliverableTasks = false, onEdit }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean; allowDeliverableTasks?: boolean; onEdit?: () => void }) {
   const deliverables = getJobDeliverables(job);
   return (
       <WorkspaceDialog className="tablet-job-detail-sheet" titleId="tablet-job-detail-title" onClose={onClose} header={<>
@@ -131,7 +145,7 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
           <button type="button" onClick={onClose} aria-label="Close job details"><X size={17} /></button>
         </>} footer={<>
           {job.delivery_url ? <a className="tablet-job-delivery-link" href={job.delivery_url} target="_blank" rel="noreferrer"><Link2 size={14} /> Open client files <ArrowUpRight size={13} /></a> : <span />}
-          <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>
+          {onEdit ? <button className="admin-primary-button" type="button" onClick={onEdit}><PencilLine size={14} /> Edit full brief</button> : <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>}
         </>}>
 
         <DelayHistoryBanner delayInfo={job.delay_info} />
@@ -166,13 +180,14 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
           {deliverables.length ? <div className="is-wide"><dt>Key deliverables</dt><dd><ul className="job-deliverables-list">{deliverables.map((item) => <li key={item.id}><span>{item.name}</span>{item.date ? <time dateTime={item.date}>{formatDate(item.date)}</time> : null}</li>)}</ul></dd></div> : null}
           {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
         </dl>
-        {allowDeliverableTasks && deliverables.length && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} /> : null}
+        {isAutopacific ? <><JobBriefReadout job={job} /><JobFiles jobId={job.id} editable={false} /></> : null}
+        {allowDeliverableTasks && deliverables.length && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} deliverables={deliverables} /> : null}
 
       </WorkspaceDialog>
   );
 }
 
-export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; onClose: () => void }) {
+export function TabletTaskDetailSheet({ task, onClose, onEdit }: { task: PipelineTask; onClose: () => void; onEdit?: () => void }) {
   return (
       <WorkspaceDialog className="tablet-job-detail-sheet tablet-task-detail-sheet" titleId="tablet-task-detail-title" onClose={onClose} header={<>
           <div>
@@ -181,7 +196,7 @@ export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; o
             <p>{task.job?.client?.name ?? "No client"}{task.job?.title ? ` · ${task.job.title}` : ""}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close task details"><X size={17} /></button>
-        </>} footer={<button className="admin-primary-button" type="button" onClick={onClose}>Done</button>}>
+        </>} footer={onEdit ? <button className="admin-primary-button" type="button" onClick={onEdit}><PencilLine size={14} /> Edit task</button> : <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>}>
 
         <DelayHistoryBanner delayInfo={task.delay_info} />
 
@@ -214,6 +229,7 @@ export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; o
           {task.description ? <div className="is-wide"><dt>Description</dt><dd>{task.description}</dd></div> : null}
           {task.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{task.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : null}
         </dl>
+        <RecordNotesPanel notes={task.record_notes} recordId={task.id} recordKind="task" />
 
       </WorkspaceDialog>
   );
@@ -271,12 +287,15 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <JobScheduleFields planning={isPlanning} initial={{ shoot_date: sourceJob?.shoot_date ?? defaultDate, shoot_time: sourceJob?.shoot_time, due_date: sourceJob?.due_date, due_time: sourceJob?.due_time }} />
+            <label>Shoot finish time <small>Optional</small><input type="time" name="shoot_end_time" defaultValue={sourceJob?.shoot_end_time?.slice(0,5)??""} /></label>
             <div className="workspace-form-section"><strong>Production & delivery</strong><p>Keep location, files and context together.</p></div>
             {fixedClientId ? <input type="hidden" name="photos_delivered" value="0" /> : <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>}
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={sourceJob?.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={sourceJob?.description ?? ""} /></label>
             <JobDeliverablesField initialItems={sourceJob?.deliverables} legacyItems={sourceJob?.key_deliverables} />
+            <JobBriefFields initial={sourceJob?.brief_details} />
+            <p className="form-span brief-help">Create the job first, then attach files in its brief.</p>
             <label className="form-span">Internal notes<textarea name="notes" rows={3} maxLength={4000} defaultValue={sourceJob?.notes ?? ""} /></label>
           </div>
         ) : (
@@ -371,6 +390,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
           <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> Save changes</>}</button>
         </>}>
         <input type="hidden" name="id" value={record.id} />
+        {job ? <input type="hidden" name="expected_updated_at" value={job.updated_at} /> : null}
 
         <div className="tablet-record-editor-layout">
           <section className="tablet-record-editor-details">
@@ -384,13 +404,18 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             {!fixedClientId ? <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label> : null}
-            <JobScheduleFields planning={jobStatuses.find((status) => status.id === selectedJobStatusId)?.key === "planning"} initial={job} />
-            <div className="workspace-form-section"><strong>Production & delivery</strong><p>Location, client files and the brief.</p></div>
-            <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
-            <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
-            <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
+            <label className="form-span">Brief / overview<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
+            <JobBriefFields initial={job.brief_details} />
             <JobDeliverablesField initialItems={job.deliverables} legacyItems={job.key_deliverables} />
-            {allowDeliverableTasks && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} requireSaved /> : null}
+            <details className="brief-module form-span"><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : "Dates optional while planning"}</summary><div className="brief-module-fields tablet-record-editor-fields">
+              <JobScheduleFields planning={jobStatuses.find((status) => status.id === selectedJobStatusId)?.key === "planning"} initial={job} />
+              <label>Shoot finish time <small>Optional · same day</small><input type="time" name="shoot_end_time" defaultValue={job.shoot_end_time?.slice(0,5)??""} /></label>
+              <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
+            </div></details>
+            <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
+            <div className="form-span"><JobFiles jobId={job.id} /></div>
+            <div className="form-span"><JobBriefHistory jobId={job.id} /></div>
+            {allowDeliverableTasks && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} deliverables={getJobDeliverables(job)} requireSaved onCreated={onSaved} /> : null}
             <input type="hidden" name="notes" value={job.notes ?? ""} />
               </div>
             ) : task ? (

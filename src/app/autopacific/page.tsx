@@ -16,12 +16,13 @@ export const viewport: Viewport = {
   themeColor: "#07100b",
 };
 
-export default async function AutopacificPage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
+export default async function AutopacificPage({ searchParams }: { searchParams: Promise<{ view?: string | string[]; job?:string; display?:string }> }) {
   const query = await searchParams;
   const requestedView = typeof query.view === "string" ? query.view : undefined;
   const userAgent = (await headers()).get("user-agent") ?? "";
   if (MOBILE_USER_AGENT_PATTERN.test(userAgent)) {
-    redirect(requestedView ? `/autopacific/mobile?view=${encodeURIComponent(requestedView)}` : "/autopacific/mobile");
+    const destination=new URLSearchParams();if(requestedView)destination.set("view",requestedView);if(query.job)destination.set("job",query.job);
+    redirect(`/autopacific/mobile${destination.size?`?${destination}`:""}`);
   }
-  return <AutopacificWorkspace experience="kiosk" requestedView={requestedView} />;
+  return <AutopacificWorkspace experience="kiosk" requestedView={requestedView} requestedJobId={query.job} forceKiosk={query.display==="kiosk"} />;
 }

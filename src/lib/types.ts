@@ -172,6 +172,8 @@ export type JobRecord = {
 };
 
 export type TabletJobRecord = {
+  brief_details?: import("@/lib/job-brief").JobBrief;
+  shoot_end_time?: string | null;
   id: string;
   title: string;
   job_number: string | null;
@@ -228,6 +230,7 @@ export type PipelineTask = {
 };
 
 export type CalendarJob = {
+  shoot_end_time?: string | null;
   id: string;
   entity_type: "job";
   title: string;

@@ -13,6 +13,7 @@ import { pairInvoicePaymentDates, paymentDateToTimestamp } from "@/lib/invoice-p
 import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { datedJobDeliverablesInputSchema, jobDeliverablesInputSchema } from "@/lib/job-deliverables";
+import { jobBriefInputSchema } from "@/lib/job-brief";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext, getProductionContext } from "@/lib/data/admin";
@@ -36,6 +37,9 @@ const optionalHttpUrlSchema = z.string().trim().max(2_048).refine((value) => {
   }
 }, "Enter a complete link beginning with http:// or https://.");
 const jobEditorInputSchema = z.object({
+  brief_details: jobBriefInputSchema.optional(),
+  shoot_end_time: optionalTimeSchema.optional(),
+  expected_updated_at: z.iso.datetime({ offset: true }).optional(),
   id: z.string().uuid(),
   title: z.string().trim().min(2).max(200),
   job_number: z.string().trim().max(60),
@@ -249,7 +253,9 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     requireJobStatus(context, input.status_id),
     requireClient(context, input.client_id),
   ]);
-  const { data, error } = await context.supabase.from("website-jobs").update({
+  let update = context.supabase.from("website-jobs").update({
+    brief_details: input.brief_details,
+    shoot_end_time: input.shoot_end_time === undefined ? undefined : input.shoot_end_time || null,
     title: input.title,
     job_number: input.job_number || null,
     client_id: input.client_id || null,
@@ -266,8 +272,10 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     description: input.description || null,
     notes: input.notes || null,
     updated_by: context.claims.sub,
-  }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).select("id").single();
-  if (error || !data) throw new Error(error?.message ?? "Job could not be updated.");
+  }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null);
+  if (input.expected_updated_at) update=update.eq("updated_at",input.expected_updated_at);
+  const { data, error } = await update.select("id").single();
+  if (error || !data) throw new Error(input.expected_updated_at ? "This job changed while you were editing. Your draft is still here. Copy any unsaved changes, then reopen the latest brief before saving." : error?.message ?? "Job could not be updated.");
   await syncTasksToJobDeadline(context, input.id, input.due_date || null);
 }
 
@@ -475,6 +483,8 @@ export async function createJob(formData: FormData) {
     due_date: z.string().or(z.literal("")),
     due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
+    brief_details: jobBriefInputSchema.optional(),
+    shoot_end_time: optionalTimeSchema.optional(),
     key_deliverables: jobDeliverablesInputSchema.optional().default([]),
     deliverables: datedJobDeliverablesInputSchema.optional(),
     location: z.string().trim().max(300).optional().default(""),
@@ -495,6 +505,8 @@ export async function createJob(formData: FormData) {
     due_date: input.due_date || null,
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
+    brief_details: input.brief_details,
+    shoot_end_time: input.shoot_end_time || null,
     key_deliverables: input.key_deliverables,
     deliverables: input.deliverables,
     location: input.location || null,
@@ -519,7 +531,7 @@ export async function duplicateJob(formData: FormData) {
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-jobs")
-    .select("title,client_id,status_id,package_id,package_snapshot,description,key_deliverables,deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,brief_details,key_deliverables,deliverables,shoot_date,shoot_time,shoot_end_time,due_date,due_time,location,delivery_url,notes")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
@@ -550,6 +562,8 @@ export async function duplicateJob(formData: FormData) {
     description: source.description,
     key_deliverables: source.key_deliverables,
     deliverables: source.deliverables,
+    brief_details: source.brief_details,
+    shoot_end_time: source.shoot_end_time,
     shoot_date: source.shoot_date,
     shoot_time: source.shoot_time,
     due_date: source.due_date,

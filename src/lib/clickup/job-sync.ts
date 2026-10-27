@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { CLICKUP_LIST_ID, CLICKUP_LIST_NAME, CLICKUP_STATUS_MAPPING, getClickUpToken } from "@/lib/clickup/config";
 import { ClickUpApiError, createClickUpTask, deleteClickUpTask, getClickUpAuthorizedUser, getClickUpList, getClickUpTask, updateClickUpTask } from "@/lib/clickup/client";
 import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, buildClickUpOwnedFieldsPayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
-import { changedSharedFields, sharedStateFromClickUp, sharedStateFromCrm, sharedStateHash } from "@/lib/clickup/shared-state";
+import { changedSharedFields, isLegacyStatusRename, sharedStateFromClickUp, sharedStateFromCrm, sharedStateHash } from "@/lib/clickup/shared-state";
 import { ensureClickUpWebhook } from "@/lib/clickup/webhook-registration";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -165,7 +165,7 @@ async function upsertRemoteTask({
 }) {
   const { data: job, error: jobError } = await supabase
     .from("website-jobs")
-    .select("id,title,job_number,description,shoot_date,shoot_time,due_date,due_time,location,delivery_url,photos_delivered,notes,client_id,status_id,updated_at,archived_at")
+    .select("id,title,job_number,description,brief_details,deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,photos_delivered,notes,client_id,status_id,updated_at,archived_at")
     .eq("workspace_id", integration.workspace_id)
     .eq("id", jobId)
     .maybeSingle();
@@ -187,6 +187,8 @@ async function upsertRemoteTask({
   if (!integration.assigned_user_id) throw new Error("The ClickUp assignee has not been connected.");
 
   const snapshot: ClickUpJobSnapshot = {
+    brief_details: job.brief_details,
+    deliverables: job.deliverables,
     id: job.id,
     title: job.title,
     job_number: job.job_number,
@@ -216,7 +218,7 @@ async function upsertRemoteTask({
     try {
       const currentTask = await getClickUpTask(taskId);
       const remoteState = sharedStateFromClickUp(currentTask);
-      const remoteHash = sharedStateHash(remoteState);
+      const remoteHash = isLegacyStatusRename(remoteState, link?.last_shared_hash as string | null) ? link!.last_shared_hash as string : sharedStateHash(remoteState);
       const lastHash = link?.last_shared_hash as string | null;
       if (remoteHash === desiredHash) {
         if ((currentTask.markdown_description ?? "") !== buildClickUpJobDescription(snapshot)) {

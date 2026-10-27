@@ -1,4 +1,6 @@
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
+import { ProductionDesktop } from "@/components/autopacific/production-desktop";
 import { redirect } from "next/navigation";
 import { TabletPipelineKiosk } from "@/components/tablet/tablet-pipeline-kiosk";
 import { TABLET_REFRESH_INTERVAL_MINUTES } from "@/lib/config";
@@ -9,7 +11,7 @@ import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
-export async function AutopacificWorkspace({ experience, requestedView, mode = "production" }: { experience: "kiosk" | "mobile"; requestedView?: string; mode?: "production" | "marketing" }) {
+export async function AutopacificWorkspace({ experience, requestedView, requestedJobId, forceKiosk = false, mode = "production" }: { experience: "kiosk" | "mobile"; requestedView?: string; requestedJobId?: string; forceKiosk?: boolean; mode?: "production" | "marketing" }) {
   const isMarketing = mode === "marketing";
   const context = await getProductionContext();
   if (!context) {
@@ -22,12 +24,16 @@ export async function AutopacificWorkspace({ experience, requestedView, mode = "
     cookies(),
   ]);
   const notion = getNotionConfigurationSummary();
+  const userAgent=(await headers()).get("user-agent")??"";
+  const desktop=experience!=="mobile"&&!forceKiosk&&!/Android|iPad|iPhone|CrOS|SMART-TV|Tizen|Web0S|TV|Kiosk/i.test(userAgent);
+  if(desktop) return <ProductionDesktop data={data} mode={mode} initialView={requestedView??cookieStore.get(isMarketing?"autopacific-marketing-view":TABLET_VIEW_COOKIE_NAME)?.value??"jobs"} requestedJobId={requestedJobId} today={todayDateInput()} refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES} notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY??""} notionSyncEnabled={context.access==="admin"&&notion.configured} notionSyncIntervalMinutes={notion.syncIntervalMinutes}/>;
   const pipelineVersion = data.pipelineTasks
     .map((task) => `${task.id}:${task.status_id}:${task.updated_at}`)
     .join("|");
 
   return (
     <TabletPipelineKiosk
+      initialJobId={requestedJobId}
       workspaceMode={mode}
       canOpenCrm={!isMarketing && context.access === "admin"}
       branding={{
