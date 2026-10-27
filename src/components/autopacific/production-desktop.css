@@ -1152,3 +1152,6 @@ html.apg-desktop-active body {
     }
   }
 }
+.job-files input[hidden] {
+  display: none !important;
+}

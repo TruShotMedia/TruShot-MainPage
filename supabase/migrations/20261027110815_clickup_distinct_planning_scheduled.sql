@@ -1,4 +1,4 @@
--- Apply after the matching application release so legacy TO DO baselines are recognised safely.
+-- Applied after the matching application release so legacy TO DO baselines are recognised safely.
 update public."website-clickup-integrations" set status_mapping=jsonb_set(jsonb_set(status_mapping,'{planning}','"PLANNING"'),'{scheduled}','"SCHEDULED"');
 insert into public."website-clickup-sync-outbox"(workspace_id,job_id,operation)
 select j.workspace_id,j.id,'upsert' from public."website-jobs" j join public."website-clickup-integrations" i on i.workspace_id=j.workspace_id and i.target_client_id=j.client_id

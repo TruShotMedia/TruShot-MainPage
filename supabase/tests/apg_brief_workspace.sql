@@ -1,4 +1,5 @@
 -- Run inside a transaction and roll back all fixtures.
+begin;
 select set_config('request.jwt.claims','{"sub":"d61eb1c9-8a31-4c49-81fd-93dd478493ce","role":"authenticated"}',true);
 set local role authenticated;
 do $$
@@ -35,3 +36,4 @@ begin
  if not rejected then raise exception 'Out-of-scope attachment was allowed'; end if;
 end $$;
 reset role;
+rollback;
