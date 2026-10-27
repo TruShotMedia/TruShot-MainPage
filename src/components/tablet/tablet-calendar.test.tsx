@@ -381,7 +381,11 @@ describe("TabletCalendar", () => {
       is_complete: false,
     }));
 
-    await act(async () => root.render(<TabletCalendar density="capacity" jobs={jobs} tasks={busyTasks} today="2026-08-25" />));
+    const busyJobs = Array.from({ length: 6 }, (_, index): CalendarJob => ({
+      ...jobs[0], id: `job-${index}`, title: `Production ${index + 1}`,
+      shoot_date: "2026-08-25", due_date: "2026-08-27",
+    }));
+    await act(async () => root.render(<TabletCalendar editable density="capacity" jobs={busyJobs} tasks={busyTasks} today="2026-08-25" />));
 
     const calendarDays = [...container.querySelectorAll<HTMLTimeElement>(".tablet-calendar-day > time")];
     expect(calendarDays).toHaveLength(14);
@@ -391,6 +395,16 @@ describe("TabletCalendar", () => {
     const busyDay = container.querySelector<HTMLTimeElement>('time[datetime="2026-08-25"]')?.parentElement;
     expect(busyDay?.querySelectorAll(".tablet-calendar-event")).toHaveLength(6);
     expect(busyDay?.querySelector(".tablet-calendar-overflow")).toBeNull();
+    expect(container.querySelectorAll(".tablet-calendar-job-range")).toHaveLength(6);
+    expect(container.querySelector(".tablet-calendar-overflow")).toBeNull();
+  });
+
+  it("identifies rescheduled mobile job windows for light-theme styling", async () => {
+    usePhoneViewport();
+    const history = { id: "delay", source_id: "old", successor_id: jobs[0].id, reason: "Weather", source_date: "2026-08-10", rescheduled_date: "2026-08-14", created_at: "2026-08-10T00:00:00Z" };
+    const rescheduled = { ...jobs[0], delay_info: { delayed_from: history, delayed_to: null, history: [history] } };
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[rescheduled]} tasks={[]} today="2026-08-14" />));
+    expect(container.querySelector(".tablet-calendar-mobile-entry.is-rescheduled")).not.toBeNull();
   });
 
   it("turns the AutoPacific calendar into a readable weekly agenda on phones", async () => {

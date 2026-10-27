@@ -2,8 +2,9 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, ChevronDown, Copy, Flag, GripVertical, ListChecks, Pencil, RotateCcw } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Copy, Flag, GripVertical, ListChecks, Pencil, RotateCcw, ArrowRight } from "lucide-react";
+import { pipelineColumnCollision, pipelineColumnKeyboardCoordinates } from "@/lib/pipeline-drag";
+import { PipelineDragPreview } from "@/components/shared/pipeline-drag-preview";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
@@ -38,21 +39,22 @@ function DelayedJobMarker({ job }: { job: TabletJobRecord }) {
   return <span className="tablet-delay-indicator" title={`Rescheduled because: ${job.delay_info.delayed_from.reason}`}><RotateCcw size={11} /> Rescheduled</span>;
 }
 
-function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; onComplete: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: job.id, disabled: isSaving });
+function JobCard({ canComplete, canSchedule, editable, job, isSaving, dragDisabled, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; dragDisabled: boolean; onComplete: () => void; onSchedule: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: job.id, disabled: dragDisabled });
   return (
     <article
       ref={setNodeRef}
-      className={`tablet-job-card pipeline-task pipeline-task-tablet ${editable ? "is-editable" : "is-read-only"} ${isSaving ? "is-saving" : ""}`}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }}
+      className={`tablet-job-card pipeline-task pipeline-task-tablet ${editable ? "is-editable" : "is-read-only"} ${isSaving ? "is-saving" : ""} ${isDragging ? "is-dragging" : ""}`}
       aria-busy={isSaving}
+      style={{ "--pipeline-control-count": (editable ? 3 : 1) + (canComplete ? 1 : 0) } as CSSProperties}
     >
       <div className="pipeline-task-controls">
-        <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={isSaving}><GripVertical size={15} /></button>
+        <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={dragDisabled}><GripVertical size={15} /></button>
         {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
+      <div className="pipeline-card-content">
       <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <DelayedJobMarker job={job} />
@@ -69,17 +71,19 @@ function JobCard({ canComplete, editable, job, isSaving, onComplete, onDuplicate
           <div className="tablet-job-card-progress"><ListChecks size={13} /><strong>{job.open_tasks}</strong><span>open · {job.total_tasks} total</span></div>
         </div>
       </details>
+      {canSchedule ? <button type="button" className="tablet-job-schedule-button" onClick={onSchedule} disabled={dragDisabled}>Move to Scheduled <ArrowRight size={14} /></button> : null}
+      </div>
     </article>
   );
 }
 
-function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, onDuplicate, onEdit, onView }: { canComplete: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
+function JobColumn({ canComplete, canSchedule, editable, status, jobs, savingId, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; status: JobStatus; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onSchedule: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
-      <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b></header>
+      <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b>{isOver ? <em className="pipeline-drop-hint">Drop here</em> : null}</header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} editable={editable} job={job} isSaving={savingId === job.id} onComplete={() => onComplete(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} canSchedule={canSchedule} editable={editable} job={job} isSaving={savingId === job.id} dragDisabled={Boolean(savingId)} onComplete={() => onComplete(job)} onSchedule={() => onSchedule(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
         {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
@@ -103,9 +107,10 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
   const [jobs, setJobs] = useState(initialJobs);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: pipelineColumnKeyboardCoordinates }),
   );
   const orderedStatuses = useMemo(
     // Delayed records are immutable history; their linked successor is the
@@ -114,6 +119,7 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
     [statuses, visibleStatusKeys],
   );
   const deliveredStatus = useMemo(() => statuses.find((status) => status.key === "delivered") ?? null, [statuses]);
+  const scheduledStatus = statuses.find((status) => status.key === "scheduled");
   const finalVisibleStatusId = enableCompletion ? orderedStatuses.at(-1)?.id ?? null : null;
   const jobsByStatus = useMemo(() => {
     const grouped = new Map(orderedStatuses.map((status) => [status.id, [] as TabletJobRecord[]]));
@@ -158,10 +164,21 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
   }
 
   function onDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     if (!event.over) return;
     const overId = String(event.over.id);
     if (!overId.startsWith("job-status-")) return;
     void moveJob(String(event.active.id), overId.replace("job-status-", ""));
+  }
+
+  function scheduleJob(job: TabletJobRecord) {
+    if (!scheduledStatus || !editable) return;
+    if (!job.shoot_date) {
+      setMessage("Choose a shoot date and save to schedule this job.");
+      onEditJob({ ...job, status_id: scheduledStatus.id, status: scheduledStatus });
+      return;
+    }
+    void moveJob(job.id, scheduledStatus.id);
   }
 
   function completeJob(job: TabletJobRecord) {
@@ -175,10 +192,11 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
   return (
     <>
       {message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={pipelineColumnCollision} onDragStart={({active}) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
         <div className="pipeline-board pipeline-board-tablet tablet-job-board" style={{ gridTemplateColumns: `repeat(${Math.max(1, orderedStatuses.length)}, minmax(0, 1fr))` }}>
-          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} onView={onViewJob} />)}
+          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} canSchedule={editable && status.key === "planning" && Boolean(scheduledStatus)} editable={editable} status={status} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onSchedule={scheduleJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} onView={onViewJob} />)}
         </div>
+        <PipelineDragPreview title={jobs.find(job => job.id === activeId)?.title} />
       </DndContext>
     </>
   );

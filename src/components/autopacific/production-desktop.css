@@ -29,6 +29,9 @@ html.apg-desktop-active body {
   font-size: 14px;
 }
 .apg-desktop.is-dark {
+  --workspace-delay-bg: #382720;
+  --workspace-delay-text: #f1bea5;
+  --workspace-delay-line: #895f4b;
   --workspace-surface: #12212b;
   --workspace-panel: #0b171f;
   --workspace-field: #192c38;
@@ -280,16 +283,24 @@ html.apg-desktop-active body {
   display: grid;
   grid-template-columns: repeat(4, minmax(190px, 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
   overflow: visible;
   min-height: 100%;
 }
 .apg-desktop .pipeline-column {
+  position: relative;
   border: 0;
   background: transparent;
   box-shadow: none;
   border-radius: 0;
   min-height: 150px;
+}
+.apg-desktop .pipeline-column.is-over {
+  background: var(--workspace-accent-soft);
+  border-radius: 8px;
+  outline: 2px solid var(--workspace-accent);
+  outline-offset: 5px;
+  box-shadow: 0 0 0 7px var(--workspace-accent-soft);
 }
 .apg-desktop .pipeline-column > header {
   position: static;
@@ -329,12 +340,15 @@ html.apg-desktop-active body {
   overflow: visible;
 }
 .apg-desktop .pipeline-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  column-gap: 12px;
   position: relative;
   background: var(--workspace-surface);
   border: 1px solid var(--workspace-line);
   border-radius: 10px;
   box-shadow: 0 2px 6px #00000004;
-  padding: 15px 39px 14px 14px;
+  padding: 15px 12px 15px 14px;
   min-height: 0;
 }
 .apg-desktop .task-client {
@@ -365,12 +379,17 @@ html.apg-desktop-active body {
   margin-top: 7px;
 }
 .apg-desktop .pipeline-task-controls {
-  position: absolute;
-  top: 12px;
-  right: 9px;
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+.apg-desktop .pipeline-card-content {
+  grid-column: 1;
+  grid-row: 1;
 }
 .apg-desktop .pipeline-task-controls button {
   width: 24px;
@@ -1132,6 +1151,27 @@ html.apg-desktop-active body {
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .apg-toolbar-icon, .apg-create-icon {
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+  }
+  .apg-toolbar-refresh:not(:disabled):is(:hover, :focus-visible) .apg-toolbar-icon { transform: rotate(80deg); }
+  .apg-toolbar-theme:is(:hover, :focus-visible) .apg-toolbar-icon { transform: rotate(-18deg) scale(1.13); }
+  .apg-desktop-controls > button { transition: background 160ms ease, border-color 160ms ease; }
+  .apg-desktop-controls > button:hover { background: var(--workspace-accent-soft); border-color: var(--workspace-accent); }
+  .apg-new-menu[open] .apg-create-icon { transform: rotate(45deg); }
+  .apg-new-menu[open] > div { transform-origin: top right; animation: apg-create-enter 180ms cubic-bezier(.2,.8,.2,1) both; }
+  .apg-new-menu[open] > div > button { animation: apg-create-item-enter 180ms ease-out both; }
+  .apg-new-menu[open] > div > button:nth-child(2) { animation-delay: 25ms; }
+  .apg-new-menu[open] > div > button:nth-child(3) { animation-delay: 50ms; }
+  .apg-new-menu[open] > div > button:nth-child(4) { animation-delay: 75ms; }
+  @keyframes apg-create-enter {
+    from { opacity: 0; transform: translateY(-8px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes apg-create-item-enter {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .apg-desktop-sidebar button,
   .apg-job-list > button {
     transition:
@@ -1152,6 +1192,7 @@ html.apg-desktop-active body {
     }
   }
 }
+.apg-toolbar-icon, .apg-create-icon { display: inline-flex; }
 .job-files input[hidden] {
   display: none !important;
 }

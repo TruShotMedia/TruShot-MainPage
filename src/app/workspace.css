@@ -1,5 +1,55 @@
 /* Shared workspace surfaces. Keep sizing, scroll ownership and theme in one place. */
+/* Keep drag handles usable on touch screens without disabling page scrolling
+   everywhere else. Overlay previews escape clipped pipeline scroll regions. */
+.pipeline-card-content { min-width: 0; }
+.pipeline-task .drag-handle { touch-action: none; cursor: grab; }
+.pipeline-task .drag-handle:active { cursor: grabbing; }
+.pipeline-task.is-dragging { opacity: .28; }
+.pipeline-drop-hint { margin-left: auto; font-size: 10px; font-style: normal; font-weight: 700; white-space: nowrap; color: var(--workspace-accent); }
+.pipeline-drag-preview { display: flex; align-items: flex-start; gap: 10px; border: 2px solid #397fa6; border-radius: 12px; background: #fff; padding: 14px; color: #182e3a; box-shadow: 0 18px 45px #081e3440; cursor: grabbing; pointer-events: none; font-family: Arial, sans-serif; }
+.pipeline-drag-preview > div { min-width: 0; }
+.pipeline-drag-preview strong { display: block; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.pipeline-drag-preview small { display: block; margin-top: 5px; color: #586d79; font-size: 11px; }
+.tablet-kiosk .pipeline-task { min-height: max(118px, calc(var(--pipeline-control-count, 0) * 29px + 20px)); }
+.pipeline-task .pipeline-card-content > p { margin: 0; color: var(--workspace-muted, #858982); font-size: 9px; }
+.tablet-job-schedule-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; border: 1px solid var(--workspace-accent); border-radius: 7px; background: var(--workspace-accent-soft); padding: 9px 10px; color: var(--workspace-accent); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.tablet-job-schedule-button:hover { background: var(--workspace-accent); color: var(--workspace-surface); }
+.tablet-kiosk .pipeline-column.is-over { outline: 2px solid var(--workspace-accent); outline-offset: -2px; }
+/* Delay history remains readable in desktop, mobile and kiosk themes. */
+:is(.apg-desktop, .tablet-kiosk) .tablet-delay-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 7px;
+  border: 1px solid var(--workspace-delay-line);
+  border-radius: 999px;
+  background: var(--workspace-delay-bg);
+  padding: 3px 7px;
+  color: var(--workspace-delay-text);
+  font-size: 10px;
+  font-weight: 650;
+}
+:is(.apg-desktop, .tablet-kiosk) .delay-history-banner {
+  border-color: var(--workspace-delay-line);
+  background: var(--workspace-delay-bg);
+  color: var(--workspace-delay-text);
+}
+:is(.apg-desktop, .tablet-kiosk) .delay-history-banner :is(header, strong, p, p b, summary, li, li strong, header span) { color: var(--workspace-delay-text); }
+:is(.apg-desktop, .tablet-kiosk) .delay-history-banner details { border-color: var(--workspace-delay-line); }
+:is(.apg-desktop, .tablet-kiosk.is-light) .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled):not(.is-calendar-event) {
+  border: 1px solid var(--workspace-delay-line);
+  background: var(--workspace-delay-bg);
+  color: var(--workspace-delay-text);
+}
+:is(.apg-desktop, .tablet-kiosk.is-light) .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled) :is(strong, em, span) { color: inherit; }
+.tablet-kiosk.is-light .tablet-delay-record-button { border-color: var(--workspace-delay-line); background: var(--workspace-delay-bg); color: var(--workspace-delay-text); }
+/* Real overflow summaries must not sit underneath a day's Add button. */
+:is(.apg-desktop, .tablet-kiosk) .tablet-calendar-overflow { right: 30px; }
+
 :root {
+  --workspace-delay-bg: #fff1e9;
+  --workspace-delay-text: #85482f;
+  --workspace-delay-line: #e5bba7;
   --workspace-surface: #fff;
   --workspace-panel: #f4f7f8;
   --workspace-field: #fff;
@@ -14,6 +64,9 @@
   --workspace-scheme: light;
 }
 .tablet-kiosk, html.tablet-kiosk-active[data-tablet-color-mode="dark"] {
+  --workspace-delay-bg: #382720;
+  --workspace-delay-text: #f1bea5;
+  --workspace-delay-line: #895f4b;
   --workspace-surface: #0e1a20;
   --workspace-panel: #13232b;
   --workspace-field: #182b34;
@@ -28,6 +81,9 @@
 }
 .tablet-kiosk.theme-autopacific { --workspace-accent: #98cbe4; --workspace-accent-soft: #1c3b4c; --workspace-action: #2e6e94; }
 .tablet-kiosk.is-light, html.tablet-kiosk-active[data-tablet-color-mode="light"] {
+  --workspace-delay-bg: #fff1e9;
+  --workspace-delay-text: #85482f;
+  --workspace-delay-line: #e5bba7;
   --workspace-surface: #fff;
   --workspace-panel: #f1f6f8;
   --workspace-field: #fff;
@@ -237,6 +293,9 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .tablet-kiosk.is-light .tablet-kiosk-tabs-mobile button { color: #4e6876; }
 .tablet-kiosk.is-light.theme-autopacific .tablet-kiosk-tabs-mobile button.is-active { background: #dcecf6; color: #1f6087; }
 .tablet-kiosk.is-light .task-meta, .tablet-kiosk.is-light .tablet-job-card-operational summary { color: var(--workspace-muted); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) { border-color: var(--workspace-delay-line); background: var(--workspace-delay-bg); color: var(--workspace-delay-text); filter: none; opacity: 1; }
+.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) :is(strong, small, em, .tablet-calendar-mobile-entry-time) { color: var(--workspace-delay-text); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) .tablet-calendar-mobile-entry-icon { background: #f8ddcd; color: var(--workspace-delay-text); }
 
 /* Brisbane daily forecast; tiny in the grid, touchable detail on mobile. */
 .calendar-weather-badge { display: inline-flex; min-width: 0; min-height: 24px; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 7px; background: transparent; padding: 2px 4px; color: var(--workspace-muted); font-size: 10px; font-weight: 750; cursor: pointer; }

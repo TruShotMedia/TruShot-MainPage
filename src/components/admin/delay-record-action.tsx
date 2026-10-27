@@ -56,7 +56,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
         ref={triggerRef}
         type="button"
         className={compact ? "tablet-delay-record-button" : "status-row-delay"}
-        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk") ?? document.body); setOpen(true); }}
+        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk, .apg-desktop") ?? document.body); setOpen(true); }}
         title={`Delay ${recordTitle}`}
         aria-label={`Delay ${recordTitle}`}
       >

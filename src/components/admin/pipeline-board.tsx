@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
+import { pipelineColumnCollision, pipelineColumnKeyboardCoordinates } from "@/lib/pipeline-drag";
+import { PipelineDragPreview } from "@/components/shared/pipeline-drag-preview";
 import { CalendarDays, Check, Clock3, Copy, GripVertical, Pencil } from "lucide-react";
 import { movePipelineTask } from "@/app/admin/actions";
 import { approveProductionTask } from "@/app/autopacific/brief-actions";
@@ -15,15 +16,16 @@ type PipelineVariant = "admin" | "tablet";
 const EMPTY_STATUS_ALIASES: Record<string, string> = {};
 
 function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, canComplete, onComplete, onDuplicate, onEdit, onView, variant }: { task: PipelineTask; editable: boolean; workflowEnabled: boolean; approvalOnly: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; onDuplicate?: (task: PipelineTask) => void; onEdit?: (task: PipelineTask) => void; onView?: (task: PipelineTask) => void; variant: PipelineVariant }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, disabled: isSaving || !workflowEnabled });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: task.id, disabled: isSaving || !workflowEnabled });
   return (
-    <article ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? .45 : 1 }} className={`pipeline-task pipeline-task-${variant} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
+    <article ref={setNodeRef} style={{ "--pipeline-control-count": Number(workflowEnabled) + Number(editable && Boolean(onEdit)) + Number(editable && Boolean(onDuplicate)) + Number((workflowEnabled || approvalOnly) && canComplete) } as CSSProperties} className={`pipeline-task pipeline-task-${variant} ${isDragging ? "is-dragging" : ""} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
       {workflowEnabled || (approvalOnly && canComplete) || (editable && (onEdit || onDuplicate)) ? <div className="pipeline-task-controls">
-        {workflowEnabled ? <button type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`} disabled={isSaving}><GripVertical size={15} /></button> : null}
+        {workflowEnabled ? <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`} disabled={isSaving}><GripVertical size={15} /></button> : null}
         {editable && onEdit ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${task.title}`} title="Edit asset" onClick={() => onEdit(task)} disabled={isSaving}><Pencil size={13} /></button> : null}
         {editable && onDuplicate ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${task.title}`} title="Duplicate asset" onClick={() => onDuplicate(task)} disabled={isSaving}><Copy size={13} /></button> : null}
         {(workflowEnabled || approvalOnly) && canComplete ? <button type="button" className="pipeline-complete-button" aria-label={approvalOnly ? `Approve and complete ${task.title}` : `Mark ${task.title} as posted and done`} title={approvalOnly ? "Approve & complete" : "Mark Posted / Done"} onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div> : null}
+      <div className="pipeline-card-content">
       {onView ? (
         <button type="button" className="tablet-task-card-primary" aria-label={`View details for ${task.title}`} onClick={() => onView(task)}>
           <span className="task-client">{task.job?.client?.name ?? "No client"}</span>
@@ -47,6 +49,7 @@ function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, can
           </div>
         </>
       )}
+      </div>
     </article>
   );
 }
@@ -55,7 +58,7 @@ function Column({ status, tasks, editable, workflowEnabled, approvalOnly, saving
   const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}`, disabled: !workflowEnabled });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-${variant} ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
-      <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b></header>
+      <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b>{isOver ? <em className="pipeline-drop-hint">Drop here</em> : null}</header>
       <div className="pipeline-stack">
         {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} workflowEnabled={workflowEnabled} approvalOnly={approvalOnly} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} onDuplicate={onDuplicateTask} onEdit={onEditTask} onView={onViewTask} variant={variant} />)}
         {!tasks.length && <div className="pipeline-empty">{workflowEnabled ? "Drop an asset here" : "No assets"}</div>}
@@ -102,9 +105,10 @@ export function PipelineBoard({
   const [tasks, setTasks] = useState(initialTasks);
   const [message, setMessage] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: pipelineColumnKeyboardCoordinates }),
   );
   const canUpdateWorkflow = workflowEnabled ?? editable;
   const visibleStatuses = useMemo(() => {
@@ -168,6 +172,7 @@ export function PipelineBoard({
   }
 
   async function onDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     if (!canUpdateWorkflow) return;
     const taskId = String(event.active.id);
     if (!event.over) return;
@@ -195,10 +200,11 @@ export function PipelineBoard({
   return (
     <>
       {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
-      <DndContext sensors={canUpdateWorkflow ? sensors : []} onDragEnd={onDragEnd}>
+      <DndContext sensors={canUpdateWorkflow ? sensors : []} collisionDetection={pipelineColumnCollision} onDragStart={({active}) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
         <div className={`pipeline-board pipeline-board-${variant}`}>
           {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} approvalOnly={approvalOnly} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} onViewTask={onViewTask} variant={variant} completionStatusKey={completionStatusKey} />)}
         </div>
+        <PipelineDragPreview title={tasks.find(task => task.id === activeId)?.title} />
       </DndContext>
     </>
   );

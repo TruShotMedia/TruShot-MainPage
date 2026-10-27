@@ -407,7 +407,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             <label className="form-span">Brief / overview<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
             <JobBriefFields initial={job.brief_details} />
             <JobDeliverablesField initialItems={job.deliverables} legacyItems={job.key_deliverables} />
-            <details className="brief-module form-span"><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : "Dates optional while planning"}</summary><div className="brief-module-fields tablet-record-editor-fields">
+            <details className="brief-module form-span" open={!job.shoot_date && job.status?.key !== "planning"}><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : job.status?.key === "planning" ? "Dates optional while planning" : "Choose a shoot date"}</summary><div className="brief-module-fields tablet-record-editor-fields">
               <JobScheduleFields planning={jobStatuses.find((status) => status.id === selectedJobStatusId)?.key === "planning"} initial={job} />
               <label>Shoot finish time <small>Optional · same day</small><input type="time" name="shoot_end_time" defaultValue={job.shoot_end_time?.slice(0,5)??""} /></label>
               <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>

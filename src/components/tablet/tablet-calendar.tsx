@@ -202,6 +202,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
   const isComplete = isCalendarItemComplete(item, today, currentTime);
   const isOverdue = !isFlight && !isCalendarEvent && isOverdueAccentWork(item, palette, today);
   const color = calendarItemColor(item, palette, today, currentTime);
+  const delay = delayState(item);
   const kicker = isFlight
     ? "Flight itinerary"
     : isCalendarEvent
@@ -222,7 +223,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
 
   return (
     <article
-      className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${isOverdue ? "is-overdue" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isOverdue ? "is-overdue" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       style={{ "--tablet-calendar-color": color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -554,7 +555,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                   {week.dayKeys.map((dateKey, dayIndex) => {
                     const day = parseISO(dateKey);
                     const dayEvents = eventsByDay.get(dateKey) ?? [];
-                    const hiddenRangeSegments = week.segments.filter((segment) => segment.lane + segment.laneSpan > visibleRangeLanes && segment.startColumn <= dayIndex && segment.startColumn + segment.span > dayIndex);
+                    const hiddenRangeSegments = isCapacityCalendar ? [] : week.segments.filter((segment) => segment.lane + segment.laneSpan > visibleRangeLanes && segment.startColumn <= dayIndex && segment.startColumn + segment.span > dayIndex);
                     const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
                     const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
                     return (

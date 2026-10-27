@@ -115,4 +115,43 @@ describe("TabletJobPipeline", () => {
     expect(actionMocks.bulkUpdateJobStatus).toHaveBeenCalledWith([finalStageJob.id], statuses[2].id);
     expect([...container.querySelectorAll(".tablet-job-card h3")].map((heading) => heading.textContent)).not.toContain("Final review");
   });
+
+  const planning = { ...statuses[0], id: "plan", key: "planning", label: "Planning" };
+  const scheduled = { ...statuses[1], id: "scheduled", key: "scheduled", label: "Scheduled" };
+
+  it("schedules a dated planning job using the existing status action", async () => {
+    const planningJob = { ...job, status_id: planning.id, status: planning };
+    const changed = vi.fn();
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[planningJob]} statuses={[planning, scheduled]} visibleStatusKeys={["planning"]} enableCompletion={false} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onJobsChange={changed} onViewJob={vi.fn()} />));
+    const button = container.querySelector<HTMLButtonElement>(".tablet-job-schedule-button")!;
+    expect(button.textContent).toContain("Move to Scheduled");
+    await act(async () => button.click());
+    expect(actionMocks.bulkUpdateJobStatus).toHaveBeenCalledWith([job.id], scheduled.id);
+    expect(changed).toHaveBeenCalledWith([expect.objectContaining({ status_id: scheduled.id })]);
+    expect(container.querySelector(".tablet-job-card")).toBeNull();
+  });
+
+  it("asks for a shoot date before scheduling an undated planning job", async () => {
+    const undatedJob = { ...job, shoot_date: null, due_date: null, status_id: planning.id, status: planning };
+    const edit = vi.fn();
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[undatedJob]} statuses={[planning, scheduled]} enableCompletion={false} onDuplicateJob={vi.fn()} onEditJob={edit} onViewJob={vi.fn()} />));
+    await act(async () => container.querySelector<HTMLButtonElement>(".tablet-job-schedule-button")!.click());
+    expect(edit).toHaveBeenCalledWith({ ...undatedJob, status_id: scheduled.id, status: scheduled });
+    expect(actionMocks.bulkUpdateJobStatus).not.toHaveBeenCalled();
+    expect(container.querySelector(".tablet-job-card")).not.toBeNull();
+    expect(container.textContent).toContain("Choose a shoot date");
+  });
+
+  it("restores the planning card if scheduling fails", async () => {
+    actionMocks.bulkUpdateJobStatus.mockRejectedValueOnce(new Error("Save failed"));
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[{ ...job, status_id: planning.id, status: planning }]} statuses={[planning, scheduled]} visibleStatusKeys={["planning"]} enableCompletion={false} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />));
+    await act(async () => container.querySelector<HTMLButtonElement>(".tablet-job-schedule-button")!.click());
+    expect(container.querySelector(".tablet-job-card")).not.toBeNull();
+    expect(container.textContent).toContain("Its card has been restored");
+  });
+
+  it("does not expose scheduling buttons with editing disabled", async () => {
+    await act(async () => root.render(<TabletJobPipeline editable={false} initialJobs={[{ ...job, status_id: planning.id, status: planning }]} statuses={[planning, scheduled]} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />));
+    expect(container.querySelector(".tablet-job-schedule-button")).toBeNull();
+  });
 });

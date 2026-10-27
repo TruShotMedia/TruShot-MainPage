@@ -56,6 +56,7 @@ import { TabletNotificationControl } from "@/components/tablet/tablet-notificati
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { ProductionCalendar } from "./production-calendar";
 import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
+import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import "./production-desktop.css";
 
 const CalendarEventEditor = dynamic(() =>
@@ -79,11 +80,15 @@ function JobBriefPanel({
   marketing,
   onClose,
   onEdit,
+  onSchedule,
+  scheduling,
 }: {
   job: TabletJobRecord;
   marketing: boolean;
   onClose: () => void;
   onEdit: () => void;
+  onSchedule: () => void;
+  scheduling: boolean;
 }) {
   const [tab, setTab] = useState("brief");
   const deliverables = getJobDeliverables(job);
@@ -109,6 +114,7 @@ function JobBriefPanel({
             {job.total_tasks - job.open_tasks} / {job.total_tasks} tasks
             completed
           </small>
+          {job.status?.key === "planning" ? <button type="button" className="admin-primary-button" disabled={scheduling} onClick={onSchedule}>Move to Scheduled <ChevronRight size={15} /></button> : null}
           <button
             type="button"
             className="admin-primary-button"
@@ -321,6 +327,7 @@ export function ProductionDesktop({
   const [theme, setTheme] = useState("light"),
     [notice, setNotice] = useState(""),
     [refreshing, setRefreshing] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [viewing, setViewing] = useState<OpenRecord | null>(() => {
     const job = data.pipelineJobs.find((job) => job.id === requestedJobId);
     return job ? { kind: "job", record: job } : null;
@@ -447,6 +454,23 @@ export function ProductionDesktop({
     setScheduleItem(null);
     void refresh(view);
     router.refresh();
+  }
+  async function schedulePlanningJob(job: TabletJobRecord) {
+    const scheduled = live.jobStatuses.find(status => status.key === "scheduled");
+    if (!scheduled || scheduling) return;
+    if (!job.shoot_date) {
+      setViewing(null);
+      setEditing({ kind: "job", record: { ...job, status_id: scheduled.id, status: scheduled } });
+      return;
+    }
+    setScheduling(true);
+    try {
+      await bulkUpdateJobStatus([job.id], scheduled.id);
+      setViewing(null);
+      await refresh("jobs");
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : "This job could not be scheduled. Please retry.");
+    } finally { setScheduling(false); }
   }
   function start(kind: TabletCreateKind, date?: string) {
     if (marketing && (kind === "task" || kind === "flight")) return;
@@ -579,12 +603,14 @@ export function ProductionDesktop({
             <button
               type="button"
               disabled={refreshing}
+              className="apg-toolbar-refresh"
               aria-label="Refresh current page"
               onClick={() => void refresh(view)}
             >
-              <RefreshCw size={16} className={refreshing ? "spin" : ""} />
+              <span className="apg-toolbar-icon"><RefreshCw size={16} className={refreshing ? "spin" : ""} /></span>
             </button>
             <button
+              className="apg-toolbar-theme"
               type="button"
               aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
               onClick={() =>
@@ -595,11 +621,11 @@ export function ProductionDesktop({
                 })
               }
             >
-              {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+              <span className="apg-toolbar-icon">{theme === "light" ? <Moon size={16} /> : <Sun size={16} />}</span>
             </button>
             <details className="apg-new-menu" ref={newMenu}>
               <summary>
-                <Plus size={16} /> Create
+                <span className="apg-create-icon"><Plus size={16} /></span> Create
               </summary>
               <div>
                 <button type="button" onClick={() => start("job")}>
@@ -830,6 +856,8 @@ export function ProductionDesktop({
             setEditing({ kind: "job", record: openedJob });
             setViewing(null);
           }}
+          onSchedule={() => void schedulePlanningJob(openedJob)}
+          scheduling={scheduling}
         />
       ) : viewing?.kind === "task" ? (
         <TabletTaskDetailSheet
