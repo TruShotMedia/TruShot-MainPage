@@ -796,6 +796,7 @@ export function ProductionDesktop({
             />
           ) : (
             <ProductionCalendar
+              key={view}
               data={live}
               today={today}
               todayOnly={view === "today"}

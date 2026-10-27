@@ -8,7 +8,9 @@ import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 import { dispatchLifestyleReminders } from "@/lib/lifestyle-reminders";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// A status migration can queue existing mirrors together. Let the bounded batch
+// finish instead of terminating halfway through an external update.
+export const maxDuration = 180;
 
 function authorised(request: Request) {
   const secret = process.env.CRON_SECRET;

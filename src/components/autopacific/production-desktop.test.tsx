@@ -33,6 +33,17 @@ describe("shared desktop workspace",()=>{
   }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
  it("opens a brief from a stable deep link",()=>{const html=renderToStaticMarkup(<ProductionDesktop data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>);expect(html).toContain("Edit full brief");expect(html).toContain("desktop-brief-panel");});
+ it("opens the day agenda when switching from Calendar to Today",async()=>{
+  (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
+  vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
+  try{
+   await act(async()=>root.render(<ProductionDesktop data={data} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
+   expect(container.querySelector('[aria-label="Production calendar"]')).not.toBeNull();
+   await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("nav button")].find(button=>button.textContent==="Today")!.click());
+   expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
+   expect(container.querySelector('[aria-label="Production calendar"]')).toBeNull();
+  }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
+ });
  it("merges overlapping tab refreshes without discarding either response",async()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   type TabResponse={status:number;ok:boolean;json:()=>Promise<unknown>;headers:Headers};
