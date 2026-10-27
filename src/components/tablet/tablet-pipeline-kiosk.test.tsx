@@ -33,6 +33,7 @@ describe("TabletPipelineKiosk", () => {
       const nav = container.querySelector('.tablet-kiosk-tabs-desktop')!;
       expect([...nav.querySelectorAll("button")].map((button) => button.textContent)).toEqual([" Jobs", " Tasks", " Calendar"]);
       expect(componentMocks.pipeline.mock.lastCall?.[0]).toMatchObject({ editable: false, approvalOnly: true, workflowEnabled: false });
+      expect(document.title).toBe("Tasks | AutoPacific Marketing");
       expect(container.querySelector('.tablet-edit-toggle,.tablet-alert-toggle,.tablet-slideshow-toggle,.tablet-crm-button')).toBeNull();
       expect(container.querySelector('[aria-label="Create event or job"]')).not.toBeNull();
       expect(container.querySelector('.tablet-create-options')?.textContent).toBe("EventJob");
@@ -43,6 +44,7 @@ describe("TabletPipelineKiosk", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=jobs", expect.anything());
       await act(async()=>[...container.querySelectorAll<HTMLButtonElement>(".marketing-job-views button")].find(button=>button.textContent==="Planning")!.click());
       expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({editable:true,visibleStatusKeys:["planning"],enableCompletion:false});
+      expect(document.title).toBe("Planning | AutoPacific Marketing");
     } finally { vi.unstubAllGlobals(); }
   });
 

@@ -55,6 +55,7 @@ import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-s
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { ProductionCalendar } from "./production-calendar";
+import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import "./production-desktop.css";
 
 const CalendarEventEditor = dynamic(() =>
@@ -314,6 +315,7 @@ export function ProductionDesktop({
   const [jobView, setJobView] = useState<"active" | "planning" | "completed">(
     initialView === "planning" ? "planning" : "active",
   );
+  useWorkspaceTabTitle(mode, view, jobView);
   const [layout, setLayout] = useState("board"),
     [search, setSearch] = useState("");
   const [theme, setTheme] = useState("light"),

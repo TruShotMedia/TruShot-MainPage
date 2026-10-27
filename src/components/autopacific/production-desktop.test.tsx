@@ -25,11 +25,14 @@ describe("shared desktop workspace",()=>{
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
   try{await act(async()=>root.render(<ProductionDesktop data={data} mode="marketing" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
     expect([...container.querySelectorAll("nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Calendar"]);
+    expect(document.title).toBe("Jobs | AutoPacific Marketing");
     expect(container.textContent).not.toContain("Undated planning brief");
     await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Planning")!.click());expect(container.textContent).toContain("Undated planning brief");
+    expect(document.title).toBe("Planning | AutoPacific Marketing");
     await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("nav button")].find(button=>button.textContent==="Tasks")!.click());
     expect(container.querySelector('.drag-handle,.tablet-card-edit-button,.tablet-card-duplicate-button')).toBeNull();expect(container.querySelector('[aria-label="Approve and complete Launch reel"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Search tasks"]')).not.toBeNull();
+    expect(document.title).toBe("Tasks | AutoPacific Marketing");
   }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
  it("opens a brief from a stable deep link",()=>{const html=renderToStaticMarkup(<ProductionDesktop data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>);expect(html).toContain("Edit full brief");expect(html).toContain("desktop-brief-panel");});

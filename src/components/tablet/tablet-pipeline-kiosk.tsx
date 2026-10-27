@@ -9,6 +9,7 @@ import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, Lay
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
+import { useWorkspaceTabTitle } from "@/components/autopacific/use-workspace-tab-title";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
@@ -255,6 +256,7 @@ export function TabletPipelineKiosk({
   const taskStatusVersion = useMemo(() => initialStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_open}`).join("|"), [initialStatuses]);
   const [selectedView, setActiveView] = useState<TabletView>(workspaceInitialView(initialView, workspaceMode, showTodayView));
   const activeView = workspaceInitialView(selectedView, workspaceMode, showTodayView);
+  useWorkspaceTabTitle(workspaceMode, activeView, showPlanning ? "planning" : "active", branding.theme === "autopacific" || isMarketing);
   const [editingEnabled, setIsEditing] = useState(false);
   const isEditing = isMarketing || editingEnabled;
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { metadata as autopacificMetadata } from "@/app/autopacific/layout";
+import { autopacificApplicationNames, autopacificBrowserIcons } from "@/lib/autopacific-browser-branding";
 export { viewport } from "@/app/autopacific/layout";
 
 export const metadata: Metadata = {
   ...autopacificMetadata,
-  title: "AutoPacific Marketing",
+  title: { absolute: autopacificApplicationNames.marketing },
+  icons: autopacificBrowserIcons("marketing"),
   applicationName: "AutoPacific Marketing",
   description: "AutoPacific jobs, planning and production calendar.",
   manifest: "/marketing/manifest.webmanifest",

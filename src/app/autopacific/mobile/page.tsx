@@ -3,7 +3,7 @@ import { AutopacificWorkspace } from "@/components/autopacific/autopacific-works
 import "./autopacific-mobile.css";
 
 export const metadata: Metadata = {
-  title: "AutoPacific Mobile",
+  title: { absolute: "AutoPacific Production" },
   description: "AutoPacific Group jobs, tasks, calendar and daily itinerary for mobile.",
   robots: { index: false, follow: false },
 };

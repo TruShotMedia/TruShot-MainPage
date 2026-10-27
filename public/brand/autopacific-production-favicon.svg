@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="AutoPacific Production">
+  <rect width="64" height="64" rx="15" fill="#10384a"/>
+  <path fill="#fff" fill-rule="evenodd" d="M18 14h15c10 0 16 6 16 15s-6 15-16 15h-6v8h-9V14Zm9 9v12h6c4 0 7-2 7-6s-3-6-7-6h-6Z"/>
+  <path fill="#5d91b0" d="M18 56h28v3H18z"/>
+</svg>

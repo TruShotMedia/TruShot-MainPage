@@ -6,7 +6,7 @@ import { AutopacificWorkspace } from "@/components/autopacific/autopacific-works
 const MOBILE_USER_AGENT_PATTERN = /iPhone|iPod|Android.+Mobile/i;
 
 export const metadata: Metadata = {
-  title: "Autopacific Production",
+  title: { absolute: "AutoPacific Production" },
   description: "TruShot Media's protected Autopacific Group production workspace.",
   robots: { index: false, follow: false },
 };

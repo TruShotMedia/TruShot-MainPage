@@ -1,15 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { autopacificApplicationNames, autopacificBrowserIcons } from "@/lib/autopacific-browser-branding";
 
 export const metadata: Metadata = {
   applicationName: "AutoPacific Production",
+  title: { absolute: autopacificApplicationNames.production },
   manifest: "/autopacific/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/autopacific/icons/192", sizes: "192x192", type: "image/png" },
-      { url: "/autopacific/icons/512", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/autopacific/icons/180", sizes: "180x180", type: "image/png" }],
-  },
+  icons: autopacificBrowserIcons("production"),
   appleWebApp: {
     capable: true,
     title: "AutoPacific",
