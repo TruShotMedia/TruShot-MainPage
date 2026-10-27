@@ -25,6 +25,25 @@ describe("TabletPipelineKiosk", () => {
   let container: HTMLDivElement;
   let root: Root;
 
+  it("runs Marketing with planning separate, editing always on, and no kiosk/task controls", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 304 });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await act(async () => root.render(<TabletPipelineKiosk workspaceMode="marketing" canOpenCrm={true} calendarJobs={[]} calendarTasks={[]} initialNow="2026-10-27T00:00:00.000Z" initialStatuses={[]} initialTasks={[]} initialView="pipeline" jobStatuses={[{ id: "plan", key: "planning", label: "Planning", color: "#777", position: 1, is_closed: false }, { id: "scheduled", key: "scheduled", label: "Scheduled", color: "#579", position: 2, is_closed: false }]} pendingRequestCount={0} pipelineVersion="empty" notionSyncEnabled={false} notionSyncIntervalMinutes={15} refreshIntervalMinutes={15} showTodayView today="2026-10-27" />));
+      const nav = container.querySelector('.tablet-kiosk-tabs-desktop')!;
+      expect([...nav.querySelectorAll("button")].map((button) => button.textContent)).toEqual([" Jobs", " Planning", " Calendar"]);
+      expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({ editable: true, visibleStatusKeys: ["planning"], enableCompletion: false });
+      expect(container.querySelector('.tablet-edit-toggle,.tablet-alert-toggle,.tablet-slideshow-toggle,.tablet-crm-button')).toBeNull();
+      expect(container.querySelector('[aria-label="Create event or job"]')).not.toBeNull();
+      expect(container.querySelector('.tablet-create-options')?.textContent).toBe("EventJob");
+      await act(async () => vi.advanceTimersByTime(150_000));
+      expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
+      await act(async () => nav.querySelectorAll<HTMLButtonElement>("button")[0].click());
+      expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({ visibleStatusKeys: ["scheduled"], editable: true });
+      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=jobs", expect.anything());
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     routerMocks.refresh.mockClear();

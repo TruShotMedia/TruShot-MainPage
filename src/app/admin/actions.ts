@@ -12,7 +12,7 @@ import { slugify } from "@/lib/format";
 import { pairInvoicePaymentDates, paymentDateToTimestamp } from "@/lib/invoice-payment-dates";
 import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
-import { jobDeliverablesInputSchema } from "@/lib/job-deliverables";
+import { datedJobDeliverablesInputSchema, jobDeliverablesInputSchema } from "@/lib/job-deliverables";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext, getProductionContext } from "@/lib/data/admin";
@@ -47,6 +47,7 @@ const jobEditorInputSchema = z.object({
   due_time: optionalTimeSchema,
   photos_delivered: z.coerce.number().int().min(0).optional(),
   key_deliverables: jobDeliverablesInputSchema.optional(),
+  deliverables: datedJobDeliverablesInputSchema.optional(),
   location: z.string().trim().max(300),
   delivery_url: optionalHttpUrlSchema,
   description: z.string().trim().max(2_000),
@@ -184,6 +185,7 @@ async function syncTasksToJobDeadline(context: AdminContext, jobId: string, dueD
     })
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .eq("job_id", jobId)
+    .eq("due_date_is_override", false)
     .is("archived_at", null);
   const rescheduledTaskIds = (rescheduledTasks ?? []).map((entry) => entry.successor_task_id);
   if (rescheduledTaskIds.length) update = update.not("id", "in", `(${rescheduledTaskIds.join(",")})`);
@@ -258,6 +260,7 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
     key_deliverables: input.key_deliverables,
+    deliverables: input.deliverables,
     location: input.location || null,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
@@ -278,6 +281,7 @@ function revalidateProductionPages() {
   revalidatePath("/tablet");
   revalidatePath("/autopacific");
   revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
 }
 
 export async function signIn(formData: FormData) {
@@ -472,6 +476,7 @@ export async function createJob(formData: FormData) {
     due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
     key_deliverables: jobDeliverablesInputSchema.optional().default([]),
+    deliverables: datedJobDeliverablesInputSchema.optional(),
     location: z.string().trim().max(300).optional().default(""),
     delivery_url: optionalHttpUrlSchema.optional().default(""),
     description: z.string().trim().max(2_000).optional().default(""),
@@ -491,6 +496,7 @@ export async function createJob(formData: FormData) {
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
     key_deliverables: input.key_deliverables,
+    deliverables: input.deliverables,
     location: input.location || null,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
@@ -513,7 +519,7 @@ export async function duplicateJob(formData: FormData) {
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-jobs")
-    .select("title,client_id,status_id,package_id,package_snapshot,description,key_deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,key_deliverables,deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
@@ -543,6 +549,7 @@ export async function duplicateJob(formData: FormData) {
     package_snapshot: source.package_snapshot,
     description: source.description,
     key_deliverables: source.key_deliverables,
+    deliverables: source.deliverables,
     shoot_date: source.shoot_date,
     shoot_time: source.shoot_time,
     due_date: source.due_date,
@@ -591,6 +598,17 @@ export async function updateTabletJob(formData: FormData) {
   scheduleClickUpJobSync();
   revalidateProductionPages();
   return { ok: true };
+}
+
+export async function createDeliverableTasks(jobId: string) {
+  const id = z.string().uuid().parse(jobId);
+  const context = await getProductionContext();
+  if (!context) throw new Error("Your session has expired. Sign in again.");
+  const { data, error } = await context.supabase.rpc("website-create-deliverable-tasks", { p_job_id: id });
+  if (error) throw new Error(error.message);
+  revalidateProductionPages();
+  const result = (data as Array<{ created_count: number; existing_count: number }> | null)?.[0];
+  return { createdCount: result?.created_count ?? 0, existingCount: result?.existing_count ?? 0 };
 }
 
 /**
@@ -771,13 +789,20 @@ export async function updateTask(formData: FormData) {
   const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   const [status, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
+  const { data: currentTask, error: currentError } = await context.supabase.from("website-job-tasks")
+    .select("job_id,due_date,due_date_is_override,source_deliverable_id")
+    .eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).single();
+  if (currentError || !currentTask) throw new Error("That task is no longer available.");
+  const sameJob = currentTask.job_id === input.job_id;
   const { data, error } = await context.supabase.from("website-job-tasks").update({
     title: input.title,
     job_id: input.job_id,
     status_id: input.status_id,
     asset_type: input.asset_type,
     hours,
-    due_date: job.due_date,
+    due_date: sameJob && currentTask.due_date_is_override ? currentTask.due_date : job.due_date,
+    due_date_is_override: sameJob && currentTask.due_date_is_override,
+    source_deliverable_id: sameJob ? currentTask.source_deliverable_id : null,
     due_time: input.due_time || null,
     priority: input.priority,
     description: input.description || null,

@@ -27,6 +27,7 @@ type TaskReminderRow = {
   title: string;
   job_id: string;
   status_id: string;
+  due_date: string | null;
   due_time: string | null;
 };
 
@@ -171,7 +172,7 @@ async function processWorkspace(
       .or(`and(shoot_date.gte.${bounds.start},shoot_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,due_time")
+      .select("id,title,job_id,status_id,due_date,due_time")
       .eq("workspace_id", settings.workspace_id)
       .is("archived_at", null),
     supabase
@@ -233,7 +234,7 @@ async function processWorkspace(
         title: task.title,
         context,
         experience: notificationExperience(job?.client_id ? clients.get(job.client_id) : null),
-      }, "task_due", job?.due_date ?? null, task.due_time);
+      }, "task_due", task.due_date ?? job?.due_date ?? null, task.due_time);
     }
   }
 

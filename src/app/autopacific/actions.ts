@@ -8,8 +8,9 @@ import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 
 export async function signInToAutopacific(formData: FormData) {
-  const destination = safeAutopacificPath(String(formData.get("next") ?? ""));
-  const failure = (error: string) => `/autopacific/login?${new URLSearchParams({ error, next: destination })}`;
+  const surface = formData.get("surface") === "marketing" ? "marketing" : "autopacific";
+  const destination = safeAutopacificPath(String(formData.get("next") ?? ""), surface === "marketing" ? "/marketing" : "/autopacific");
+  const failure = (error: string) => `/${surface}/login?${new URLSearchParams({ error, next: destination })}`;
   const password = z.string().min(6).max(256).safeParse(formData.get("password"));
   if (!password.success) redirect(failure("credentials"));
   const supabase = await createClient();
@@ -24,11 +25,12 @@ export async function signInToAutopacific(formData: FormData) {
     redirect(failure("access"));
   }
   revalidatePath("/autopacific", "layout");
+  revalidatePath("/marketing", "layout");
   redirect(destination);
 }
 
-export async function signOutOfAutopacific() {
+export async function signOutOfAutopacific(destination = "/autopacific") {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/autopacific/login");
+  redirect(safeAutopacificPath(destination).startsWith("/marketing") ? "/marketing/login" : "/autopacific/login");
 }

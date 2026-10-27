@@ -215,7 +215,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [], jobOptions: [] };
   const [statusesResult, tasksResult, jobsResult, clientsResult, delayHistoryResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id,job_number,shoot_date,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
     context.supabase
@@ -275,13 +275,13 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("position"),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase

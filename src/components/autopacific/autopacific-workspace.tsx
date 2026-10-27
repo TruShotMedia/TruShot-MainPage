@@ -9,11 +9,12 @@ import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
-export async function AutopacificWorkspace({ experience, requestedView }: { experience: "kiosk" | "mobile"; requestedView?: string }) {
+export async function AutopacificWorkspace({ experience, requestedView, mode = "production" }: { experience: "kiosk" | "mobile"; requestedView?: string; mode?: "production" | "marketing" }) {
+  const isMarketing = mode === "marketing";
   const context = await getProductionContext();
   if (!context) {
-    const destination = experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
-    redirect(`/autopacific/login?next=${encodeURIComponent(destination)}`);
+    const destination = isMarketing ? "/marketing" : experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
+    redirect(`${isMarketing ? "/marketing" : "/autopacific"}/login?next=${encodeURIComponent(destination)}`);
   }
 
   const [data, cookieStore] = await Promise.all([
@@ -27,7 +28,8 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
 
   return (
     <TabletPipelineKiosk
-      canOpenCrm={context.access === "admin"}
+      workspaceMode={mode}
+      canOpenCrm={!isMarketing && context.access === "admin"}
       branding={{
         calendarAccentColor: "#5d91b0",
         calendarAccentClientName: AUTOPACIFIC_CLIENT_NAME,
@@ -48,7 +50,7 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
           width: 1800,
         },
         name: "Autopacific Group",
-        location: "Production",
+        location: isMarketing ? "Marketing" : "Production",
         theme: "autopacific",
       }}
       calendarJobs={data.calendarJobs}
@@ -63,7 +65,7 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
       initialTasks={data.pipelineTasks}
-      initialView={parseTabletView(requestedView ?? cookieStore.get(TABLET_VIEW_COOKIE_NAME)?.value)}
+      initialView={parseTabletView(requestedView ?? cookieStore.get(isMarketing ? "autopacific-marketing-view" : TABLET_VIEW_COOKIE_NAME)?.value ?? (isMarketing ? "planning" : undefined))}
       jobOptions={data.jobOptions}
       jobStatuses={data.jobStatuses}
       pipelineJobs={data.pipelineJobs}
@@ -73,7 +75,7 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
       notionSyncIntervalMinutes={notion.syncIntervalMinutes}
       notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}
-      showTodayView
+      showTodayView={!isMarketing}
       today={todayDateInput()}
     />
   );

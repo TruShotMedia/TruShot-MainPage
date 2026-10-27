@@ -6,6 +6,7 @@ export function safeAuthenticatedPath(value: string | null | undefined) {
   }
 
   if (value === "/tablet") return value;
+  if (value === "/marketing" || value.startsWith("/marketing?")) return value;
   if (value === "/autopacific" || value.startsWith("/autopacific/")) return value;
   if ((value === "/admin" || value.startsWith("/admin/")) && !value.startsWith("/admin/login")) {
     return value;

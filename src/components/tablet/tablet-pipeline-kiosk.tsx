@@ -22,6 +22,7 @@ import {
   type AutopacificOfflineMutation,
 } from "@/lib/autopacific-offline";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
+import { workspaceInitialView, type WorkspaceMode } from "@/lib/workspace-mode";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
@@ -31,6 +32,7 @@ const tabletScreensaverDurationMs = 15_000;
 
 const tabletViewCopy: Record<TabletView, { eyebrow: string; title: string }> = {
   jobs: { eyebrow: "Production workflow", title: "Jobs" },
+  planning: { eyebrow: "Ideas & upcoming work", title: "Planning" },
   pipeline: { eyebrow: "Asset workflow", title: "Tasks" },
   calendar: { eyebrow: "Schedule", title: "Calendar" },
   today: { eyebrow: "Daily briefing", title: "Today" },
@@ -136,25 +138,31 @@ function scheduleVersionFor(snapshot: Omit<TabletScheduleSnapshot, "version">) {
   ].join("|");
 }
 
+function jobsVersionFor(jobs: TabletJobRecord[]) {
+  return jobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}:${job.open_tasks}:${job.total_tasks}`).join("|");
+}
+
 function TabletViewTabs({
   activeView,
   className,
   label,
   onSelect,
   showTodayView,
+  isMarketing = false,
 }: {
   activeView: TabletView;
   className: string;
   label: string;
   onSelect: (view: TabletView) => void;
   showTodayView: boolean;
+  isMarketing?: boolean;
 }) {
   return (
-    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label}>
+    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${!isMarketing && showTodayView ? 4 : 3}, minmax(0, 1fr))` }}>
       <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => onSelect("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
-      <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
+      {isMarketing ? <button type="button" className={activeView === "planning" ? "is-active" : ""} onClick={() => onSelect("planning")} aria-current={activeView === "planning" ? "page" : undefined}><ListChecks size={15} /> Planning</button> : <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>}
       <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => onSelect("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
-      {showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
+      {!isMarketing && showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
     </nav>
   );
 }
@@ -182,6 +190,7 @@ function readViewportMetrics(): TabletViewportMetrics {
 }
 
 export function TabletPipelineKiosk({
+  workspaceMode = "production",
   canOpenCrm = true,
   calendarJobs,
   calendarTasks,
@@ -209,6 +218,7 @@ export function TabletPipelineKiosk({
   showTodayView = false,
   today,
 }: {
+  workspaceMode?: WorkspaceMode;
   canOpenCrm?: boolean;
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
@@ -237,10 +247,13 @@ export function TabletPipelineKiosk({
   today: string;
 }) {
   const router = useRouter();
+  const isMarketing = workspaceMode === "marketing";
   const jobStatusVersion = useMemo(() => jobStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_closed}`).join("|"), [jobStatuses]);
   const taskStatusVersion = useMemo(() => initialStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_open}`).join("|"), [initialStatuses]);
-  const [activeView, setActiveView] = useState<TabletView>(initialView === "today" && !showTodayView ? "pipeline" : initialView);
-  const [isEditing, setIsEditing] = useState(false);
+  const [selectedView, setActiveView] = useState<TabletView>(workspaceInitialView(initialView, workspaceMode, showTodayView));
+  const activeView = workspaceInitialView(selectedView, workspaceMode, showTodayView);
+  const [editingEnabled, setIsEditing] = useState(false);
+  const isEditing = isMarketing || editingEnabled;
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [createRequest, setCreateRequest] = useState<TabletRecordCreateRequest | null>(null);
   const [eventEditorDate, setEventEditorDate] = useState<string | null>(null);
@@ -257,7 +270,7 @@ export function TabletPipelineKiosk({
   const [isScreensaverVisible, setIsScreensaverVisible] = useState(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
   const [liveTaskSnapshot, setLiveTaskSnapshot] = useState(() => ({ pipelineVersion, tasks: initialTasks }));
-  const [liveJobSnapshot, setLiveJobSnapshot] = useState(() => ({ jobs: pipelineJobs, version: pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|") }));
+  const [liveJobSnapshot, setLiveJobSnapshot] = useState(() => ({ jobs: pipelineJobs, version: jobsVersionFor(pipelineJobs) }));
   const [liveJobStatusSnapshot, setLiveJobStatusSnapshot] = useState(() => ({ statuses: jobStatuses, version: jobStatusVersion }));
   const [liveTaskStatusSnapshot, setLiveTaskStatusSnapshot] = useState(() => ({ statuses: initialStatuses, version: taskStatusVersion }));
   const [liveScheduleSnapshot, setLiveScheduleSnapshot] = useState<TabletScheduleSnapshot>(() => {
@@ -277,7 +290,7 @@ export function TabletPipelineKiosk({
   const lastRefreshAt = useRef(new Date(initialNow).getTime());
   const refreshIntervalMs = refreshIntervalMinutes * 60_000;
   const liveTasks = liveTaskSnapshot.pipelineVersion === pipelineVersion ? liveTaskSnapshot.tasks : initialTasks;
-  const jobPipelineVersion = useMemo(() => pipelineJobs.map((job) => `${job.id}:${job.status_id}:${job.updated_at}`).join("|"), [pipelineJobs]);
+  const jobPipelineVersion = useMemo(() => jobsVersionFor(pipelineJobs), [pipelineJobs]);
   const liveJobs = liveJobSnapshot.version === jobPipelineVersion ? liveJobSnapshot.jobs : pipelineJobs;
   const liveJobStatuses = liveJobStatusSnapshot.version === jobStatusVersion ? liveJobStatusSnapshot.statuses : jobStatuses;
   const liveTaskStatuses = liveTaskStatusSnapshot.version === taskStatusVersion ? liveTaskStatusSnapshot.statuses : initialStatuses;
@@ -345,7 +358,7 @@ export function TabletPipelineKiosk({
       return;
     }
 
-    const tab = view === "jobs" ? "jobs" : view === "pipeline" ? "tasks" : "schedule";
+    const tab = view === "jobs" || view === "planning" ? "jobs" : view === "pipeline" ? "tasks" : "schedule";
     if (tabRefreshInFlight.current.has(tab)) return;
     tabRefreshInFlight.current.add(tab);
     setIsOnline(true);
@@ -404,9 +417,9 @@ export function TabletPipelineKiosk({
     setIsCreateMenuOpen(false);
     setViewingJob(null);
     setViewingTask(null);
-    document.cookie = `${TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    document.cookie = `${isMarketing ? "autopacific-marketing-view" : TABLET_VIEW_COOKIE_NAME}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
     void refreshTab(view);
-  }, [refreshTab]);
+  }, [isMarketing, refreshTab]);
 
   const updateLiveTasks = useCallback((tasks: PipelineTask[]) => {
     setLiveTaskSnapshot({ pipelineVersion, tasks });
@@ -491,7 +504,9 @@ export function TabletPipelineKiosk({
     });
   }, []);
 
-  const openCreate = useCallback((kind: TabletCreateKind, date = today) => {
+  const openCreate = useCallback((kind: TabletCreateKind, date?: string) => {
+    if (isMarketing && (kind === "task" || kind === "flight")) return;
+    const creationDate = date ?? (kind === "job" && (!isMarketing || activeView === "planning") ? "" : today);
     setIsCreateMenuOpen(false);
     setViewingJob(null);
     setViewingTask(null);
@@ -503,20 +518,20 @@ export function TabletPipelineKiosk({
     if (kind === "event") {
       setCreateRequest(null);
       setSelectedCalendarEvent(null);
-      setEventEditorDate(date);
+      setEventEditorDate(creationDate);
       return;
     }
     if (kind === "flight") {
       setCreateRequest(null);
       setEventEditorDate(null);
       setSelectedCalendarEvent(null);
-      setFlightEditorDate(date);
+      setFlightEditorDate(creationDate);
       return;
     }
     setEventEditorDate(null);
     setSelectedCalendarEvent(null);
-    setCreateRequest({ date, kind });
-  }, [today]);
+    setCreateRequest({ date: creationDate, kind });
+  }, [activeView, isMarketing, today]);
 
   const closeEventEditor = useCallback(() => {
     setEventEditorDate(null);
@@ -539,7 +554,7 @@ export function TabletPipelineKiosk({
     setSelectedFlightEvent(null);
     setEventEditorDate(null);
     setFlightEditorDate(null);
-    const date = kind === "job" && "shoot_date" in sourceRecord ? sourceRecord.shoot_date ?? today : today;
+    const date = kind === "job" && "shoot_date" in sourceRecord ? sourceRecord.shoot_date ?? "" : today;
     setCreateRequest({ date, kind, sourceRecord });
   }, [today]);
 
@@ -662,7 +677,7 @@ export function TabletPipelineKiosk({
   }, [liveJobStatuses, liveJobs, liveSchedule, liveTaskStatuses, liveTasks]);
 
   useEffect(() => {
-    if (isAutoRotationPaused || isEditing || isMobileViewport) return;
+    if (isMarketing || isAutoRotationPaused || isEditing || isMobileViewport) return;
     let slideshowTimer = 0;
     const duration = isScreensaverVisible ? tabletScreensaverDurationMs : tabletPageDurationMs;
     const scheduleSlideshow = () => {
@@ -676,7 +691,7 @@ export function TabletPipelineKiosk({
     };
     scheduleSlideshow();
     return () => window.clearTimeout(slideshowTimer);
-  }, [activeView, isAutoRotationPaused, isEditing, isMobileViewport, isScreensaverVisible]);
+  }, [activeView, isAutoRotationPaused, isEditing, isMarketing, isMobileViewport, isScreensaverVisible]);
 
   useEffect(() => {
     if (!isMobileActionsOpen && !isCreateMenuOpen) return;
@@ -692,7 +707,7 @@ export function TabletPipelineKiosk({
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 15_000);
     const refreshIfAvailable = () => {
-      if (isEditing || document.visibilityState !== "visible" || !navigator.onLine) return;
+      if ((isEditing && !isMarketing) || createRequest || selectedJob || selectedTask || selectedScheduleItem || eventEditorDate || flightEditorDate || document.visibilityState !== "visible" || !navigator.onLine) return;
       refreshActiveTab();
     };
     const refreshIfStale = () => {
@@ -707,11 +722,11 @@ export function TabletPipelineKiosk({
       document.removeEventListener("visibilitychange", refreshIfStale);
       window.removeEventListener("online", refreshIfStale);
     };
-  }, [isEditing, refreshActiveTab, refreshIntervalMs]);
+  }, [createRequest, eventEditorDate, flightEditorDate, isEditing, isMarketing, selectedJob, selectedTask, selectedScheduleItem, refreshActiveTab, refreshIntervalMs]);
 
   return (
     <main className={`tablet-kiosk-viewport ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isCssRotated ? "is-css-rotated" : ""} is-${colorMode}`} style={viewportStyle}>
-      <div className={`tablet-kiosk ${branding.theme ? `theme-${branding.theme}` : ""} ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isEditing ? "is-editing" : "is-read-only"} is-${colorMode}`} data-orientation={effectiveOrientation} data-experience={experience}>
+      <div className={`tablet-kiosk ${isMarketing ? "is-marketing" : ""} ${branding.theme ? `theme-${branding.theme}` : ""} ${isDedicatedMobile ? "is-dedicated-mobile" : ""} ${isEditing ? "is-editing" : "is-read-only"} is-${colorMode}`} data-orientation={effectiveOrientation} data-experience={experience}>
         <NotionAutoSync enabled={notionSyncEnabled} intervalMinutes={notionSyncIntervalMinutes} />
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
@@ -724,12 +739,12 @@ export function TabletPipelineKiosk({
             </div>
           </div>
 
-          <TabletViewTabs activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
+          <TabletViewTabs isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
 
           <div className="tablet-kiosk-actions">
-            <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button>
-            {notificationPublicKey ? <TabletNotificationControl experience={branding.theme === "autopacific" ? "autopacific" : "trushot"} experienceName={branding.name} publicKey={notificationPublicKey} /> : null}
-            <button
+            {!isMarketing ? <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button> : null}
+            {!isMarketing && notificationPublicKey ? <TabletNotificationControl experience={branding.theme === "autopacific" ? "autopacific" : "trushot"} experienceName={branding.name} publicKey={notificationPublicKey} /> : null}
+            {!isMarketing ? <button
               type="button"
               className={`tablet-slideshow-toggle ${isAutoRotationPaused ? "is-paused" : ""}`}
               onClick={toggleAutoRotation}
@@ -738,13 +753,13 @@ export function TabletPipelineKiosk({
               title={isAutoRotationPaused ? "Resume automatic slideshow" : "Pause slideshow · 60s page / 15s lockscreen"}
             >
               {isAutoRotationPaused ? <Play size={14} /> : <Pause size={14} />}
-            </button>
+            </button> : null}
             <button type="button" className="tablet-orientation-toggle" onClick={rotateOrientation} aria-label={`Switch kiosk to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`} title={`Switch to ${effectiveOrientation === "landscape" ? "portrait" : "landscape"}`}>
               {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
             </button>
             <button type="button" className="tablet-refresh-button" onClick={refreshActiveTab} aria-label="Refresh the current workspace tab" title="Refresh current view"><RefreshCw size={15} /></button>
-            {canOpenCrm ? <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link> : null}
-            {branding.theme === "autopacific" ? <AutopacificSignOutButton /> : null}
+            {!isMarketing && canOpenCrm ? <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link> : null}
+            {branding.theme === "autopacific" ? <AutopacificSignOutButton destination={isMarketing ? "/marketing" : "/autopacific"} /> : null}
             <button
               type="button"
               className="tablet-theme-toggle"
@@ -769,7 +784,7 @@ export function TabletPipelineKiosk({
           </p>
         ) : null}
 
-        <TabletViewTabs activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
+        <TabletViewTabs isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
 
         {isMobileActionsOpen ? (
           <>
@@ -780,10 +795,10 @@ export function TabletPipelineKiosk({
                 <button type="button" onClick={() => setIsMobileActionsOpen(false)} aria-label="Close more controls"><X size={18} /></button>
               </header>
               <div>
-                <button type="button" onClick={() => { toggleAutoRotation(); setIsMobileActionsOpen(false); }}>
+                {!isMarketing ? <button type="button" onClick={() => { toggleAutoRotation(); setIsMobileActionsOpen(false); }}>
                   <span>{isAutoRotationPaused ? <Play size={18} /> : <Pause size={18} />}</span>
                   <strong>{isAutoRotationPaused ? "Resume kiosk display" : "Pause kiosk display"}<small>Control the automatic lockscreen on larger displays.</small></strong>
-                </button>
+                </button> : null}
                 {!isMobileViewport ? <button type="button" onClick={() => { rotateOrientation(); setIsMobileActionsOpen(false); }}>
                   <span>{effectiveOrientation === "landscape" ? <RectangleVertical size={18} /> : <RectangleHorizontal size={18} />}</span>
                   <strong>Change orientation<small>Switch between portrait and landscape layouts.</small></strong>
@@ -792,23 +807,25 @@ export function TabletPipelineKiosk({
                   <span><RefreshCw size={18} /></span>
                   <strong>Refresh workspace<small>Fetch the latest jobs, tasks and schedule.</small></strong>
                 </button>
-                {canOpenCrm ? <Link href="/admin" onClick={() => setIsMobileActionsOpen(false)}>
+                {!isMarketing && canOpenCrm ? <Link href="/admin" onClick={() => setIsMobileActionsOpen(false)}>
                   <span><LayoutDashboard size={18} /></span>
                   <strong>Open TruShot CRM<small>Continue in the complete administration workspace.</small></strong>
                 </Link> : null}
-                {branding.theme === "autopacific" ? <AutopacificSignOutButton showLabel /> : null}
+                {branding.theme === "autopacific" ? <AutopacificSignOutButton destination={isMarketing ? "/marketing" : "/autopacific"} showLabel /> : null}
               </div>
             </section>
           </>
         ) : null}
 
-        <section className="tablet-kiosk-main" aria-label={activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : activeView === "today" ? "Tablet today itinerary" : "Tablet production calendar"}>
+        <section className={`tablet-kiosk-main ${isMarketing && activeView === "planning" ? "marketing-planning-board" : ""}`} aria-label={activeView === "planning" ? "Marketing planning jobs" : activeView === "jobs" ? "Tablet job pipeline" : activeView === "pipeline" ? "Tablet asset pipeline" : activeView === "today" ? "Tablet today itinerary" : "Tablet production calendar"}>
           <header className="tablet-mobile-view-heading">
             <div><span>{tabletViewCopy[activeView].eyebrow}</span><h1>{tabletViewCopy[activeView].title}</h1></div>
             <small className={isEditing ? "is-editing" : ""}><i /> {isEditing ? "Editing on" : "Live workspace"}</small>
           </header>
-          {activeView === "jobs" ? (
+          {activeView === "jobs" || activeView === "planning" ? (
             <TabletJobPipeline
+              visibleStatusKeys={isMarketing ? activeView === "planning" ? ["planning"] : liveJobStatuses.filter((status) => status.key !== "planning").map((status) => status.key) : undefined}
+              enableCompletion={activeView !== "planning"}
               editable={isEditing}
               key={jobPipelineVersion}
               initialJobs={liveJobs}
@@ -875,10 +892,10 @@ export function TabletPipelineKiosk({
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
             jobs={liveSchedule.calendarJobs}
-            tasks={liveSchedule.calendarTasks}
-            campaignAssets={liveSchedule.calendarCampaignAssets}
+            tasks={isMarketing ? [] : liveSchedule.calendarTasks}
+            campaignAssets={isMarketing ? [] : liveSchedule.calendarCampaignAssets}
             customEvents={liveSchedule.calendarEvents}
-            flightEvents={liveSchedule.flightEvents}
+            flightEvents={isMarketing ? [] : liveSchedule.flightEvents}
             editable={isEditing}
             onOpenCustomEvent={(event) => {
               setCreateRequest(null);
@@ -927,10 +944,10 @@ export function TabletPipelineKiosk({
             overdueColor={branding.calendarOverdueColor}
             density={calendarDensity}
             jobs={liveSchedule.calendarJobs}
-            tasks={liveSchedule.calendarTasks}
-            campaignAssets={liveSchedule.calendarCampaignAssets}
+            tasks={isMarketing ? [] : liveSchedule.calendarTasks}
+            campaignAssets={isMarketing ? [] : liveSchedule.calendarCampaignAssets}
             customEvents={liveSchedule.calendarEvents}
-            flightEvents={liveSchedule.flightEvents}
+            flightEvents={isMarketing ? [] : liveSchedule.flightEvents}
             editable={isEditing}
             onCreateEvent={(date) => openCreate("event", date)}
             onEditEvent={(event) => {
@@ -978,24 +995,24 @@ export function TabletPipelineKiosk({
             {isCreateMenuOpen ? <button type="button" className="tablet-create-backdrop" onClick={() => setIsCreateMenuOpen(false)} aria-label="Close create menu" /> : null}
             <div className="tablet-create-options" aria-label="Create from tablet">
               <button type="button" onClick={() => openCreate("event")}><CalendarPlus2 size={15} /><span>Event</span></button>
-              <button type="button" onClick={() => openCreate("flight")}><Plane size={15} /><span>Flight</span></button>
+              {!isMarketing ? <button type="button" onClick={() => openCreate("flight")}><Plane size={15} /><span>Flight</span></button> : null}
               <button type="button" onClick={() => openCreate("job")}><BriefcaseBusiness size={15} /><span>Job</span></button>
-              <button type="button" onClick={() => openCreate("task")}><ListTodo size={15} /><span>Task</span></button>
+              {!isMarketing ? <button type="button" onClick={() => openCreate("task")}><ListTodo size={15} /><span>Task</span></button> : null}
             </div>
-            <button type="button" className="tablet-create-trigger" onClick={() => setIsCreateMenuOpen((open) => !open)} aria-label="Create event, flight, job or task" aria-expanded={isCreateMenuOpen}><Plus size={20} /></button>
+            <button type="button" className="tablet-create-trigger" onClick={() => setIsCreateMenuOpen((open) => !open)} aria-label={isMarketing ? "Create event or job" : "Create event, flight, job or task"} aria-expanded={isCreateMenuOpen}><Plus size={20} /></button>
           </div>
         ) : null}
 
-        {createRequest ? <TabletRecordCreateEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
-        {viewingJob ? <TabletJobDetailSheet isAutopacific={branding.theme === "autopacific"} job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
+        {createRequest ? <TabletRecordCreateEditor initialStatusId={isMarketing ? liveJobStatuses.find((status) => status.key === (activeView === "planning" ? "planning" : "scheduled"))?.id : undefined} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
+        {viewingJob ? <TabletJobDetailSheet allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} isAutopacific={branding.theme === "autopacific"} job={liveJobs.find((job) => job.id === viewingJob.id) ?? viewingJob} onClose={() => setViewingJob(null)} /> : null}
         {viewingTask ? <TabletTaskDetailSheet task={viewingTask} onClose={() => setViewingTask(null)} /> : null}
-        {selectedJob ? <TabletRecordEditEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
-        {selectedTask ? <TabletRecordEditEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
+        {selectedJob ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
+        {selectedTask ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor defaultClientId={calendarEventClientId} key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
-        {flightEditorDate ? <FlightEventEditor defaultClientId={calendarEventClientId} key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} flightEvents={liveSchedule.flightEvents} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
+        {!isMarketing && flightEditorDate ? <FlightEventEditor defaultClientId={calendarEventClientId} key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} flightEvents={liveSchedule.flightEvents} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
 
-        {isScreensaverVisible ? (
+        {!isMarketing && isScreensaverVisible ? (
           <section className="tablet-kiosk-screensaver" data-testid="kiosk-screensaver" aria-label={`${branding.name} overview`}>
             <div className="tablet-screensaver-topline">
               <span><i /> {branding.name} · {branding.location}</span>

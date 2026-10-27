@@ -51,7 +51,7 @@ async function jobsPayload() {
   const [jobsResult, statusesResult, taskStatusesResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("client_id", client.id)
       .is("archived_at", null),
@@ -148,7 +148,7 @@ async function tasksPayload() {
   const { data: tasks, error: taskError } = jobIds.length
     ? await context.supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .in("job_id", jobIds)
       .is("archived_at", null)
@@ -183,7 +183,7 @@ async function tasksPayload() {
     return {
       ...task,
       asset_type: task.asset_type === "Other" ? "Other" : "Asset",
-      due_date: job?.due_date ?? null,
+      due_date: task.due_date ?? job?.due_date ?? null,
       record_notes: notesByTaskId.get(task.id) ?? [],
       job: job ? { id: job.id, title: job.title, client } : null,
     };

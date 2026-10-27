@@ -9,9 +9,9 @@ async function serveAutopacificNavigation(request) {
     // Never turn a redirected sign-in response into the field fallback. A
     // cached workspace is only useful after this exact app route succeeded.
     const livePath = new URL(live.url).pathname;
-    if (live.ok && (livePath === "/autopacific" || livePath === "/autopacific/mobile")) {
+    if (live.ok && (livePath === "/autopacific" || livePath === "/autopacific/mobile" || livePath === "/marketing")) {
       await cache.put(request, live.clone());
-    } else if (livePath === "/autopacific/login" || live.status === 401 || live.status === 403) {
+    } else if (livePath === "/autopacific/login" || livePath === "/marketing/login" || live.status === 401 || live.status === 403) {
       await caches.delete(AUTOPACIFIC_FIELD_CACHE);
     }
     return live;
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || request.mode !== "navigate") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname !== "/autopacific" && url.pathname !== "/autopacific/mobile") return;
+  if (url.pathname !== "/autopacific" && url.pathname !== "/autopacific/mobile" && url.pathname !== "/marketing") return;
   // Always prefer the network. The cached page is an offline-only field copy,
   // never a source of truth when a live connection is available.
   event.respondWith(serveAutopacificNavigation(request));

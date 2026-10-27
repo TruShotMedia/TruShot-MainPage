@@ -63,6 +63,16 @@ describe("tablet workspace editors", () => {
     expect(onCreated).toHaveBeenCalledOnce();
   });
 
+  it("creates an undated planning job without forcing today’s date", async () => {
+    await act(async () => root.render(<TabletRecordCreateEditor fixedClientId="client-auto" initialStatusId="plan" clientOptions={[{ id: "client-auto", name: "Autopacific Group" }]} defaultDate="" jobOptions={[]} jobStatuses={[{ ...jobStatuses[0], id: "plan", key: "planning", label: "Planning" }]} kind="job" onClose={vi.fn()} onCreated={vi.fn()} taskStatuses={taskStatuses} />));
+    container.querySelector<HTMLInputElement>('input[name="title"]')!.value = "Upcoming launch concept";
+    const date = container.querySelector<HTMLInputElement>('input[name="shoot_date"]')!;
+    expect(date.required).toBe(false); expect(date.value).toBe("");
+    await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
+    expect(actionMocks.createJob.mock.calls[0][0].get("shoot_date")).toBe("");
+    expect(container.textContent).toContain("Optional while planning");
+  });
+
   it("opens a duplicate job as a pre-filled new record and resets delivered output", async () => {
     const source: TabletJobRecord = {
       id: "44444444-4444-4444-8444-444444444444",
@@ -109,7 +119,8 @@ describe("tablet workspace editors", () => {
     expect(container.querySelector<HTMLInputElement>('input[name="photos_delivered"]')?.value).toBe("0");
     expect(container.querySelector('select[name="client_id"]')).toBeNull();
     expect(container.querySelector('input[name="photos_delivered"][type="number"]')).toBeNull();
-    expect(container.querySelector<HTMLTextAreaElement>('textarea[name="key_deliverables"]')?.value).toBe("Launch reel\n5 photographs");
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Deliverable 1 name"]')?.value).toBe("Launch reel");
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Deliverable 1 date"]')?.value).toBe("");
     await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
 
     const formData = actionMocks.createJob.mock.calls[0]?.[0];
@@ -117,7 +128,7 @@ describe("tablet workspace editors", () => {
     expect(formData.get("shoot_date")).toBe(source.shoot_date);
     expect(formData.get("delivery_url")).toBe(source.delivery_url);
     expect(formData.get("notes")).toBe(source.notes);
-    expect(formData.get("key_deliverables")).toBe("Launch reel\n5 photographs");
+    expect(JSON.parse(String(formData.get("deliverables"))).map((item: { name: string; date: string | null }) => ({ name: item.name, date: item.date }))).toEqual([{ name: "Launch reel", date: null }, { name: "5 photographs", date: null }]);
   });
 
   it("opens a duplicate task as a pre-filled new record", async () => {

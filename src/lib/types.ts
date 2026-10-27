@@ -183,6 +183,7 @@ export type TabletJobRecord = {
   due_time: string | null;
   photos_delivered: number;
   key_deliverables?: string[];
+  deliverables?: import("@/lib/job-deliverable-model").JobDeliverable[];
   location: string | null;
   delivery_url: string | null;
   description: string | null;
@@ -219,6 +220,8 @@ export type PipelineTask = {
   position: number;
   completed_at: string | null;
   updated_at: string;
+  source_deliverable_id?: string | null;
+  due_date_is_override?: boolean;
   job?: { title: string; shoot_date?: string | null; client?: { name: string } | null } | null;
   delay_info?: DelayInfo;
   record_notes?: WorkRecordNote[];

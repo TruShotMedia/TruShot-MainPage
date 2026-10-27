@@ -24,6 +24,7 @@ function jobScheduleSummary(job: TabletJobRecord) {
 }
 
 function JobSchedulePills({ job }: { job: TabletJobRecord }) {
+  if (job.status?.key === "planning" && !job.shoot_date && !job.due_date) return <div className="tablet-job-card-schedule"><span><CalendarDays size={11} aria-hidden="true" /> Dates to be confirmed</span></div>;
   return (
     <div className="tablet-job-card-schedule" aria-label={jobScheduleSummary(job)}>
       <span className="is-shoot"><CalendarDays size={11} aria-hidden="true" /><b>Shoot</b>{formatDate(job.shoot_date)}</span>
@@ -94,10 +95,12 @@ function JobColumn({ canComplete, editable, status, jobs, savingId, onComplete, 
   );
 }
 
-export function TabletJobPipeline({ editable = true, initialJobs, statuses, isOffline = false, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onQueueMove, onViewJob }: {
+export function TabletJobPipeline({ editable = true, initialJobs, statuses, visibleStatusKeys, enableCompletion = true, isOffline = false, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onQueueMove, onViewJob }: {
   editable?: boolean;
   initialJobs: TabletJobRecord[];
   statuses: JobStatus[];
+  visibleStatusKeys?: string[];
+  enableCompletion?: boolean;
   isOffline?: boolean;
   onDuplicateJob: (job: TabletJobRecord) => void;
   onEditJob: (job: TabletJobRecord) => void;
@@ -116,11 +119,11 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, isOf
   const orderedStatuses = useMemo(
     // Delayed records are immutable history; their linked successor is the
     // actionable card. Keep the active board focused on work that can move.
-    () => statuses.filter((status) => status.key !== "delivered" && status.key !== "delayed").sort((left, right) => left.position - right.position),
-    [statuses],
+    () => statuses.filter((status) => status.key !== "delivered" && status.key !== "delayed" && (!visibleStatusKeys || visibleStatusKeys.includes(status.key))).sort((left, right) => left.position - right.position),
+    [statuses, visibleStatusKeys],
   );
   const deliveredStatus = useMemo(() => statuses.find((status) => status.key === "delivered") ?? null, [statuses]);
-  const finalVisibleStatusId = orderedStatuses.at(-1)?.id ?? null;
+  const finalVisibleStatusId = enableCompletion ? orderedStatuses.at(-1)?.id ?? null : null;
   const jobsByStatus = useMemo(() => {
     const grouped = new Map(orderedStatuses.map((status) => [status.id, [] as TabletJobRecord[]]));
     for (const job of jobs) grouped.get(job.status_id)?.push(job);

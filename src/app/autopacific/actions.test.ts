@@ -14,6 +14,11 @@ beforeEach(() => {
 });
 
 describe("AutoPacific password-only sign in", () => {
+  it("returns to Marketing using the same fixed account", async () => {
+    const form = new FormData(); form.set("password", "example-password"); form.set("surface", "marketing"); form.set("next", "/marketing?view=planning");
+    await expect(signInToAutopacific(form)).rejects.toThrow("REDIRECT:/marketing?view=planning");
+    expect(mocks.signIn).toHaveBeenCalledWith({ email: "jherholdt@autopac.com.au", password: "example-password" });
+  });
   it("uses the fixed server account even if an email is injected", async () => {
     const form = new FormData();
     form.set("password", "example-password"); form.set("email", "someone@else.test"); form.set("next", "/autopacific/mobile?view=jobs");

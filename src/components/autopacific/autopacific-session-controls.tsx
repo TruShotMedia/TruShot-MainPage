@@ -21,7 +21,7 @@ export function AutopacificLoginCleanup() {
   return null;
 }
 
-export function AutopacificSignOutButton({ showLabel = false }: { showLabel?: boolean }) {
+export function AutopacificSignOutButton({ destination = "/autopacific", showLabel = false }: { destination?: string; showLabel?: boolean }) {
   const [pending, setPending] = useState(false);
   return <button className="tablet-signout-button" type="button" disabled={pending} aria-label="Sign out of AutoPacific" title="Sign out" onClick={async () => {
     try {
@@ -43,6 +43,6 @@ export function AutopacificSignOutButton({ showLabel = false }: { showLabel?: bo
       }
     }
     try { await clearFieldCopy(); } catch { /* Sign out even if device storage is unavailable. */ }
-    await signOutOfAutopacific();
+    await signOutOfAutopacific(destination);
   }}>{showLabel ? <><span><LogOut size={18} /></span><strong>Sign out<small>Close this AutoPacific session on this device.</small></strong></> : <LogOut size={16} />}</button>;
 }

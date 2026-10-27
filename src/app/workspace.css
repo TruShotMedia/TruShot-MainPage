@@ -331,3 +331,45 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 @media (max-width: 760px), (max-height: 760px) and (pointer: coarse) {
   .tablet-kiosk-actions > .tablet-signout-button { display: none; }
 }
+.job-deliverables-field { min-width: 0; margin: 0; padding: 18px; border: 1px solid var(--workspace-line); border-radius: 18px; background: var(--workspace-panel); }
+.job-deliverables-field legend { display: inline-flex; align-items: center; gap: 8px; padding: 0 6px; font-size: 12px; font-weight: 750; color: var(--workspace-text); }
+.job-deliverables-field > p, .job-deliverable-empty { font-size: 13px; line-height: 1.55; color: var(--workspace-muted); margin: 0 0 16px; }
+.job-deliverable-rows { display: grid; gap: 14px; }
+.job-deliverable-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(150px, .5fr) 40px; gap: 10px; align-items: end; }
+.job-deliverable-row > label { min-width: 0; display: grid; gap: 7px; font-size: 11px; color: var(--workspace-muted); }
+.job-deliverable-row label small { display: inline; font-size: 10px; font-weight: 400; }
+.job-deliverable-row input { width: 100%; min-width: 0; }
+.job-deliverable-number { align-self: center; color: var(--workspace-muted); font-size: 12px; }
+.job-deliverable-remove { display: grid; place-items: center; min-height: 46px; border: 1px solid var(--workspace-line); border-radius: 12px; background: var(--workspace-field); color: var(--workspace-muted); cursor: pointer; }
+.job-deliverable-remove:hover { color: var(--workspace-danger); border-color: var(--workspace-danger); }
+.job-deliverable-add { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin-top: 16px; padding: 9px 13px; border: 1px solid var(--workspace-line); border-radius: 11px; background: var(--workspace-field); color: var(--workspace-text); font-size: 12px; font-weight: 650; cursor: pointer; }
+.job-deliverable-add:disabled { opacity: .5; cursor: default; }
+.job-deliverables-list li { padding-right: 4px; }
+.job-deliverables-list time { display: inline-block; margin-left: 12px; color: var(--workspace-muted); font-size: 12px; }
+.job-deliverables-generate { grid-column: 1 / -1; display: grid; gap: 9px; padding: 16px; border: 1px solid var(--workspace-line); border-radius: 15px; background: var(--workspace-panel); }
+.job-deliverables-generate button { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 48px; border: 0; border-radius: 11px; padding: 11px 14px; background: var(--workspace-action); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+.job-deliverables-generate button:disabled { opacity: .6; }
+.job-deliverables-generate small, .job-deliverables-generate p { margin: 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.5; }
+.marketing-planning-board .tablet-job-board { display: flex; }
+.marketing-planning-board .pipeline-column { width: 100%; min-width: 0; max-width: none; flex: 1; }
+.marketing-planning-board .pipeline-stack { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr)); grid-auto-rows: min-content; align-content: start; gap: 16px; }
+.marketing-planning-board .pipeline-task { width: 100%; }
+.marketing-planning-board .pipeline-empty { grid-column: 1 / -1; }
+@media (max-width: 600px) {
+  .job-deliverables-field { padding: 12px; }
+  .job-deliverable-row { grid-template-columns: 18px minmax(0, 1fr) 40px; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--workspace-line); }
+  .job-deliverable-row > label:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+  .job-deliverable-row > label:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+  .job-deliverable-number { grid-column: 1; grid-row: 1 / 3; }
+  .job-deliverable-remove { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+  .marketing-planning-board .pipeline-stack { grid-template-columns: minmax(0, 1fr); }
+}
+.job-schedule-section { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.job-schedule-section strong small { margin-left: 6px; font-size: 10px; color: var(--workspace-muted); font-weight: 500; }
+.job-schedule-section > button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 1px solid var(--workspace-line); border-radius: 10px; background: var(--workspace-field); color: var(--workspace-text); padding: 9px 12px; font-size: 12px; cursor: pointer; }
+.job-schedule-empty { margin: 0; padding: 14px; border-radius: 12px; background: var(--workspace-panel); color: var(--workspace-muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 600px) { .job-schedule-section { flex-wrap: wrap; } .job-schedule-section strong small { display: block; margin: 5px 0 0; } }
+.optional-deliverable-date { position: relative; min-width: 0; }
+.optional-deliverable-date > span { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--workspace-muted); font-size: 14px; font-weight: 500; text-transform: none; pointer-events: none; }
+.workspace-dialog .optional-deliverable-date > input[data-empty="true"]:not(:focus), .tablet-kiosk .workspace-dialog .optional-deliverable-date > input[data-empty="true"]:not(:focus) { color: transparent; -webkit-text-fill-color: transparent; }
+.optional-deliverable-date:focus-within > span { display: none; }
