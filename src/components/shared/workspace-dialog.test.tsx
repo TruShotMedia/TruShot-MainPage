@@ -33,11 +33,9 @@ describe("workspace dialog behaviour", () => {
     const parentClose = vi.fn();
     const childClose = vi.fn();
     await act(async () => root.render(<><WorkspaceDialog onClose={parentClose} titleId="parent" header={<h2 id="parent">Parent</h2>}><button>Parent action</button></WorkspaceDialog><WorkspaceDialog onClose={childClose} titleId="child" header={<h2 id="child">Child</h2>}><button>First</button><button>Last</button></WorkspaceDialog></>));
-    const buttons = container.querySelectorAll<HTMLButtonElement>(".workspace-dialog:last-child button");
     const child = container.querySelector<HTMLElement>('[aria-labelledby="child"]')!;
     const first = child.querySelector<HTMLButtonElement>("button")!;
     const last = child.querySelectorAll<HTMLButtonElement>("button")[1];
-    void buttons;
     last.focus();
     await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })));
     expect(document.activeElement).toBe(first);
@@ -54,5 +52,14 @@ describe("workspace dialog behaviour", () => {
       container.querySelector<HTMLElement>(".workspace-dialog-backdrop")!.click();
     });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("does not submit the underlying record editor when a nested sheet is submitted", async () => {
+    const underlyingSubmit = vi.fn();
+    const submit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
+    await act(async () => root.render(<div onSubmit={underlyingSubmit}><WorkspaceDialog onClose={vi.fn()} onSubmit={submit} titleId="nested" header={<h2 id="nested">Reschedule</h2>} footer={<button type="submit">Submit delay</button>}><input name="reason" /></WorkspaceDialog></div>));
+    await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
+    expect(submit).toHaveBeenCalledOnce();
+    expect(underlyingSubmit).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@
   --workspace-text: #192d37;
   --workspace-muted: #526b77;
   --workspace-accent: #246e4d;
+  --workspace-action: #246e4d;
   --workspace-accent-soft: #e9f4ed;
   --workspace-danger: #ad3d36;
   --workspace-danger-soft: #fff0ed;
@@ -25,7 +26,7 @@
   --workspace-danger-soft: #3c2224;
   --workspace-scheme: dark;
 }
-.tablet-kiosk.theme-autopacific { --workspace-accent: #98cbe4; --workspace-accent-soft: #1c3b4c; }
+.tablet-kiosk.theme-autopacific { --workspace-accent: #98cbe4; --workspace-accent-soft: #1c3b4c; --workspace-action: #2e6e94; }
 .tablet-kiosk.is-light, html.tablet-kiosk-active[data-tablet-color-mode="light"] {
   --workspace-surface: #fff;
   --workspace-panel: #f1f6f8;
@@ -106,7 +107,7 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .workspace-dialog-footer > span { flex: 1; }
 .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a), .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a) { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--workspace-line); border-radius: 12px; background: var(--workspace-panel); padding: 0 16px; color: var(--workspace-text); font: inherit; font-size: 13px; font-weight: 750; line-height: 1.2; cursor: pointer; }
 .tablet-kiosk .workspace-dialog.calendar-event-editor > .workspace-dialog-footer > button:not(.admin-primary-button):not(.calendar-event-delete) { border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-text); }
-.workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button, .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button { border-color: #2e6e94; background: #2e6e94; color: #fff; }
+.workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button, .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button { border-color: var(--workspace-action); background: var(--workspace-action); color: #fff; }
 .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(.tablet-delete-record, .calendar-event-delete), .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(.tablet-delete-record, .calendar-event-delete) { border-color: transparent; background: var(--workspace-danger-soft); color: var(--workspace-danger); }
 .workspace-dialog :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 3px; }
 .workspace-dialog button:disabled { cursor: wait; opacity: .55; }
@@ -195,7 +196,7 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .workspace-dialog .tablet-notification-guidance { margin-inline: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
 .workspace-dialog .tablet-notification-actions { flex-wrap: wrap; padding: 0; }
 .workspace-dialog .tablet-notification-actions button { min-height: 44px; flex: 1; border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-text); font-size: 13px; }
-.workspace-dialog .tablet-notification-actions button.is-primary { background: #2e6e94; color: white; }
+.workspace-dialog .tablet-notification-actions button.is-primary { background: var(--workspace-action); color: white; }
 .workspace-dialog .tablet-notification-message { margin: 18px 0 0; font-size: 13px; }
 
 /* True light surfaces for Calendar, Today, overlays and smaller controls. */
@@ -212,6 +213,7 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .tablet-kiosk.is-light .tablet-calendar-event strong { color: var(--workspace-text); }
 .tablet-kiosk.is-light .tablet-calendar-event span { color: var(--workspace-muted); }
 .tablet-kiosk.is-light .tablet-calendar-job-range.is-calendar-event, .tablet-kiosk.is-light .tablet-calendar-job-range.is-calendar-event.is-complete { border-color: color-mix(in srgb, var(--tablet-calendar-color) 45%, #cbd7dc); background: color-mix(in srgb, var(--tablet-calendar-color) 12%, white); color: #203c4b; }
+.tablet-kiosk.is-light .tablet-calendar-job-range:not(.is-calendar-event) { background: color-mix(in srgb, var(--tablet-calendar-color) 75%, #102937); color: #fff; }
 .tablet-kiosk.is-light .tablet-calendar-flight-range { border-color: color-mix(in srgb, var(--tablet-calendar-color) 45%, #cbd7dc); background: linear-gradient(110deg, #e2eff7, #f1f7fb); color: #173a50; }
 .tablet-kiosk.is-light .tablet-calendar-flight-range :is(strong, time, span, em) { color: #244c63; }
 .tablet-kiosk.is-light .tablet-calendar-flight-range.is-complete { background: #e6f5eb; border-color: #99c6a6; }
@@ -221,7 +223,7 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .tablet-kiosk.is-light .tablet-calendar-mobile-week button.is-selected strong { color: var(--workspace-text); }
 .tablet-kiosk.is-light .tablet-calendar-mobile-week button i { background: #d7e5ec; color: #315368; }
 .tablet-kiosk.is-light .tablet-today-stats article, .tablet-kiosk.is-light .tablet-today-entry { border-color: var(--workspace-line); background: var(--workspace-panel); }
-.tablet-kiosk.is-light .tablet-today-entry.tone-accent { background: linear-gradient(105deg, #e5f1f8, #f8fbfd); }
+.tablet-kiosk.is-light .tablet-today-entry.tone-accent { --tablet-today-entry-color: #28658a; background: linear-gradient(105deg, #e5f1f8, #f8fbfd); }
 .tablet-kiosk.is-light .tablet-today-entry.tone-urgent { --tablet-today-entry-color: #b9433a; background: linear-gradient(105deg, #fff0ed, #fffafa); }
 .tablet-kiosk.is-light .tablet-today-entry.tone-muted { opacity: 1; background: #f4f6f7; }
 .tablet-kiosk.is-light .tablet-today-entry-icon { background: #e0eaf0; }
@@ -241,6 +243,8 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .calendar-weather-badge:hover { background: var(--workspace-accent-soft); }
 .calendar-weather-badge.weather-sun, .calendar-weather-badge.weather-partly-cloudy { color: #cf9d35; }
 .calendar-weather-badge.weather-rain, .calendar-weather-badge.weather-storm { color: #70a9cf; }
+.tablet-kiosk.is-light .calendar-weather-badge.weather-sun, .tablet-kiosk.is-light .calendar-weather-badge.weather-partly-cloudy { color: #95620a; }
+.tablet-kiosk.is-light .calendar-weather-badge.weather-rain, .tablet-kiosk.is-light .calendar-weather-badge.weather-storm { color: #28779f; }
 .tablet-calendar-day > .calendar-weather-badge { position: absolute; z-index: 5; top: 2px; left: 26px; min-height: 20px; padding: 0 2px; font-size: 8px; }
 .tablet-calendar-day > .calendar-weather-badge svg { width: 12px; height: 12px; }
 .calendar-day-heading > .calendar-weather-badge { margin-right: auto; }

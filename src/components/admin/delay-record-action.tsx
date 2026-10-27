@@ -18,6 +18,7 @@ type DelayRecordActionProps = {
 /** A portal dialog so it can safely be used from existing record editor forms. */
 export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, compact = false, onDelayed }: DelayRecordActionProps) {
   const [open, setOpen] = useState(false);
+  const [dialogHost, setDialogHost] = useState<Element | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -55,7 +56,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
         ref={triggerRef}
         type="button"
         className={compact ? "tablet-delay-record-button" : "status-row-delay"}
-        onClick={() => setOpen(true)}
+        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk") ?? document.body); setOpen(true); }}
         title={`Delay ${recordTitle}`}
         aria-label={`Delay ${recordTitle}`}
       >
@@ -102,7 +103,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
             <aside><RotateCcw size={15} /> Every later delay remains attached to this history chain.</aside>
             {errorMessage ? <p className="delay-record-error" role="alert">{errorMessage}</p> : null}
           </WorkspaceDialog>,
-        document.body,
+        dialogHost ?? document.body,
       ) : null}
     </>
   );
