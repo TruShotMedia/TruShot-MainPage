@@ -9,7 +9,8 @@ describe("optional planning schedule", () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
     try {
-      await act(async()=>root.render(<form><JobScheduleFields planning initial={dated ? {shoot_date:"2026-11-02",due_date:"2026-11-06"} : {}} /></form>));
+      const initial = { id: "an-existing-planning-job", title: "An undated idea", shoot_date: dated ? "2026-11-02" : null, due_date: dated ? "2026-11-06" : null };
+      await act(async()=>root.render(<form><JobScheduleFields planning initial={initial} /></form>));
       expect(container.querySelectorAll('input[type="date"]').length).toBe(dated?2:0);
       await act(async()=>container.querySelector<HTMLButtonElement>("button")!.click());
       expect(container.querySelectorAll('input[type="date"]').length).toBe(dated?0:2);

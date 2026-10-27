@@ -6,7 +6,7 @@ import { CalendarPlus2, X } from "lucide-react";
 type Dates = { shoot_date: string; shoot_time: string; due_date: string; due_time: string };
 export function JobScheduleFields({ planning, initial }: { planning: boolean; initial: Partial<Record<keyof Dates, string | null>> }) {
   const [dates, setDates] = useState<Dates>(() => ({ shoot_date: initial.shoot_date ?? "", shoot_time: initial.shoot_time?.slice(0, 5) ?? "", due_date: initial.due_date ?? "", due_time: initial.due_time?.slice(0, 5) ?? "" }));
-  const [expanded, setExpanded] = useState(() => Object.values(initial).some(Boolean));
+  const [expanded, setExpanded] = useState(() => Boolean(initial.shoot_date || initial.shoot_time || initial.due_date || initial.due_time));
   const showDates = !planning || expanded;
   const change = (key: keyof Dates, value: string) => setDates((current) => ({ ...current, [key]: value }));
   return <>
