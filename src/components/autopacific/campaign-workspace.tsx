@@ -66,7 +66,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
   return <WorkspaceDialog className="campaign-planner-dialog" titleId="campaign-planner-title" onClose={close} busy={locked}
     header={<><div><span>Campaign / weekly content plan</span><h2 id="campaign-planner-title">{initial.updated_at ? initial.title : "Build your next campaign"}</h2></div><button type="button" aria-label="Close campaign" disabled={locked} onClick={close}><X size={19} /></button></>}
     onSubmit={editable ? event => { event.preventDefault(); if (!locked) onSave(plan); } : undefined}
-    footer={<><span className="campaign-footer-note">{error ? <span role="alert">{error}</span> : editable ? dirty ? "Unsaved changes" : "All changes saved" : "Enable the pencil to edit this plan."}</span>
+    footer={<><span className="campaign-footer-note">{error ? <span role="alert">{error}</span> : editable ? dirty || !initial.updated_at ? "Unsaved changes" : "All changes saved" : "Enable the pencil to edit this plan."}</span>
       {editable && initial.updated_at ? <button type="button" className="campaign-archive" disabled={locked} onClick={() => setConfirmRemove(true)}>Archive</button> : null}
       <button type="button" disabled={locked} onClick={close}>{editable ? "Cancel" : "Close"}</button>
       {editable ? <button type="submit" className="admin-primary-button is-primary" disabled={locked}>{busy ? <LoaderCircle size={15} className="spin" /> : <Check size={15} />} {busy ? "Saving…" : "Save campaign"}</button> : null}</>}
