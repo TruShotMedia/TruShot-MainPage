@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from "react";
+import { readFileSync } from "node:fs";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CampaignPlanner, CampaignWorkspace } from "./campaign-workspace";
@@ -19,6 +20,12 @@ describe("Campaign weekly editor", () => {
   });
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
   function planner(extra = {}) { return <CampaignPlanner initial={plan} statuses={statuses} editable marketing={false} busy={false} error="" onClose={vi.fn()} onSave={vi.fn()} onArchive={vi.fn()} onReload={vi.fn()} {...extra} />; }
+  it("does not reuse the legacy CRM campaign selectors", () => {
+    const css = readFileSync("src/components/autopacific/campaign-workspace.css", "utf8");
+    const legacy = readFileSync("src/app/globals.css", "utf8");
+    const classes = new Set([...css.matchAll(/\.(campaign-[\w-]+)/g)].map(match => match[1]));
+    expect([...classes].filter(name => new RegExp(`\\.${name}(?![\\w-])`).test(legacy))).toEqual([]);
+  });
   it("adds weeks with a job, computes year-crossing dates and enforces the minimum", async () => {
     await act(async () => root.render(planner()));
     expect(container.textContent).toContain("30 Dec 2026 — 5 Jan 2027");
@@ -53,6 +60,7 @@ describe("Campaign weekly editor", () => {
     expect(container.querySelector(".campaign-card h3")?.textContent).toBe(plan.title);
     expect(container.querySelector(".drag-handle")).toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>(".campaign-card")!.click());
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 });
