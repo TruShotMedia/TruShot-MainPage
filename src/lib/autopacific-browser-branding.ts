@@ -25,6 +25,7 @@ const viewNames: Record<TabletView, string> = {
   pipeline: "Tasks",
   calendar: "Calendar",
   today: "Today",
+  campaigns: "Campaigns",
 };
 
 export function autopacificTabTitle(mode: WorkspaceMode, view: TabletView, jobView?: "active" | "planning" | "completed") {

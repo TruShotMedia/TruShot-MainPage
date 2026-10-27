@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   CalendarDays,
+  FolderKanban,
   Check,
   ChevronRight,
   LayoutGrid,
@@ -64,6 +65,7 @@ const CalendarEventEditor = dynamic(() =>
     (module) => module.CalendarEventEditor,
   ),
 );
+const CampaignWorkspace = dynamic(() => import("./campaign-workspace").then(module => module.CampaignWorkspace));
 const FlightEventEditor = dynamic(() =>
   import("@/components/tablet/flight-event-editor").then(
     (module) => module.FlightEventEditor,
@@ -316,7 +318,7 @@ export function ProductionDesktop({
   const [snapshot, setSnapshot] = useState({ source: data, data });
   const live = snapshot.source === data ? snapshot.data : data;
   const [view, setView] = useState<TabletView>(
-    workspaceInitialView(parseTabletView(initialView), mode, !marketing),
+    workspaceInitialView(parseTabletView(initialView), mode, !marketing, true),
   );
   const [jobView, setJobView] = useState<"active" | "planning" | "completed">(
     initialView === "planning" ? "planning" : "active",
@@ -328,6 +330,7 @@ export function ProductionDesktop({
     [notice, setNotice] = useState(""),
     [refreshing, setRefreshing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [campaignRefresh, setCampaignRefresh] = useState(0);
   const [viewing, setViewing] = useState<OpenRecord | null>(() => {
     const job = data.pipelineJobs.find((job) => job.id === requestedJobId);
     return job ? { kind: "job", record: job } : null;
@@ -371,6 +374,7 @@ export function ProductionDesktop({
   }, []);
   const refresh = useCallback(
     async (target: TabletView) => {
+      if (target === "campaigns") { setCampaignRefresh(value => value + 1); return; }
       const key =
         target === "jobs"
           ? "jobs"
@@ -524,6 +528,8 @@ export function ProductionDesktop({
       ? "Tasks"
       : view === "calendar"
         ? "Calendar"
+        : view === "campaigns"
+          ? "Campaigns"
         : view === "today"
           ? "Today"
           : "Jobs";
@@ -548,7 +554,7 @@ export function ProductionDesktop({
         />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
         <nav aria-label="Workspace pages">
-          {workspaceViews(mode, !marketing).map((key) => (
+          {workspaceViews(mode, !marketing, true).map((key) => (
             <button
               type="button"
               key={key}
@@ -559,6 +565,8 @@ export function ProductionDesktop({
                 <BriefcaseBusiness size={18} />
               ) : key === "pipeline" ? (
                 <ListTodo size={18} />
+              ) : key === "campaigns" ? (
+                <FolderKanban size={18} />
               ) : key === "calendar" ? (
                 <CalendarDays size={18} />
               ) : (
@@ -712,7 +720,7 @@ export function ProductionDesktop({
           className={`apg-desktop-main ${jobView === "planning" ? "is-planning" : ""}`}
           aria-label={`${label} workspace`}
         >
-          {view === "jobs" ? (
+          {view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} /> : view === "jobs" ? (
             layout === "list" || jobView === "completed" ? (
               <div className="apg-job-list">
                 {jobs.length ? (

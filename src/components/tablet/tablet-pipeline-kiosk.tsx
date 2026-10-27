@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, FolderKanban, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
@@ -37,6 +37,7 @@ const tabletViewCopy: Record<TabletView, { eyebrow: string; title: string }> = {
   pipeline: { eyebrow: "Asset workflow", title: "Tasks" },
   calendar: { eyebrow: "Schedule", title: "Calendar" },
   today: { eyebrow: "Daily briefing", title: "Today" },
+  campaigns: { eyebrow: "Connected content plans", title: "Campaigns" },
 };
 
 type TabletKioskBranding = {
@@ -73,6 +74,7 @@ const defaultTabletKioskBranding: TabletKioskBranding = {
 };
 
 const CalendarEventEditor = dynamic(() => import("@/components/admin/calendar-event-editor").then((module) => module.CalendarEventEditor));
+const CampaignWorkspace = dynamic(() => import("@/components/autopacific/campaign-workspace").then(module => module.CampaignWorkspace));
 const FlightEventEditor = dynamic(() => import("@/components/tablet/flight-event-editor").then((module) => module.FlightEventEditor));
 const TabletRecordCreateEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordCreateEditor));
 const TabletRecordEditEditor = dynamic(() => import("@/components/tablet/tablet-workspace-editors").then((module) => module.TabletRecordEditEditor));
@@ -150,6 +152,7 @@ function TabletViewTabs({
   onSelect,
   showTodayView,
   isMarketing = false,
+  showCampaigns = false,
 }: {
   activeView: TabletView;
   className: string;
@@ -157,11 +160,13 @@ function TabletViewTabs({
   onSelect: (view: TabletView) => void;
   showTodayView: boolean;
   isMarketing?: boolean;
+  showCampaigns?: boolean;
 }) {
   return (
-    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${!isMarketing && showTodayView ? 4 : 3}, minmax(0, 1fr))` }}>
+    <nav className={`tablet-kiosk-tabs ${className}`} aria-label={label} style={{ gridTemplateColumns: `repeat(${(!isMarketing && showTodayView ? 4 : 3) + Number(showCampaigns)}, minmax(0, 1fr))` }}>
       <button type="button" className={activeView === "jobs" ? "is-active" : ""} onClick={() => onSelect("jobs")} aria-current={activeView === "jobs" ? "page" : undefined}><BriefcaseBusiness size={15} /> Jobs</button>
       <button type="button" className={activeView === "pipeline" ? "is-active" : ""} onClick={() => onSelect("pipeline")} aria-current={activeView === "pipeline" ? "page" : undefined}><Rows3 size={15} /> Tasks</button>
+      {showCampaigns ? <button type="button" className={activeView === "campaigns" ? "is-active" : ""} onClick={() => onSelect("campaigns")} aria-current={activeView === "campaigns" ? "page" : undefined}><FolderKanban size={15} /> Campaigns</button> : null}
       <button type="button" className={activeView === "calendar" ? "is-active" : ""} onClick={() => onSelect("calendar")} aria-current={activeView === "calendar" ? "page" : undefined}><CalendarDays size={15} /> Calendar</button>
       {!isMarketing && showTodayView ? <button type="button" className={activeView === "today" ? "is-active" : ""} onClick={() => onSelect("today")} aria-current={activeView === "today" ? "page" : undefined}><SunMedium size={15} /> Today</button> : null}
     </nav>
@@ -254,8 +259,9 @@ export function TabletPipelineKiosk({
   const [showPlanning,setShowPlanning]=useState(initialView === "planning");
   const jobStatusVersion = useMemo(() => jobStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_closed}`).join("|"), [jobStatuses]);
   const taskStatusVersion = useMemo(() => initialStatuses.map((status) => `${status.id}:${status.key}:${status.position}:${status.is_open}`).join("|"), [initialStatuses]);
-  const [selectedView, setActiveView] = useState<TabletView>(workspaceInitialView(initialView, workspaceMode, showTodayView));
-  const activeView = workspaceInitialView(selectedView, workspaceMode, showTodayView);
+  const [selectedView, setActiveView] = useState<TabletView>(workspaceInitialView(initialView, workspaceMode, showTodayView, branding.theme === "autopacific"));
+  const activeView = workspaceInitialView(selectedView, workspaceMode, showTodayView, branding.theme === "autopacific");
+  const [campaignRefresh, setCampaignRefresh] = useState(0);
   useWorkspaceTabTitle(workspaceMode, activeView, showPlanning ? "planning" : "active", branding.theme === "autopacific" || isMarketing);
   const [editingEnabled, setIsEditing] = useState(false);
   const isEditing = isMarketing || editingEnabled;
@@ -357,6 +363,7 @@ export function TabletPipelineKiosk({
   }, [router]);
 
   const refreshTab = useCallback(async (view: TabletView) => {
+    if (view === "campaigns") { setCampaignRefresh(value => value + 1); return; }
     if (!navigator.onLine) {
       setIsOnline(false);
       setOfflineNotice("Still offline—the last saved AutoPacific workspace remains available.");
@@ -744,7 +751,7 @@ export function TabletPipelineKiosk({
             </div>
           </div>
 
-          <TabletViewTabs isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
+          <TabletViewTabs showCampaigns={branding.theme === "autopacific"} isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-desktop" label="Tablet views" onSelect={selectView} showTodayView={showTodayView} />
 
           <div className="tablet-kiosk-actions">
             {!isMarketing ? <button type="button" className={`tablet-edit-toggle ${isEditing ? "is-active" : ""}`} onClick={toggleEditing} aria-label={isEditing ? "Turn off tablet editing" : "Turn on tablet editing"} aria-pressed={isEditing} title={isEditing ? "Detail editing on · tap to return to kiosk mode" : "Detail editing off · drag and completion controls remain available"}><Pencil size={15} /></button> : null}
@@ -789,7 +796,7 @@ export function TabletPipelineKiosk({
           </p>
         ) : null}
 
-        <TabletViewTabs isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
+        <TabletViewTabs showCampaigns={branding.theme === "autopacific"} isMarketing={isMarketing} activeView={activeView} className="tablet-kiosk-tabs-mobile" label="Mobile views" onSelect={selectView} showTodayView={showTodayView} />
 
         {isMobileActionsOpen ? (
           <>
@@ -828,7 +835,7 @@ export function TabletPipelineKiosk({
             <div><span>{tabletViewCopy[activeView].eyebrow}</span><h1>{tabletViewCopy[activeView].title}</h1></div>
             <small className={isEditing ? "is-editing" : ""}><i /> {isEditing ? "Editing on" : "Live workspace"}</small>
           </header>
-          {activeView === "jobs" || activeView === "planning" ? (
+          {activeView === "campaigns" ? <CampaignWorkspace statuses={liveJobStatuses} marketing={isMarketing} editable={isEditing} refreshKey={campaignRefresh} /> : activeView === "jobs" || activeView === "planning" ? (
             <TabletJobPipeline
               visibleStatusKeys={isMarketing ? showPlanning ? ["planning"] : liveJobStatuses.filter((status) => status.key !== "planning").map((status) => status.key) : undefined}
               enableCompletion={!showPlanning}
