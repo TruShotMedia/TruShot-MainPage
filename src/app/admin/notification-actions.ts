@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { buildCalendarReminderPushMessage, type DueCalendarReminder } from "@/lib/calendar-reminder-logic";
-import { getAdminContext } from "@/lib/data/admin";
+import { getProductionContext } from "@/lib/data/admin";
 import type { PushMessage } from "@/lib/push";
 import { sendPushNotifications, type StoredPushSubscription } from "@/lib/push-notifications";
 
@@ -18,7 +18,7 @@ const subscriptionSchema = z.object({
 });
 
 export async function savePushSubscription(input: unknown) {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const subscription = subscriptionSchema.parse(input);
   const requestHeaders = await headers();
@@ -26,10 +26,16 @@ export async function savePushSubscription(input: unknown) {
   const userId = context.claims.sub;
   if (!userId) throw new Error("Your admin session could not be verified.");
 
+  const { data: scopedClient, error: scopeError } = context.access === "autopacific"
+    ? await context.supabase.from("website-clients").select("id").eq("workspace_id", context.membership.workspace_id).single()
+    : { data: null, error: null };
+  if (scopeError || (context.access === "autopacific" && !scopedClient)) throw new Error("AutoPacific notification access could not be verified.");
+
   const { error } = await context.supabase.from("website-push-subscriptions").upsert(
     {
       workspace_id: context.membership.workspace_id,
       user_id: userId,
+      client_scope_id: scopedClient?.id ?? null,
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth_key: subscription.keys.auth,
@@ -46,7 +52,7 @@ export async function savePushSubscription(input: unknown) {
 }
 
 export async function removePushSubscription(endpoint: string) {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const parsedEndpoint = z.url().startsWith("https://").max(2048).parse(endpoint);
   const userId = context.claims.sub;
@@ -116,7 +122,7 @@ export async function sendTestFlightPushNotification(endpoint: string) {
 }
 
 async function sendTestNotification(endpoint: string, message: PushMessage) {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const userId = context.claims.sub;
   if (!userId) throw new Error("Your admin session could not be verified.");

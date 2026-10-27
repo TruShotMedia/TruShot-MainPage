@@ -13,6 +13,7 @@ import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOpti
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
 
 type CreateEditorProps = {
+  fixedClientId?: string;
   clientOptions: SelectOption[];
   defaultDate: string;
   jobOptions: JobSearchOption[];
@@ -94,7 +95,7 @@ function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { le
         {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p>{legacyNote}</p></article> : null}
         {items.length ? items.map((note) => (
           <article className="tablet-record-note" key={note.id}>
-            <header><small>{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small><button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button></header>
+            <header><small>{note.rescheduled_date ? `Rescheduled to ${formatDate(note.rescheduled_date)} · ` : ""}{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small><button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button></header>
             {editingId === note.id ? (
               <div className="tablet-record-note-edit">
                 <textarea value={editingBody} onChange={(event) => setEditingBody(event.target.value)} maxLength={4000} rows={4} disabled={saving} autoFocus />
@@ -113,7 +114,7 @@ function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { le
   );
 }
 
-export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; onClose: () => void }) {
+export function TabletJobDetailSheet({ job, onClose, isAutopacific = false }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean }) {
   return (
       <WorkspaceDialog className="tablet-job-detail-sheet" titleId="tablet-job-detail-title" onClose={onClose} header={<>
           <div>
@@ -145,17 +146,18 @@ export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; o
             <strong>{job.open_tasks} open</strong>
             <small>{job.total_tasks} total tasks</small>
           </article>
-          <article>
+          {!isAutopacific ? <article>
             <span><Images size={15} /> Photos</span>
             <strong>{job.photos_delivered}</strong>
             <small>Delivered</small>
-          </article>
+          </article> : null}
         </div>
 
         <dl className="tablet-job-detail-list">
-          <div><dt>Job number</dt><dd>{job.job_number || "Not assigned"}</dd></div>
+          {!isAutopacific ? <div><dt>Job number</dt><dd>{job.job_number || "Not assigned"}</dd></div> : null}
           <div><dt><MapPin size={14} /> Location</dt><dd>{job.location || "Not specified"}</dd></div>
           {job.description ? <div className="is-wide"><dt>Description</dt><dd>{job.description}</dd></div> : null}
+          {job.key_deliverables?.length ? <div className="is-wide"><dt>Key deliverables</dt><dd><ul className="job-deliverables-list">{job.key_deliverables.map((item, index) => <li key={index}>{item}</li>)}</ul></dd></div> : null}
           {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
         </dl>
 
@@ -210,7 +212,7 @@ export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; o
   );
 }
 
-export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOptions, jobStatuses, kind, onClose, onCreated, sourceRecord, taskStatuses }: CreateEditorProps) {
+export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClientId, jobOptions, jobStatuses, kind, onClose, onCreated, sourceRecord, taskStatuses }: CreateEditorProps) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const sourceJob = kind === "job" && sourceRecord && isJobRecord(sourceRecord) ? sourceRecord : null;
@@ -257,7 +259,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
           <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Job details</strong><p>What you’re creating and who it’s for.</p></div>
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={sourceJob?.title ?? ""} /></label>
-            <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+            {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required defaultValue={defaultJobStatusId}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <div className="workspace-form-section"><strong>Schedule</strong><p>Production timing and the delivery deadline.</p></div>
             <label>Shoot date<input name="shoot_date" type="date" defaultValue={sourceJob?.shoot_date ?? defaultDate} /></label>
@@ -265,10 +267,11 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
             <label>Due date<input name="due_date" type="date" min={(sourceJob?.shoot_date ?? defaultDate) || undefined} defaultValue={sourceJob?.due_date ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={sourceJob?.due_time?.slice(0, 5) ?? ""} /></label>
             <div className="workspace-form-section"><strong>Production & delivery</strong><p>Keep location, files and context together.</p></div>
-            <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>
+            {fixedClientId ? <input type="hidden" name="photos_delivered" value="0" /> : <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>}
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={sourceJob?.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={sourceJob?.description ?? ""} /></label>
+            <label className="form-span">Key deliverables<textarea name="key_deliverables" rows={4} maxLength={10000} placeholder={"30-second launch video\n5 product photographs\n3 vertical social clips"} defaultValue={sourceJob?.key_deliverables?.join("\n") ?? ""} /><small>One deliverable per line. Shown as a bullet list in job details.</small></label>
             <label className="form-span">Internal notes<textarea name="notes" rows={3} maxLength={4000} defaultValue={sourceJob?.notes ?? ""} /></label>
           </div>
         ) : (
@@ -292,6 +295,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
 }
 
 type EditEditorProps = {
+  fixedClientId?: string;
   clientOptions: SelectOption[];
   jobOptions: JobSearchOption[];
   jobStatuses: JobStatus[];
@@ -302,7 +306,7 @@ type EditEditorProps = {
   type: "job" | "task";
 };
 
-export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses, onClose, onSaved, record, taskStatuses, type }: EditEditorProps) {
+export function TabletRecordEditEditor({ clientOptions, fixedClientId, jobOptions, jobStatuses, onClose, onSaved, record, taskStatuses, type }: EditEditorProps) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const isJob = type === "job";
@@ -369,10 +373,10 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
               <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Job details</strong><p>Keep the brief and client details up to date.</p></div>
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} /></label>
-            <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>
-            <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+            {fixedClientId ? <input type="hidden" name="job_number" value={job.job_number ?? ""} /> : <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>}
+            {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required defaultValue={job.status_id}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
-            <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label>
+            {!fixedClientId ? <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label> : null}
             <div className="workspace-form-section"><strong>Schedule</strong><p>Production timing and the delivery deadline.</p></div>
             <label>Shoot date<input name="shoot_date" type="date" defaultValue={job.shoot_date ?? ""} /></label>
             <label>Shoot time<input name="shoot_time" type="time" defaultValue={job.shoot_time?.slice(0, 5) ?? ""} /></label>
@@ -382,6 +386,7 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
+            <label className="form-span">Key deliverables<textarea name="key_deliverables" rows={4} maxLength={10000} placeholder="One deliverable per line" defaultValue={job.key_deliverables?.join("\n") ?? ""} /><small>Up to 30 clear deliverables, one per line.</small></label>
             <input type="hidden" name="notes" value={job.notes ?? ""} />
               </div>
             ) : task ? (

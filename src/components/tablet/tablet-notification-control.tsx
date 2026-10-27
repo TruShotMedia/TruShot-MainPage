@@ -107,7 +107,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
         }
         setDeviceState("enabled");
         setMessageKind("success");
-        setMessage("Calendar, flight and client-request alerts are enabled on this device.");
+        setMessage(experience === "autopacific" ? "AutoPacific calendar and flight alerts are enabled on this device." : "Calendar, flight and client-request alerts are enabled on this device.");
       } catch (error) {
         setMessageKind("error");
         setMessage(errorMessage(error, "Notifications could not be enabled on this device."));
@@ -175,7 +175,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
             {deviceState === "checking" ? <LoaderCircle className="spin" size={17} /> : enabled ? <CheckCircle2 size={17} /> : <Bell size={17} />}
             <div>
               <strong>{deviceState === "checking" ? "Checking this device" : enabled ? "Alerts are active" : installRequired ? `Install ${experienceName} first` : deviceState === "denied" ? "Permission is blocked" : deviceState === "unsupported" ? "Notifications are unavailable" : "Ready to enable"}</strong>
-              <p>Receive client requests, scheduled calendar reminders and flight briefings without keeping this page open.</p>
+              <p>{experience === "autopacific" ? "Receive AutoPacific calendar reminders and flight briefings without keeping this page open." : "Receive client requests, scheduled calendar reminders and flight briefings without keeping this page open."}</p>
             </div>
           </div>
           {installRequired ? <p className="tablet-notification-guidance">In Safari, tap Share → <strong>Add to Home Screen</strong>, open {experienceName}, then enable alerts here.</p> : null}

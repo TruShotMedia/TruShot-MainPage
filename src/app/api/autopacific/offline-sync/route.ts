@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { scheduleClickUpJobSync } from "@/lib/clickup/job-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
-import { getAdminContext } from "@/lib/data/admin";
+import { getProductionContext } from "@/lib/data/admin";
 import { nextTaskPosition } from "@/lib/task-position";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ const bodySchema = z.object({ mutations: z.array(mutationSchema).min(1).max(25) 
 
 type Mutation = z.infer<typeof mutationSchema>;
 
-async function getAutopacificClientId(context: NonNullable<Awaited<ReturnType<typeof getAdminContext>>>) {
+async function getAutopacificClientId(context: NonNullable<Awaited<ReturnType<typeof getProductionContext>>>) {
   const { data, error } = await context.supabase
     .from("website-clients")
     .select("id")
@@ -41,7 +41,7 @@ async function getAutopacificClientId(context: NonNullable<Awaited<ReturnType<ty
   return data.id;
 }
 
-async function getNextPosition(context: NonNullable<Awaited<ReturnType<typeof getAdminContext>>>, statusId: string) {
+async function getNextPosition(context: NonNullable<Awaited<ReturnType<typeof getProductionContext>>>, statusId: string) {
   const { data, error } = await context.supabase
     .from("website-job-tasks")
     .select("position")
@@ -54,7 +54,7 @@ async function getNextPosition(context: NonNullable<Awaited<ReturnType<typeof ge
   return nextTaskPosition(data?.[0]?.position);
 }
 
-async function syncJobMutation(context: NonNullable<Awaited<ReturnType<typeof getAdminContext>>>, clientId: string, mutation: Mutation) {
+async function syncJobMutation(context: NonNullable<Awaited<ReturnType<typeof getProductionContext>>>, clientId: string, mutation: Mutation) {
   const { data: status, error: statusError } = await context.supabase
     .from("website-job-statuses")
     .select("id")
@@ -78,7 +78,7 @@ async function syncJobMutation(context: NonNullable<Awaited<ReturnType<typeof ge
   return data ? "synced" as const : "conflict" as const;
 }
 
-async function syncTaskMutation(context: NonNullable<Awaited<ReturnType<typeof getAdminContext>>>, clientId: string, mutation: Mutation) {
+async function syncTaskMutation(context: NonNullable<Awaited<ReturnType<typeof getProductionContext>>>, clientId: string, mutation: Mutation) {
   const [{ data: task, error: taskError }, { data: status, error: statusError }] = await Promise.all([
     context.supabase
       .from("website-job-tasks")
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid offline changes." }, { status: 400, headers: responseHeaders });
 
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return Response.json({ error: "Sign in again before syncing field changes." }, { status: 401, headers: responseHeaders });
 
   try {

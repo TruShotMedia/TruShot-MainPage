@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { TabletPipelineKiosk } from "@/components/tablet/tablet-pipeline-kiosk";
 import { TABLET_REFRESH_INTERVAL_MINUTES } from "@/lib/config";
-import { getAdminContext, getTabletKioskData } from "@/lib/data/admin";
+import { getProductionContext, getTabletKioskData } from "@/lib/data/admin";
 import { todayDateInput } from "@/lib/format";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
 import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
@@ -10,10 +10,10 @@ import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
 export async function AutopacificWorkspace({ experience, requestedView }: { experience: "kiosk" | "mobile"; requestedView?: string }) {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) {
     const destination = experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
-    redirect(`/admin/login?next=${encodeURIComponent(destination)}`);
+    redirect(`/autopacific/login?next=${encodeURIComponent(destination)}`);
   }
 
   const [data, cookieStore] = await Promise.all([
@@ -27,6 +27,7 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
 
   return (
     <TabletPipelineKiosk
+      canOpenCrm={context.access === "admin"}
       branding={{
         calendarAccentColor: "#5d91b0",
         calendarAccentClientName: AUTOPACIFIC_CLIENT_NAME,
@@ -68,7 +69,7 @@ export async function AutopacificWorkspace({ experience, requestedView }: { expe
       pipelineJobs={data.pipelineJobs}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
-      notionSyncEnabled={notion.configured}
+      notionSyncEnabled={context.access === "admin" && notion.configured}
       notionSyncIntervalMinutes={notion.syncIntervalMinutes}
       notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""}
       refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES}

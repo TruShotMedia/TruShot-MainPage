@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
 const mocks = vi.hoisted(() => ({ context: vi.fn(), from: vi.fn() }));
-vi.mock("@/lib/data/admin", () => ({ getAdminContext: mocks.context }));
+vi.mock("@/lib/data/admin", () => ({ getProductionContext: mocks.context }));
 beforeEach(() => vi.clearAllMocks());
 
 describe("saved weather endpoint", () => {

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTOPACIFIC_LOGIN_EMAIL } from "@/lib/autopacific-access";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -32,6 +33,7 @@ export async function updateSession(request: NextRequest) {
   const isAdminLogin = request.nextUrl.pathname.startsWith("/admin/login");
   const isIngreignLogin = request.nextUrl.pathname.startsWith("/ingreign/login");
   const isLifestyleLogin = request.nextUrl.pathname.startsWith("/lifestyle/login");
+  const isAutopacificLogin = request.nextUrl.pathname === "/autopacific/login";
   const isIngreignPublicAsset = isIngreign && (
     request.nextUrl.pathname === "/ingreign/manifest.webmanifest"
     || /\.(?:png|svg|ico)$/i.test(request.nextUrl.pathname)
@@ -44,12 +46,13 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/lifestyle/manifest.webmanifest"
     || request.nextUrl.pathname.startsWith("/lifestyle/icons/")
   );
-  const isLogin = isAdminLogin || isIngreignLogin || isLifestyleLogin;
+  const isLogin = isAdminLogin || isIngreignLogin || isLifestyleLogin || isAutopacificLogin;
 
   if (!data?.claims && !isLogin && !isIngreignPublicAsset && !isAutopacificPublicAsset && !isLifestylePublicAsset) {
     const url = request.nextUrl.clone();
-    url.pathname = isIngreign ? "/ingreign/login" : isLifestyle ? "/lifestyle/login" : "/admin/login";
-    if (!isIngreign && !isLifestyle) url.searchParams.set("next", request.nextUrl.pathname);
+    url.pathname = isIngreign ? "/ingreign/login" : isLifestyle ? "/lifestyle/login" : isAutopacific ? "/autopacific/login" : "/admin/login";
+    url.search = "";
+    if (!isIngreign && !isLifestyle) url.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 
@@ -61,6 +64,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   const signedInEmail = typeof data?.claims?.email === "string" ? data.claims.email.toLowerCase() : "";
+  // Navigation convenience only; DAL checks and RLS enforce actual permissions.
+  if (signedInEmail === AUTOPACIFIC_LOGIN_EMAIL && !isAutopacific) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/autopacific";
+    url.search = "";
+    const redirected = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirected.cookies.set(cookie));
+    return redirected;
+  }
   if (data?.claims && isLifestyleLogin && signedInEmail === "info@fearlessau.com") {
     const url = request.nextUrl.clone();
     url.pathname = "/lifestyle";

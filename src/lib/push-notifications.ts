@@ -90,7 +90,8 @@ export async function notifyNewClientRequest({
       supabase
         .from("website-push-subscriptions")
         .select("id,endpoint,p256dh,auth_key")
-        .eq("workspace_id", workspaceId),
+        .eq("workspace_id", workspaceId)
+        .is("client_scope_id", null),
       supabase
         .from("website-enquiries")
         .select("id", { count: "exact", head: true })

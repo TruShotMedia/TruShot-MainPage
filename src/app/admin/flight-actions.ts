@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { scheduleClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
-import { getAdminContext } from "@/lib/data/admin";
+import { getProductionContext } from "@/lib/data/admin";
 import { findAirline } from "@/lib/airlines";
 import type { CalendarFlightEvent, FlightEventDeleteResult, FlightEventSaveResult } from "@/lib/types";
 
@@ -137,7 +137,7 @@ function eventResult(data: Record<string, unknown>): FlightEventSaveResult {
 export async function createFlightPlan(formData: FormData): Promise<FlightEventSaveResult> {
   const parsed = parseFlightPlan(formData);
   if (!parsed.ok) return parsed;
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
 
   const { data: plan, error: planError } = await context.supabase
@@ -166,7 +166,7 @@ export async function updateFlightPlan(formData: FormData): Promise<FlightEventS
   const planId = z.string().uuid().safeParse(formData.get("plan_id"));
   const sourceEventId = z.string().uuid().safeParse(formData.get("source_event_id"));
   if (!planId.success && !sourceEventId.success) return { ok: false, error: "That flight itinerary is no longer available." };
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
 
   let resolvedPlanId = planId.success ? planId.data : null;
@@ -230,7 +230,7 @@ export async function deleteFlightPlan(formData: FormData): Promise<FlightEventD
   const planId = z.string().uuid().safeParse(formData.get("plan_id"));
   const eventId = z.string().uuid().safeParse(formData.get("event_id"));
   if (!planId.success && !eventId.success) return { ok: false, error: "That flight itinerary is no longer available." };
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const query = planId.success
     ? context.supabase.from("website-flight-plans").delete().eq("id", planId.data).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single()

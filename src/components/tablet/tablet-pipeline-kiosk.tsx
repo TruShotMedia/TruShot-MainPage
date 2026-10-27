@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
+import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
@@ -181,6 +182,7 @@ function readViewportMetrics(): TabletViewportMetrics {
 }
 
 export function TabletPipelineKiosk({
+  canOpenCrm = true,
   calendarJobs,
   calendarTasks,
   calendarCampaignAssets = [],
@@ -207,6 +209,7 @@ export function TabletPipelineKiosk({
   showTodayView = false,
   today,
 }: {
+  canOpenCrm?: boolean;
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
@@ -740,7 +743,8 @@ export function TabletPipelineKiosk({
               {effectiveOrientation === "landscape" ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
             </button>
             <button type="button" className="tablet-refresh-button" onClick={refreshActiveTab} aria-label="Refresh the current workspace tab" title="Refresh current view"><RefreshCw size={15} /></button>
-            <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link>
+            {canOpenCrm ? <Link className="tablet-crm-button" href="/admin"><LayoutDashboard size={15} /> CRM</Link> : null}
+            {branding.theme === "autopacific" ? <AutopacificSignOutButton /> : null}
             <button
               type="button"
               className="tablet-theme-toggle"
@@ -788,10 +792,11 @@ export function TabletPipelineKiosk({
                   <span><RefreshCw size={18} /></span>
                   <strong>Refresh workspace<small>Fetch the latest jobs, tasks and schedule.</small></strong>
                 </button>
-                <Link href="/admin" onClick={() => setIsMobileActionsOpen(false)}>
+                {canOpenCrm ? <Link href="/admin" onClick={() => setIsMobileActionsOpen(false)}>
                   <span><LayoutDashboard size={18} /></span>
                   <strong>Open TruShot CRM<small>Continue in the complete administration workspace.</small></strong>
-                </Link>
+                </Link> : null}
+                {branding.theme === "autopacific" ? <AutopacificSignOutButton showLabel /> : null}
               </div>
             </section>
           </>
@@ -981,11 +986,11 @@ export function TabletPipelineKiosk({
           </div>
         ) : null}
 
-        {createRequest ? <TabletRecordCreateEditor clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
-        {viewingJob ? <TabletJobDetailSheet job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
+        {createRequest ? <TabletRecordCreateEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
+        {viewingJob ? <TabletJobDetailSheet isAutopacific={branding.theme === "autopacific"} job={viewingJob} onClose={() => setViewingJob(null)} /> : null}
         {viewingTask ? <TabletTaskDetailSheet task={viewingTask} onClose={() => setViewingTask(null)} /> : null}
-        {selectedJob ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
-        {selectedTask ? <TabletRecordEditEditor clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
+        {selectedJob ? <TabletRecordEditEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
+        {selectedTask ? <TabletRecordEditEditor fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor defaultClientId={calendarEventClientId} key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}
         {flightEditorDate ? <FlightEventEditor defaultClientId={calendarEventClientId} key={selectedFlightEvent?.id ?? `tablet-flight-new-${flightEditorDate}`} event={selectedFlightEvent} flightEvents={liveSchedule.flightEvents} defaultDate={flightEditorDate} onClose={closeFlightEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}

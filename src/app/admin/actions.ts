@@ -12,9 +12,10 @@ import { slugify } from "@/lib/format";
 import { pairInvoicePaymentDates, paymentDateToTimestamp } from "@/lib/invoice-payment-dates";
 import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
+import { jobDeliverablesInputSchema } from "@/lib/job-deliverables";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
-import { getAdminContext } from "@/lib/data/admin";
+import { getAdminContext, getProductionContext } from "@/lib/data/admin";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import type { CalendarEventDeleteResult, CalendarEventSaveResult } from "@/lib/types";
 
@@ -44,7 +45,8 @@ const jobEditorInputSchema = z.object({
   shoot_time: optionalTimeSchema,
   due_date: z.string().or(z.literal("")),
   due_time: optionalTimeSchema,
-  photos_delivered: z.coerce.number().int().min(0),
+  photos_delivered: z.coerce.number().int().min(0).optional(),
+  key_deliverables: jobDeliverablesInputSchema.optional(),
   location: z.string().trim().max(300),
   delivery_url: optionalHttpUrlSchema,
   description: z.string().trim().max(2_000),
@@ -255,6 +257,7 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     due_date: input.due_date || null,
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
+    key_deliverables: input.key_deliverables,
     location: input.location || null,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
@@ -468,12 +471,13 @@ export async function createJob(formData: FormData) {
     due_date: z.string().or(z.literal("")),
     due_time: optionalTimeSchema,
     photos_delivered: z.coerce.number().int().min(0),
+    key_deliverables: jobDeliverablesInputSchema.optional().default([]),
     location: z.string().trim().max(300).optional().default(""),
     delivery_url: optionalHttpUrlSchema.optional().default(""),
     description: z.string().trim().max(2_000).optional().default(""),
     notes: z.string().trim().max(4_000).optional().default(""),
   }).parse(Object.fromEntries(formData));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   await Promise.all([requireJobStatus(context, input.status_id), requireClient(context, input.client_id)]);
   const { error } = await context.supabase.from("website-jobs").insert({
@@ -486,6 +490,7 @@ export async function createJob(formData: FormData) {
     due_date: input.due_date || null,
     due_time: input.due_time || null,
     photos_delivered: input.photos_delivered,
+    key_deliverables: input.key_deliverables,
     location: input.location || null,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
@@ -504,11 +509,11 @@ export async function createJob(formData: FormData) {
 
 export async function duplicateJob(formData: FormData) {
   const id = z.string().uuid().parse(formData.get("id"));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-jobs")
-    .select("title,client_id,status_id,package_id,package_snapshot,description,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,key_deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,notes")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
@@ -537,6 +542,7 @@ export async function duplicateJob(formData: FormData) {
     package_id: source.package_id,
     package_snapshot: source.package_snapshot,
     description: source.description,
+    key_deliverables: source.key_deliverables,
     shoot_date: source.shoot_date,
     shoot_time: source.shoot_time,
     due_date: source.due_date,
@@ -579,7 +585,7 @@ export async function updateJob(formData: FormData) {
 
 export async function updateTabletJob(formData: FormData) {
   const input = jobEditorInputSchema.parse(Object.fromEntries(formData));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   await saveJobDetails(context, input);
   scheduleClickUpJobSync();
@@ -593,7 +599,7 @@ export async function updateTabletJob(formData: FormData) {
  */
 export async function delayJob(formData: FormData) {
   const input = delayRecordInputSchema.parse(Object.fromEntries(formData));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const { data, error } = await context.supabase.rpc("website-delay-job", {
     p_source_job_id: input.id,
@@ -608,7 +614,7 @@ export async function delayJob(formData: FormData) {
 
 export async function archiveJob(formData: FormData) {
   const jobId = z.string().uuid().parse(formData.get("id"));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const archivedAt = new Date().toISOString();
   const { data: job, error: jobError } = await context.supabase
@@ -643,7 +649,7 @@ export async function archiveJob(formData: FormData) {
 
 export async function archiveTask(formData: FormData) {
   const taskId = z.string().uuid().parse(formData.get("id"));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const { data, error } = await context.supabase
     .from("website-job-tasks")
@@ -669,7 +675,7 @@ export async function createTask(formData: FormData) {
     priority: z.enum(["low", "normal", "high", "urgent"]),
     description: z.string().trim().max(2_000),
   }).parse(Object.fromEntries(formData));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   const [, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const position = await getNextTaskPosition(context, input.status_id);
@@ -698,7 +704,7 @@ export async function createTask(formData: FormData) {
 
 export async function duplicateTask(formData: FormData) {
   const id = z.string().uuid().parse(formData.get("id"));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-job-tasks")
@@ -762,7 +768,7 @@ export async function updateTask(formData: FormData) {
   }).parse(Object.fromEntries(formData));
   const hours = input.hours === "" ? null : Number(input.hours);
   if (hours !== null && (!Number.isFinite(hours) || hours < 0)) throw new Error("Task hours are not valid.");
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) redirect("/admin/login");
   const [status, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const { data, error } = await context.supabase.from("website-job-tasks").update({
@@ -793,7 +799,7 @@ export async function updateTask(formData: FormData) {
  */
 export async function delayTask(formData: FormData) {
   const input = delayRecordInputSchema.parse(Object.fromEntries(formData));
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const { data, error } = await context.supabase.rpc("website-delay-task", {
     p_source_task_id: input.id,
@@ -816,7 +822,7 @@ export async function saveWorkRecordNote(formData: FormData) {
     ...raw,
     note_id: raw.note_id || undefined,
   });
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
 
   if (input.record_kind === "job") {
@@ -841,7 +847,7 @@ export async function saveWorkRecordNote(formData: FormData) {
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", input.record_kind)
       .match(recordMatch)
-      .select("id,body,created_at,updated_at")
+      .select("id,body,created_at,updated_at,rescheduled_date")
       .single();
     if (error || !updated) throw new Error(error?.message ?? "That note could not be updated.");
     revalidateProductionPages();
@@ -858,7 +864,7 @@ export async function saveWorkRecordNote(formData: FormData) {
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
-    .select("id,body,created_at,updated_at")
+    .select("id,body,created_at,updated_at,rescheduled_date")
     .single();
   if (error || !created) throw new Error(error?.message ?? "That note could not be saved.");
   revalidateProductionPages();
@@ -867,7 +873,7 @@ export async function saveWorkRecordNote(formData: FormData) {
 
 export async function updateCalendarItem(formData: FormData) {
   const raw = Object.fromEntries(formData);
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
 
   if (raw.entity_type === "job") {
@@ -1011,7 +1017,7 @@ function parseCalendarEvent(formData: FormData) {
 export async function createCalendarEvent(formData: FormData): Promise<CalendarEventSaveResult> {
   const parsed = parseCalendarEvent(formData);
   if (!parsed.ok) return parsed;
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const client = parsed.data.client_id
     ? await context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("id", parsed.data.client_id).is("archived_at", null).maybeSingle()
@@ -1041,7 +1047,7 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
   if (!parsedId.success) return { ok: false, error: "That calendar event is no longer available." };
   const parsed = parseCalendarEvent(formData);
   if (!parsed.ok) return parsed;
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const client = parsed.data.client_id
     ? await context.supabase.from("website-clients").select("id,name").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("id", parsed.data.client_id).is("archived_at", null).maybeSingle()
@@ -1066,7 +1072,7 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
 export async function deleteCalendarEvent(formData: FormData): Promise<CalendarEventDeleteResult> {
   const parsedId = z.string().uuid().safeParse(formData.get("id"));
   if (!parsedId.success) return { ok: false, error: "That calendar event is no longer available." };
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return { ok: false, error: "Your admin session has expired. Sign in again and retry." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
@@ -1121,7 +1127,7 @@ export async function updateCalendarReminderSettings(formData: FormData) {
 
 export async function movePipelineTask(taskId: string, statusId: string) {
   const parsed = z.object({ taskId: z.string().uuid(), statusId: z.string().uuid() }).parse({ taskId, statusId });
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const status = await requireTaskStatus(context, parsed.statusId);
   const position = await getNextTaskPosition(context, parsed.statusId);
@@ -1143,7 +1149,7 @@ export async function movePipelineTask(taskId: string, statusId: string) {
 
 export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
   const parsed = z.object({ jobIds: recordIdsSchema, statusId: z.string().uuid() }).parse({ jobIds, statusId });
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   await requireJobStatus(context, parsed.statusId);
 
@@ -1214,7 +1220,7 @@ export async function linkJobsToInvoice(jobIds: string[], invoiceId: string) {
 
 export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) {
   const parsed = z.object({ taskIds: recordIdsSchema, statusId: z.string().uuid() }).parse({ taskIds, statusId });
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const status = await requireTaskStatus(context, parsed.statusId);
 

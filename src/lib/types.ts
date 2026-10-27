@@ -152,6 +152,7 @@ export type JobRecord = {
   due_date: string | null;
   due_time: string | null;
   photos_delivered: number;
+  key_deliverables?: string[];
   hours: number;
   created_assets: number;
   open_tasks: number;
@@ -181,6 +182,7 @@ export type TabletJobRecord = {
   due_date: string | null;
   due_time: string | null;
   photos_delivered: number;
+  key_deliverables?: string[];
   location: string | null;
   delivery_url: string | null;
   description: string | null;
@@ -200,6 +202,7 @@ export type WorkRecordNote = {
   body: string;
   created_at: string;
   updated_at: string;
+  rescheduled_date?: string | null;
 };
 
 export type PipelineTask = {

@@ -1,13 +1,13 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { z } from "zod";
-import { getAdminContext } from "@/lib/data/admin";
+import { getProductionContext } from "@/lib/data/admin";
 import { WEATHER_LOCATION } from "@/lib/calendar-weather";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 
 export async function GET(request: Request) {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return Response.json({ error: "Unauthorized" }, { status: 401, headers });
   const params = new URL(request.url).searchParams;
   const start = z.iso.date().safeParse(params.get("start"));

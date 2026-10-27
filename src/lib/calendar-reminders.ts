@@ -317,10 +317,10 @@ async function processWorkspace(
 
   const { data: subscriptionRows, error: subscriptionError } = await supabase
     .from("website-push-subscriptions")
-    .select("id,endpoint,p256dh,auth_key")
+    .select("id,endpoint,p256dh,auth_key,client_scope_id")
     .eq("workspace_id", settings.workspace_id);
   if (subscriptionError) throw subscriptionError;
-  const subscriptions = (subscriptionRows ?? []) as StoredPushSubscription[];
+  const subscriptions = (subscriptionRows ?? []) as (StoredPushSubscription & { client_scope_id?: string | null })[];
   if (!subscriptions.length) return { candidates: reminders.length, delivered: 0, failed: 0, skippedDuplicates: 0 };
 
   let delivered = 0;
@@ -335,17 +335,19 @@ async function processWorkspace(
       continue;
     }
 
-    const result = await sendPushNotifications(subscriptions, buildCalendarReminderPushMessage(reminder));
+    const recipients = subscriptions.filter((subscription) => !subscription.client_scope_id
+      || (reminder.experience === "autopacific" && notificationExperience(clients.get(subscription.client_scope_id)) === "autopacific"));
+    const result = await sendPushNotifications(recipients, buildCalendarReminderPushMessage(reminder));
     result.expiredIds.forEach((id) => expiredIds.add(id));
     delivered += result.delivered;
-    failed += result.failed + (result.configured ? 0 : subscriptions.length);
+    failed += result.failed + (result.configured ? 0 : recipients.length);
     const deliveryStatus = result.configured && result.delivered > 0 ? "sent" : "failed";
     const { error: updateError } = await supabase
       .from("website-calendar-reminder-deliveries")
       .update({
         status: deliveryStatus,
         delivered_count: result.delivered,
-        failed_count: result.configured ? result.failed : subscriptions.length,
+        failed_count: result.configured ? result.failed : recipients.length,
         error_message: result.configured ? null : "Web Push server credentials are not configured.",
       })
       .eq("id", reservation.id);

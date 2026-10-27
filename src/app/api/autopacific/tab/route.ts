@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getTabletKioskData, getAdminContext } from "@/lib/data/admin";
+import { getTabletKioskData, getProductionContext } from "@/lib/data/admin";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
 import type { PipelineTask, TabletJobRecord } from "@/lib/types";
@@ -27,7 +27,7 @@ function notModified(request: Request, payload: unknown) {
 }
 
 async function getAutopacificClient() {
-  const context = await getAdminContext();
+  const context = await getProductionContext();
   if (!context) return null;
   const { data: client, error } = await context.supabase
     .from("website-clients")
@@ -51,7 +51,7 @@ async function jobsPayload() {
   const [jobsResult, statusesResult, taskStatusesResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("client_id", client.id)
       .is("archived_at", null),
@@ -83,7 +83,7 @@ async function jobsPayload() {
   const { data: recordNotes, error: noteError } = jobIds.length
     ? await context.supabase
       .from("website-work-record-notes")
-      .select("id,job_id,body,created_at,updated_at")
+      .select("id,job_id,body,created_at,updated_at,rescheduled_date")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", "job")
       .in("job_id", jobIds)
@@ -92,12 +92,13 @@ async function jobsPayload() {
   if (noteError) throw noteError;
   const taskStatusById = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
   const jobStatusById = new Map((statusesResult.data ?? []).map((status) => [status.id, status]));
-  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
   for (const note of recordNotes ?? []) {
     if (!note.job_id) continue;
     notesByJobId.set(note.job_id, [...(notesByJobId.get(note.job_id) ?? []), {
       id: note.id,
       body: note.body,
+      rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,
     }]);
@@ -158,7 +159,7 @@ async function tasksPayload() {
   const { data: recordNotes, error: noteError } = taskIds.length
     ? await context.supabase
       .from("website-work-record-notes")
-      .select("id,task_id,body,created_at,updated_at")
+      .select("id,task_id,body,created_at,updated_at,rescheduled_date")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", "task")
       .in("task_id", taskIds)
@@ -166,12 +167,13 @@ async function tasksPayload() {
     : { data: [], error: null };
   if (noteError) throw noteError;
   const jobById = new Map(jobs.map((job) => [job.id, job]));
-  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
   for (const note of recordNotes ?? []) {
     if (!note.task_id) continue;
     notesByTaskId.set(note.task_id, [...(notesByTaskId.get(note.task_id) ?? []), {
       id: note.id,
       body: note.body,
+      rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,
     }]);
@@ -196,6 +198,7 @@ async function tasksPayload() {
 }
 
 async function schedulePayload() {
+  if (!await getProductionContext()) return null;
   const data = scopeTabletKioskDataByClient(
     await getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
     AUTOPACIFIC_CLIENT_NAME,

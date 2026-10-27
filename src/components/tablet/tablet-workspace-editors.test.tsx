@@ -79,6 +79,7 @@ describe("tablet workspace editors", () => {
       delivery_url: "https://example.com/delivery",
       description: "Launch photography and video",
       notes: "Use the loading bay",
+      key_deliverables: ["Launch reel", "5 photographs"],
       delivered_at: null,
       updated_at: "2026-10-15T00:00:00.000Z",
       open_tasks: 3,
@@ -90,6 +91,7 @@ describe("tablet workspace editors", () => {
     await act(async () => root.render(
       <TabletRecordCreateEditor
         clientOptions={[source.client!]}
+        fixedClientId={source.client_id!}
         defaultDate="2026-10-20"
         jobOptions={[]}
         jobStatuses={jobStatuses}
@@ -105,6 +107,9 @@ describe("tablet workspace editors", () => {
     expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(source.title);
     expect(container.querySelector<HTMLInputElement>('input[name="location"]')?.value).toBe(source.location);
     expect(container.querySelector<HTMLInputElement>('input[name="photos_delivered"]')?.value).toBe("0");
+    expect(container.querySelector('select[name="client_id"]')).toBeNull();
+    expect(container.querySelector('input[name="photos_delivered"][type="number"]')).toBeNull();
+    expect(container.querySelector<HTMLTextAreaElement>('textarea[name="key_deliverables"]')?.value).toBe("Launch reel\n5 photographs");
     await act(async () => container.querySelector<HTMLFormElement>("form")!.requestSubmit());
 
     const formData = actionMocks.createJob.mock.calls[0]?.[0];
@@ -112,6 +117,7 @@ describe("tablet workspace editors", () => {
     expect(formData.get("shoot_date")).toBe(source.shoot_date);
     expect(formData.get("delivery_url")).toBe(source.delivery_url);
     expect(formData.get("notes")).toBe(source.notes);
+    expect(formData.get("key_deliverables")).toBe("Launch reel\n5 photographs");
   });
 
   it("opens a duplicate task as a pre-filled new record", async () => {

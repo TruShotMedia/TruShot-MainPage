@@ -11,6 +11,8 @@ async function serveAutopacificNavigation(request) {
     const livePath = new URL(live.url).pathname;
     if (live.ok && (livePath === "/autopacific" || livePath === "/autopacific/mobile")) {
       await cache.put(request, live.clone());
+    } else if (livePath === "/autopacific/login" || live.status === 401 || live.status === 403) {
+      await caches.delete(AUTOPACIFIC_FIELD_CACHE);
     }
     return live;
   } catch {

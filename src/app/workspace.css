@@ -327,3 +327,7 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 }
 @keyframes workspace-dialog-enter { from { opacity: .5; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .workspace-dialog.calendar-editor { animation: none; } }
+.job-deliverables-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; overflow-wrap: anywhere; }
+@media (max-width: 760px), (max-height: 760px) and (pointer: coarse) {
+  .tablet-kiosk-actions > .tablet-signout-button { display: none; }
+}

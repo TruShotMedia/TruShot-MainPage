@@ -2,6 +2,7 @@ import { cache } from "react";
 import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar-reminder-logic";
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
+import { AUTOPACIFIC_PORTAL_KEY } from "@/lib/autopacific-access";
 import { buildDelayInfoByRecord } from "@/lib/delay-history";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
@@ -21,6 +22,22 @@ export const getAdminContext = cache(async () => {
 
   if (!membership) return null;
   return { supabase, claims: claims.claims, membership };
+});
+
+/** Operational access is deliberately separate from full CRM membership. */
+export const getProductionContext = cache(async () => {
+  const admin = await getAdminContext();
+  if (admin) return { ...admin, access: "admin" as const };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) return null;
+  const { data: membership } = await supabase.from("website-portal-users")
+    .select("id,workspace_id,display_name")
+    .eq("user_id", data.claims.sub).eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .eq("portal_key", AUTOPACIFIC_PORTAL_KEY).eq("is_active", true).maybeSingle();
+  if (!membership) return null;
+  // All queries use the caller's session. Client-scoped RLS remains authoritative.
+  return { supabase, claims: data.claims, membership: { ...membership, role: "editor" }, access: "autopacific" as const };
 });
 
 export async function getOverviewData() {
@@ -246,7 +263,7 @@ export async function getPipeline() {
 }
 
 export async function getTabletKioskData(options: { clientName?: string; includeOtherCalendarItems?: boolean } = {}): Promise<TabletKioskData> {
-  const context = await getAdminContext();
+  const context = options.clientName ? await getProductionContext() : await getAdminContext();
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
@@ -264,7 +281,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,due_date,due_time,photos_delivered,key_deliverables,location,delivery_url,description,notes,delivered_at,updated_at")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -314,7 +331,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     supabase
       .from("website-work-record-notes")
-      .select("id,record_kind,job_id,task_id,body,created_at,updated_at")
+      .select("id,record_kind,job_id,task_id,body,created_at,updated_at,rescheduled_date")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("created_at"),
   ]);
@@ -349,8 +366,8 @@ export async function getTabletKioskData(options: { clientName?: string; include
     rescheduled_date: item.rescheduled_due_date,
     created_at: item.created_at,
   })));
-  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
-  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string }>>();
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
   for (const note of workRecordNotesResult.data ?? []) {
     const target = note.record_kind === "job" ? note.job_id : note.task_id;
     if (!target) continue;
@@ -358,6 +375,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
     targetMap.set(target, [...(targetMap.get(target) ?? []), {
       id: note.id,
       body: note.body,
+      rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,
     }]);
