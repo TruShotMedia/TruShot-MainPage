@@ -9,6 +9,7 @@ import { createDeliverableTasks } from "@/app/admin/actions";
 import { campaignProgress, campaignWeekRange, changeCampaignStart, newCampaignId, newCampaignJob, newCampaignWeek, shiftCampaignWeek, type CampaignPlan, type CampaignPlanJob } from "@/lib/production-campaigns";
 import { formatDate, todayDateInput } from "@/lib/format";
 import type { JobStatus } from "@/lib/types";
+import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import "./campaign-workspace.css";
 
 function LinkedTasks({ job, disabled, onCreated, onBusy }: { job: CampaignPlanJob; disabled: boolean; onCreated: () => Promise<void>; onBusy: (pending: boolean) => void }) {
@@ -132,6 +133,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
 
 export function CampaignWorkspace({ statuses, marketing = false, editable = true, refreshKey = 0, onChanged }: { statuses: JobStatus[]; marketing?: boolean; editable?: boolean; refreshKey?: number; onChanged?: () => void }) {
   const [plans, setPlans] = useState<CampaignPlan[]>([]), [loading, setLoading] = useState(true), [error, setError] = useState("");
+  useWorkspaceTabTitle(marketing ? "marketing" : "production", "campaigns", undefined, !loading);
   const [view, setView] = useState("pipeline"), [search, setSearch] = useState("");
   const [editing, setEditing] = useState<CampaignPlan | null>(null), [busy, setBusy] = useState(false), [editorError, setEditorError] = useState("");
   const [editorEpoch, setEditorEpoch] = useState(0);

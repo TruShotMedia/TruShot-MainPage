@@ -55,6 +55,7 @@ describe("Campaign weekly editor", () => {
   it("puts planning campaigns in Planning rather than manually moving the campaign", async () => {
     await act(async () => { root.render(<CampaignWorkspace statuses={statuses} />); await new Promise(resolve => setTimeout(resolve, 20)); });
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    expect(document.title).toBe("Campaigns | AutoPacific Production");
     expect(container.querySelector(".campaign-card")).toBeNull();
     await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.startsWith("Planning"))!.click());
     expect(container.querySelector(".campaign-card h3")?.textContent).toBe(plan.title);
