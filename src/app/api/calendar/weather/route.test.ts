@@ -13,17 +13,19 @@ describe("saved weather endpoint", () => {
   });
   it("rejects malformed and unbounded calendar requests", async () => {
     mocks.context.mockResolvedValue({ membership: { workspace_id: "workspace" }, supabase: { from: mocks.from } });
-    for (const range of ["start=invalid&end=2026-11-01", "start=2026-10-26&end=2028-11-01", "start=2026-11-01&end=2026-10-26"]) expect((await GET(new Request(`https://example.com/api/calendar/weather?${range}`))).status).toBe(400);
+    for (const range of ["start=invalid&end=2026-11-01", "start=2026-10-26&end=2028-11-01", "start=2026-11-01&end=2026-10-26", "start=2026-10-26&end=2026-11-01&location=unknown"]) expect((await GET(new Request(`https://example.com/api/calendar/weather?${range}`))).status).toBe(400);
     expect(mocks.from).not.toHaveBeenCalled();
   });
-  it("scopes reads to the authenticated workspace and only returns saved forecasts", async () => {
+  it.each([["", "brisbane-city", "Brisbane City"], ["&location=melbourne-city", "melbourne-city", "Melbourne"]])("scopes saved forecasts to the authenticated workspace and city (%s)", async (parameter, locationKey, locationName) => {
     const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), gte: vi.fn().mockReturnThis(), lte: vi.fn().mockReturnThis(), order: vi.fn().mockResolvedValue({ data: [], error: null }) };
     mocks.from.mockReturnValue(query);
     mocks.context.mockResolvedValue({ membership: { workspace_id: "workspace" }, supabase: { from: mocks.from } });
-    const result = await GET(new Request("https://example.com/api/calendar/weather?start=2026-10-26&end=2026-11-01"));
+    const result = await GET(new Request(`https://example.com/api/calendar/weather?start=2026-10-26&end=2026-11-01${parameter}`));
     expect(result.status).toBe(200);
     expect(query.eq).toHaveBeenCalledWith("workspace_id", "workspace");
+    expect(query.eq).toHaveBeenCalledWith("location_key", locationKey);
+    expect(result.headers.get("Cache-Control")).toContain("private");
     expect(query.gte).toHaveBeenCalledWith("week_start", "2026-10-20");
-    expect(await result.json()).toEqual({ snapshots: [], location: "Brisbane City" });
+    expect(await result.json()).toEqual({ snapshots: [], location: locationName });
   });
 });

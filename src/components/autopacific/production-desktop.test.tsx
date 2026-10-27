@@ -7,13 +7,14 @@ import { describe,expect,it,vi } from "vitest";
 import { ProductionDesktop } from "./production-desktop";
 import { TabletRecordEditEditor } from "@/components/tablet/tablet-workspace-editors";
 import type { TabletKioskData,TabletJobRecord } from "@/lib/types";
+const weatherMock = vi.hoisted(() => vi.fn(() => ({ days: [], unavailable: false })));
 vi.mock("next/navigation",()=>({useRouter:()=>({refresh:vi.fn()})}));
 // eslint-disable-next-line @next/next/no-img-element -- Native image stub for component/layout tests only.
 vi.mock("next/image",()=>({default:({alt,src,...props}:{alt:string;src:string})=><img alt={alt} src={src} {...props}/> }));
 vi.mock("next/link",()=>({default:({href,children}:{href:string;children:ReactNode})=><a href={href}>{children}</a>}));
 vi.mock("next/dynamic",()=>({default:()=>()=>null}));
 vi.mock("@/components/admin/notion-auto-sync",()=>({NotionAutoSync:()=>null}));
-vi.mock("@/components/shared/calendar-weather",()=>({useCalendarWeather:()=>({days:[],unavailable:false}),CalendarWeatherBadge:()=>null,CalendarWeatherCredit:()=>null,CalendarWeatherDetails:()=>null,WeatherIcon:()=>null}));
+vi.mock("@/components/shared/calendar-weather",()=>({useCalendarWeather:weatherMock,CalendarWeatherBadge:()=>null,CalendarWeatherCredit:()=>null,CalendarWeatherDetails:()=>null,WeatherIcon:()=>null}));
 vi.mock("@/app/admin/actions",()=>({movePipelineTask:vi.fn(),bulkUpdateJobStatus:vi.fn(),createDeliverableTasks:vi.fn(),updateTabletJob:vi.fn(),saveWorkRecordNote:vi.fn()}));
 vi.mock("@/app/autopacific/brief-actions",()=>({loadJobSupportingData:vi.fn(async()=>({attachments:[],linkedTasks:[]})),loadJobBriefHistory:vi.fn(async()=>[]),approveProductionTask:vi.fn()}));
 const statuses=[{id:"plan",key:"planning",label:"Planning",color:"#7c8790",position:1,is_closed:false},{id:"scheduled",key:"scheduled",label:"Scheduled",color:"#5d91b0",position:2,is_closed:false},{id:"production",key:"production",label:"Production",color:"#5d91b0",position:3,is_closed:false},{id:"review",key:"review",label:"Review",color:"#795e93",position:4,is_closed:false},{id:"done",key:"delivered",label:"Delivered",color:"#397253",position:5,is_closed:true}];
@@ -42,6 +43,7 @@ describe("shared desktop workspace",()=>{
   try{
    await act(async()=>root.render(<ProductionDesktop data={data} mode={mode} initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
    expect(container.querySelector('[aria-label="Production calendar"]')).not.toBeNull();
+   expect(weatherMock).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), mode === "marketing" ? "melbourne-city" : "brisbane-city");
    await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("nav button")].find(button=>button.textContent==="Today")!.click());
    expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
    expect(container.querySelector('[aria-label="Production calendar"]')).toBeNull();

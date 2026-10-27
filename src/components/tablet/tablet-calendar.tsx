@@ -18,7 +18,7 @@ import {
 import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus, RotateCcw } from "lucide-react";
 import { AirlineLogo } from "@/components/tablet/airline-logo";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather, WeatherIcon } from "@/components/shared/calendar-weather";
-import type { SavedCalendarWeather } from "@/lib/calendar-weather";
+import type { SavedCalendarWeather, WeatherLocationKey } from "@/lib/calendar-weather";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
 import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
@@ -352,7 +352,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   );
 }
 
-export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string }) {
+export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city" }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [currentMonth, setCurrentMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
   const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -370,7 +370,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const firstCalendarDay = format(calendarWindow.start, "yyyy-MM-dd");
   const lastCalendarDay = format(calendarWindow.end, "yyyy-MM-dd");
-  const weather = useCalendarWeather(firstCalendarDay, lastCalendarDay);
+  const weather = useCalendarWeather(firstCalendarDay, lastCalendarDay, weatherLocationKey);
   const weatherByDay = useMemo(() => new Map(weather.days.map((day) => [day.date, day])), [weather.days]);
   const [selectedWeather, setSelectedWeather] = useState<SavedCalendarWeather | null>(null);
   const activeMobileDate = selectedMobileDate < firstCalendarDay || selectedMobileDate > lastCalendarDay
@@ -603,7 +603,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
           })}
         </div>
       </div>}
-      <CalendarWeatherCredit unavailable={weather.unavailable} />
+      <CalendarWeatherCredit unavailable={weather.unavailable} locationKey={weatherLocationKey} />
       {selectedWeather ? <CalendarWeatherDetails day={selectedWeather} onClose={() => setSelectedWeather(null)} /> : null}
     </section>
   );

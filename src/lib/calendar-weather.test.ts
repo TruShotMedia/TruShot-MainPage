@@ -6,7 +6,32 @@ function forecast(start = "2026-10-25T00:00:00Z", count = 36) {
   return { properties: { meta: { updated_at: "2026-10-24T18:00:00Z" }, timeseries: Array.from({ length: count }, (_, index) => ({ time: new Date(new Date(start).getTime() + index * 6 * 3_600_000).toISOString(), data: { instant: { details: { air_temperature: 20 + index % 4, wind_speed: 5 } }, next_6_hours: { summary: { symbol_code: "partlycloudy_day" } } } })) } };
 }
 
-describe("Brisbane saved calendar weather", () => {
+describe("saved calendar weather", () => {
+  it("uses Melbourne daylight saving without changing Brisbane's dates", () => {
+    const now = new Date("2026-10-24T13:30:00Z");
+    expect(weatherDate(now, "melbourne-city")).toBe("2026-10-25");
+    expect(weatherDate(now, "brisbane-city")).toBe("2026-10-24");
+    expect(weatherCaptureWindow(now, "melbourne-city")).toMatchObject({ weekStart: "2026-10-26", kind: "weekly" });
+    expect(weatherCaptureWindow(now, "brisbane-city")).toMatchObject({ weekStart: "2026-10-19", kind: "initial" });
+    expect(weatherDate(new Date("2026-07-24T13:30:00Z"), "melbourne-city")).toBe("2026-07-24");
+  });
+
+  it("groups Melbourne samples by the local date, including midnight during daylight saving", () => {
+    const snapshot = buildWeatherSnapshot(forecast("2026-10-25T13:00:00Z", 2), new Date("2026-10-25T13:00:00Z"), "melbourne-city");
+    expect(snapshot).toMatchObject({ location_key: "melbourne-city", week_start: "2026-10-26", capture_kind: "initial" });
+    expect(snapshot.days[0]).toMatchObject({ date: "2026-10-26", temperatureMin: 20, temperatureMax: 21 });
+  });
+
+  it("keeps the cities' saved days separate while supporting existing Brisbane snapshots", () => {
+    const now = new Date("2026-10-24T20:17:00Z");
+    const brisbane = buildWeatherSnapshot(forecast(), now);
+    const melbourne = buildWeatherSnapshot(forecast(), now, "melbourne-city");
+    expect(flattenWeatherSnapshots([brisbane, melbourne], "melbourne-city")).toHaveLength(7);
+    expect(flattenWeatherSnapshots([brisbane, melbourne], "melbourne-city")[0].location_key).toBe("melbourne-city");
+    expect(flattenWeatherSnapshots([{ ...brisbane, location_key: undefined }])[0].location_key).toBe("brisbane-city");
+    expect(flattenWeatherSnapshots([{ ...brisbane, location_key: undefined }], "melbourne-city")).toEqual([]);
+  });
+
   it("captures next Monday–Sunday on Brisbane Sunday, not UTC Sunday", () => {
     const now = new Date("2026-10-24T20:17:00Z");
     expect(weatherDate(now)).toBe("2026-10-25");

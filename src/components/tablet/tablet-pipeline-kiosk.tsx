@@ -953,6 +953,7 @@ export function TabletPipelineKiosk({
             today={today}
           /> : <TabletCalendar
             accentColor={branding.calendarAccentColor}
+            weatherLocationKey={isMarketing ? "melbourne-city" : "brisbane-city"}
             accentClientName={branding.calendarAccentClientName}
             accentKeywords={branding.calendarAccentKeywords}
             completedColor={branding.calendarCompletedColor}

@@ -46,6 +46,8 @@ describe("TabletPipelineKiosk", () => {
       await act(async()=>[...container.querySelectorAll<HTMLButtonElement>(".marketing-job-views button")].find(button=>button.textContent==="Planning")!.click());
       expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({editable:true,visibleStatusKeys:["planning"],enableCompletion:false});
       expect(document.title).toBe("Planning | AutoPacific Marketing");
+      await act(async () => [...nav.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Calendar")!.click());
+      expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ weatherLocationKey: "melbourne-city" });
     } finally { vi.unstubAllGlobals(); }
   });
 

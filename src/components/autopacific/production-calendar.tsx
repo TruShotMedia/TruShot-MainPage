@@ -288,6 +288,7 @@ export function ProductionCalendar({
       {mode === "fortnight" ? (
         <TabletCalendar
           currentTime={currentTime}
+          weatherLocationKey={marketing ? "melbourne-city" : "brisbane-city"}
           accentColor="#5d91b0"
           accentClientName="Autopacific Group"
           completedColor="#3f9b68"
