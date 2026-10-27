@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { Bell, BellOff, BellRing, CheckCircle2, LoaderCircle, Send, X } from "lucide-react";
 import { removePushSubscription, savePushSubscription, sendTestPushNotification } from "@/app/admin/notification-actions";
+import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 
 type DeviceState = "checking" | "unsupported" | "ready" | "enabled" | "denied";
 
@@ -19,6 +21,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 export function TabletNotificationControl({ experience = "trushot", experienceName, publicKey }: { experience?: "autopacific" | "trushot"; experienceName: string; publicKey: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dialogHost, setDialogHost] = useState<Element | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deviceState, setDeviceState] = useState<DeviceState>("checking");
   const [isIOS, setIsIOS] = useState(false);
@@ -26,7 +29,6 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"success" | "error">("success");
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,23 +69,6 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
     document.addEventListener("visibilitychange", clearVisibleBadge);
     return () => document.removeEventListener("visibilitychange", clearVisibleBadge);
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const dismiss = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!panelRef.current?.contains(target) && !buttonRef.current?.contains(target)) setIsOpen(false);
-    };
-    const dismissWithEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", dismissWithEscape);
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", dismissWithEscape);
-    };
-  }, [isOpen]);
 
   const installRequired = isIOS && !isStandalone;
   const enabled = deviceState === "enabled";
@@ -173,7 +158,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
         ref={buttonRef}
         type="button"
         className={`tablet-alert-toggle ${enabled ? "is-enabled" : ""}`}
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk") ?? document.body); setIsOpen((open) => !open); }}
         aria-label={`${experienceName} notifications`}
         aria-expanded={isOpen}
         title={enabled ? "Notifications enabled" : "Set up notifications"}
@@ -181,12 +166,11 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
         <Bell size={15} />
         {enabled ? <i aria-hidden="true" /> : null}
       </button>
-      {isOpen ? (
-        <section ref={panelRef} className="tablet-notification-panel" aria-label="Notification settings">
-          <header>
-            <span><BellRing size={16} /> Device notifications</span>
+      {isOpen && dialogHost ? createPortal(
+        <WorkspaceDialog className="tablet-notification-dialog" titleId="tablet-notification-title" onClose={() => setIsOpen(false)} busy={isPending} header={<>
+            <div><span><BellRing size={16} /> Device notifications</span><h2 id="tablet-notification-title">Stay in the loop</h2><p>Choose how this device keeps you updated.</p></div>
             <button type="button" onClick={() => setIsOpen(false)} aria-label="Close notification settings"><X size={15} /></button>
-          </header>
+          </>}>
           <div className="tablet-notification-state">
             {deviceState === "checking" ? <LoaderCircle className="spin" size={17} /> : enabled ? <CheckCircle2 size={17} /> : <Bell size={17} />}
             <div>
@@ -201,7 +185,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
             <button type="button" onClick={sendTest} disabled={isPending || !enabled}><Send size={14} /> Send test</button>
           </div>
           {message ? <p className={`tablet-notification-message is-${messageKind}`} role="status">{message}</p> : null}
-        </section>
+        </WorkspaceDialog>, dialogHost,
       ) : null}
     </>
   );

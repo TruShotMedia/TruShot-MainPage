@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type MouseEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { BedDouble, CalendarDays, CarFront, ChevronDown, Clock3, LoaderCircle, MapPin, Plane, PlaneLanding, PlaneTakeoff, RotateCcw, Save, Ticket, Trash2, X } from "lucide-react";
 import { createFlightPlan, deleteFlightPlan, updateFlightPlan } from "@/app/admin/flight-actions";
 import { AirlineLogo } from "@/components/tablet/airline-logo";
+import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { AIRLINES, findAirline, findClosestAirline } from "@/lib/airlines";
 import type { CalendarFlightEvent } from "@/lib/types";
 
@@ -114,18 +115,6 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
   const [returnArrivalDate, setReturnArrivalDate] = useState(returnLeg?.arrival_date ?? outboundArrivalDate);
   const isExistingPlan = Boolean(event?.travel_plan_id);
 
-  useEffect(() => {
-    function closeOnEscape(keyboardEvent: KeyboardEvent) {
-      if (keyboardEvent.key === "Escape" && !saving && !deleting) onClose();
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [deleting, onClose, saving]);
-
-  function handleBackdropClick(mouseEvent: MouseEvent<HTMLDivElement>) {
-    if (mouseEvent.target === mouseEvent.currentTarget && !saving && !deleting) onClose();
-  }
-
   async function save(submitEvent: FormEvent<HTMLFormElement>) {
     submitEvent.preventDefault();
     setSaving(true);
@@ -173,16 +162,19 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
   }
 
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop flight-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <form className="calendar-editor calendar-event-editor flight-event-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="flight-event-editor-title">
-        <header className="flight-editor-header">
+      <WorkspaceDialog className="calendar-event-editor flight-event-editor" onSubmit={save} busy={saving || deleting} titleId="flight-event-editor-title" onClose={onClose} header={<>
           <div>
             <span><Plane size={13} /> {event ? "Flight itinerary" : "New flight itinerary"}</span>
             <h2 id="flight-event-editor-title">{event ? "Edit your trip" : "Plan your trip"}</h2>
             <p>Map the route first, then add the travel detail that matters.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close flight editor" disabled={saving || deleting}><X size={17} /></button>
-        </header>
+        </>} footer={<>
+          {event ? <button className="calendar-event-delete" type="button" onClick={() => { void remove(); }} disabled={saving || deleting}>{deleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />} Delete</button> : null}
+          <span />
+          <button type="button" onClick={onClose} disabled={saving || deleting}>Cancel</button>
+          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> {event ? "Save itinerary" : "Create itinerary"}</>}</button>
+        </>}>
 
         <div className="flight-editor-scroll">
           {event?.travel_plan_id ? <input type="hidden" name="plan_id" value={event.travel_plan_id} /> : null}
@@ -191,7 +183,7 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
           <input type="hidden" name="return_enabled" value={hasReturn ? "true" : "false"} />
 
           <section className="flight-trip-overview" aria-label="Trip overview">
-            <label className="flight-trip-title"><span>Trip title</span><input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="Sydney campaign shoot" autoFocus /></label>
+            <label className="flight-trip-title"><span>Trip title</span><input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="Sydney campaign shoot" /></label>
             <div className="flight-trip-type" role="group" aria-label="Trip type">
               <span>Journey</span>
               <div>
@@ -232,13 +224,6 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
           {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
         </div>
 
-        <footer>
-          {event ? <button className="calendar-event-delete" type="button" onClick={() => { void remove(); }} disabled={saving || deleting}>{deleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />} Delete</button> : null}
-          <span />
-          <button type="button" onClick={onClose} disabled={saving || deleting}>Cancel</button>
-          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> {event ? "Save itinerary" : "Create itinerary"}</>}</button>
-        </footer>
-      </form>
-    </div>
+      </WorkspaceDialog>
   );
 }

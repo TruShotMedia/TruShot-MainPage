@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { CalendarClock, LoaderCircle, RotateCcw, X } from "lucide-react";
 import { delayJob, delayTask } from "@/app/admin/actions";
+import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 
 type DelayRecordActionProps = {
   kind: "job" | "task";
@@ -24,19 +25,6 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
   const headingId = useId();
   const dateLabel = kind === "job" ? "New shoot date" : "New due date";
   const entityLabel = kind === "job" ? "job" : "task";
-
-  useEffect(() => {
-    if (!open) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const frame = window.requestAnimationFrame(() => {
-      dateInputRef.current?.focus({ preventScroll: true });
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [open]);
 
   function close() {
     if (saving) return;
@@ -75,15 +63,15 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
         {!compact ? "Delay" : null}
       </button>
       {open && typeof document !== "undefined" ? createPortal(
-        <div className="delay-record-layer" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) close();
-        }}>
-          <form className="delay-record-dialog" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby={headingId}>
-            <header>
-              <span><CalendarClock size={15} /> Reschedule</span>
+          <WorkspaceDialog className="delay-record-dialog" backdropClassName="delay-record-layer" onSubmit={submit} busy={saving} titleId={headingId} onClose={close} header={<>
+              <div><span><CalendarClock size={15} /> Reschedule</span><h2 id={headingId}>Delay this {entityLabel}</h2><p>Keep the history. Move the work forward.</p></div>
               <button type="button" onClick={close} aria-label="Close delay dialog" disabled={saving}><X size={18} /></button>
-            </header>
-            <h2 id={headingId}>Delay this {entityLabel}</h2>
+            </>} footer={<>
+              <button type="button" onClick={close} disabled={saving}>Cancel</button>
+              <button className="admin-primary-button" type="submit" disabled={saving}>
+                {saving ? <><LoaderCircle className="spin" size={15} /> Rescheduling…</> : <><RotateCcw size={15} /> Submit delay</>}
+              </button>
+            </>}>
             <p>The current record will be retained as <strong>Delayed</strong>. A linked, ready-to-action successor will be scheduled on the new date.</p>
             <input type="hidden" name="id" value={recordId} />
             <div className="delay-record-fields">
@@ -113,14 +101,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
             </div>
             <aside><RotateCcw size={15} /> Every later delay remains attached to this history chain.</aside>
             {errorMessage ? <p className="delay-record-error" role="alert">{errorMessage}</p> : null}
-            <footer>
-              <button type="button" onClick={close} disabled={saving}>Cancel</button>
-              <button className="admin-primary-button" type="submit" disabled={saving}>
-                {saving ? <><LoaderCircle className="spin" size={15} /> Rescheduling…</> : <><RotateCcw size={15} /> Submit delay</>}
-              </button>
-            </footer>
-          </form>
-        </div>,
+          </WorkspaceDialog>,
         document.body,
       ) : null}
     </>

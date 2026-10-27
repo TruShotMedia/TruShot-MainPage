@@ -8,7 +8,7 @@
 }
 
 .tablet-kiosk.is-dedicated-mobile {
-  --tablet-mobile-bottom-inset: min(env(safe-area-inset-bottom, 0px), 14px);
+  --tablet-mobile-bottom-inset: min(env(safe-area-inset-bottom, 0px), 24px);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -29,36 +29,20 @@
     right: 0;
     bottom: 0;
     left: 0;
-    height: calc(45px + var(--tablet-mobile-bottom-inset));
-    padding: 2px 6px var(--tablet-mobile-bottom-inset);
+    height: calc(60px + var(--tablet-mobile-bottom-inset));
+    padding: 5px 8px var(--tablet-mobile-bottom-inset);
   }
 
   .tablet-kiosk.is-dedicated-mobile .tablet-kiosk-main {
     min-height: 0;
-    padding-bottom: calc(52px + var(--tablet-mobile-bottom-inset));
+    padding-bottom: calc(68px + var(--tablet-mobile-bottom-inset));
   }
 
   .tablet-kiosk.is-dedicated-mobile .tablet-create-dock {
-    bottom: calc(57px + var(--tablet-mobile-bottom-inset));
+    bottom: calc(76px + var(--tablet-mobile-bottom-inset));
   }
 
   .tablet-kiosk.is-dedicated-mobile .tablet-create-options {
-    bottom: calc(122px + var(--tablet-mobile-bottom-inset));
-  }
-
-  .tablet-kiosk.is-dedicated-mobile .tablet-editor-backdrop,
-  .tablet-kiosk.is-dedicated-mobile > .calendar-editor-backdrop {
-    width: 100vw;
-    height: 100dvh;
-    overflow: hidden;
-    inset: 0;
-  }
-
-  .tablet-kiosk.is-dedicated-mobile .calendar-editor,
-  .tablet-kiosk.is-dedicated-mobile .flight-event-editor {
-    width: calc(100vw - 12px);
-    max-width: calc(100vw - 12px);
-    max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)));
-    overscroll-behavior: contain;
+    bottom: calc(140px + var(--tablet-mobile-bottom-inset));
   }
 }

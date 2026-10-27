@@ -17,6 +17,8 @@ import {
 } from "date-fns";
 import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus, RotateCcw } from "lucide-react";
 import { AirlineLogo } from "@/components/tablet/airline-logo";
+import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather, WeatherIcon } from "@/components/shared/calendar-weather";
+import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
 import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
@@ -347,6 +349,9 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
   const firstCalendarDay = format(calendarWindow.start, "yyyy-MM-dd");
   const lastCalendarDay = format(calendarWindow.end, "yyyy-MM-dd");
+  const weather = useCalendarWeather(firstCalendarDay, lastCalendarDay);
+  const weatherByDay = useMemo(() => new Map(weather.days.map((day) => [day.date, day])), [weather.days]);
+  const [selectedWeather, setSelectedWeather] = useState<SavedCalendarWeather | null>(null);
   const activeMobileDate = selectedMobileDate < firstCalendarDay || selectedMobileDate > lastCalendarDay
     ? firstCalendarDay
     : selectedMobileDate;
@@ -491,7 +496,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
               const count = mobileDayCounts.get(dateKey) ?? 0;
               return (
                 <button type="button" role="tab" aria-selected={activeMobileDate === dateKey} className={`${activeMobileDate === dateKey ? "is-selected" : ""} ${dateKey === today ? "is-today" : ""}`} onClick={() => setSelectedMobileDate(dateKey)} key={dateKey}>
-                  <span>{format(day, "EEE")}</span><strong>{format(day, "d")}</strong>{count ? <i aria-label={`${count} scheduled items`}>{count}</i> : <i aria-hidden="true" />}
+                  <span>{format(day, "EEE")}</span><strong>{format(day, "d")}</strong>{weatherByDay.has(dateKey) ? <span className={`calendar-week-weather weather-${weatherByDay.get(dateKey)!.condition}`}><WeatherIcon condition={weatherByDay.get(dateKey)!.condition} size={14} /></span> : null}{count ? <i aria-label={`${count} scheduled items`}>{count}</i> : <i aria-hidden="true" />}
                 </button>
               );
             })}
@@ -499,6 +504,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
           <section className="tablet-calendar-mobile-agenda" aria-label={`Schedule for ${format(parseISO(activeMobileDate), "d MMMM yyyy")}`}>
             <header>
               <div><span>{activeMobileDate === today ? "Today" : format(parseISO(activeMobileDate), "EEEE")}</span><h2>{format(parseISO(activeMobileDate), "d MMMM yyyy")}</h2></div>
+              <CalendarWeatherBadge day={weatherByDay.get(activeMobileDate)} onOpen={setSelectedWeather} />
               {editable ? <button type="button" onClick={() => onCreateEvent?.(activeMobileDate)} aria-label={`Add event on ${format(parseISO(activeMobileDate), "d MMMM yyyy")}`}><Plus size={16} /> Add</button> : null}
             </header>
             <div className="tablet-calendar-mobile-list">
@@ -535,6 +541,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                     return (
                       <div className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
                         <time dateTime={dateKey}>{format(day, "d")}</time>
+                        <CalendarWeatherBadge day={weatherByDay.get(dateKey)} onOpen={setSelectedWeather} />
                         {editable ? <button type="button" className="tablet-calendar-day-add" onClick={() => onCreateEvent?.(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`} title="Add event"><Plus size={11} /></button> : null}
                         <div className="tablet-calendar-day-events">
                           {dayEvents.slice(0, displayedEventLimit).map((event) => (
@@ -571,6 +578,8 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
           })}
         </div>
       </div>}
+      <CalendarWeatherCredit unavailable={weather.unavailable} />
+      {selectedWeather ? <CalendarWeatherDetails day={selectedWeather} onClose={() => setSelectedWeather(null)} /> : null}
     </section>
   );
 }

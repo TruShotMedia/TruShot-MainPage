@@ -19,6 +19,8 @@ import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, Chevro
 import { updateCalendarItem } from "@/app/admin/actions";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
+import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
+import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarItem, CalendarJob, CalendarTask, SelectOption } from "@/lib/types";
 
@@ -196,6 +198,9 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
   }), [currentMonth]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
+  const weather = useCalendarWeather(format(calendarDays[0], "yyyy-MM-dd"), format(calendarDays[calendarDays.length - 1], "yyyy-MM-dd"));
+  const weatherByDay = useMemo(() => new Map(weather.days.map((day) => [day.date, day])), [weather.days]);
+  const [selectedWeather, setSelectedWeather] = useState<SavedCalendarWeather | null>(null);
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarDisplayEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
@@ -359,7 +364,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
                     const dayEvents = eventsByDay.get(dateKey) ?? [];
                     return (
                       <div className={`calendar-day ${!isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
-                        <div className="calendar-day-heading"><time dateTime={dateKey}>{format(day, "d")}</time><button type="button" onClick={() => openNewEvent(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`}>+</button></div>
+                        <div className="calendar-day-heading"><time dateTime={dateKey}>{format(day, "d")}</time><CalendarWeatherBadge day={weatherByDay.get(dateKey)} onOpen={setSelectedWeather} /><button type="button" onClick={() => openNewEvent(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`}>+</button></div>
                         <div>{dayEvents.slice(0, 4).map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}</div>
                         {dayEvents.length > 4 && <small>+{dayEvents.length - 4} more</small>}
                       </div>
@@ -377,9 +382,10 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
               const dayEvents = eventsByDay.get(dateKey) ?? [];
               const dayRanges = mobileRangesByDay.get(dateKey) ?? [];
               if (!isSameMonth(day, currentMonth) || (!dayEvents.length && !dayRanges.length)) return null;
-              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span></time><div>{dayRanges.map((range) => <MobileJobRangeButton range={range} onOpen={openRangeItem} key={range.id} />)}{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}<button className="calendar-mobile-add-event" type="button" onClick={() => openNewEvent(dateKey)}><CalendarPlus2 size={13} /> Add event</button></div></section>;
+              return <section key={dateKey}><time dateTime={dateKey}><strong>{format(day, "d")}</strong><span>{format(day, "EEE")}</span><CalendarWeatherBadge day={weatherByDay.get(dateKey)} onOpen={setSelectedWeather} /></time><div>{dayRanges.map((range) => <MobileJobRangeButton range={range} onOpen={openRangeItem} key={range.id} />)}{dayEvents.map((event) => <CalendarEventButton event={event} onOpen={setSelectedItem} key={event.id} />)}<button className="calendar-mobile-add-event" type="button" onClick={() => openNewEvent(dateKey)}><CalendarPlus2 size={13} /> Add event</button></div></section>;
             }) : <p>No dated work matches these filters this month.</p>}
           </div>
+          <CalendarWeatherCredit unavailable={weather.unavailable} />
         </section>
 
         <aside className="calendar-sidebar">
@@ -441,6 +447,7 @@ export function CalendarManager({ jobs, tasks, campaignAssets = [], clients = []
         </div>
       ) : null}
       {eventEditorDate ? <CalendarEventEditor clientOptions={clients} key={selectedCustomEvent?.id ?? `new-${eventEditorDate}`} event={selectedCustomEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleEventDeleted} onSaved={handleEventSaved} /> : null}
+      {selectedWeather ? <CalendarWeatherDetails day={selectedWeather} onClose={() => setSelectedWeather(null)} /> : null}
     </>
   );
 }

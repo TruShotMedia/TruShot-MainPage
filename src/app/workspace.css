@@ -1,0 +1,319 @@
+/* Shared workspace surfaces. Keep sizing, scroll ownership and theme in one place. */
+:root {
+  --workspace-surface: #fff;
+  --workspace-panel: #f4f7f8;
+  --workspace-field: #fff;
+  --workspace-line: #cddbe0;
+  --workspace-text: #192d37;
+  --workspace-muted: #526b77;
+  --workspace-accent: #246e4d;
+  --workspace-accent-soft: #e9f4ed;
+  --workspace-danger: #ad3d36;
+  --workspace-danger-soft: #fff0ed;
+  --workspace-scheme: light;
+}
+.tablet-kiosk, html.tablet-kiosk-active[data-tablet-color-mode="dark"] {
+  --workspace-surface: #0e1a20;
+  --workspace-panel: #13232b;
+  --workspace-field: #182b34;
+  --workspace-line: #344e5c;
+  --workspace-text: #f0f6f8;
+  --workspace-muted: #a2b6c1;
+  --workspace-accent: #67c795;
+  --workspace-accent-soft: #163b2a;
+  --workspace-danger: #ffa89d;
+  --workspace-danger-soft: #3c2224;
+  --workspace-scheme: dark;
+}
+.tablet-kiosk.theme-autopacific { --workspace-accent: #98cbe4; --workspace-accent-soft: #1c3b4c; }
+.tablet-kiosk.is-light, html.tablet-kiosk-active[data-tablet-color-mode="light"] {
+  --workspace-surface: #fff;
+  --workspace-panel: #f1f6f8;
+  --workspace-field: #fff;
+  --workspace-line: #c8d8df;
+  --workspace-text: #172e3a;
+  --workspace-muted: #4c6572;
+  --workspace-accent: #246b91;
+  --workspace-accent-soft: #e6f1f8;
+  --workspace-danger: #a3322b;
+  --workspace-danger-soft: #fff0ed;
+  --workspace-scheme: light;
+}
+.tablet-kiosk.is-light:not(.theme-autopacific) { --workspace-accent: #246e4d; --workspace-accent-soft: #e9f4ed; }
+.tablet-kiosk-viewport.is-dedicated-mobile.is-light { background: #eef4f7; color-scheme: light; }
+
+.workspace-dialog-backdrop, .tablet-kiosk .workspace-dialog-backdrop {
+  position: fixed;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  inset: 0;
+  padding: 24px;
+  background: rgba(3, 13, 20, .66);
+  backdrop-filter: none;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+.tablet-kiosk .workspace-dialog-backdrop { position: absolute; }
+body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop { position: fixed; height: 100dvh; z-index: 500; }
+.workspace-dialog.calendar-editor, .tablet-kiosk .workspace-dialog.calendar-editor {
+  display: flex;
+  width: min(760px, 100%);
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--workspace-line);
+  border-radius: 22px;
+  background: var(--workspace-surface);
+  padding: 0;
+  color: var(--workspace-text);
+  color-scheme: var(--workspace-scheme);
+  outline: 0;
+  box-shadow: 0 26px 100px rgba(0, 15, 24, .3);
+  touch-action: pan-y;
+  animation: workspace-dialog-enter 180ms cubic-bezier(.2,.8,.3,1);
+}
+.workspace-dialog *, .workspace-dialog *::before, .workspace-dialog *::after { box-sizing: border-box; }
+.workspace-dialog :where(div, section, aside, fieldset, label, details) { min-width: 0; max-width: 100%; }
+.workspace-dialog fieldset { min-inline-size: 0; margin-inline: 0; }
+.workspace-dialog.calendar-editor > .workspace-dialog-header, .tablet-kiosk .workspace-dialog.calendar-editor > .workspace-dialog-header {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  background: var(--workspace-surface);
+  padding: 24px 26px 20px;
+}
+.workspace-dialog-header > div { min-width: 0; }
+.workspace-dialog.calendar-editor > header span, .tablet-kiosk .workspace-dialog.calendar-editor > header span { display: flex; align-items: center; gap: 7px; color: var(--workspace-accent); font-size: 10px; font-weight: 800; letter-spacing: .1em; line-height: 1.4; text-transform: uppercase; }
+.workspace-dialog.calendar-editor > header h2, .tablet-kiosk .workspace-dialog.calendar-editor > header h2 { margin: 8px 0 0; color: var(--workspace-text); font-size: clamp(22px, 2.5vw, 30px); letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }
+.workspace-dialog.calendar-editor > header p, .tablet-kiosk .workspace-dialog.calendar-editor > header p { margin: 8px 0 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.5; }
+.workspace-dialog.calendar-editor > header > button, .tablet-kiosk .workspace-dialog.calendar-editor > header > button { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 1px solid var(--workspace-line); border-radius: 12px; background: var(--workspace-panel); color: var(--workspace-muted); cursor: pointer; }
+.workspace-dialog > .workspace-dialog-body, .tablet-kiosk .workspace-dialog > .workspace-dialog-body { min-width: 0; min-height: 0; flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 24px 26px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.workspace-dialog.calendar-editor > .workspace-dialog-footer, .tablet-kiosk .workspace-dialog.calendar-editor > .workspace-dialog-footer { position: relative; display: flex; min-width: 0; min-height: 76px; flex: 0 0 auto; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin: 0; border-top: 1px solid var(--workspace-line); background: var(--workspace-surface); padding: 15px 26px; }
+.workspace-dialog-footer > span { flex: 1; }
+.workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a), .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a) { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--workspace-line); border-radius: 12px; background: var(--workspace-panel); padding: 0 16px; color: var(--workspace-text); font: inherit; font-size: 13px; font-weight: 750; line-height: 1.2; cursor: pointer; }
+.tablet-kiosk .workspace-dialog.calendar-event-editor > .workspace-dialog-footer > button:not(.admin-primary-button):not(.calendar-event-delete) { border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-text); }
+.workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button, .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > .admin-primary-button { border-color: #2e6e94; background: #2e6e94; color: #fff; }
+.workspace-dialog.calendar-editor .workspace-dialog-footer > :is(.tablet-delete-record, .calendar-event-delete), .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(.tablet-delete-record, .calendar-event-delete) { border-color: transparent; background: var(--workspace-danger-soft); color: var(--workspace-danger); }
+.workspace-dialog :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 3px; }
+.workspace-dialog button:disabled { cursor: wait; opacity: .55; }
+.workspace-dialog :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), .tablet-kiosk .workspace-dialog :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 46px; margin: 0; border: 1px solid var(--workspace-line); border-radius: 11px; background: var(--workspace-field); padding: 10px 12px; color: var(--workspace-text); font: inherit; font-size: 14px; font-weight: 500; letter-spacing: normal; line-height: 1.4; text-transform: none; }
+.workspace-dialog :is(input, textarea)::placeholder { color: var(--workspace-muted); opacity: .75; }
+.workspace-dialog input:disabled, .tablet-kiosk .workspace-dialog input:disabled { background: var(--workspace-panel); color: var(--workspace-muted); opacity: 1; }
+.workspace-dialog :is(input[type="date"], input[type="time"]) { appearance: none; -webkit-appearance: none; min-inline-size: 0; }
+.workspace-dialog input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.workspace-dialog select, .tablet-kiosk .workspace-dialog select { appearance: none; -webkit-appearance: none; }
+.workspace-dialog select:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([name$="_airline_code"]), .tablet-kiosk .workspace-dialog select:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([name$="_airline_code"]) { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%23768f9d' stroke-width='1.7' viewBox='0 0 24 24'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 18px; background-position: right 12px center; padding-right: 38px !important; }
+.workspace-dialog input:is([type="checkbox"], [type="radio"]), .tablet-kiosk .workspace-dialog input:is([type="checkbox"], [type="radio"]) { width: 20px; min-width: 20px; max-width: 20px; height: 20px; min-height: 20px; margin: 0; padding: 0; }
+.workspace-dialog textarea { resize: vertical; min-height: 96px; }
+.workspace-dialog :is(input[type="checkbox"], input[type="radio"]) { flex: 0 0 auto; accent-color: var(--workspace-accent); }
+.workspace-dialog .tablet-record-editor-fields, .workspace-dialog .calendar-event-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0; }
+.workspace-dialog .tablet-record-editor-fields > label, .workspace-dialog .tablet-record-editor-fields .job-search-field > label, .tablet-kiosk .workspace-dialog .calendar-event-editor-fields label { gap: 8px; color: var(--workspace-muted); font-size: 11px; font-weight: 750; letter-spacing: .02em; text-transform: none; }
+.workspace-dialog .tablet-record-editor-fields label small, .workspace-dialog .job-search-deadline { color: var(--workspace-muted); font-size: 11px; line-height: 1.5; }
+.workspace-form-section { grid-column: 1 / -1; border-top: 1px solid var(--workspace-line); padding-top: 20px; }
+.workspace-form-section:first-child { border: 0; padding-top: 0; }
+.workspace-form-section strong { color: var(--workspace-text); font-size: 15px; }
+.workspace-form-section p { margin: 4px 0 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.5; }
+.workspace-dialog .invoice-search-control, .tablet-kiosk .workspace-dialog .invoice-search-control { min-width: 0; border-color: var(--workspace-line); background: var(--workspace-field); }
+.workspace-dialog .invoice-search-control input, .tablet-kiosk .workspace-dialog .invoice-search-control input { border: 0 !important; background: transparent !important; }
+.workspace-dialog .invoice-search-results, .tablet-kiosk .workspace-dialog .invoice-search-results { border-color: var(--workspace-line); background: var(--workspace-surface); }
+.workspace-dialog .invoice-search-results button, .tablet-kiosk .workspace-dialog .invoice-search-results button { border-color: var(--workspace-line); color: var(--workspace-text); }
+.workspace-dialog .invoice-search-results small { color: var(--workspace-muted); }
+.workspace-dialog.tablet-record-editor.is-edit-editor { width: min(1380px, 100%); height: min(900px, 100%); }
+.workspace-dialog.is-edit-editor > .workspace-dialog-body, .tablet-kiosk .workspace-dialog.is-edit-editor > .workspace-dialog-body { display: flex; overflow: hidden; padding: 0; }
+.workspace-dialog .tablet-record-editor-layout { width: 100%; min-width: 0; min-height: 0; grid-template-columns: minmax(0, 2fr) minmax(290px, 1fr); border-top: 0; }
+.workspace-dialog .tablet-record-editor-details { padding: 26px; }
+.workspace-dialog .tablet-record-notes { min-width: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog .tablet-record-notes :is(header, .tablet-record-note-compose) { border-color: var(--workspace-line); }
+.workspace-dialog .tablet-record-notes :is(p, small), .workspace-dialog .tablet-record-notes-empty { color: var(--workspace-muted); }
+.workspace-dialog .tablet-record-notes > header span, .workspace-dialog .tablet-record-notes-empty strong { color: var(--workspace-text); }
+.workspace-dialog .tablet-record-notes > header span { font-size: 12px; }
+.workspace-dialog .tablet-record-notes > header p, .workspace-dialog .tablet-record-notes-empty span, .workspace-dialog .tablet-record-note header small { font-size: 11px; }
+.workspace-dialog .tablet-record-note { border-color: var(--workspace-line); background: var(--workspace-surface); }
+.workspace-dialog .tablet-record-note > p { color: var(--workspace-text); font-size: 13px; line-height: 1.6; }
+.workspace-dialog .tablet-record-note-compose button { border-color: var(--workspace-line); background: var(--workspace-accent-soft); color: var(--workspace-accent); font-size: 12px; }
+.workspace-dialog .tablet-record-note-compose { flex-direction: column; }
+.workspace-dialog .tablet-job-detail-summary { margin: 0 0 20px; }
+.workspace-dialog .tablet-job-detail-list { margin: 0; }
+.workspace-dialog .tablet-job-detail-summary article, .workspace-dialog .tablet-job-detail-list > div { min-width: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog .tablet-job-detail-summary strong, .workspace-dialog .tablet-job-detail-list dd { color: var(--workspace-text); overflow-wrap: anywhere; }
+.workspace-dialog .tablet-job-detail-summary strong { font-size: 20px; }
+.workspace-dialog .tablet-job-detail-summary small, .workspace-dialog .tablet-job-detail-list dd { font-size: 13px; line-height: 1.6; }
+.workspace-dialog .tablet-job-detail-summary span, .workspace-dialog .tablet-job-detail-list dt { font-size: 11px; }
+.workspace-dialog .tablet-job-detail-summary :is(span, small), .workspace-dialog .tablet-job-detail-list dt { color: var(--workspace-muted); }
+.workspace-dialog .calendar-event-time-panel, .workspace-dialog .calendar-event-colors, .workspace-dialog .calendar-event-reminders { min-width: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog .calendar-event-time-panel { margin-block: 24px; }
+.workspace-dialog .calendar-event-all-day, .tablet-kiosk .workspace-dialog .calendar-event-all-day { display: flex; align-items: center; flex-direction: row; justify-content: space-between; gap: 16px; }
+.workspace-dialog .calendar-event-all-day > span { min-width: 0; flex: 1 1 auto; }
+.workspace-dialog .calendar-event-all-day > span :is(strong, small) { display: block; }
+.workspace-dialog .calendar-event-time-panel > div { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.workspace-dialog :is(.calendar-event-time-panel, .calendar-event-reminders, .calendar-event-colors) :is(label, legend, strong, small), .tablet-kiosk .workspace-dialog :is(.calendar-event-time-panel, .calendar-event-reminders, .calendar-event-colors) :is(label, legend, strong, small) { color: var(--workspace-muted); font-size: 12px; }
+.workspace-dialog .calendar-event-reminders > div { grid-template-columns: 1fr; }
+.workspace-dialog .calendar-event-reminders > div > label { min-height: 44px; border-color: var(--workspace-line); background: var(--workspace-field); }
+.workspace-dialog .calendar-event-options-grid { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 16px; }
+.workspace-dialog .calendar-event-editor-fields textarea { min-height: 90px; }
+.workspace-dialog .calendar-editor-error { margin: 18px 0 0; color: var(--workspace-danger); border-color: var(--workspace-danger); background: var(--workspace-danger-soft); font-size: 12px; line-height: 1.5; }
+.workspace-dialog.flight-event-editor { width: min(980px, 100%); }
+.workspace-dialog .flight-editor-scroll { overflow: visible; padding: 0; }
+.workspace-dialog .flight-trip-overview { padding: 0 0 24px; }
+.workspace-dialog .flight-time-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.workspace-dialog .flight-trip-type > div, .tablet-kiosk .workspace-dialog .flight-trip-type > div { border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog .flight-trip-type button { min-height: 42px; color: var(--workspace-muted); font-size: 12px; }
+.workspace-dialog .flight-trip-type button.is-active, .tablet-kiosk .workspace-dialog .flight-trip-type button.is-active { background: #2e6e94; color: #fff; }
+.workspace-dialog .flight-leg-card, .tablet-kiosk .workspace-dialog .flight-leg-card { border-color: var(--workspace-line); background: var(--workspace-panel); padding: 20px; }
+.workspace-dialog .flight-support-grid fieldset, .tablet-kiosk .workspace-dialog .flight-support-grid fieldset { min-width: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog :is(.flight-leg-card, .flight-trip-overview, .flight-support-grid, .flight-arrangements) :is(label, legend, summary), .tablet-kiosk .workspace-dialog :is(.flight-leg-card, .flight-trip-overview, .flight-support-grid, .flight-arrangements) :is(label, legend, summary) { color: var(--workspace-muted); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.workspace-dialog :is(.flight-leg-card, .flight-trip-overview, .flight-support-grid) label > span { color: var(--workspace-muted); font-size: 11px; }
+.workspace-dialog :is(.flight-leg-details, .flight-arrangements) summary { min-height: 44px; }
+.workspace-dialog .flight-airline-select-wrap, .tablet-kiosk .workspace-dialog .flight-airline-select-wrap { border-color: var(--workspace-line); background: var(--workspace-field); }
+.workspace-dialog .flight-airline-select-wrap select, .tablet-kiosk .workspace-dialog .flight-airline-select-wrap select { min-height: 36px; border: 0; background: transparent; padding: 4px 0; }
+.workspace-dialog .flight-trip-notes textarea { min-height: 78px; }
+.workspace-dialog .flight-plan-legs-heading > span { color: var(--workspace-accent); font-size: 12px; }
+.workspace-dialog .flight-plan-legs-heading small, .workspace-dialog .flight-leg-details summary small, .workspace-dialog .flight-arrangements summary small { color: var(--workspace-muted); font-size: 11px; }
+.workspace-dialog.delay-record-dialog, .tablet-kiosk .workspace-dialog.delay-record-dialog { width: min(540px, 100%); }
+.workspace-dialog.delay-record-dialog .workspace-dialog-body > p, .workspace-dialog.delay-record-dialog .workspace-dialog-body > aside { color: var(--workspace-muted); font-size: 13px; line-height: 1.6; }
+.workspace-dialog.delay-record-dialog label { color: var(--workspace-muted); font-size: 12px; }
+.workspace-dialog.delay-record-dialog .delay-record-date-control { min-width: 0; border: 0; }
+.workspace-dialog.delay-record-dialog .delay-record-date-control button { border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-accent); }
+.workspace-dialog.tablet-notification-dialog { width: min(500px, 100%); }
+.workspace-dialog .tablet-notification-state { padding: 0 0 20px; }
+.workspace-dialog .tablet-notification-state strong { color: var(--workspace-text); font-size: 16px; }
+.workspace-dialog .tablet-notification-state p, .workspace-dialog .tablet-notification-guidance { color: var(--workspace-muted); font-size: 13px; line-height: 1.6; }
+.workspace-dialog .tablet-notification-guidance { margin-inline: 0; border-color: var(--workspace-line); background: var(--workspace-panel); }
+.workspace-dialog .tablet-notification-actions { flex-wrap: wrap; padding: 0; }
+.workspace-dialog .tablet-notification-actions button { min-height: 44px; flex: 1; border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-text); font-size: 13px; }
+.workspace-dialog .tablet-notification-actions button.is-primary { background: #2e6e94; color: white; }
+.workspace-dialog .tablet-notification-message { margin: 18px 0 0; font-size: 13px; }
+
+/* True light surfaces for Calendar, Today, overlays and smaller controls. */
+.tablet-kiosk.is-light { background: #eef4f7; color: var(--workspace-text); }
+.tablet-kiosk.is-light :is(.tablet-calendar, .tablet-today-hero, .tablet-today-section) { border-color: var(--workspace-line); background: var(--workspace-surface); box-shadow: 0 4px 20px rgba(28,61,80,.06); }
+.tablet-kiosk.is-light :is(.tablet-calendar-toolbar, .tablet-calendar-weekdays, .tablet-calendar-week, .tablet-calendar-day, .tablet-calendar-mobile-week, .tablet-today-section > header) { border-color: var(--workspace-line); background: var(--workspace-surface); }
+.tablet-kiosk.is-light .tablet-calendar-weekdays span { border-color: var(--workspace-line); }
+.tablet-kiosk.is-light .tablet-calendar-day.is-outside { background: var(--workspace-panel); opacity: .7; }
+.tablet-kiosk.is-light .tablet-calendar-day.is-today { background: var(--workspace-accent-soft); }
+.tablet-kiosk.is-light :is(.tablet-calendar-month-controls h1, .tablet-calendar-day > time, .tablet-calendar-mobile-agenda h2, .tablet-today-hero h1, .tablet-today-section h2, .tablet-today-stats strong, .tablet-today-entry-copy strong, .tablet-today-entry-side time) { color: var(--workspace-text); }
+.tablet-kiosk.is-light :is(.tablet-calendar-weekdays span, .tablet-calendar-legend span, .tablet-calendar-mobile-entry-copy em, .tablet-today-hero p, .tablet-today-stats span, .tablet-today-section > header small, .tablet-today-entry-copy small, .tablet-today-entry-copy em, .tablet-today-empty) { color: var(--workspace-muted); }
+.tablet-kiosk.is-light .tablet-calendar-month-controls button, .tablet-kiosk.is-light .tablet-calendar-mobile-agenda > header button { border-color: var(--workspace-line); background: var(--workspace-panel); color: var(--workspace-accent); }
+.tablet-kiosk.is-light .tablet-calendar-event { border-color: var(--workspace-line); background: color-mix(in srgb, var(--tablet-calendar-color) 9%, white); color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-calendar-event strong { color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-calendar-event span { color: var(--workspace-muted); }
+.tablet-kiosk.is-light .tablet-calendar-job-range.is-calendar-event, .tablet-kiosk.is-light .tablet-calendar-job-range.is-calendar-event.is-complete { border-color: color-mix(in srgb, var(--tablet-calendar-color) 45%, #cbd7dc); background: color-mix(in srgb, var(--tablet-calendar-color) 12%, white); color: #203c4b; }
+.tablet-kiosk.is-light .tablet-calendar-flight-range { border-color: color-mix(in srgb, var(--tablet-calendar-color) 45%, #cbd7dc); background: linear-gradient(110deg, #e2eff7, #f1f7fb); color: #173a50; }
+.tablet-kiosk.is-light .tablet-calendar-flight-range :is(strong, time, span, em) { color: #244c63; }
+.tablet-kiosk.is-light .tablet-calendar-flight-range.is-complete { background: #e6f5eb; border-color: #99c6a6; }
+.tablet-kiosk.is-light .tablet-calendar-mobile-week button { background: var(--workspace-panel); color: var(--workspace-muted); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-week button strong { color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-week button.is-selected { border-color: var(--workspace-accent); background: var(--workspace-accent-soft); color: var(--workspace-accent); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-week button.is-selected strong { color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-calendar-mobile-week button i { background: #d7e5ec; color: #315368; }
+.tablet-kiosk.is-light .tablet-today-stats article, .tablet-kiosk.is-light .tablet-today-entry { border-color: var(--workspace-line); background: var(--workspace-panel); }
+.tablet-kiosk.is-light .tablet-today-entry.tone-accent { background: linear-gradient(105deg, #e5f1f8, #f8fbfd); }
+.tablet-kiosk.is-light .tablet-today-entry.tone-urgent { --tablet-today-entry-color: #b9433a; background: linear-gradient(105deg, #fff0ed, #fffafa); }
+.tablet-kiosk.is-light .tablet-today-entry.tone-muted { opacity: 1; background: #f4f6f7; }
+.tablet-kiosk.is-light .tablet-today-entry-icon { background: #e0eaf0; }
+.tablet-kiosk.is-light .tablet-today-stats article.has-alert { border-color: #e6b5ae; background: #fff1ee; }
+.tablet-kiosk.is-light .tablet-today-stats article.has-alert :is(span, strong) { color: #a3322b; }
+.tablet-kiosk.is-light .tablet-today-section > header b { background: #e6eef2; color: #3e5a69; }
+.tablet-kiosk.is-light .tablet-today-empty { border-color: var(--workspace-line); }
+.tablet-kiosk.is-light :is(.tablet-create-options button, .tablet-mobile-actions-sheet) { border-color: var(--workspace-line); background: var(--workspace-surface); color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-mobile-view-heading :is(h1, small) { color: var(--workspace-text); }
+.tablet-kiosk.is-light .tablet-kiosk-tabs-mobile { border-color: var(--workspace-line); background: #f8fbfd; }
+.tablet-kiosk.is-light .tablet-kiosk-tabs-mobile button { color: #4e6876; }
+.tablet-kiosk.is-light.theme-autopacific .tablet-kiosk-tabs-mobile button.is-active { background: #dcecf6; color: #1f6087; }
+.tablet-kiosk.is-light .task-meta, .tablet-kiosk.is-light .tablet-job-card-operational summary { color: var(--workspace-muted); }
+
+/* Brisbane daily forecast; tiny in the grid, touchable detail on mobile. */
+.calendar-weather-badge { display: inline-flex; min-width: 0; min-height: 24px; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 7px; background: transparent; padding: 2px 4px; color: var(--workspace-muted); font-size: 10px; font-weight: 750; cursor: pointer; }
+.calendar-weather-badge:hover { background: var(--workspace-accent-soft); }
+.calendar-weather-badge.weather-sun, .calendar-weather-badge.weather-partly-cloudy { color: #cf9d35; }
+.calendar-weather-badge.weather-rain, .calendar-weather-badge.weather-storm { color: #70a9cf; }
+.tablet-calendar-day > .calendar-weather-badge { position: absolute; z-index: 5; top: 2px; left: 26px; min-height: 20px; padding: 0 2px; font-size: 8px; }
+.tablet-calendar-day > .calendar-weather-badge svg { width: 12px; height: 12px; }
+.calendar-day-heading > .calendar-weather-badge { margin-right: auto; }
+.calendar-day-heading > .calendar-weather-badge svg { width: 14px; height: 14px; }
+.calendar-weather-credit { display: flex; min-width: 0; flex: 0 0 auto; align-items: center; flex-wrap: wrap; gap: 5px 8px; margin: 0; border-top: 1px solid var(--workspace-line); padding: 7px 12px; color: var(--workspace-muted); font-size: 9px; line-height: 1.4; }
+.calendar-weather-credit a { margin-left: auto; text-decoration: underline; text-underline-offset: 2px; }
+.calendar-week-weather { display: grid; height: 14px; place-items: center; color: #a2c3d6; }
+.tablet-calendar-mobile-agenda > header > .calendar-weather-badge { margin-left: auto; border: 0; padding: 8px; }
+.workspace-dialog.calendar-weather-dialog { width: min(500px, 100%); }
+.calendar-weather-hero { display: flex; align-items: center; gap: 24px; margin: 3px 0 24px; color: var(--workspace-accent); }
+.calendar-weather-hero.weather-sun { color: #d4a442; }
+.calendar-weather-hero > div { display: flex; flex-direction: column; gap: 5px; }
+.calendar-weather-hero strong { color: var(--workspace-text); font-size: 48px; letter-spacing: -.05em; line-height: 1; }
+.calendar-weather-hero strong small { color: var(--workspace-muted); font-size: 25px; }
+.calendar-weather-hero span { color: var(--workspace-muted); font-size: 15px; }
+.calendar-weather-wind { display: flex; align-items: center; gap: 10px; border: 1px solid var(--workspace-line); border-radius: 12px; background: var(--workspace-panel); padding: 14px; color: var(--workspace-muted); font-size: 13px; }
+.calendar-weather-explanation { margin: 22px 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.65; }
+.calendar-weather-explanation strong { color: var(--workspace-text); }
+.calendar-weather-explanation p { margin: 8px 0 0; }
+
+@media (max-width: 900px) {
+  .workspace-dialog .tablet-record-editor-layout { display: block; }
+  .workspace-dialog.is-edit-editor > .workspace-dialog-body, .tablet-kiosk .workspace-dialog.is-edit-editor > .workspace-dialog-body { display: block; overflow-y: auto; }
+  .workspace-dialog .tablet-record-editor-details { overflow: visible; }
+  .workspace-dialog .tablet-record-notes { overflow: visible; border-top: 1px solid var(--workspace-line); border-left: 0; }
+  .workspace-dialog .tablet-record-notes-thread { max-height: none; overflow: visible; }
+  .workspace-dialog .flight-time-grid, .workspace-dialog .flight-leg-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px), (max-height: 760px) and (pointer: coarse) {
+  .tablet-kiosk, .tablet-kiosk.is-dedicated-mobile { --tablet-mobile-bottom-inset: min(env(safe-area-inset-bottom, 0px), 24px); }
+  .tablet-kiosk .tablet-kiosk-tabs-mobile, .tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-tabs-mobile, .tablet-kiosk.is-dedicated-mobile .tablet-kiosk-tabs-mobile { height: calc(60px + var(--tablet-mobile-bottom-inset)); padding: 5px 8px var(--tablet-mobile-bottom-inset); align-items: start; }
+  .tablet-kiosk .tablet-kiosk-tabs-mobile button, .tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-tabs-mobile button { min-height: 50px; gap: 4px; border-radius: 12px; font-size: 10px; }
+  .tablet-kiosk .tablet-kiosk-tabs-mobile button svg, .tablet-kiosk[data-orientation="portrait"] .tablet-kiosk-tabs-mobile button svg { width: 20px; height: 20px; }
+  .tablet-kiosk .tablet-kiosk-main, .tablet-kiosk.is-dedicated-mobile .tablet-kiosk-main { padding-bottom: calc(68px + var(--tablet-mobile-bottom-inset)); }
+  .tablet-kiosk .tablet-create-dock, .tablet-kiosk.is-dedicated-mobile .tablet-create-dock { bottom: calc(76px + var(--tablet-mobile-bottom-inset)); }
+  .tablet-kiosk .tablet-create-options, .tablet-kiosk.is-dedicated-mobile .tablet-create-options { bottom: calc(140px + var(--tablet-mobile-bottom-inset)); }
+  .workspace-dialog-backdrop, .tablet-kiosk .workspace-dialog-backdrop, .tablet-kiosk.is-dedicated-mobile .workspace-dialog-backdrop { z-index: 150; width: 100%; height: min(100%, var(--workspace-visual-height, 100%)); align-items: end; place-items: end center; inset: 0; bottom: auto; padding: max(8px, env(safe-area-inset-top, 0px)) 0 0; }
+  body > .workspace-dialog-backdrop { position: fixed; z-index: 500; height: 100dvh; }
+  .workspace-dialog.calendar-editor, .tablet-kiosk .workspace-dialog.calendar-editor, .tablet-kiosk.is-dedicated-mobile .workspace-dialog.calendar-editor { width: 100%; max-width: 100%; min-height: 0; max-height: 100%; overflow: hidden; border: 1px solid var(--workspace-line); border-bottom: 0; border-radius: 22px 22px 0 0; padding: 0; }
+  .workspace-dialog.tablet-record-editor.is-edit-editor { height: 100%; }
+  .workspace-dialog.calendar-editor > .workspace-dialog-header, .tablet-kiosk .workspace-dialog.calendar-editor > .workspace-dialog-header { position: relative; padding: 20px 20px 16px; gap: 12px; }
+  .workspace-dialog.calendar-editor > header h2, .tablet-kiosk .workspace-dialog.calendar-editor > header h2 { font-size: 23px; line-height: 1.2; }
+  .workspace-dialog.calendar-editor > header p, .tablet-kiosk .workspace-dialog.calendar-editor > header p { font-size: 12px; }
+  .workspace-dialog > .workspace-dialog-body, .tablet-kiosk .workspace-dialog > .workspace-dialog-body { padding: 20px; margin: 0; }
+  .workspace-dialog.is-edit-editor > .workspace-dialog-body, .tablet-kiosk .workspace-dialog.is-edit-editor > .workspace-dialog-body { padding: 0; }
+  .workspace-dialog .tablet-record-editor-details { padding: 20px; }
+  .workspace-dialog .tablet-record-editor-fields, .tablet-kiosk .workspace-dialog .calendar-event-editor-fields, .tablet-kiosk .workspace-dialog .calendar-event-options-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .workspace-dialog .tablet-record-editor-fields > .form-span { grid-column: auto; }
+  .workspace-dialog .tablet-record-editor-fields > label, .workspace-dialog .tablet-record-editor-fields .job-search-field > label, .tablet-kiosk .workspace-dialog .calendar-event-editor-fields label { font-size: 12px; }
+  .workspace-dialog :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), .tablet-kiosk .workspace-dialog :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) { min-height: 48px; font-size: 16px; }
+  .workspace-dialog .calendar-event-time-panel > div, .tablet-kiosk .workspace-dialog .calendar-event-time-panel > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-dialog .calendar-event-reminders > div { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .workspace-dialog .calendar-event-reminders > div > label { min-height: 52px; padding: 10px; }
+  .workspace-dialog .calendar-event-reminders > div > label span { font-size: 12px; }
+  .workspace-dialog.calendar-editor > .workspace-dialog-footer, .tablet-kiosk .workspace-dialog.calendar-editor > .workspace-dialog-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px 20px max(14px, env(safe-area-inset-bottom, 0px)); }
+  .workspace-dialog-footer > span { display: none; }
+  .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a), .tablet-kiosk .workspace-dialog.calendar-editor .workspace-dialog-footer > :is(button, a) { width: 100%; min-height: 48px; padding: 0 10px; font-size: 13px; }
+  .workspace-dialog-footer > .admin-primary-button:last-child { grid-column: -2 / -1; }
+  .workspace-dialog-footer > .calendar-event-delete ~ .admin-primary-button:last-child { grid-column: 1 / -1; }
+  .workspace-dialog-footer > button:only-child { grid-column: 1 / -1 !important; }
+  .workspace-dialog .tablet-job-detail-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .workspace-dialog .tablet-job-detail-list { grid-template-columns: minmax(0, 1fr); }
+  .workspace-dialog .flight-trip-overview, .workspace-dialog .flight-carrier-grid, .workspace-dialog .flight-support-grid { grid-template-columns: minmax(0, 1fr); }
+  .workspace-dialog .flight-time-grid, .workspace-dialog .flight-leg-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tablet-kiosk .workspace-dialog .flight-plan-legs .flight-leg-card { display: block; padding: 16px; }
+  .workspace-dialog .flight-route-fields { display: flex; flex-direction: column; gap: 12px; }
+  .workspace-dialog .flight-route-fields > label { width: 100%; }
+  .workspace-dialog .flight-route-line { display: none; }
+  .workspace-dialog .flight-leg-details summary small, .workspace-dialog .flight-arrangements summary small { max-width: 45%; text-align: right; }
+  .tablet-calendar-mobile-week button { min-height: 84px; }
+  .tablet-calendar-day > .calendar-weather-badge { min-height: 24px; }
+  .calendar-weather-credit { padding: 7px 10px; font-size: 8px; }
+  .tablet-kiosk.is-light .tablet-kiosk-header { background: #f8fbfd; }
+}
+@keyframes workspace-dialog-enter { from { opacity: .5; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .workspace-dialog.calendar-editor { animation: none; } }

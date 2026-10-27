@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, MessageSquareText, PencilLine, Save, SendHorizontal, Trash2, X } from "lucide-react";
 import { archiveJob, archiveTask, createJob, createTask, saveWorkRecordNote, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
 import { DelayRecordAction } from "@/components/admin/delay-record-action";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { JobSearchField } from "@/components/admin/job-search-field";
+import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { formatDate } from "@/lib/format";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
@@ -22,16 +23,6 @@ type CreateEditorProps = {
   sourceRecord?: TabletJobRecord | PipelineTask;
   taskStatuses: TaskStatus[];
 };
-
-function useEscapeToClose(onClose: () => void) {
-  useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
-}
 
 function isJobRecord(record: TabletJobRecord | PipelineTask): record is TabletJobRecord {
   return "photos_delivered" in record;
@@ -123,23 +114,18 @@ function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { le
 }
 
 export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; onClose: () => void }) {
-  useEscapeToClose(onClose);
-
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) onClose();
-  }
-
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <section className="calendar-editor tablet-job-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="tablet-job-detail-title">
-        <header>
+      <WorkspaceDialog className="tablet-job-detail-sheet" titleId="tablet-job-detail-title" onClose={onClose} header={<>
           <div>
             <span><BriefcaseBusiness size={13} /> Job details</span>
             <h2 id="tablet-job-detail-title">{job.title}</h2>
             <p>{job.client?.name ?? "No client"}{job.status ? ` · ${job.status.label}` : ""}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close job details"><X size={17} /></button>
-        </header>
+        </>} footer={<>
+          {job.delivery_url ? <a className="tablet-job-delivery-link" href={job.delivery_url} target="_blank" rel="noreferrer"><Link2 size={14} /> Open client files <ArrowUpRight size={13} /></a> : <span />}
+          <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>
+        </>}>
 
         <DelayHistoryBanner delayInfo={job.delay_info} />
 
@@ -173,33 +159,20 @@ export function TabletJobDetailSheet({ job, onClose }: { job: TabletJobRecord; o
           {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
         </dl>
 
-        <footer>
-          {job.delivery_url ? <a className="tablet-job-delivery-link" href={job.delivery_url} target="_blank" rel="noreferrer"><Link2 size={14} /> Open client files <ArrowUpRight size={13} /></a> : <span />}
-          <button className="admin-primary-button" type="button" onClick={onClose}>Done</button>
-        </footer>
-      </section>
-    </div>
+      </WorkspaceDialog>
   );
 }
 
 export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; onClose: () => void }) {
-  useEscapeToClose(onClose);
-
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) onClose();
-  }
-
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <section className="calendar-editor tablet-job-detail-sheet tablet-task-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="tablet-task-detail-title">
-        <header>
+      <WorkspaceDialog className="tablet-job-detail-sheet tablet-task-detail-sheet" titleId="tablet-task-detail-title" onClose={onClose} header={<>
           <div>
             <span><ListTodo size={13} /> Task details</span>
             <h2 id="tablet-task-detail-title">{task.title}</h2>
             <p>{task.job?.client?.name ?? "No client"}{task.job?.title ? ` · ${task.job.title}` : ""}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close task details"><X size={17} /></button>
-        </header>
+        </>} footer={<button className="admin-primary-button" type="button" onClick={onClose}>Done</button>}>
 
         <DelayHistoryBanner delayInfo={task.delay_info} />
 
@@ -233,23 +206,16 @@ export function TabletTaskDetailSheet({ task, onClose }: { task: PipelineTask; o
           {task.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{task.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : null}
         </dl>
 
-        <footer><span /><button className="admin-primary-button" type="button" onClick={onClose}>Done</button></footer>
-      </section>
-    </div>
+      </WorkspaceDialog>
   );
 }
 
 export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOptions, jobStatuses, kind, onClose, onCreated, sourceRecord, taskStatuses }: CreateEditorProps) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  useEscapeToClose(onClose);
   const sourceJob = kind === "job" && sourceRecord && isJobRecord(sourceRecord) ? sourceRecord : null;
   const sourceTask = kind === "task" && sourceRecord && !isJobRecord(sourceRecord) ? sourceRecord : null;
   const isDuplicate = Boolean(sourceJob || sourceTask);
-
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget && !saving) onClose();
-  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -273,26 +239,32 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
   const defaultTaskStatusId = sourceTask && taskStatuses.some((status) => status.id === sourceTask.status_id) ? sourceTask.status_id : taskStatuses[0]?.id;
   const taskPriority = sourceTask && ["low", "normal", "high", "urgent"].includes(sourceTask.priority) ? sourceTask.priority : "normal";
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <form className="calendar-editor tablet-record-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="tablet-record-editor-title">
-        <header>
+      <WorkspaceDialog className="tablet-record-editor is-create-editor" onSubmit={save} busy={saving} titleId="tablet-record-editor-title" onClose={onClose} header={<>
           <div>
-            <span>{kind === "job" ? <BriefcaseBusiness size={13} /> : <ListTodo size={13} />} Tablet editing</span>
+            <span>{kind === "job" ? <BriefcaseBusiness size={13} /> : <ListTodo size={13} />} {kind === "job" ? "Job workspace" : "Asset workspace"}</span>
             <h2 id="tablet-record-editor-title">{title}</h2>
             <p>{isDuplicate ? "Review the copied details, make any changes, then create the new record." : kind === "job" ? "Add production work without leaving the kiosk." : "Add an asset and attach it to an existing job."}</p>
           </div>
           <button type="button" onClick={onClose} aria-label={`Close ${kind} editor`} disabled={saving}><X size={17} /></button>
-        </header>
+        </>} footer={<>
+          <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="admin-primary-button" type="submit" disabled={saving || (kind === "job" ? !jobStatuses.length : !taskStatuses.length || !jobOptions.length)}>
+            {saving ? <><LoaderCircle className="spin" size={14} /> Creating…</> : <><FilePlus2 size={14} /> {isDuplicate ? "Create duplicate" : `Create ${kind === "job" ? "job" : "asset"}`}</>}
+          </button>
+        </>}>
 
         {kind === "job" ? (
           <div className="tablet-record-editor-fields">
-            <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={sourceJob?.title ?? ""} autoFocus /></label>
+            <div className="workspace-form-section"><strong>Job details</strong><p>What you’re creating and who it’s for.</p></div>
+            <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={sourceJob?.title ?? ""} /></label>
             <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
             <label>Status<select name="status_id" required defaultValue={defaultJobStatusId}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
+            <div className="workspace-form-section"><strong>Schedule</strong><p>Production timing and the delivery deadline.</p></div>
             <label>Shoot date<input name="shoot_date" type="date" defaultValue={sourceJob?.shoot_date ?? defaultDate} /></label>
             <label>Shoot time<input name="shoot_time" type="time" defaultValue={sourceJob?.shoot_time?.slice(0, 5) ?? ""} /></label>
             <label>Due date<input name="due_date" type="date" min={(sourceJob?.shoot_date ?? defaultDate) || undefined} defaultValue={sourceJob?.due_date ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={sourceJob?.due_time?.slice(0, 5) ?? ""} /></label>
+            <div className="workspace-form-section"><strong>Production & delivery</strong><p>Keep location, files and context together.</p></div>
             <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={sourceJob?.delivery_url ?? ""} /></label>
@@ -301,10 +273,12 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
           </div>
         ) : (
           <div className="tablet-record-editor-fields">
-            <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={sourceTask?.title ?? ""} autoFocus /></label>
+            <div className="workspace-form-section"><strong>Asset details</strong><p>Name the deliverable and link it to a job.</p></div>
+            <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={sourceTask?.title ?? ""} /></label>
             <JobSearchField jobs={jobOptions} defaultJobId={sourceTask?.job_id} />
             <label>Status<select name="status_id" required defaultValue={defaultTaskStatusId}>{taskStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Asset type<select name="asset_type" defaultValue={sourceTask?.asset_type === "Other" ? "Other" : "Asset"} required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>
+            <div className="workspace-form-section"><strong>Production</strong><p>Effort, timing and priority.</p></div>
             <label>Hours<input name="hours" type="number" min="0" step="0.25" inputMode="decimal" defaultValue={sourceTask?.hours ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={sourceTask?.due_time?.slice(0, 5) ?? ""} /></label>
             <label>Priority<select name="priority" defaultValue={taskPriority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
@@ -313,14 +287,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, jobOption
         )}
 
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
-        <footer>
-          <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="admin-primary-button" type="submit" disabled={saving || (kind === "job" ? !jobStatuses.length : !taskStatuses.length || !jobOptions.length)}>
-            {saving ? <><LoaderCircle className="spin" size={14} /> Creating…</> : <><FilePlus2 size={14} /> {isDuplicate ? "Create duplicate" : `Create ${kind === "job" ? "job" : "asset"}`}</>}
-          </button>
-        </footer>
-      </form>
-    </div>
+      </WorkspaceDialog>
   );
 }
 
@@ -338,14 +305,9 @@ type EditEditorProps = {
 export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses, onClose, onSaved, record, taskStatuses, type }: EditEditorProps) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  useEscapeToClose(onClose);
   const isJob = type === "job";
   const job = isJob ? record as TabletJobRecord : null;
   const task = !isJob ? record as PipelineTask : null;
-
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget && !saving) onClose();
-  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -382,16 +344,21 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
   }
 
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <form className="calendar-editor tablet-record-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="tablet-record-edit-title">
-        <header>
+      <WorkspaceDialog className="tablet-record-editor is-edit-editor" onSubmit={save} busy={saving} titleId="tablet-record-edit-title" onClose={onClose} header={<>
           <div>
-            <span>{isJob ? <BriefcaseBusiness size={13} /> : <ListTodo size={13} />} Tablet editing</span>
+            <span>{isJob ? <BriefcaseBusiness size={13} /> : <ListTodo size={13} />} {isJob ? "Job workspace" : "Asset workspace"}</span>
             <h2 id="tablet-record-edit-title">Edit {record.title}</h2>
             <p>{isJob ? "Update the job, its schedule and delivery details." : "Update this asset, its job, status and production details."}</p>
           </div>
           <button type="button" onClick={onClose} aria-label={`Close ${isJob ? "job" : "task"} editor`} disabled={saving}><X size={17} /></button>
-        </header>
+        </>} footer={<>
+          <button type="button" className="tablet-delete-record" onClick={() => { void remove(); }} disabled={saving}><Trash2 size={14} /> Delete</button>
+          {job && !job.status?.is_closed ? <DelayRecordAction compact kind="job" recordId={job.id} recordTitle={job.title} scheduledDate={job.shoot_date ?? job.due_date} onDelayed={onSaved} /> : null}
+          {task && taskStatuses.find((status) => status.id === task.status_id)?.is_open !== false ? <DelayRecordAction compact kind="task" recordId={task.id} recordTitle={task.title} scheduledDate={task.due_date} onDelayed={onSaved} /> : null}
+          <span />
+          <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> Save changes</>}</button>
+        </>}>
         <input type="hidden" name="id" value={record.id} />
 
         <div className="tablet-record-editor-layout">
@@ -400,15 +367,18 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
 
             {job ? (
               <div className="tablet-record-editor-fields">
-            <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} autoFocus /></label>
+            <div className="workspace-form-section"><strong>Job details</strong><p>Keep the brief and client details up to date.</p></div>
+            <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} /></label>
             <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>
             <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
             <label>Status<select name="status_id" required defaultValue={job.status_id}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label>
+            <div className="workspace-form-section"><strong>Schedule</strong><p>Production timing and the delivery deadline.</p></div>
             <label>Shoot date<input name="shoot_date" type="date" defaultValue={job.shoot_date ?? ""} /></label>
             <label>Shoot time<input name="shoot_time" type="time" defaultValue={job.shoot_time?.slice(0, 5) ?? ""} /></label>
             <label>Due date<input name="due_date" type="date" defaultValue={job.due_date ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={job.due_time?.slice(0, 5) ?? ""} /></label>
+            <div className="workspace-form-section"><strong>Production & delivery</strong><p>Location, client files and the brief.</p></div>
             <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
@@ -416,10 +386,12 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
               </div>
             ) : task ? (
               <div className="tablet-record-editor-fields">
-            <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={task.title} autoFocus /></label>
+            <div className="workspace-form-section"><strong>Asset details</strong><p>Name the deliverable and link it to a job.</p></div>
+            <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={task.title} /></label>
             <JobSearchField jobs={jobOptions} defaultJobId={task.job_id} />
             <label>Status<select name="status_id" required defaultValue={task.status_id}>{taskStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Asset type<select name="asset_type" defaultValue={task.asset_type === "Other" ? "Other" : "Asset"} required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>
+            <div className="workspace-form-section"><strong>Production</strong><p>Effort, timing and priority.</p></div>
             <label>Hours<input name="hours" type="number" min="0" step="0.25" inputMode="decimal" defaultValue={task.hours ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={task.due_time?.slice(0, 5) ?? ""} /></label>
             <label>Priority<select name="priority" defaultValue={task.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
@@ -431,27 +403,13 @@ export function TabletRecordEditEditor({ clientOptions, jobOptions, jobStatuses,
         </div>
 
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
-        <footer className="tablet-record-editor-footer">
-          <button type="button" className="tablet-delete-record" onClick={() => { void remove(); }} disabled={saving}><Trash2 size={14} /> Delete</button>
-          {job && !job.status?.is_closed ? <DelayRecordAction compact kind="job" recordId={job.id} recordTitle={job.title} scheduledDate={job.shoot_date ?? job.due_date} onDelayed={onSaved} /> : null}
-          {task && taskStatuses.find((status) => status.id === task.status_id)?.is_open !== false ? <DelayRecordAction compact kind="task" recordId={task.id} recordTitle={task.title} scheduledDate={task.due_date} onDelayed={onSaved} /> : null}
-          <span />
-          <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : <><Save size={14} /> Save changes</>}</button>
-        </footer>
-      </form>
-    </div>
+      </WorkspaceDialog>
   );
 }
 
 export function TabletScheduleEditor({ item, onClose, onSaved }: { item: CalendarItem; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  useEscapeToClose(onClose);
-
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget && !saving) onClose();
-  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -468,12 +426,10 @@ export function TabletScheduleEditor({ item, onClose, onSaved }: { item: Calenda
   }
 
   return (
-    <div className="calendar-editor-backdrop tablet-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <form className="calendar-editor tablet-record-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="tablet-schedule-editor-title">
-        <header>
+      <WorkspaceDialog className="tablet-record-editor is-schedule-editor" onSubmit={save} busy={saving} titleId="tablet-schedule-editor-title" onClose={onClose} header={<>
           <div><span><CalendarPlus2 size={13} /> {item.entity_type === "job" ? "Job schedule" : item.entity_type === "campaign-asset" ? "Campaign asset schedule" : "Task deadline"}</span><h2 id="tablet-schedule-editor-title">{item.title}</h2><p>{item.status_label}{item.entity_type === "campaign-asset" ? ` · ${item.campaign_title}` : ""}{item.client_name ? ` · ${item.client_name}` : ""}</p></div>
           <button type="button" onClick={onClose} aria-label="Close schedule editor" disabled={saving}><X size={17} /></button>
-        </header>
+        </>} footer={<><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : "Save schedule"}</button></>}>
         <input type="hidden" name="entity_type" value={item.entity_type} />
         <input type="hidden" name="id" value={item.id} />
         {item.entity_type === "job" ? (
@@ -499,8 +455,6 @@ export function TabletScheduleEditor({ item, onClose, onSaved }: { item: Calenda
           </div>
         )}
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
-        <footer><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button className="admin-primary-button" type="submit" disabled={saving}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : "Save schedule"}</button></footer>
-      </form>
-    </div>
+      </WorkspaceDialog>
   );
 }

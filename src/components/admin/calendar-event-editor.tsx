@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide-react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
 import { calendarEventWindowError } from "@/lib/calendar-event";
+import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import type { CalendarCustomEvent, SelectOption } from "@/lib/types";
 
 const reminderOptions = [
@@ -39,10 +40,6 @@ export function CalendarEventEditor({ clientOptions = [], defaultClientId = null
   const [startTime, setStartTime] = useState(defaultStartTime);
   const [endTime, setEndTime] = useState(defaultEndTime);
   const fixedClientId = defaultClientId ? (event ? event.client_id : defaultClientId) : null;
-
-  function handleBackdropClick(clickEvent: MouseEvent<HTMLDivElement>) {
-    if (clickEvent.target === clickEvent.currentTarget) onClose();
-  }
 
   async function save(submitEvent: FormEvent<HTMLFormElement>) {
     submitEvent.preventDefault();
@@ -89,22 +86,25 @@ export function CalendarEventEditor({ clientOptions = [], defaultClientId = null
   }
 
   return (
-    <div className="calendar-editor-backdrop" onClick={handleBackdropClick} role="presentation">
-      <form className="calendar-editor calendar-event-editor" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="calendar-event-editor-title">
-        <header>
+      <WorkspaceDialog className="calendar-event-editor" onSubmit={save} busy={saving || deleting} titleId="calendar-event-editor-title" onClose={onClose} header={<>
           <div>
             <span><CalendarPlus2 size={13} /> {event ? "Edit calendar event" : "New calendar event"}</span>
             <h2 id="calendar-event-editor-title">{event?.title ?? "Add something to your schedule"}</h2>
             <p>Set an exact window and choose when native push reminders should arrive.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close event editor"><X size={17} /></button>
-        </header>
+          <button type="button" onClick={onClose} disabled={saving || deleting} aria-label="Close event editor"><X size={17} /></button>
+        </>} footer={<>
+          {event ? <button className="calendar-event-delete" type="button" onClick={remove} disabled={saving || deleting}>{deleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />} Delete</button> : null}
+          <span />
+          <button type="button" onClick={onClose} disabled={saving || deleting}>Cancel</button>
+          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : event ? "Save event" : "Create event"}</button>
+        </>}>
 
         {event ? <input type="hidden" name="id" value={event.id} /> : null}
         {defaultClientId ? <input type="hidden" name="client_id" value={fixedClientId ?? ""} /> : null}
         <div className="calendar-event-editor-fields">
           <label className="calendar-event-title-field">Event title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Campaign planning session" /></label>
-          <label><MapPin size={13} /> Location<input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
+          <label><span><MapPin size={13} /> Location</span><input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
           {!defaultClientId && clientOptions.length ? <label>Client / workspace<select name="client_id" defaultValue={event?.client_id ?? ""}><option value="">General calendar event</option>{clientOptions.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><small>AutoPacific events are mirrored into ClickUp automatically.</small></label> : null}
           <label className="calendar-event-notes-field">Notes<textarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder="People, preparation, links or anything useful…" /></label>
         </div>
@@ -137,13 +137,6 @@ export function CalendarEventEditor({ clientOptions = [], defaultClientId = null
         </section>
 
         {errorMessage ? <p className="calendar-editor-error" role="alert">{errorMessage}</p> : null}
-        <footer>
-          {event ? <button className="calendar-event-delete" type="button" onClick={remove} disabled={saving || deleting}>{deleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />} Delete</button> : null}
-          <span />
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : event ? "Save event" : "Create event"}</button>
-        </footer>
-      </form>
-    </div>
+      </WorkspaceDialog>
   );
 }
