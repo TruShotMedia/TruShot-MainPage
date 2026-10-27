@@ -36,12 +36,22 @@
 }
 :is(.apg-desktop, .tablet-kiosk) .delay-history-banner :is(header, strong, p, p b, summary, li, li strong, header span) { color: var(--workspace-delay-text); }
 :is(.apg-desktop, .tablet-kiosk) .delay-history-banner details { border-color: var(--workspace-delay-line); }
-:is(.apg-desktop, .tablet-kiosk.is-light) .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled):not(.is-calendar-event) {
+/* Single-day cards need the same delay palette as spanning bars. Exclude them
+   from the completed tint below: a delayed original is closed, not delivered. */
+:is(.apg-desktop, .tablet-kiosk) .tablet-calendar .tablet-calendar-event:is(.is-delayed-source, .is-rescheduled) {
+  border-color: var(--workspace-delay-line);
+  background: var(--workspace-delay-bg);
+  color: var(--workspace-delay-text);
+  filter: none;
+  opacity: 1;
+}
+:is(.apg-desktop, .tablet-kiosk) .tablet-calendar .tablet-calendar-event:is(.is-delayed-source, .is-rescheduled) :is(strong, span) { color: inherit; }
+:is(.apg-desktop, .tablet-kiosk) .tablet-calendar .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled):not(.is-calendar-event) {
   border: 1px solid var(--workspace-delay-line);
   background: var(--workspace-delay-bg);
   color: var(--workspace-delay-text);
 }
-:is(.apg-desktop, .tablet-kiosk.is-light) .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled) :is(strong, em, span) { color: inherit; }
+:is(.apg-desktop, .tablet-kiosk) .tablet-calendar .tablet-calendar-job-range:is(.is-delayed-source, .is-rescheduled) :is(strong, em, span) { color: inherit; }
 .tablet-kiosk.is-light .tablet-delay-record-button { border-color: var(--workspace-delay-line); background: var(--workspace-delay-bg); color: var(--workspace-delay-text); }
 /* Real overflow summaries must not sit underneath a day's Add button. */
 :is(.apg-desktop, .tablet-kiosk) .tablet-calendar-overflow { right: 30px; }
@@ -293,9 +303,9 @@ body > .workspace-dialog-backdrop, .calendar-layout ~ .workspace-dialog-backdrop
 .tablet-kiosk.is-light .tablet-kiosk-tabs-mobile button { color: #4e6876; }
 .tablet-kiosk.is-light.theme-autopacific .tablet-kiosk-tabs-mobile button.is-active { background: #dcecf6; color: #1f6087; }
 .tablet-kiosk.is-light .task-meta, .tablet-kiosk.is-light .tablet-job-card-operational summary { color: var(--workspace-muted); }
-.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) { border-color: var(--workspace-delay-line); background: var(--workspace-delay-bg); color: var(--workspace-delay-text); filter: none; opacity: 1; }
-.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) :is(strong, small, em, .tablet-calendar-mobile-entry-time) { color: var(--workspace-delay-text); }
-.tablet-kiosk.is-light .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) .tablet-calendar-mobile-entry-icon { background: #f8ddcd; color: var(--workspace-delay-text); }
+.tablet-kiosk .tablet-calendar .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) { border-color: var(--workspace-delay-line); background: var(--workspace-delay-bg); color: var(--workspace-delay-text); filter: none; opacity: 1; }
+.tablet-kiosk .tablet-calendar .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) :is(strong, small, em, .tablet-calendar-mobile-entry-time) { color: var(--workspace-delay-text); }
+.tablet-kiosk .tablet-calendar .tablet-calendar-mobile-entry:is(.is-delayed-source, .is-rescheduled) .tablet-calendar-mobile-entry-icon { background: var(--workspace-delay-bg); background: color-mix(in srgb, var(--workspace-delay-text) 12%, var(--workspace-delay-bg)); color: var(--workspace-delay-text); }
 
 /* Brisbane daily forecast; tiny in the grid, touchable detail on mobile. */
 .calendar-weather-badge { display: inline-flex; min-width: 0; min-height: 24px; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 7px; background: transparent; padding: 2px 4px; color: var(--workspace-muted); font-size: 10px; font-weight: 750; cursor: pointer; }

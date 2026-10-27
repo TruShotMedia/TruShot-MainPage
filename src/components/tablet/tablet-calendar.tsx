@@ -33,6 +33,7 @@ type TabletCalendarEvent = {
   color: string;
   isComplete: boolean;
   isOverdue: boolean;
+  isDelayedSource: boolean;
   isRescheduled: boolean;
   item: CalendarItem;
 };
@@ -247,7 +248,7 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
   const bookedTime = event.item.entity_type === "job" && event.id.endsWith("-shoot") ? event.item.shoot_time : event.item.due_time;
   return (
     <article
-      className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isDelayedSource ? "is-delayed-source" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       style={{ "--tablet-calendar-color": event.color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -389,6 +390,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
         isOverdue: isOverdueAccentWork(job, palette, today),
+        isDelayedSource: delayState(job).isDelayedSource,
         isRescheduled: delayState(job).isRescheduled,
         item: job,
       });
@@ -402,6 +404,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(job, palette, today, currentTime),
         isComplete: job.is_complete,
         isOverdue: isOverdueAccentWork(job, palette, today),
+        isDelayedSource: delayState(job).isDelayedSource,
         isRescheduled: delayState(job).isRescheduled,
         item: job,
       });
@@ -417,6 +420,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
       color: calendarItemColor(task, palette, today, currentTime),
       isComplete: task.is_complete,
       isOverdue: isOverdueAccentWork(task, palette, today),
+      isDelayedSource: delayState(task).isDelayedSource,
       isRescheduled: delayState(task).isRescheduled,
       item: task,
     }] : []);
@@ -432,6 +436,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
         color: calendarItemColor(asset, palette, today, currentTime),
         isComplete: asset.is_complete,
         isOverdue: isOverdueAccentWork(asset, palette, today),
+        isDelayedSource: false,
         isRescheduled: false,
         item: asset,
       }];
@@ -566,7 +571,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                         <div className="tablet-calendar-day-events">
                           {dayEvents.slice(0, displayedEventLimit).map((event) => (
                             <article
-                              className={`tablet-calendar-event is-${event.kind} ${event.isOverdue ? "is-overdue" : ""} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
+                              className={`tablet-calendar-event is-${event.kind} ${event.isOverdue ? "is-overdue" : ""} ${event.isDelayedSource ? "is-delayed-source" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
                               style={{ "--tablet-calendar-color": event.color } as CSSProperties}
                               title={`${event.label}: ${event.title} · ${event.detail}`}
                               role={editable ? "button" : undefined}

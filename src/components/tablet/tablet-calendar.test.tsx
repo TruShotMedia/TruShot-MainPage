@@ -407,6 +407,25 @@ describe("TabletCalendar", () => {
     expect(container.querySelector(".tablet-calendar-mobile-entry.is-rescheduled")).not.toBeNull();
   });
 
+  it.each([false, true])("marks single-day jobs and task deadlines for delay styling (phone=%s)", async (phone) => {
+    if (phone) usePhoneViewport();
+    const history = { id: "delay", source_id: "old", successor_id: "new", reason: "Weather", source_date: "2026-08-14", rescheduled_date: "2026-08-18", created_at: "2026-08-12T00:00:00Z" };
+    const sourceDelay = { delayed_from: null, delayed_to: history, history: [history] };
+    const successorDelay = { delayed_from: history, delayed_to: null, history: [history] };
+    const sourceJob: CalendarJob = { ...jobs[0], id: "old", title: "Delayed single-day shoot", shoot_date: "2026-08-14", due_date: null, is_complete: true, delay_info: sourceDelay };
+    const successorJob: CalendarJob = { ...sourceJob, id: "new", title: "Rescheduled single-day shoot", is_complete: false, delay_info: successorDelay };
+    const sourceTask: CalendarTask = { ...tasks[0], id: "old-task", title: "Delayed deadline", due_date: "2026-08-14", delay_info: sourceDelay };
+    const successorTask: CalendarTask = { ...sourceTask, id: "new-task", title: "Rescheduled deadline", is_complete: false, delay_info: successorDelay };
+    await act(async () => root.render(<TabletCalendar density="capacity" completedColor="#3f9b68" jobs={[sourceJob, successorJob]} tasks={[sourceTask, successorTask, { ...tasks[0], due_date: "2026-08-14" }]} today="2026-08-14" />));
+    const selector = phone ? ".tablet-calendar-mobile-entry" : ".tablet-calendar-event";
+    expect(container.querySelectorAll(`${selector}.is-delayed-source`)).toHaveLength(2);
+    expect(container.querySelectorAll(`${selector}.is-rescheduled`)).toHaveLength(2);
+    expect(container.querySelector(`${selector}.is-delayed-source.is-complete`)).not.toBeNull();
+    const completed = [...container.querySelectorAll<HTMLElement>(`${selector}.is-complete`)].find(card => card.textContent?.includes("Published reel"));
+    expect(completed?.classList.contains("is-delayed-source")).toBe(false);
+    expect(completed?.style.getPropertyValue("--tablet-calendar-color")).toBe("#3f9b68");
+  });
+
   it("turns the AutoPacific calendar into a readable weekly agenda on phones", async () => {
     const originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, "matchMedia", {

@@ -2227,7 +2227,7 @@ button.tablet-today-entry:hover, button.tablet-today-entry:focus-visible { borde
 .tablet-calendar-job-range.is-complete { background: #9a9e99; opacity: .62; }
 .tablet-calendar-job-range.is-delayed-source, .tablet-calendar-job-range.is-rescheduled { background: var(--tablet-calendar-color); filter: none; opacity: 1; }
 .tablet-calendar-job-range.is-rescheduled strong { display: inline-flex; align-items: center; gap: 3px; }
-.tablet-calendar.has-completed-color .tablet-calendar-event.is-complete { border-color: color-mix(in srgb,var(--tablet-calendar-color) 42%,rgba(255,255,255,.09)); background: color-mix(in srgb,var(--tablet-calendar-color) 25%,#151d18); filter: none; opacity: 1; }
+.tablet-calendar.has-completed-color .tablet-calendar-event.is-complete:not(.is-delayed-source):not(.is-rescheduled) { border-color: color-mix(in srgb,var(--tablet-calendar-color) 42%,rgba(255,255,255,.09)); background: color-mix(in srgb,var(--tablet-calendar-color) 25%,#151d18); filter: none; opacity: 1; }
 .tablet-calendar.has-completed-color .tablet-calendar-job-range.is-complete { background: var(--tablet-calendar-color); opacity: 1; }
 .tablet-calendar.has-completed-color .tablet-calendar-job-range.is-calendar-event.is-complete { border-color: color-mix(in srgb,var(--tablet-calendar-color) 68%,#d7f2df); background: color-mix(in srgb,var(--tablet-calendar-color) 56%,#101713); color: #f1fff5; }
 .tablet-calendar.has-completed-color .tablet-calendar-flight-range.is-complete { border-color: color-mix(in srgb,var(--tablet-calendar-color) 78%,#d7f2df); background: linear-gradient(105deg,color-mix(in srgb,var(--tablet-calendar-color) 72%,#102017),var(--tablet-calendar-color) 48%,color-mix(in srgb,var(--tablet-calendar-color) 72%,#102017)); }
