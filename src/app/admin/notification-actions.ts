@@ -17,6 +17,18 @@ const subscriptionSchema = z.object({
   }),
 });
 
+export async function getPushSubscriptionState(endpoint: string) {
+  const context = await getProductionContext();
+  if (!context) throw new Error("Your session has expired. Sign in again.");
+  const parsedEndpoint = z.url().startsWith("https://").max(2048).parse(endpoint);
+  const { count, error } = await context.supabase.from("website-push-subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", context.membership.workspace_id)
+    .eq("user_id", context.claims.sub).eq("endpoint", parsedEndpoint);
+  if (error) throw new Error("This device’s notification registration could not be verified.");
+  return { registered: Boolean(count) };
+}
+
 export async function savePushSubscription(input: unknown) {
   const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");

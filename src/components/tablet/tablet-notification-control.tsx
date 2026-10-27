@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Bell, BellOff, BellRing, CheckCircle2, LoaderCircle, Send, X } from "lucide-react";
-import { removePushSubscription, savePushSubscription, sendTestPushNotification } from "@/app/admin/notification-actions";
+import { getPushSubscriptionState, removePushSubscription, savePushSubscription, sendTestPushNotification } from "@/app/admin/notification-actions";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 
 type DeviceState = "checking" | "unsupported" | "ready" | "enabled" | "denied";
@@ -50,7 +50,16 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
       }
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        const subscription = await registration.pushManager.getSubscription();
+        let subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          const state = await getPushSubscriptionState(subscription.endpoint);
+          if (!state.registered) {
+            // A browser subscription can outlive the previous user's session.
+            // Never display it as enabled for a different account.
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
         if (active) setDeviceState(subscription ? "enabled" : "ready");
       } catch {
         if (active) setDeviceState("unsupported");
