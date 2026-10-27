@@ -93,6 +93,16 @@ const flightEvents: CalendarFlightEvent[] = [{
 describe("TabletCalendar", () => {
   let container: HTMLDivElement;
   let root: Root;
+  const originalMatchMedia = window.matchMedia;
+
+  function usePhoneViewport() {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })) });
+  }
+
+  function mobileTiming(title: string) {
+    const card = [...container.querySelectorAll<HTMLElement>(".tablet-calendar-mobile-entry")].find((entry) => entry.querySelector("strong")?.textContent === title);
+    return card?.querySelector(".tablet-calendar-mobile-entry-time")?.textContent;
+  }
 
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -104,6 +114,7 @@ describe("TabletCalendar", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 
   it("draws inclusive multi-day job bars and greys completed deadlines", async () => {
@@ -440,5 +451,32 @@ describe("TabletCalendar", () => {
     expect(eventCard.getAttribute("role")).toBe("button");
     await act(async () => eventCard.click());
     expect(onEditEvent).toHaveBeenCalledWith(customEvents[0]);
+  });
+
+  it("shows booked event times, all-day labels and unset times in the mobile daily list", async () => {
+    usePhoneViewport();
+    const timedEvent: CalendarCustomEvent = { ...customEvents[0], id: "timed-event", title: "Team briefing", is_all_day: false, start_time: "14:30:00", end_time: "16:00:00" };
+    const untimedJob: CalendarJob = { ...jobs[0], title: "Unscheduled time", shoot_date: "2026-08-12", due_date: "2026-08-12" };
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[untimedJob]} tasks={[]} customEvents={[customEvents[0], timedEvent]} today="2026-08-12" />));
+    expect(mobileTiming("Team briefing")).toBe("2:30pm – 4pm");
+    expect(mobileTiming("First day AUTOPACIFIC")).toBe("All day");
+    expect(mobileTiming("Unscheduled time")).toBe("Time not set");
+  });
+
+  it("shows shoot and due times on job cards and the deadline time on task cards", async () => {
+    usePhoneViewport();
+    const job: CalendarJob = { ...jobs[0], shoot_date: "2026-08-12", due_date: "2026-08-12", shoot_time: "09:00:00", due_time: "17:30:00" };
+    const task: CalendarTask = { ...tasks[0], due_date: "2026-08-12", due_time: "13:15:00" };
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[job]} tasks={[task]} today="2026-08-12" />));
+    expect(mobileTiming(job.title)).toBe("Shoot 9am · Due 5:30pm");
+    expect(mobileTiming(task.title)).toBe("1:15pm");
+  });
+
+  it("includes dates for multi-day event and flight times so they do not look like daily bookings", async () => {
+    usePhoneViewport();
+    const event: CalendarCustomEvent = { ...customEvents[0], title: "Overnight event", is_all_day: false, start_time: "18:00:00", end_date: "2026-08-13", end_time: "10:00:00" };
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} customEvents={[event]} flightEvents={flightEvents} today="2026-08-12" />));
+    expect(mobileTiming(event.title)).toBe("12 Aug · 6pm – 13 Aug · 10am");
+    expect(mobileTiming(flightEvents[0].title)).toBe("Departs 12 Aug · 7:30am · Arrives 13 Aug · 9:05am");
   });
 });

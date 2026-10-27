@@ -155,6 +155,24 @@ function compactTime(value: string) {
   return `${displayHour}${minuteText === "00" ? "" : `:${minuteText}`}${suffix}`;
 }
 
+function mobileRangeTimeLabel(item: CalendarScheduleRangeItem) {
+  if (item.entity_type === "calendar-event" && item.is_all_day) return "All day";
+  const startDate = item.entity_type === "flight-event" ? item.departure_date : item.entity_type === "calendar-event" || item.entity_type === "campaign-asset" ? item.start_date : item.shoot_date;
+  const endDate = item.entity_type === "flight-event" ? item.arrival_date : item.entity_type === "calendar-event" ? item.end_date : item.due_date;
+  const startTime = item.entity_type === "flight-event" ? item.departure_time : item.entity_type === "calendar-event" || item.entity_type === "campaign-asset" ? item.start_time : item.shoot_time;
+  const endTime = item.entity_type === "flight-event" ? item.arrival_time : item.entity_type === "calendar-event" ? item.end_time : item.due_time;
+  const spansDays = Boolean(startDate && endDate && startDate !== endDate);
+  const describeTime = (date: string | null, time: string) => `${spansDays && date ? `${format(parseISO(date), "d MMM")} · ` : ""}${compactTime(time)}`;
+  if (item.entity_type === "calendar-event" && startTime && endTime) return `${describeTime(startDate, startTime)} – ${describeTime(endDate, endTime)}`;
+  const startLabel = item.entity_type === "flight-event" ? "Departs" : item.entity_type === "job" ? "Shoot" : "Starts";
+  const endLabel = item.entity_type === "flight-event" ? "Arrives" : item.entity_type === "calendar-event" ? "Ends" : "Due";
+  return [startTime ? `${startLabel} ${describeTime(startDate, startTime)}` : null, endTime ? `${endLabel} ${describeTime(endDate, endTime)}` : null].filter(Boolean).join(" · ") || "Time not set";
+}
+
+function MobileBookingTime({ label }: { label: string }) {
+  return <span className="tablet-calendar-mobile-entry-time"><Clock3 size={12} aria-hidden="true" /><span>{label}</span></span>;
+}
+
 function flightHoverDetails(flight: CalendarFlightEvent) {
   const legs = flight.itinerary_legs ?? [flight];
   return [
@@ -194,7 +212,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
         ? "Campaign"
         : "Job window";
   const detail = isFlight
-    ? `${compactTime(item.departure_time)} ${item.origin_location} → ${compactTime(item.arrival_time)} ${item.destination_location}`
+    ? `${item.origin_location} → ${item.destination_location}`
     : isCalendarEvent
       ? ""
       : item.entity_type === "campaign-asset"
@@ -217,7 +235,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
       } : undefined}
     >
       <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
-      <span className="tablet-calendar-mobile-entry-copy"><small>{kicker}</small><strong>{item.title}</strong>{detail ? <em>{detail}</em> : null}</span>
+      <span className="tablet-calendar-mobile-entry-copy"><small>{kicker}</small><strong>{item.title}</strong><MobileBookingTime label={mobileRangeTimeLabel(item)} />{detail ? <em>{detail}</em> : null}</span>
       <span className="tablet-calendar-mobile-entry-side">{isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
     </article>
   );
@@ -225,6 +243,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
 
 function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boolean; event: TabletCalendarEvent; onOpen?: (item: CalendarItem) => void }) {
   const Icon = event.kind === "task" ? ListTodo : event.kind === "campaign" ? Megaphone : BriefcaseBusiness;
+  const bookedTime = event.item.entity_type === "job" && event.id.endsWith("-shoot") ? event.item.shoot_time : event.item.due_time;
   return (
     <article
       className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
@@ -240,7 +259,7 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
       } : undefined}
     >
       <span className="tablet-calendar-mobile-entry-icon">{event.isRescheduled ? <RotateCcw size={17} /> : <Icon size={17} />}</span>
-      <span className="tablet-calendar-mobile-entry-copy"><small>{event.isRescheduled ? "Rescheduled" : event.label}</small><strong>{event.title}</strong><em>{event.detail}</em></span>
+      <span className="tablet-calendar-mobile-entry-copy"><small>{event.isRescheduled ? "Rescheduled" : event.label}</small><strong>{event.title}</strong><MobileBookingTime label={bookedTime ? compactTime(bookedTime) : "Time not set"} /><em>{event.detail}</em></span>
       <span className="tablet-calendar-mobile-entry-side">{event.isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
     </article>
   );
