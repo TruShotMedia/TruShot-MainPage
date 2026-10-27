@@ -14,7 +14,8 @@ describe("AutoPacific browser icons", () => {
       bodies.push(body);
     }
     expect(bodies[0]).not.toEqual(bodies[1]);
-  });
+  // Includes the first load/compilation of the portable image-rendering WASM.
+  }, 20_000);
 
   it("preserves the existing installed-app icon", async () => {
     const response = await GET(new Request("https://www.trushotmedia.com/autopacific/icons/180"), { params: Promise.resolve({ size: "180" }) });

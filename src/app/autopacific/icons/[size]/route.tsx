@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import { ImageResponse } from "next/og";
 
 const supportedSizes = new Set([16, 32, 180, 192, 512]);
 export const runtime = "nodejs";
@@ -12,33 +12,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ size
     const surface = new URL(request.url).searchParams.get("surface") === "marketing" ? "marketing" : "production";
     const file = surface === "marketing" ? "autopacific-marketing-favicon.svg" : "autopacific-production-favicon.svg";
     const svg = await readFile(path.join(process.cwd(), "public", "brand", file));
-    const icon = await sharp(svg).resize(requestedSize, requestedSize).png().toBuffer();
-    return new Response(new Uint8Array(icon), { headers: {
-      "Cache-Control": "public, max-age=31536000, immutable",
-      "Content-Type": "image/png",
-    } });
+    return new ImageResponse(
+      // ImageResponse needs a plain image element, not the browser Image component.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={`data:image/svg+xml;base64,${svg.toString("base64")}`} width={requestedSize} height={requestedSize} alt="" />,
+      { width: requestedSize, height: requestedSize, headers: { "Cache-Control": "public, max-age=31536000, immutable" } },
+    );
   }
   const logo = await readFile(path.join(process.cwd(), "public", "brand", "autopacific-logo-clean.png"));
-  const resizedLogo = await sharp(logo)
-    .resize({ width: Math.round(requestedSize * .82), fit: "inside", withoutEnlargement: true })
-    .png()
-    .toBuffer();
-  const icon = await sharp({
-    create: {
-      width: requestedSize,
-      height: requestedSize,
-      channels: 4,
-      background: { r: 241, g: 247, b: 250, alpha: 1 },
-    },
-  })
-    .composite([{ input: resizedLogo, gravity: "centre" }])
-    .png()
-    .toBuffer();
-
-  return new Response(new Uint8Array(icon), {
-    headers: {
-      "Cache-Control": "public, max-age=31536000, immutable",
-      "Content-Type": "image/png",
-    },
-  });
+  const logoWidth = Math.round(requestedSize * .82);
+  return new ImageResponse(
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f1f7fa" }}>
+      {/* ImageResponse rasterises the existing logo without native platform dependencies. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`data:image/png;base64,${logo.toString("base64")}`} width={logoWidth} height={Math.round(logoWidth * 312 / 1800)} alt="" />
+    </div>,
+    { width: requestedSize, height: requestedSize, headers: { "Cache-Control": "public, max-age=31536000, immutable" } },
+  );
 }
