@@ -1,4 +1,4 @@
-import type { TabletKioskData } from "@/lib/types";
+import type { JobStatus, TabletKioskData } from "@/lib/types";
 
 export type TeamRole = "manager" | "videographer" | "marketing";
 export type TeamMember = { user_id: string; display_name: string; username: string; role: TeamRole; is_active: boolean; avatar_color: string; enabled_at?: string; is_primary_videographer?: boolean };
@@ -26,9 +26,17 @@ export function scopeProductionSpace(data: TabletKioskData, ids: readonly string
   };
 }
 
-export function jobProgress(job: { total_tasks: number; completed_tasks?: number; open_tasks: number }) {
+export function jobProgress(job: { total_tasks: number; completed_tasks?: number; open_tasks: number; status_id?: string; status?: JobStatus | null }, statuses: readonly JobStatus[] = []) {
   const completed = Math.min(job.total_tasks, Math.max(0, job.completed_tasks ?? job.total_tasks - job.open_tasks));
-  return { completed, total: job.total_tasks, percent: job.total_tasks ? Math.round(completed / job.total_tasks * 100) : 0 };
+  if (job.total_tasks) return { completed, total: job.total_tasks, percent: Math.round(completed / job.total_tasks * 100) };
+
+  const status = job.status ?? statuses.find(stage => stage.id === job.status_id);
+  // Delayed is historical work, not another step towards delivery.
+  const stages = statuses.filter(stage => stage.key !== "delayed").sort((a, b) => a.position - b.position);
+  const index = stages.findIndex(stage => stage.id === status?.id);
+  const percent = !status || status.key === "delayed" ? 0 : status.is_closed ? 100
+    : index >= 0 && stages.length > 1 ? Math.round(index / (stages.length - 1) * 100) : 0;
+  return { completed: 0, total: 0, percent };
 }
 
 export function teamInitials(name: string) {

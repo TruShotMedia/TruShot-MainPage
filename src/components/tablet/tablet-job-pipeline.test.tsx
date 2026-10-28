@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
 import { TabletJobPipeline } from "./tablet-job-pipeline";
+import { ProductionTeamProvider } from "@/components/autopacific/team-context";
 
 const actionMocks = vi.hoisted(() => ({
   bulkUpdateJobStatus: vi.fn(async () => ({ ok: true, updated: 1 })),
@@ -64,6 +65,24 @@ describe("TabletJobPipeline", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+  });
+
+  it.each([true, false])("uses status progress only for taskless cards with editable=%s", async editable => {
+    const workflow: JobStatus[] = ["planning", "scheduled", "in_production", "client_review", "delivered"].map((key, index) => ({
+      id: key, key, label: key === "in_production" ? "In Production" : key, color: "#579", position: index, is_closed: key === "delivered",
+    }));
+    const taskless = { ...job, title: "Taskless shoot", total_tasks: 0, open_tasks: 0, status_id: workflow[2].id, status: workflow[2] };
+    const withTasks = { ...taskless, id: "with-tasks", title: "Edited clips", total_tasks: 3, completed_tasks: 1, open_tasks: 2 };
+    await act(async () => root.render(<ProductionTeamProvider value={{ userId: "john", role: "manager", canManage: true, videographerId: "john", members: [] }}>
+      <TabletJobPipeline editable={editable} initialJobs={[taskless, withTasks]} statuses={workflow} visibleStatusKeys={["in_production"]} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />
+    </ProductionTeamProvider>));
+    const statusProgress = container.querySelector<HTMLProgressElement>('[aria-label="Job progress for Taskless shoot"]')!;
+    expect(statusProgress.value).toBe(50);
+    expect(statusProgress.getAttribute("aria-valuetext")).toBe("50% · Status: In Production");
+    expect(container.textContent).toContain("Status: In Production");
+    expect(container.querySelector<HTMLProgressElement>('[aria-label="Job progress for Edited clips"]')!.value).toBe(33);
+    expect(container.textContent).toContain("1 of 3 tasks complete");
+    expect(container.textContent).not.toContain("No tasks yet");
   });
 
   it("shows jobs grouped by status with edit and drag controls", async () => {
