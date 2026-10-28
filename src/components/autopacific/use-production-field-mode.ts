@@ -10,11 +10,12 @@ export function useProductionFieldMode(userId?: string, originalVideographer = f
   const [message, setMessage] = useState("");
   const syncing = useRef<Promise<boolean> | null>(null);
   useEffect(() => {
+    if (userId && originalVideographer) adoptLegacyAutopacificQueue(userId);
     const update = () => { setOnline(navigator.onLine); setQueue(readAutopacificOfflineQueue(userId)); };
     const timer = window.setTimeout(update, 0);
     window.addEventListener("online", update); window.addEventListener("offline", update);
     return () => { window.clearTimeout(timer); window.removeEventListener("online", update); window.removeEventListener("offline", update); };
-  }, [userId]);
+  }, [userId, originalVideographer]);
   const queueMove = useCallback((entity: "job" | "task", mutation: Omit<AutopacificOfflineMutation, "clientMutationId" | "createdAt" | "entity">) => {
     // Throw if storage is unavailable so the calling board restores the card.
     setQueue(queueAutopacificOfflineMutation({ entity, ...mutation }, userId));

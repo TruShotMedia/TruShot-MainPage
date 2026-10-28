@@ -7,10 +7,20 @@ import {
   removeAutopacificOfflineMutations,
   writeAutopacificOfflineSnapshot,
   readAutopacificOfflineSnapshot,
+  adoptLegacyAutopacificQueue,
 } from "@/lib/autopacific-offline";
 
 describe("AutoPacific field queue", () => {
   beforeEach(() => window.localStorage.clear());
+  it("adopts the legacy videographer queue once without replacing newer personal intents", () => {
+    const legacy = queueAutopacificOfflineMutation({ entity: "job", expectedUpdatedAt: "old-revision", recordId: "job", statusId: "scheduled", title: "Field job" });
+    adoptLegacyAutopacificQueue("john");
+    expect(readAutopacificOfflineQueue()).toEqual([]);
+    expect(readAutopacificOfflineQueue("john")).toEqual(legacy);
+    queueAutopacificOfflineMutation({ ...legacy[0], statusId: "review" }, "john");
+    adoptLegacyAutopacificQueue("john");
+    expect(readAutopacificOfflineQueue("john")[0].statusId).toBe("review");
+  });
   it("never reads or syncs another signed-in person's field copy", () => {
     queueAutopacificOfflineMutation({ entity: "job", expectedUpdatedAt: "2026-10-28T00:00:00Z", recordId: "job", statusId: "scheduled", title: "John's work" }, "john");
     writeAutopacificOfflineSnapshot({ private: "john" }, "john");
