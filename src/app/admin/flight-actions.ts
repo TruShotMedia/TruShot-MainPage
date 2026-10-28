@@ -6,6 +6,7 @@ import { scheduleClickUpFlightEventSync } from "@/lib/clickup/flight-event-sync"
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { getProductionContext } from "@/lib/data/admin";
 import { findAirline } from "@/lib/airlines";
+import { assignmentValues } from "@/lib/production-assignment-input";
 import type { CalendarFlightEvent, FlightEventDeleteResult, FlightEventSaveResult } from "@/lib/types";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -17,6 +18,7 @@ const planSchema = z.object({
   client_id: z.union([z.string().uuid(), z.literal("")]).default(""),
   title: z.string().trim().min(2).max(180),
   notes: optionalText(4_000),
+  assignee_ids: z.array(z.uuid()).min(1).max(100).optional(),
   accommodation_title: optionalText(180),
   accommodation_location: optionalText(300),
   accommodation_notes: optionalText(2_000),
@@ -82,6 +84,7 @@ function parseLeg(formData: FormData, prefix: "outbound" | "return") {
 
 function parseFlightPlan(formData: FormData) {
   const plan = planSchema.safeParse({
+    ...assignmentValues(formData),
     client_id: readString(formData, "client_id"),
     title: readString(formData, "title"),
     notes: readString(formData, "notes"),
@@ -105,12 +108,13 @@ function parseFlightPlan(formData: FormData) {
 }
 
 function planValues(plan: ParsedPlan, userId: string) {
-  return { client_id: nullable(plan.client_id), title: plan.title, updated_by: userId };
+  return { client_id: nullable(plan.client_id), title: plan.title, updated_by: userId, assignee_ids: plan.assignee_ids };
 }
 
 function legValues({ leg, plan, planId, index, userId }: { leg: ParsedLeg; plan: ParsedPlan; planId: string; index: number; userId: string }) {
   const airlineCode = nullable(leg.airline_code);
   return {
+    assignee_ids: plan.assignee_ids,
     client_id: nullable(plan.client_id), travel_plan_id: planId, leg_order: index + 1, leg_kind: index === 0 ? "outbound" : "return", title: plan.title,
     departure_date: leg.departure_date, departure_time: leg.departure_time, arrival_date: leg.arrival_date, arrival_time: leg.arrival_time,
     origin_location: leg.origin_location, destination_location: leg.destination_location,
@@ -172,14 +176,16 @@ export async function updateFlightPlan(formData: FormData): Promise<FlightEventS
   let resolvedPlanId = planId.success ? planId.data : null;
   let existingLegs: Array<{ id: string; leg_kind: string; leg_order: number }> = [];
   if (resolvedPlanId) {
-    const { data: currentPlan, error: currentPlanError } = await context.supabase.from("website-flight-plans").select("id").eq("id", resolvedPlanId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle();
+    const { data: currentPlan, error: currentPlanError } = await context.supabase.from("website-flight-plans").select("id,assignee_ids").eq("id", resolvedPlanId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle();
     if (currentPlanError || !currentPlan) return { ok: false, error: "That travel plan is no longer available." };
+    if (context.access !== "admin" && context.team.role === "marketing" && !currentPlan.assignee_ids.includes(context.claims.sub)) return { ok: false, error: "You can only edit flights assigned to you." };
     const { data, error } = await context.supabase.from("website-flight-events").select("id,leg_kind,leg_order").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("travel_plan_id", resolvedPlanId).order("leg_order");
     if (error) return { ok: false, error: "The travel legs could not be loaded. Please try again." };
     existingLegs = data ?? [];
   } else {
-    const { data: legacyEvent, error: legacyError } = await context.supabase.from("website-flight-events").select("id").eq("id", sourceEventId.data).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("travel_plan_id", null).maybeSingle();
+    const { data: legacyEvent, error: legacyError } = await context.supabase.from("website-flight-events").select("id,assignee_ids").eq("id", sourceEventId.data).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("travel_plan_id", null).maybeSingle();
     if (legacyError || !legacyEvent) return { ok: false, error: "That standalone flight is no longer available." };
+    if (context.access !== "admin" && context.team.role === "marketing" && !legacyEvent.assignee_ids.includes(context.claims.sub)) return { ok: false, error: "You can only edit flights assigned to you." };
     const { data: createdPlan, error: createPlanError } = await context.supabase
       .from("website-flight-plans")
       .insert({ ...planValues(parsed.plan, context.claims.sub), workspace_id: TRUSHOT_WORKSPACE_ID, created_by: context.claims.sub })

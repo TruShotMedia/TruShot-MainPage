@@ -166,13 +166,13 @@ async function processWorkspace(
   const [jobsResult, tasksResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobContextsResult, campaignsResult, jobStatusesResult, taskStatusesResult] = await Promise.all([
     supabase
       .from("website-jobs")
-      .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time")
+      .select("id,title,client_id,status_id,shoot_date,shoot_time,due_date,due_time,assignee_ids")
       .eq("workspace_id", settings.workspace_id)
       .is("archived_at", null)
       .or(`and(shoot_date.gte.${bounds.start},shoot_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,due_date,due_time")
+      .select("id,title,job_id,status_id,due_date,due_time,assignee_ids")
       .eq("workspace_id", settings.workspace_id)
       .is("archived_at", null),
     supabase
@@ -183,18 +183,18 @@ async function processWorkspace(
       .or(`and(start_date.gte.${bounds.start},start_date.lte.${bounds.end}),and(due_date.gte.${bounds.start},due_date.lte.${bounds.end})`),
     supabase
       .from("website-calendar-events")
-      .select("id,client_id,title,location,start_date,start_time,reminder_offsets_minutes")
+      .select("id,client_id,title,location,start_date,start_time,reminder_offsets_minutes,assignee_ids")
       .eq("workspace_id", settings.workspace_id)
       .gte("start_date", bounds.start)
       .lte("start_date", bounds.end),
     supabase
       .from("website-flight-events")
-      .select("id,client_id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,accommodation_title,accommodation_location,vehicle_title,vehicle_location")
+      .select("id,client_id,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,accommodation_title,accommodation_location,vehicle_title,vehicle_location,assignee_ids")
       .eq("workspace_id", settings.workspace_id)
       .or(`and(departure_date.gte.${bounds.start},departure_date.lte.${bounds.end}),and(arrival_date.gte.${bounds.start},arrival_date.lte.${bounds.end})`),
     supabase.from("website-clients").select("id,name").eq("workspace_id", settings.workspace_id),
     supabase.from("website-jobs").select("id,title,client_id,due_date").eq("workspace_id", settings.workspace_id).is("archived_at", null),
-    supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", settings.workspace_id).is("archived_at", null),
+    supabase.from("website-campaigns").select("id,title,client_id,assignee_ids").eq("workspace_id", settings.workspace_id).is("archived_at", null),
     supabase.from("website-job-statuses").select("id,is_closed").eq("workspace_id", settings.workspace_id),
     supabase.from("website-task-statuses").select("id,is_open").eq("workspace_id", settings.workspace_id),
   ]);
@@ -318,11 +318,17 @@ async function processWorkspace(
 
   const { data: subscriptionRows, error: subscriptionError } = await supabase
     .from("website-push-subscriptions")
-    .select("id,endpoint,p256dh,auth_key,client_scope_id")
+    .select("id,endpoint,p256dh,auth_key,client_scope_id,user_id")
     .eq("workspace_id", settings.workspace_id);
   if (subscriptionError) throw subscriptionError;
-  const subscriptions = (subscriptionRows ?? []) as (StoredPushSubscription & { client_scope_id?: string | null })[];
+  const subscriptions = (subscriptionRows ?? []) as (StoredPushSubscription & { client_scope_id?: string | null; user_id?: string })[];
   if (!subscriptions.length) return { candidates: reminders.length, delivered: 0, failed: 0, skippedDuplicates: 0 };
+  const assignments = new Map<string, string[]>([...(jobsResult.data ?? []), ...(tasksResult.data ?? []), ...(calendarEventsResult.data ?? []), ...(flightEventsResult.data ?? [])].map(row => [row.id, row.assignee_ids ?? []]));
+  for (const asset of campaignAssetsResult.data ?? []) assignments.set(asset.id, campaigns.get(asset.campaign_id)?.assignee_ids ?? []);
+  const { data: activeMembers, error: memberError } = await supabase.from("website-production-team").select("user_id")
+    .eq("workspace_id", settings.workspace_id).eq("is_active", true);
+  if (memberError) throw memberError;
+  const activeIds = new Set((activeMembers ?? []).map(member => member.user_id));
 
   let delivered = 0;
   let failed = 0;
@@ -337,7 +343,8 @@ async function processWorkspace(
     }
 
     const recipients = subscriptions.filter((subscription) => !subscription.client_scope_id
-      || (reminder.experience === "autopacific" && notificationExperience(clients.get(subscription.client_scope_id)) === "autopacific"));
+      || (reminder.experience === "autopacific" && notificationExperience(clients.get(subscription.client_scope_id)) === "autopacific"
+        && Boolean(subscription.user_id && activeIds.has(subscription.user_id) && assignments.get(reminder.entityId)?.includes(subscription.user_id))));
     const result = await sendPushNotifications(recipients, buildCalendarReminderPushMessage(reminder));
     result.expiredIds.forEach((id) => expiredIds.add(id));
     delivered += result.delivered;

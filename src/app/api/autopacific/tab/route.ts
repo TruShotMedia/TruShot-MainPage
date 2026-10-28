@@ -53,7 +53,7 @@ async function jobsPayload() {
   const [jobsResult, statusesResult, taskStatusesResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at,assignee_ids,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("client_id", client.id)
       .is("archived_at", null),
@@ -65,7 +65,7 @@ async function jobsPayload() {
       .order("position"),
     context.supabase
       .from("website-task-statuses")
-      .select("id,is_open")
+      .select("id,key,is_open")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("is_active", true),
   ]);
@@ -85,7 +85,7 @@ async function jobsPayload() {
   const { data: recordNotes, error: noteError } = jobIds.length
     ? await context.supabase
       .from("website-work-record-notes")
-      .select("id,job_id,body,created_at,updated_at,rescheduled_date")
+      .select("id,job_id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", "job")
       .in("job_id", jobIds)
@@ -94,12 +94,14 @@ async function jobsPayload() {
   if (noteError) throw noteError;
   const taskStatusById = new Map((taskStatusesResult.data ?? []).map((status) => [status.id, status]));
   const jobStatusById = new Map((statusesResult.data ?? []).map((status) => [status.id, status]));
-  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null; created_by?: string | null; mention_user_ids?: string[] }>>();
   for (const note of recordNotes ?? []) {
     if (!note.job_id) continue;
     notesByJobId.set(note.job_id, [...(notesByJobId.get(note.job_id) ?? []), {
       id: note.id,
       body: note.body,
+      created_by: note.created_by,
+      mention_user_ids: note.mention_user_ids,
       rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,
@@ -113,6 +115,7 @@ async function jobsPayload() {
       status: jobStatusById.get(job.status_id) ?? null,
       record_notes: notesByJobId.get(job.id) ?? [],
       total_tasks: relatedTasks.length,
+      completed_tasks: relatedTasks.filter(task => taskStatusById.get(task.status_id)?.key === "posted_done").length,
       open_tasks: relatedTasks.filter((task) => taskStatusById.get(task.status_id)?.is_open ?? true).length,
     };
   });
@@ -150,7 +153,7 @@ async function tasksPayload() {
   const { data: tasks, error: taskError } = jobIds.length
     ? await context.supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .in("job_id", jobIds)
       .is("archived_at", null)
@@ -161,7 +164,7 @@ async function tasksPayload() {
   const { data: recordNotes, error: noteError } = taskIds.length
     ? await context.supabase
       .from("website-work-record-notes")
-      .select("id,task_id,body,created_at,updated_at,rescheduled_date")
+      .select("id,task_id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", "task")
       .in("task_id", taskIds)
@@ -169,12 +172,14 @@ async function tasksPayload() {
     : { data: [], error: null };
   if (noteError) throw noteError;
   const jobById = new Map(jobs.map((job) => [job.id, job]));
-  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null; created_by?: string | null; mention_user_ids?: string[] }>>();
   for (const note of recordNotes ?? []) {
     if (!note.task_id) continue;
     notesByTaskId.set(note.task_id, [...(notesByTaskId.get(note.task_id) ?? []), {
       id: note.id,
       body: note.body,
+      created_by: note.created_by,
+      mention_user_ids: note.mention_user_ids,
       rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,

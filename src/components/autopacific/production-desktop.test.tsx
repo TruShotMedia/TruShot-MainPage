@@ -8,6 +8,9 @@ import { ProductionDesktop } from "./production-desktop";
 import { TabletRecordEditEditor } from "@/components/tablet/tablet-workspace-editors";
 import type { CalendarCustomEvent, TabletKioskData,TabletJobRecord } from "@/lib/types";
 import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
+import { ProductionTeamProvider, TeamAssignmentField } from "./team-context";
+import type { TeamContextData } from "@/lib/production-team";
+vi.mock("@/app/autopacific/team-actions", () => ({ loadTeamComments: vi.fn(async () => []), markTeamCommentsRead: vi.fn(async () => undefined), loadTeamDirectory: vi.fn(async () => []), saveTeamMember: vi.fn(async () => ({ ok: true })) }));
 const weatherMock = vi.hoisted(() => vi.fn(() => ({ days: [], unavailable: false })));
 const taskMoveMock = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 vi.mock("next/navigation",()=>({useRouter:()=>({refresh:vi.fn()})}));
@@ -23,6 +26,41 @@ const statuses=[{id:"plan",key:"planning",label:"Planning",color:"#7c8790",posit
 const job:TabletJobRecord={id:"11111111-2222-4333-8444-555555555555",title:"Rola launch content",job_number:null,client_id:"apg",status_id:"scheduled",shoot_date:"2026-11-10",shoot_time:"09:00",shoot_end_time:"11:00",due_date:"2026-11-13",due_time:"17:00",photos_delivered:0,description:"Capture the product range in a real workshop.",notes:null,location:"Geebung workshop",delivery_url:null,delivered_at:null,updated_at:"2026-10-27T00:00:00.000Z",open_tasks:1,total_tasks:2,status:statuses[1],client:{id:"apg",name:"Autopacific Group"},brief_details:{objective:"Show practical use of the new range",audience:"Trade customers",sections:[{key:"output_specs",body:"9:16 social reel, 30 seconds · MP4"}]},deliverables:[{id:"22222222-3333-4444-8555-666666666666",name:"Product launch reel",date:"2026-11-13"},{id:"33333333-4444-4555-8666-777777777777",name:"Workshop photographs",date:null}]};
 const data:TabletKioskData={statuses:[{id:"todo",key:"not_started",label:"Not started",color:"#777",position:1,is_open:true},{id:"progress",key:"in_progress",label:"In progress",color:"#579",position:2,is_open:true},{id:"review",key:"final_draft_notes",label:"Final Draft/Notes",color:"#795",position:3,is_open:true},{id:"posted",key:"posted_done",label:"Posted / Done",color:"#375",position:4,is_open:false}],jobStatuses:statuses,clientOptions:[{id:"apg",name:"Autopacific Group"}],jobOptions:[],pipelineJobs:[job,{...job,id:"draft",title:"Undated planning brief",status_id:"plan",status:statuses[0],shoot_date:null,due_date:null}],pipelineTasks:[{id:"task",job_id:job.id,title:"Launch reel",status_id:"review",asset_type:"Asset",hours:2,due_date:"2026-11-13",due_time:null,priority:"normal",description:null,position:10,completed_at:null,updated_at:job.updated_at,job:{title:job.title,client:{name:"Autopacific Group"}}}],calendarJobs:[{...job,entity_type:"job",client_name:"Autopacific Group",status_label:"Scheduled",status_color:"#579",is_complete:false}],calendarTasks:[],calendarCampaignAssets:[],calendarEvents:[],flightEvents:[],pendingRequestCount:0};
 describe("shared desktop workspace",()=>{
+ it("keeps Marketing videographer tasks review-only while enabling personal work and flights in My Space", async () => {
+  (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
+  const team: TeamContextData = { userId: "colleague", role: "marketing", canManage: false, videographerId: "john", members: [
+   { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579", is_primary_videographer: true },
+   { user_id: "colleague", display_name: "Colleague", username: "colleague", role: "marketing", is_active: true, avatar_color: "#579" },
+  ] };
+  const fixture = { ...data, pipelineJobs: [{ ...job, assignee_ids: ["john"] }, { ...job, id: "personal", title: "Personal brief", assignee_ids: ["colleague"] }], pipelineTasks: [{ ...data.pipelineTasks[0], assignee_ids: ["john"] }, { ...data.pipelineTasks[0], id: "own-task", title: "Personal clip", assignee_ids: ["colleague"] }] };
+  vi.stubGlobal("fetch", vi.fn(async () => ({ status: 304 })));
+  const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
+  try {
+   await act(async () => root.render(<ProductionTeamProvider value={team}><ProductionDesktop experience="mobile" data={fixture} mode="marketing" initialView="pipeline" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey="" /></ProductionTeamProvider>));
+   expect(container.textContent).toContain("Launch reel"); expect(container.textContent).not.toContain("Personal clip");
+   expect(container.querySelector('[aria-label="Edit Launch reel"]')).toBeNull();
+   const picker = container.querySelector<HTMLSelectElement>('[aria-label="Choose workspace"]')!;
+   await act(async () => { picker.value = "mine"; picker.dispatchEvent(new Event("change", { bubbles: true })); });
+   expect(container.textContent).toContain("Personal clip"); expect(container.textContent).not.toContain("Launch reel");
+   expect(container.querySelector('[aria-label="Edit Personal clip"]')).not.toBeNull();
+   expect(container.textContent).toContain("Flight plan");
+   expect(container.querySelector('[aria-label="Workspace pages"]')).not.toBeNull();
+  } finally { await act(async () => root.unmount()); container.remove(); localStorage.clear(); vi.unstubAllGlobals(); }
+ });
+ it("defaults new assignments to the current teammate and supports select all", async () => {
+  (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
+  const team: TeamContextData = { userId: "colleague", role: "marketing", canManage: false, videographerId: "john", members: [
+   { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579" },
+   { user_id: "colleague", display_name: "Colleague", username: "colleague", role: "marketing", is_active: true, avatar_color: "#579" },
+  ] };
+  const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
+  try {
+   await act(async () => root.render(<ProductionTeamProvider value={team}><TeamAssignmentField /></ProductionTeamProvider>));
+   expect(JSON.parse(container.querySelector<HTMLInputElement>('input[name="assignee_ids"]')!.value)).toEqual(["colleague"]);
+   await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Select all team members")!.click());
+   expect(JSON.parse(container.querySelector<HTMLInputElement>('input[name="assignee_ids"]')!.value)).toEqual(["john", "colleague"]);
+  } finally { await act(async () => root.unmount()); container.remove(); }
+ });
  it.each(["production","marketing"] as const)("scopes initial and refreshed calendar data correctly in %s", async mode => {
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   const privateEvent: CalendarCustomEvent = {id:"ingreign",entity_type:"calendar-event",client_id:null,client_name:null,title:"INGREIGN CONFERENCE",description:null,location:null,start_date:"2026-11-10",end_date:"2026-11-10",start_time:"19:00:00",end_time:"21:00:00",is_all_day:false,color:"#579",reminder_offsets_minutes:[],created_at:job.updated_at,updated_at:job.updated_at};
@@ -74,7 +112,7 @@ describe("shared desktop workspace",()=>{
    await act(async()=>root.render(<ProductionDesktop experience="mobile" data={data} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
    expect(container.querySelector(".is-mobile-app")).not.toBeNull();
    expect(container.querySelector('[aria-label="Today agenda"]')).not.toBeNull();
-   expect(container.querySelectorAll("nav button")).toHaveLength(5);
+   expect(container.querySelectorAll(".apg-mobile-bottom-nav button")).toHaveLength(5);
    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Open workspace settings"]')!.click());
    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Account security");
    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Close workspace settings"]')!.click());
@@ -91,7 +129,7 @@ describe("shared desktop workspace",()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
   try{await act(async()=>root.render(<ProductionDesktop data={data} mode="marketing" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
-    expect([...container.querySelectorAll("nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar","Today"]);
+    expect([...container.querySelectorAll(".apg-mobile-bottom-nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar","Today"]);
     expect(document.title).toBe("Jobs | AutoPacific Marketing");
     expect(container.textContent).not.toContain("Undated planning brief");
     await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Planning")!.click());expect(container.textContent).toContain("Undated planning brief");
@@ -139,9 +177,11 @@ describe("shared desktop workspace",()=>{
  });
  it("renders reviewable browser fixtures without exposing an authenticated test route",()=>{
   if(process.env.APG_RENDER_PREVIEWS!=="1")return;
-  const css=["src/app/globals.css","src/app/workspace.css","src/components/autopacific/production-wordmark.css","src/components/autopacific/production-desktop.css","src/components/autopacific/production-mobile.css"].map(path=>readFileSync(path,"utf8")).join("\n");
-  const views={jobs:<ProductionDesktop data={data} mode="production" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,brief:<ProductionDesktop data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,editor:<main className="apg-desktop is-light theme-autopacific"><TabletRecordEditEditor record={job} type="job" fixedClientId="apg" clientOptions={data.clientOptions} jobOptions={[]} jobStatuses={statuses} taskStatuses={data.statuses} onClose={()=>{}} onSaved={()=>{}} /></main>,calendar:<ProductionDesktop data={data} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,today:<ProductionDesktop data={data} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>};
-  const mobileViews={jobs:<ProductionDesktop experience="mobile" data={data} mode="production" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,brief:<ProductionDesktop experience="mobile" data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,editor:views.editor,calendar:<ProductionDesktop experience="mobile" data={data} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,today:<ProductionDesktop experience="mobile" data={data} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>};
-  for(const [key,view] of Object.entries({...views,...Object.fromEntries(Object.entries(mobileViews).map(([key,view])=>[`mobile-${key}`,view]))}))writeFileSync(`${process.env.APG_PREVIEW_DIR??"/private/tmp"}/apg-desktop-${key}.html`,`<!doctype html><html class="apg-desktop-active"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${renderToStaticMarkup(view).replaceAll('src="/brand/','src="https://www.trushotmedia.com/brand/')}</body></html>`);
+  const previewTeam: TeamContextData = { userId: "john", role: "manager", canManage: true, videographerId: "john", members: [{ user_id: "john", display_name: "John Herholdt", username: "john", role: "manager", is_active: true, avatar_color: "#5d91b0" }] };
+  const previewData = { ...data, pipelineJobs: data.pipelineJobs.map(item => ({ ...item, assignee_ids: ["john"] })), pipelineTasks: data.pipelineTasks.map(item => ({ ...item, assignee_ids: ["john"] })), calendarJobs: data.calendarJobs.map(item => ({ ...item, assignee_ids: ["john"] })) };
+  const css=["src/app/globals.css","src/app/workspace.css","src/components/autopacific/production-wordmark.css","src/components/autopacific/production-desktop.css","src/components/autopacific/production-mobile.css","src/components/autopacific/production-team.css"].map(path=>readFileSync(path,"utf8")).join("\n");
+  const views={jobs:<ProductionDesktop data={previewData} mode="production" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,brief:<ProductionDesktop data={previewData} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,editor:<main className="apg-desktop is-light theme-autopacific"><TabletRecordEditEditor record={job} type="job" fixedClientId="apg" clientOptions={data.clientOptions} jobOptions={[]} jobStatuses={statuses} taskStatuses={data.statuses} onClose={()=>{}} onSaved={()=>{}} /></main>,calendar:<ProductionDesktop data={previewData} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,today:<ProductionDesktop data={previewData} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>};
+  const mobileViews={jobs:<ProductionDesktop experience="mobile" data={previewData} mode="production" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,brief:<ProductionDesktop experience="mobile" data={previewData} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,editor:views.editor,calendar:<ProductionDesktop experience="mobile" data={previewData} mode="production" initialView="calendar" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>,today:<ProductionDesktop experience="mobile" data={previewData} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>};
+  for(const [key,view] of Object.entries({...views,...Object.fromEntries(Object.entries(mobileViews).map(([key,view])=>[`mobile-${key}`,view]))}))writeFileSync(`${process.env.APG_PREVIEW_DIR??"/private/tmp"}/apg-desktop-${key}.html`,`<!doctype html><html class="apg-desktop-active"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${renderToStaticMarkup(<ProductionTeamProvider value={previewTeam}>{view}</ProductionTeamProvider>).replaceAll('src="/brand/','src="https://www.trushotmedia.com/brand/')}</body></html>`);
  });
 });

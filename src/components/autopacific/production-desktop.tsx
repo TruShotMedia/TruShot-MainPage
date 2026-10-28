@@ -23,6 +23,9 @@ import {
   ShieldCheck,
   Sun,
   X,
+  Users,
+  UserRound,
+  ChevronDown,
 } from "lucide-react";
 import type { getTabletKioskData } from "@/lib/data/admin";
 import type {
@@ -67,6 +70,10 @@ import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutop
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import "./production-desktop.css";
 import "./production-mobile.css";
+import "./production-team.css";
+import { useProductionTeam, TeamAvatars } from "./team-context";
+import { scopeProductionSpace, type ProductionSpace } from "@/lib/production-team";
+import { TeamManagement, TeamNotifications } from "./team-workspace";
 
 const CalendarEventEditor = dynamic(() =>
   import("@/components/admin/calendar-event-editor").then(
@@ -325,17 +332,24 @@ export function ProductionDesktop({
 }) {
   const marketing = mode === "marketing",
     router = useRouter();
+  const team = useProductionTeam();
+  const userId = team?.userId;
+  const [space, setSpace] = useState<ProductionSpace>("videographer");
+  const [teamSelection, setTeamSelection] = useState<string[] | null>(null);
+  const [manageTeam, setManageTeam] = useState(false);
+  const reviewOnly = marketing && space === "videographer";
   const [snapshot, setSnapshot] = useState({ source: data, data });
-  const field = useProductionFieldMode();
+  const field = useProductionFieldMode(team?.userId, team?.userId === team?.videographerId);
   const syncFieldChanges = field.sync;
   const sourceData = useMemo(() => scopeCalendarForWorkspace(snapshot.source === data ? snapshot.data : data, mode), [data, mode, snapshot]);
-  const live = useMemo(() => {
+  const allLive = useMemo(() => {
     if (field.online || !field.queue.length) return sourceData;
     return { ...sourceData,
       pipelineJobs: sourceData.pipelineJobs.map(job => { const move = field.queue.find(item => item.entity === "job" && item.recordId === job.id); return move ? { ...job, status_id: move.statusId, status: sourceData.jobStatuses.find(status => status.id === move.statusId) ?? job.status } : job; }),
       pipelineTasks: sourceData.pipelineTasks.map(task => { const move = field.queue.find(item => item.entity === "task" && item.recordId === task.id); return move ? { ...task, status_id: move.statusId } : task; }),
     };
   }, [field.online, field.queue, sourceData]);
+  const live = useMemo(() => team ? scopeProductionSpace(allLive, space === "mine" ? [team.userId] : space === "team" ? teamSelection ?? team.members.map(member => member.user_id) : [team.videographerId], space === "team") : allLive, [allLive, space, team, teamSelection]);
   const [view, setView] = useState<TabletView>(
     workspaceInitialView(initialView === "planning" ? "jobs" : parseTabletView(initialView), mode, true, true),
   );
@@ -376,6 +390,13 @@ export function ProductionDesktop({
   const refreshAgain = useRef(new Set<string>());
   const initialFieldSync = useRef(false);
   useEffect(() => {
+    if (!userId) return;
+    const stored = localStorage.getItem(`apg-space:${userId}`);
+    if (stored !== "mine" && stored !== "team") return;
+    const timer = setTimeout(() => { setSpace(stored); if (stored === "team") setView("calendar"); }, 0);
+    return () => clearTimeout(timer);
+  }, [userId]);
+  useEffect(() => {
     document.documentElement.classList.add("apg-desktop-active");
     const saved = localStorage.getItem("apg-desktop-theme");
     const timer = window.setTimeout(() => {
@@ -414,15 +435,15 @@ export function ProductionDesktop({
   }, [theme]);
   useEffect(() => {
     if (!navigator.onLine) {
-      const stored = readAutopacificOfflineSnapshot<{ kind: string; data: Data }>();
+      const stored = readAutopacificOfflineSnapshot<{ kind: string; data: Data }>(team?.userId);
       const required = ["pipelineJobs", "pipelineTasks", "jobStatuses", "statuses", "clientOptions", "jobOptions", "calendarJobs", "calendarTasks", "calendarEvents", "flightEvents"] as const;
       if (stored?.snapshot?.kind === "production-workspace-v2" && required.every(key => Array.isArray(stored.snapshot.data?.[key]))) {
         const timer = window.setTimeout(() => setSnapshot({ source: data, data: stored.snapshot.data }), 0);
         return () => window.clearTimeout(timer);
       }
     }
-  }, [data]);
-  useEffect(() => { if (field.online && navigator.onLine) writeAutopacificOfflineSnapshot({ kind: "production-workspace-v2", data: sourceData }); }, [field.online, sourceData]);
+  }, [data, team?.userId]);
+  useEffect(() => { if (field.online && navigator.onLine) writeAutopacificOfflineSnapshot({ kind: "production-workspace-v2", data: sourceData }, team?.userId); }, [field.online, sourceData, team?.userId]);
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (newMenu.current && !newMenu.current.contains(event.target as Node))
@@ -498,10 +519,10 @@ export function ProductionDesktop({
     if (initialFieldSync.current) return;
     initialFieldSync.current = true;
     // Resume an interrupted field sync without waiting for the refresh timer.
-    if (navigator.onLine && readAutopacificOfflineQueue().length) void syncFieldChanges().then(ok => { if (ok) void refresh(view); });
-  }, [refresh, syncFieldChanges, view]);
+    if (navigator.onLine && readAutopacificOfflineQueue(team?.userId).length) void syncFieldChanges().then(ok => { if (ok) void refresh(view); });
+  }, [refresh, syncFieldChanges, view, team?.userId]);
   const editorOpen = Boolean(
-    editing || create || eventDate || flightDate || scheduleItem || viewing || controlsOpen,
+    editing || create || eventDate || flightDate || scheduleItem || viewing || controlsOpen || manageTeam,
   );
   useEffect(() => {
     const update = () => {
@@ -518,6 +539,7 @@ export function ProductionDesktop({
     };
   }, [editorOpen, refresh, refreshIntervalMinutes, view]);
   function select(next: TabletView) {
+    if (space === "team" && next !== "calendar") chooseSpace("mine");
     setView(next);
     setSearch("");
     setViewing(null);
@@ -525,12 +547,13 @@ export function ProductionDesktop({
     if (newMenu.current) newMenu.current.open = false;
     void refresh(next);
   }
+  function chooseSpace(next: ProductionSpace) { setSpace(next); if (team) localStorage.setItem(`apg-space:${team.userId}`, next); }
   function toggleTheme() {
     setTheme(current => { const next = current === "light" ? "dark" : "light"; localStorage.setItem("apg-desktop-theme", next); return next; });
   }
   async function startPlanningTask(task: PipelineTask) {
     const status = live.statuses.find(item => item.key === "in_progress");
-    if (marketing || !status || startingTask) return;
+    if (reviewOnly || !status || startingTask) return;
     setStartingTask(task.id);
     try {
       if (!navigator.onLine) field.queueMove("task", { recordId: task.id, statusId: status.id, expectedUpdatedAt: task.updated_at, title: task.title });
@@ -567,7 +590,7 @@ export function ProductionDesktop({
     } finally { setScheduling(false); }
   }
   function start(kind: TabletCreateKind, date?: string) {
-    if (marketing && (kind === "task" || kind === "flight")) return;
+    if (reviewOnly && (kind === "task" || kind === "flight")) return;
     if (newMenu.current) newMenu.current.open = false;
     if (kind === "event") {
       setEvent(null);
@@ -610,7 +633,7 @@ export function ProductionDesktop({
     [live.pipelineTasks, live.statuses, taskView, search],
   );
   const label =
-    view === "pipeline"
+    space === "team" ? "Team calendar" : view === "pipeline"
       ? "Tasks"
       : view === "calendar"
         ? "Calendar"
@@ -621,7 +644,7 @@ export function ProductionDesktop({
           : "Jobs";
   const openedJob =
     viewing?.kind === "job"
-      ? (live.pipelineJobs.find((job) => job.id === viewing.record.id) ??
+      ? (allLive.pipelineJobs.find((job) => job.id === viewing.record.id) ??
         viewing.record)
       : null;
   return (
@@ -633,7 +656,17 @@ export function ProductionDesktop({
       <aside className="apg-desktop-sidebar">
         <ProductionWordmark className="apg-desktop-wordmark" preload sizes="168px" />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
-        <nav aria-label="Workspace pages">
+        <div className="apg-workspace-groups">
+          {(["videographer", "mine"] as const).map(group => <details key={group} open={space === group} className="apg-workspace-group">
+            <summary>{group === "mine" ? <UserRound size={15} /> : <BriefcaseBusiness size={15} />} {group === "mine" ? "My Space" : "Videographer"}<ChevronDown size={14} /></summary>
+            <nav aria-label={`${group === "mine" ? "My Space" : "Videographer"} pages`}>{workspaceViews(mode, true, true).map(key => <button type="button" key={key} aria-current={space === group && view === key ? "page" : undefined} onClick={() => { select(key); chooseSpace(group); }}>
+              {key === "jobs" ? <BriefcaseBusiness size={17} /> : key === "pipeline" ? <ListTodo size={17} /> : key === "campaigns" ? <FolderKanban size={17} /> : key === "calendar" ? <CalendarDays size={17} /> : <Sun size={17} />}<span>{key === "pipeline" ? "Tasks" : key[0].toUpperCase() + key.slice(1)}</span>
+            </button>)}</nav>
+          </details>)}
+          <button type="button" className="apg-team-nav" aria-current={space === "team" ? "page" : undefined} onClick={() => { select("calendar"); chooseSpace("team"); }}><Users size={18} /> Team calendar</button>
+          {!marketing && team?.canManage ? <button type="button" className="apg-team-nav" onClick={() => setManageTeam(true)}><Users size={18} /> Manage team</button> : null}
+        </div>
+        <nav aria-label="Workspace pages" className="apg-mobile-bottom-nav">
           {workspaceViews(mode, true, true).map((key) => (
             <button
               type="button"
@@ -678,18 +711,12 @@ export function ProductionDesktop({
           <div>
             <ProductionWordmark className="apg-mobile-wordmark" sizes="140px" />
             <span>
-              AutoPacific Group / {marketing ? "Marketing" : "Production"}
+              AutoPacific Group / {space === "mine" ? "My Space" : space === "team" ? "Team" : "Videographer"}
             </span>
             <h1>{label}</h1>
           </div>
           <div className="apg-desktop-controls">
-            {!marketing && notificationPublicKey ? (
-              <TabletNotificationControl
-                experience="autopacific"
-                experienceName="AutoPacific"
-                publicKey={notificationPublicKey}
-              />
-            ) : null}
+            {team ? <TeamNotifications onOpenRecord={(kind, id) => { void refresh(kind === "job" ? "jobs" : "pipeline"); const record = kind === "job" ? allLive.pipelineJobs.find(item => item.id === id) : allLive.pipelineTasks.find(item => item.id === id); if (record) { if (kind === "job") setViewing({ kind, record: record as TabletJobRecord }); else setViewing({ kind, record: record as PipelineTask }); } }} /> : null}
             <button
               type="button"
               disabled={refreshing}
@@ -718,7 +745,7 @@ export function ProductionDesktop({
                 <button type="button" onClick={() => start("event")}>
                   Calendar event
                 </button>
-                {!marketing ? (
+                {!reviewOnly ? (
                   <>
                     <button type="button" onClick={() => start("task")}>
                       Task / asset
@@ -733,6 +760,8 @@ export function ProductionDesktop({
             <button type="button" className="apg-mobile-more" onClick={() => setControlsOpen(true)} aria-label="Open workspace settings"><MoreHorizontal size={20} /></button>
           </div>
         </header>
+        <div className="apg-mobile-space-picker"><label>Workspace<select aria-label="Choose workspace" value={space} onChange={event => { const next = event.target.value as ProductionSpace; chooseSpace(next); if (next === "team") select("calendar"); }}><option value="videographer">Videographer</option><option value="mine">My Space</option><option value="team">Team calendar</option></select></label></div>
+        {space === "team" && team ? <div className="team-calendar-people"><strong><Users size={16} /> Team</strong><button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>{team.members.map(member => <label key={member.user_id}><input type="checkbox" checked={(teamSelection ?? team.members.map(item => item.user_id)).includes(member.user_id)} onChange={event => setTeamSelection(current => { const ids = current ?? team.members.map(item => item.user_id); return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id); })} /><i style={{ background: member.avatar_color }} />{member.display_name}</label>)}</div> : null}
         {notice ? (
           <p className="apg-notice" role="status">
             {notice}
@@ -797,7 +826,7 @@ export function ProductionDesktop({
           className={`apg-desktop-main ${view === "jobs" && jobView === "planning" ? "is-planning" : ""}`}
           aria-label={`${label} workspace`}
         >
-          {view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} /> : view === "jobs" ? (
+          {view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} assigneeIds={space === "mine" && team ? [team.userId] : team ? [team.videographerId] : undefined} /> : view === "jobs" ? (
             layout === "list" || jobView === "completed" ? (
               <div className="apg-job-list">
                 {jobs.length ? (
@@ -809,6 +838,7 @@ export function ProductionDesktop({
                     >
                       <div>
                         <strong>{job.title}</strong>
+                        <TeamAvatars ids={job.assignee_ids} />
                         <small>
                           {job.description?.slice(0, 110) ||
                             "Brief in progress"}
@@ -862,7 +892,7 @@ export function ProductionDesktop({
               />
             )
           ) : view === "pipeline" && taskView !== "active" ? (
-            <ProductionTaskList tasks={tasks} statuses={live.statuses} completed={taskView === "completed"} onOpen={task => setViewing({ kind: "task", record: task })} onStart={!marketing && taskView === "planning" ? task => void startPlanningTask(task) : undefined} startingId={startingTask} onDuplicate={!marketing ? task => setCreate({ kind: "task", date: today, source: task }) : undefined} />
+            <ProductionTaskList tasks={tasks} statuses={live.statuses} completed={taskView === "completed"} onOpen={task => setViewing({ kind: "task", record: task })} onStart={!reviewOnly && taskView === "planning" ? task => void startPlanningTask(task) : undefined} startingId={startingTask} onDuplicate={!reviewOnly ? task => setCreate({ kind: "task", date: today, source: task }) : undefined} />
           ) : view === "pipeline" ? (
             <PipelineBoard
               key={JSON.stringify(
@@ -870,7 +900,7 @@ export function ProductionDesktop({
               )}
               initialTasks={tasks}
               initialStatuses={
-                marketing
+                reviewOnly
                   ? live.statuses.map((status) =>
                       status.key === "final_draft_notes"
                         ? { ...status, label: "Review" }
@@ -878,15 +908,15 @@ export function ProductionDesktop({
                     )
                   : live.statuses
               }
-              editable={!marketing}
+              editable={!reviewOnly}
               isOffline={!field.online}
               onQueueMove={mutation => field.queueMove("task", mutation)}
               onTasksChange={changed => { if (!field.online) setSnapshot(current => ({ source: data, data: { ...(current.source === data ? current.data : data), pipelineTasks: mergeProductionRecords((current.source === data ? current.data : data).pipelineTasks, changed) } })); }}
-              workflowEnabled={!marketing}
-              approvalOnly={marketing}
+              workflowEnabled={!reviewOnly}
+              approvalOnly={reviewOnly}
               completionStatusKey="final_draft_notes"
               visibleStatusKeys={
-                marketing
+                reviewOnly
                   ? ["in_progress", "final_draft_notes"]
                   : [
                       "in_progress",
@@ -895,19 +925,19 @@ export function ProductionDesktop({
                     ]
               }
               statusAliases={
-                marketing
+                reviewOnly
                   ? { ...emptyAliases, ready_for_revision: "final_draft_notes" }
                   : emptyAliases
               }
               variant="tablet"
               onViewTask={(task) => setViewing({ kind: "task", record: task })}
               onEditTask={
-                !marketing
+                !reviewOnly
                   ? (task) => setEditing({ kind: "task", record: task })
                   : undefined
               }
               onDuplicateTask={
-                !marketing
+                !reviewOnly
                   ? (task) =>
                       setCreate({ kind: "task", date: today, source: task })
                   : undefined
@@ -922,13 +952,14 @@ export function ProductionDesktop({
               todayOnly={view === "today"}
               mobile={isMobileLayout}
               marketing={marketing}
+              personalTools={space === "mine"}
               onOpenItem={openItem}
               onOpenEvent={(item) => {
                 setEvent(item);
                 setEventDate(item.start_date);
               }}
               onOpenFlight={(item) => {
-                if (marketing) setReadFlight(item);
+                if (reviewOnly || (team?.role === "marketing" && !item.assignee_ids?.includes(team.userId))) setReadFlight(item);
                 else {
                   setFlight(item);
                   setFlightDate(item.departure_date);
@@ -941,17 +972,19 @@ export function ProductionDesktop({
       </div>
       {controlsOpen ? <WorkspaceDialog className="apg-settings-sheet" titleId="apg-settings-title" onClose={() => setControlsOpen(false)} header={<><div><span>AutoPacific {marketing ? "Marketing" : "Production"}</span><h2 id="apg-settings-title">Workspace settings</h2></div><button type="button" onClick={() => setControlsOpen(false)} aria-label="Close workspace settings"><X size={20} /></button></>} footer={<button type="button" className="admin-primary-button" onClick={() => setControlsOpen(false)}>Done</button>}>
         <div className="apg-settings-actions">
+          {!marketing && team?.canManage ? <button type="button" onClick={() => { setControlsOpen(false); setManageTeam(true); }}><Users size={20} /><span>Manage team<small>People, usernames and permissions</small></span></button> : null}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={20} /> : <Sun size={20} />}<span>Appearance<small>Switch to {theme === "light" ? "dark" : "light"} mode</small></span></button>
-          {!marketing && notificationPublicKey ? <div className="apg-settings-notifications"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={notificationPublicKey} /><span>Device notifications<small>Calendar reminders and flight briefings</small></span></div> : null}
+          {notificationPublicKey ? <div className="apg-settings-notifications"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={notificationPublicKey} /><span>Device notifications<small>Reminders for your assigned work and flights</small></span></div> : null}
           <Link href={`/autopacific/security?next=${marketing ? "/marketing" : "/autopacific/mobile"}`}><ShieldCheck size={20} /><span>Account security<small>Password and authenticator verification</small></span></Link>
           <AutopacificSignOutButton destination={marketing ? "/marketing" : "/autopacific"} showLabel />
         </div>
       </WorkspaceDialog> : null}
+      {manageTeam ? <TeamManagement onClose={() => setManageTeam(false)} /> : null}
       {openedJob ? (
         <JobBriefPanel
           key={openedJob.id}
           job={openedJob}
-          marketing={marketing}
+          marketing={reviewOnly}
           onClose={() => setViewing(null)}
           onEdit={() => {
             setEditing({ kind: "job", record: openedJob });
@@ -962,10 +995,10 @@ export function ProductionDesktop({
         />
       ) : viewing?.kind === "task" ? (
         <TabletTaskDetailSheet
-          task={live.pipelineTasks.find(task=>task.id===viewing.record.id)??viewing.record}
+          task={allLive.pipelineTasks.find(task=>task.id===viewing.record.id)??viewing.record}
           onClose={() => setViewing(null)}
           onEdit={
-            !marketing
+            !reviewOnly
               ? () => {
                   setEditing(viewing);
                   setViewing(null);
@@ -979,7 +1012,7 @@ export function ProductionDesktop({
           key={editing.record.id}
           record={editing.record}
           type={editing.kind}
-          allowDeliverableTasks={!marketing}
+          allowDeliverableTasks={!reviewOnly}
           fixedClientId={live.clientOptions[0]?.id}
           clientOptions={live.clientOptions}
           jobOptions={live.jobOptions}
@@ -1022,7 +1055,7 @@ export function ProductionDesktop({
           onDeleted={saved}
         />
       ) : null}
-      {!marketing && flightDate ? (
+      {!reviewOnly && flightDate ? (
         <FlightEventEditor
           event={flight}
           flightEvents={live.flightEvents}

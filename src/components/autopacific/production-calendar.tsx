@@ -178,6 +178,7 @@ export function ProductionCalendar({
   todayOnly = false,
   mobile = false,
   marketing,
+  personalTools = false,
   onOpenItem,
   onOpenEvent,
   onOpenFlight,
@@ -188,6 +189,7 @@ export function ProductionCalendar({
   todayOnly?: boolean;
   mobile?: boolean;
   marketing: boolean;
+  personalTools?: boolean;
   onOpenItem: (item: CalendarItem) => void;
   onOpenEvent: (event: CalendarCustomEvent) => void;
   onOpenFlight: (flight: CalendarFlightEvent) => void;
@@ -344,7 +346,7 @@ export function ProductionCalendar({
             ))}
         </section>
       ) : null}
-      {marketing ? (
+      {marketing && !personalTools ? (
         <p className="brief-help">
           Tasks and flights are visible for planning. Task editing and flight
           creation stay with production.

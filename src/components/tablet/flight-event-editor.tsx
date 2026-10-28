@@ -1,5 +1,7 @@
 "use client";
 
+import { TeamAssignmentField } from "@/components/autopacific/team-context";
+
 import { useMemo, useState, type FormEvent } from "react";
 import { BedDouble, CalendarDays, CarFront, ChevronDown, Clock3, LoaderCircle, MapPin, Plane, PlaneLanding, PlaneTakeoff, RotateCcw, Save, Ticket, Trash2, X } from "lucide-react";
 import { createFlightPlan, deleteFlightPlan, updateFlightPlan } from "@/app/admin/flight-actions";
@@ -177,6 +179,7 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
         </>}>
 
         <div className="flight-editor-scroll">
+          <TeamAssignmentField initialIds={event?.assignee_ids} />
           {event?.travel_plan_id ? <input type="hidden" name="plan_id" value={event.travel_plan_id} /> : null}
           {event && !event.travel_plan_id ? <input type="hidden" name="source_event_id" value={event.id} /> : null}
           <input type="hidden" name="client_id" value={event?.client_id ?? defaultClientId ?? ""} />

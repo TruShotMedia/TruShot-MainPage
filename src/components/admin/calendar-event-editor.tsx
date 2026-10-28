@@ -1,5 +1,7 @@
 "use client";
 
+import { TeamAssignmentField } from "@/components/autopacific/team-context";
+
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide-react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
@@ -103,6 +105,7 @@ export function CalendarEventEditor({ clientOptions = [], defaultClientId = null
         {event ? <input type="hidden" name="id" value={event.id} /> : null}
         {defaultClientId ? <input type="hidden" name="client_id" value={fixedClientId ?? ""} /> : null}
         <div className="calendar-event-editor-fields">
+          <TeamAssignmentField initialIds={event?.assignee_ids} />
           <label className="calendar-event-title-field">Event title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Campaign planning session" /></label>
           <label><span><MapPin size={13} /> Location</span><input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
           {!defaultClientId && clientOptions.length ? <label>Client / workspace<select name="client_id" defaultValue={event?.client_id ?? ""}><option value="">General calendar event</option>{clientOptions.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><small>AutoPacific events are mirrored into ClickUp automatically.</small></label> : null}

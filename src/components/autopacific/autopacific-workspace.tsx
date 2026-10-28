@@ -10,6 +10,9 @@ import { getNotionConfigurationSummary } from "@/lib/notion/config";
 import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
+import { getProductionTeam } from "@/lib/data/production-team";
+import { ProductionTeamProvider } from "./team-context";
+import { scopeProductionSpace } from "@/lib/production-team";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
@@ -26,15 +29,18 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
     redirect(`${isMarketing ? "/marketing" : "/autopacific"}/login?next=${encodeURIComponent(destination)}`);
   }
 
-  const [workspaceData, cookieStore] = await Promise.all([
+  const [workspaceData, cookieStore, team] = await Promise.all([
     getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
     cookies(),
+    getProductionTeam(context.supabase, context.claims.sub, context.access === "admin"),
   ]);
+  if (!isMarketing && team.role === "marketing") redirect("/marketing");
   const data = scopeCalendarForWorkspace(workspaceData, mode);
   const notion = getNotionConfigurationSummary();
   const userAgent=(await headers()).get("user-agent")??"";
   const desktop=experience!=="mobile"&&!forceKiosk&&!/Android|iPad|iPhone|CrOS|SMART-TV|Tizen|Web0S|TV|Kiosk/i.test(userAgent);
-  if(desktop || experience === "mobile") return <ProductionDesktop experience={experience === "mobile" ? "mobile" : "desktop"} data={data} mode={mode} initialView={requestedView??cookieStore.get(isMarketing?"autopacific-marketing-view":TABLET_VIEW_COOKIE_NAME)?.value??"jobs"} requestedJobId={requestedJobId} today={todayDateInput()} refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES} notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY??""} notionSyncEnabled={context.access==="admin"&&notion.configured} notionSyncIntervalMinutes={notion.syncIntervalMinutes}/>;
+  if(desktop || experience === "mobile") return <ProductionTeamProvider value={team}><ProductionDesktop experience={experience === "mobile" ? "mobile" : "desktop"} data={data} mode={mode} initialView={requestedView??cookieStore.get(isMarketing?"autopacific-marketing-view":TABLET_VIEW_COOKIE_NAME)?.value??"jobs"} requestedJobId={requestedJobId} today={todayDateInput()} refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES} notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY??""} notionSyncEnabled={context.access==="admin"&&notion.configured} notionSyncIntervalMinutes={notion.syncIntervalMinutes}/></ProductionTeamProvider>;
+  const kioskData = scopeProductionSpace(data, [team.videographerId]);
   const pipelineVersion = data.pipelineTasks
     .map((task) => `${task.id}:${task.status_id}:${task.updated_at}`)
     .join("|");
@@ -64,22 +70,22 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
         location: isMarketing ? "Marketing" : "Production",
         theme: "autopacific",
       }}
-      calendarJobs={data.calendarJobs}
-      calendarTasks={data.calendarTasks}
-      calendarCampaignAssets={data.calendarCampaignAssets}
-      calendarEvents={data.calendarEvents}
+      calendarJobs={kioskData.calendarJobs}
+      calendarTasks={kioskData.calendarTasks}
+      calendarCampaignAssets={kioskData.calendarCampaignAssets}
+      calendarEvents={kioskData.calendarEvents}
       calendarEventClientId={data.clientOptions[0]?.id ?? null}
       calendarDensity="capacity"
       experience={experience}
-      flightEvents={data.flightEvents}
+      flightEvents={kioskData.flightEvents}
       clientOptions={data.clientOptions}
       initialNow={new Date().toISOString()}
       initialStatuses={data.statuses}
-      initialTasks={data.pipelineTasks}
+      initialTasks={kioskData.pipelineTasks}
       initialView={parseTabletView(requestedView ?? cookieStore.get(isMarketing ? "autopacific-marketing-view" : TABLET_VIEW_COOKIE_NAME)?.value ?? (isMarketing ? "planning" : undefined))}
       jobOptions={data.jobOptions}
       jobStatuses={data.jobStatuses}
-      pipelineJobs={data.pipelineJobs}
+      pipelineJobs={kioskData.pipelineJobs}
       pendingRequestCount={data.pendingRequestCount}
       pipelineVersion={pipelineVersion}
       notionSyncEnabled={context.access === "admin" && notion.configured}

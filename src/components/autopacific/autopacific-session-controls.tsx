@@ -6,8 +6,9 @@ import { signOutOfAutopacific } from "@/app/autopacific/actions";
 import { removePushSubscription } from "@/app/admin/notification-actions";
 
 async function clearFieldCopy(clearQueue = true) {
-  window.localStorage.removeItem("autopacific-offline-snapshot:v1");
-  if (clearQueue) window.localStorage.removeItem("autopacific-offline-status-queue:v1");
+  for (const key of Object.keys(window.localStorage)) {
+    if (key.startsWith("autopacific-offline-snapshot:") || (clearQueue && key.startsWith("autopacific-offline-status-queue:"))) window.localStorage.removeItem(key);
+  }
   if ("caches" in window) await caches.delete("autopacific-field-shell-v1");
 }
 
@@ -31,8 +32,10 @@ export function AutopacificSignOutButton({ destination = "/autopacific", showLab
   const [pending, setPending] = useState(false);
   return <button className="tablet-signout-button" type="button" disabled={pending} aria-label="Sign out of AutoPacific" title="Sign out" onClick={async () => {
     try {
-      const queue = JSON.parse(window.localStorage.getItem("autopacific-offline-status-queue:v1") ?? "[]");
-      if (Array.isArray(queue) && queue.length && !window.confirm("Some field changes have not synced yet. Signing out will discard them. Sign out anyway?")) return;
+      const pending = Object.keys(window.localStorage).filter(key => key.startsWith("autopacific-offline-status-queue:")).some(key => {
+        const queue = JSON.parse(window.localStorage.getItem(key) ?? "[]"); return Array.isArray(queue) && queue.length;
+      });
+      if (pending && !window.confirm("Some field changes have not synced yet. Signing out will discard them. Sign out anyway?")) return;
     } catch { /* Unavailable storage must not prevent signing out. */ }
     setPending(true);
     if ("serviceWorker" in navigator) {

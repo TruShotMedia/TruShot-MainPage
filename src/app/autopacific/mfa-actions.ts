@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { AUTOPACIFIC_LOGIN_EMAIL, autopacificMfaDestination } from "@/lib/autopacific-access";
+import { autopacificMfaDestination } from "@/lib/autopacific-access";
 import { getAutopacificAccountContext, readAutopacificMfa } from "@/lib/autopacific-mfa";
 
 const expired = "Your session has expired. Sign in again to continue.";
@@ -19,7 +19,9 @@ export async function beginAutopacificMfaSetup(password: string) {
   if (existing.verified.length) return { error: "Two-step verification is already enabled. Reload this page to verify your sign-in." };
 
   // A stolen, unattended password-only session must not be enough to set up MFA.
-  const { data: login, error: loginError } = await context.supabase.auth.signInWithPassword({ email: AUTOPACIFIC_LOGIN_EMAIL, password: parsed.data });
+  const email = z.email().safeParse(context.claims.email);
+  if (!email.success) return { error: expired };
+  const { data: login, error: loginError } = await context.supabase.auth.signInWithPassword({ email: email.data, password: parsed.data });
   if (loginError || login.user?.id !== context.claims.sub) return { error: "That password didn’t work. Please try again." };
   const refreshed = await readAutopacificMfa(context.supabase);
   if (!refreshed) return { error: unavailable };

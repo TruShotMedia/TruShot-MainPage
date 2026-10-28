@@ -8,6 +8,7 @@ import { changedSharedFields, isLegacyStatusRename, sharedStateFromClickUp, shar
 import { ensureClickUpWebhook } from "@/lib/clickup/webhook-registration";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
+import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 
 type Integration = {
   workspace_id: string;
@@ -165,7 +166,7 @@ async function upsertRemoteTask({
 }) {
   const { data: job, error: jobError } = await supabase
     .from("website-jobs")
-    .select("id,title,job_number,description,brief_details,deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,photos_delivered,notes,client_id,status_id,updated_at,archived_at")
+    .select("id,title,job_number,description,brief_details,deliverables,shoot_date,shoot_time,due_date,due_time,location,delivery_url,photos_delivered,notes,client_id,status_id,updated_at,archived_at,assignee_ids")
     .eq("workspace_id", integration.workspace_id)
     .eq("id", jobId)
     .maybeSingle();
@@ -174,6 +175,7 @@ async function upsertRemoteTask({
     await removeRemoteTask({ integration, jobId, operation: integration.deletion_mode, supabase });
     return;
   }
+  if (!await assignedToClickUpOwner(supabase, integration.workspace_id, job.assignee_ids)) return;
 
   const { data: status, error: statusError } = await supabase
     .from("website-job-statuses")

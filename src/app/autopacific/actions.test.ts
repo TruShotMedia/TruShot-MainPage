@@ -5,7 +5,7 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("@/lib/autopacific-mfa", () => ({ readAutopacificMfa: mocks.factors }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { signInWithPassword: mocks.signIn, signOut: mocks.signOut }, from: () => ({ select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: mocks.membership }) }) }));
 import { signInToAutopacific } from "./actions";
-const form = () => { const data = new FormData(); data.set("password", "test-password"); data.set("surface", "marketing"); data.set("next", "/marketing?view=calendar"); return data; };
+const form = () => { const data = new FormData(); data.set("email", "jherholdt@autopac.com.au"); data.set("password", "test-password"); data.set("surface", "marketing"); data.set("next", "/marketing?view=calendar"); return data; };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.signIn.mockResolvedValue({ data: { user: { id: "apg-user" } }, error: null });
@@ -32,25 +32,32 @@ describe("AutoPacific password login with MFA", () => {
   });
 });
 
-describe("AutoPacific fixed-account password stage", () => {
-  it("returns to Marketing using the same fixed account", async () => {
-    const data = new FormData(); data.set("password", "example-password"); data.set("surface", "marketing"); data.set("next", "/marketing?view=planning");
+describe("AutoPacific individual-account password stage", () => {
+  it("returns to Marketing using the person's account", async () => {
+    const data = form(); data.set("password", "example-password"); data.set("next", "/marketing?view=planning");
     await expect(signInToAutopacific(data)).rejects.toThrow("REDIRECT /marketing?view=planning");
     expect(mocks.signIn).toHaveBeenCalledWith({ email: "jherholdt@autopac.com.au", password: "example-password" });
   });
-  it("uses the fixed server account even if an email is injected", async () => {
+  it("uses the supplied email but still requires enabled membership", async () => {
     const data = new FormData(); data.set("password", "example-password"); data.set("email", "someone@else.test"); data.set("next", "/autopacific/mobile?view=jobs");
     await expect(signInToAutopacific(data)).rejects.toThrow("REDIRECT /autopacific/mobile?view=jobs");
-    expect(mocks.signIn).toHaveBeenCalledWith({ email: "jherholdt@autopac.com.au", password: "example-password" });
+    expect(mocks.signIn).toHaveBeenCalledWith({ email: "someone@else.test", password: "example-password" });
   });
   it("signs out a valid login without active portal membership", async () => {
     mocks.membership.mockResolvedValue({ data: null });
-    const data = new FormData(); data.set("password", "example-password");
+    const data = form(); data.set("password", "example-password");
     await expect(signInToAutopacific(data)).rejects.toThrow("error=access");
     expect(mocks.signOut).toHaveBeenCalledOnce();
   });
   it("does not contact Auth for an empty password", async () => {
     await expect(signInToAutopacific(new FormData())).rejects.toThrow("error=credentials");
+    expect(mocks.signIn).not.toHaveBeenCalled();
+  });
+  it("rejects a missing or invalid email before contacting Auth", async () => {
+    const data = form(); data.delete("email");
+    await expect(signInToAutopacific(data)).rejects.toThrow("error=credentials");
+    data.set("email", "not-an-email");
+    await expect(signInToAutopacific(data)).rejects.toThrow("error=credentials");
     expect(mocks.signIn).not.toHaveBeenCalled();
   });
 });

@@ -32,9 +32,11 @@ export async function AutopacificLogin({ searchParams, surface = "autopacific" }
       <form action={signInToAutopacific}>
         <input type="hidden" name="surface" value={surface} />
         <input type="hidden" name="next" value={destination} />
+        <label htmlFor="autopacific-email">Work email</label>
+        <input id="autopacific-email" name="email" type="email" autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false} required maxLength={254} />
         <label htmlFor="autopacific-password">Password</label>
         <input id="autopacific-password" name="password" type="password" autoComplete="current-password" required minLength={6} maxLength={256} />
-        {error || verificationUnavailable ? <p className="autopacific-login-error" role="alert">{error === "access" ? "This account does not have AutoPacific access. Contact your administrator." : error === "verification" || verificationUnavailable ? "We couldn’t check two-step verification. Please sign in again or try shortly." : "That password didn’t work. Please try again."}</p> : null}
+        {error || verificationUnavailable ? <p className="autopacific-login-error" role="alert">{error === "access" ? "This account is not enabled for this team. Contact your team manager." : error === "verification" || verificationUnavailable ? "We couldn’t check two-step verification. Please sign in again or try shortly." : "Those sign-in details didn’t work. Please try again."}</p> : null}
         <AutopacificLoginButton />
       </form>
       <small>Secure access · AutoPacific Group</small>

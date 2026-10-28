@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AUTOPACIFIC_LOGIN_EMAIL, AUTOPACIFIC_PORTAL_KEY } from "@/lib/autopacific-access";
+import { AUTOPACIFIC_PORTAL_KEY } from "@/lib/autopacific-access";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,7 +11,7 @@ export const getAutopacificAccountContext = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   const claims = data?.claims;
-  if (error || !claims?.sub || claims.email?.toLowerCase() !== AUTOPACIFIC_LOGIN_EMAIL) return null;
+  if (error || !claims?.sub) return null;
   const { data: membership, error: membershipError } = await supabase.from("website-portal-users").select("id")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("user_id", claims.sub)
     .eq("portal_key", AUTOPACIFIC_PORTAL_KEY).eq("is_active", true).maybeSingle();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CalendarPlus2, FilePlus2, Images, Link2, ListChecks, ListTodo, LoaderCircle, MapPin, MessageSquareText, PencilLine, Save, SendHorizontal, Trash2, X } from "lucide-react";
 import { archiveJob, archiveTask, createJob, createTask, saveWorkRecordNote, updateCalendarItem, updateTabletJob, updateTask } from "@/app/admin/actions";
 import { DelayRecordAction } from "@/components/admin/delay-record-action";
@@ -16,6 +16,8 @@ import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
 import { getJobDeliverables } from "@/lib/job-deliverable-model";
 import { briefSectionLabels } from "@/lib/job-brief";
 import { formatDate } from "@/lib/format";
+import { TeamAssignmentField, useProductionTeam } from "@/components/autopacific/team-context";
+import { markTeamCommentsRead } from "@/app/autopacific/team-actions";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
@@ -57,6 +59,8 @@ function formatNoteTimestamp(value: string) {
 }
 
 export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind }: { legacyNote?: string | null; notes?: WorkRecordNote[]; recordId: string; recordKind: "job" | "task" }) {
+  const team = useProductionTeam();
+  const acknowledged = useRef(new Set<string>());
   const [localItems, setItems] = useState<WorkRecordNote[]>(notes);
   const items=useMemo(()=>{const byId=new Map(notes.map(note=>[note.id,note]));for(const note of localItems){const current=byId.get(note.id);if(!current||new Date(note.updated_at).getTime()>new Date(current.updated_at).getTime())byId.set(note.id,note);}return [...byId.values()].sort((a,b)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime());},[localItems,notes]);
   const [draft, setDraft] = useState("");
@@ -65,6 +69,18 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const hasLegacyFallback = !items.length && Boolean(legacyNote?.trim());
+  useEffect(() => {
+    if (!team) return;
+    const visible = items.filter(note => note.created_by !== team.userId && !acknowledged.current.has(`${note.id}:${note.updated_at}`));
+    if (!visible.length) return;
+    let active = true;
+    const timer = setTimeout(() => { void markTeamCommentsRead(visible.map(note => ({ id: note.id, updated_at: note.updated_at }))).then(() => {
+      if (!active) return;
+      for (const note of visible) acknowledged.current.add(`${note.id}:${note.updated_at}`);
+      window.dispatchEvent(new Event("production-comments-changed"));
+    }).catch(() => { /* A later visit retries; no false read acknowledgement. */ }); }, 700);
+    return () => { active = false; clearTimeout(timer); };
+  }, [items, team]);
 
   async function saveNote(noteId?: string) {
     const body = (noteId ? editingBody : draft).trim();
@@ -81,6 +97,7 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
       formData.set("body", body);
       if (noteId) formData.set("note_id", noteId);
       const saved = await saveWorkRecordNote(formData);
+      window.dispatchEvent(new Event("production-comments-changed"));
       setItems((current) => noteId
         ? current.map((item) => item.id === noteId ? saved : item)
         : [...current, saved],
@@ -105,7 +122,7 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
         {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p>{legacyNote}</p></article> : null}
         {items.length ? items.map((note) => (
           <article className="tablet-record-note" key={note.id}>
-            <header><small>{note.rescheduled_date ? `Rescheduled to ${formatDate(note.rescheduled_date)} · ` : ""}{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small><button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button></header>
+            <header><small>{team ? `${team.members.find(member => member.user_id === note.created_by)?.display_name ?? "Team"} · ` : ""}{note.rescheduled_date ? `Rescheduled to ${formatDate(note.rescheduled_date)} · ` : ""}{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small>{!team || team.canManage || note.created_by === team.userId ? <button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button> : null}</header>
             {editingId === note.id ? (
               <div className="tablet-record-note-edit">
                 <textarea value={editingBody} onChange={(event) => setEditingBody(event.target.value)} maxLength={4000} rows={4} disabled={saving} autoFocus />
@@ -116,6 +133,7 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
         )) : !hasLegacyFallback ? <div className="tablet-record-notes-empty"><MessageSquareText size={17} /><strong>No internal notes yet</strong><span>Capture context, decisions or handover details here.</span></div> : null}
       </div>
       <div className="tablet-record-note-compose">
+        {team ? <label className="team-mention-picker">Mention a teammate<select value="" aria-label="Mention a team member" onChange={event => { if (event.target.value) setDraft(current => `${current}${current && !/\s$/.test(current) ? " " : ""}@${event.target.value} `); }}><option value="">Add @mention…</option>{team.members.map(member => <option key={member.user_id} value={member.username}>{member.display_name} · @{member.username}</option>)}</select></label> : null}
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={4000} rows={4} placeholder="Add an internal note…" disabled={saving} />
         <button type="button" onClick={() => { void saveNote(); }} disabled={saving || !draft.trim()}><SendHorizontal size={14} /> {saving ? "Saving" : "Add note"}</button>
       </div>
@@ -284,6 +302,8 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
           <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Job details</strong><p>What you’re creating and who it’s for.</p></div>
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={sourceJob?.title ?? ""} /></label>
+            <TeamAssignmentField initialIds={sourceJob?.assignee_ids} />
+            <label>Priority<select name="priority" defaultValue={sourceJob?.priority ?? "normal"}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={defaultClientId}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <JobScheduleFields planning={isPlanning} initial={{ shoot_date: sourceJob?.shoot_date ?? defaultDate, shoot_time: sourceJob?.shoot_time, due_date: sourceJob?.due_date, due_time: sourceJob?.due_time }} />
@@ -302,6 +322,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
           <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Asset details</strong><p>Name the deliverable and link it to a job.</p></div>
             <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={sourceTask?.title ?? ""} /></label>
+            <TeamAssignmentField initialIds={sourceTask?.assignee_ids} />
             <JobSearchField jobs={jobOptions} defaultJobId={sourceTask?.job_id} />
             <label>Status<select name="status_id" required defaultValue={defaultTaskStatusId}>{taskStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Asset type<select name="asset_type" defaultValue={sourceTask?.asset_type === "Other" ? "Other" : "Asset"} required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>
@@ -400,6 +421,8 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
               <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Job details</strong><p>Keep the brief and client details up to date.</p></div>
             <label className="form-span">Job title<input name="title" required minLength={2} maxLength={200} defaultValue={job.title} /></label>
+            <TeamAssignmentField initialIds={job.assignee_ids} />
+            <label>Priority<select name="priority" defaultValue={job.priority ?? "normal"}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
             {fixedClientId ? <input type="hidden" name="job_number" value={job.job_number ?? ""} /> : <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>}
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status<select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
@@ -422,6 +445,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
               <div className="tablet-record-editor-fields">
             <div className="workspace-form-section"><strong>Asset details</strong><p>Name the deliverable and link it to a job.</p></div>
             <label className="form-span">Title<input name="title" required minLength={2} maxLength={220} defaultValue={task.title} /></label>
+            <TeamAssignmentField initialIds={task.assignee_ids} />
             <JobSearchField jobs={jobOptions} defaultJobId={task.job_id} />
             <label>Status<select name="status_id" required defaultValue={task.status_id}>{taskStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
             <label>Asset type<select name="asset_type" defaultValue={task.asset_type === "Other" ? "Other" : "Asset"} required><option value="Asset">Asset</option><option value="Other">Other</option></select></label>

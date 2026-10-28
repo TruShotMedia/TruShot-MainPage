@@ -1,4 +1,5 @@
 import "server-only";
+import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 
 import { after } from "next/server";
 import {
@@ -48,7 +49,7 @@ export type ClickUpFlightEventSyncResult = {
   message: string;
 };
 
-const flightEventSelect = "id,leg_kind,leg_order,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,client_id,updated_at" as const;
+const flightEventSelect = "id,leg_kind,leg_order,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,client_id,updated_at,assignee_ids" as const;
 
 function safeMessage(error: unknown) {
   if (error instanceof ClickUpApiError) {
@@ -147,6 +148,7 @@ async function upsertRemoteFlight({
     await removeRemoteFlight({ flightEventId, integration, operation: integration.deletion_mode, supabase });
     return;
   }
+  if (!await assignedToClickUpOwner(supabase, integration.workspace_id, flight.assignee_ids)) return;
   if (!integration.assigned_user_id) throw new Error("The ClickUp assignee has not been connected.");
 
   const snapshot = flight as ClickUpFlightEventSnapshot;

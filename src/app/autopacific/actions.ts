@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { AUTOPACIFIC_LOGIN_EMAIL, AUTOPACIFIC_PORTAL_KEY, autopacificMfaPath, safeAutopacificPath } from "@/lib/autopacific-access";
+import { AUTOPACIFIC_PORTAL_KEY, autopacificMfaPath, safeAutopacificPath } from "@/lib/autopacific-access";
 import { readAutopacificMfa } from "@/lib/autopacific-mfa";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
@@ -13,10 +13,10 @@ export async function signInToAutopacific(formData: FormData) {
   const destination = safeAutopacificPath(String(formData.get("next") ?? ""), surface === "marketing" ? "/marketing" : "/autopacific");
   const failure = (error: string) => `/${surface}/login?${new URLSearchParams({ error, next: destination })}`;
   const password = z.string().min(6).max(256).safeParse(formData.get("password"));
-  if (!password.success) redirect(failure("credentials"));
+  const email = z.email().max(254).safeParse(String(formData.get("email") ?? "").trim().toLowerCase());
+  if (!password.success || !email.success) redirect(failure("credentials"));
   const supabase = await createClient();
-  // The account is fixed on the server, never taken from a hidden email input.
-  const { data, error } = await supabase.auth.signInWithPassword({ email: AUTOPACIFIC_LOGIN_EMAIL, password: password.data });
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
   if (error || !data.user) redirect(failure("credentials"));
   const { data: membership } = await supabase.from("website-portal-users").select("id")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("user_id", data.user.id)

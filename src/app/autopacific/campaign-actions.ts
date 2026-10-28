@@ -20,7 +20,7 @@ async function campaignContext() {
 export async function loadProductionCampaigns(): Promise<CampaignPlan[]> {
   const { supabase, clientId } = await campaignContext();
   const { data: campaigns, error } = await supabase.from("website-campaigns")
-    .select("id,title,objective,notes,start_date,updated_at")
+    .select("id,title,objective,notes,start_date,updated_at,assignee_ids")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("client_id", clientId).eq("is_weekly_plan", true)
     .is("archived_at", null).order("start_date", { ascending: false });
   if (error) throw new Error("Campaigns could not be loaded. Please retry.");
@@ -31,7 +31,7 @@ export async function loadProductionCampaigns(): Promise<CampaignPlan[]> {
   if (weekError) throw new Error("Campaign weeks could not be loaded.");
   const weekIds = (weeks ?? []).map(week => week.id);
   const { data: jobs, error: jobError } = weekIds.length ? await supabase.from("website-jobs")
-    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,deliverables,updated_at,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at)')
+    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,deliverables,updated_at,assignee_ids,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at)')
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("client_id", clientId).in("campaign_week_id", weekIds)
     .is("archived_at", null).order("shoot_date", { nullsFirst: false }) : { data: [], error: null };
   if (jobError) throw new Error("Campaign jobs could not be loaded.");

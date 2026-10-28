@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ claims: vi.fn(), factors: vi.fn(), from: vi.fn(), admin: vi.fn(), portal: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { getClaims: mocks.claims, mfa: { listFactors: mocks.factors } }, from: mocks.from }) }));
+vi.mock("@/lib/data/production-team", () => ({ getProductionTeam: async () => ({ userId: "work-user", role: "marketing", members: [], videographerId: "john", canManage: false }) }));
 import { getAdminContext, getProductionContext } from "./admin";
 
 beforeEach(() => {

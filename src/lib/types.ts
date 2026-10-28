@@ -172,6 +172,9 @@ export type JobRecord = {
 };
 
 export type TabletJobRecord = {
+  assignee_ids?: string[];
+  priority?: string;
+  completed_tasks?: number;
   brief_details?: import("@/lib/job-brief").JobBrief;
   shoot_end_time?: string | null;
   id: string;
@@ -201,6 +204,8 @@ export type TabletJobRecord = {
 };
 
 export type WorkRecordNote = {
+  created_by?: string | null;
+  mention_user_ids?: string[];
   id: string;
   body: string;
   created_at: string;
@@ -209,6 +214,7 @@ export type WorkRecordNote = {
 };
 
 export type PipelineTask = {
+  assignee_ids?: string[];
   id: string;
   title: string;
   job_id: string;
@@ -230,6 +236,7 @@ export type PipelineTask = {
 };
 
 export type CalendarJob = {
+  assignee_ids?: string[];
   shoot_end_time?: string | null;
   id: string;
   entity_type: "job";
@@ -246,6 +253,7 @@ export type CalendarJob = {
 };
 
 export type CalendarTask = {
+  assignee_ids?: string[];
   id: string;
   entity_type: "task";
   title: string;
@@ -261,6 +269,7 @@ export type CalendarTask = {
 };
 
 export type CalendarCampaignAsset = {
+  assignee_ids?: string[];
   id: string;
   entity_type: "campaign-asset";
   title: string;
@@ -279,6 +288,7 @@ export type CalendarCampaignAsset = {
 export type CalendarItem = CalendarJob | CalendarTask | CalendarCampaignAsset;
 
 export type CalendarCustomEvent = {
+  assignee_ids?: string[];
   id: string;
   entity_type: "calendar-event";
   client_id: string | null;
@@ -298,6 +308,7 @@ export type CalendarCustomEvent = {
 };
 
 export type CalendarFlightEvent = {
+  assignee_ids?: string[];
   id: string;
   entity_type: "flight-event";
   client_id: string | null;

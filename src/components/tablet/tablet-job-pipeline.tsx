@@ -8,6 +8,8 @@ import { PipelineDragPreview } from "@/components/shared/pipeline-drag-preview";
 import { bulkUpdateJobStatus } from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
+import { TeamAvatars, useProductionTeam } from "@/components/autopacific/team-context";
+import { jobProgress } from "@/lib/production-team";
 
 function sortJobs(jobs: TabletJobRecord[]) {
   return [...jobs].sort((left, right) => {
@@ -40,6 +42,8 @@ function DelayedJobMarker({ job }: { job: TabletJobRecord }) {
 }
 
 function JobCard({ canComplete, canSchedule, editable, job, isSaving, dragDisabled, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; job: TabletJobRecord; isSaving: boolean; dragDisabled: boolean; onComplete: () => void; onSchedule: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
+  const team = useProductionTeam();
+  const progress = jobProgress(job);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: job.id, disabled: dragDisabled });
   return (
     <article
@@ -61,6 +65,8 @@ function JobCard({ canComplete, canSchedule, editable, job, isSaving, dragDisabl
           <strong>{job.title}</strong>
           <JobSchedulePills job={job} />
       </button>
+      {team ? <div className="team-job-meta"><span className={`team-priority is-${job.priority ?? "normal"}`}><i />{job.priority ?? "normal"} priority</span><TeamAvatars ids={job.assignee_ids} /></div> : null}
+      {team ? <div className="team-job-progress"><span>{progress.total ? `${progress.completed} of ${progress.total} tasks complete` : "No tasks yet"}<b>{progress.percent}%</b></span><progress max="100" value={progress.percent} aria-label={`Task progress for ${job.title}`} /></div> : null}
       <details className="tablet-job-card-operational">
         <summary><span>Operational detail</span><ChevronDown size={14} /></summary>
         <div>

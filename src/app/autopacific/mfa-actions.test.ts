@@ -8,7 +8,7 @@ const factorId = "11111111-2222-4333-8444-555555555555";
 const factor = { id: factorId, factor_type: "totp", status: "unverified" };
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.context.mockResolvedValue({ claims: { sub: "apg-user", aal: "aal1" }, supabase: { auth: { signInWithPassword: mocks.signIn, getClaims: mocks.claims, mfa: { enroll: mocks.enroll, challengeAndVerify: mocks.verify, unenroll: mocks.unenroll } } } });
+  mocks.context.mockResolvedValue({ claims: { sub: "apg-user", email: "colleague@autopac.com.au", aal: "aal1" }, supabase: { auth: { signInWithPassword: mocks.signIn, getClaims: mocks.claims, mfa: { enroll: mocks.enroll, challengeAndVerify: mocks.verify, unenroll: mocks.unenroll } } } });
   mocks.factors.mockResolvedValue({ all: [factor], verified: [], totp: [] });
   mocks.signIn.mockResolvedValue({ data: { user: { id: "apg-user" } }, error: null });
   mocks.enroll.mockResolvedValue({ data: { id: factorId, totp: { qr_code: 'data:image/svg+xml;utf-8,<svg fill="#000"/>', secret: "TEST-ONLY-KEY" } }, error: null });
@@ -29,9 +29,9 @@ describe("AutoPacific MFA enrollment", () => {
     expect((await beginAutopacificMfaSetup("bad-password")).error).toContain("password");
     expect(mocks.enroll).not.toHaveBeenCalled();
   });
-  it("fixes the email on the server and returns only the QR setup data", async () => {
+  it("uses the verified session email, not a browser-supplied account, for reauthentication", async () => {
     const result = await beginAutopacificMfaSetup("test-password");
-    expect(mocks.signIn).toHaveBeenCalledWith({ email: "jherholdt@autopac.com.au", password: "test-password" });
+    expect(mocks.signIn).toHaveBeenCalledWith({ email: "colleague@autopac.com.au", password: "test-password" });
     expect(mocks.enroll).toHaveBeenCalledWith(expect.objectContaining({ factorType: "totp", issuer: "AutoPacific MarketingTeamCRM" }));
     expect(result.enrollment?.qr).toContain("%23000");
     expect(result.enrollment?.id).toBe(factorId);

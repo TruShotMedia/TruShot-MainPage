@@ -19,8 +19,12 @@ describe("MFA setup authorization", () => {
   });
   it("does not enroll the full CRM owner's account by mistake", async () => {
     mocks.claims.mockResolvedValue({ data: { claims: { sub: "owner", email: "info@fearlessau.com" } } });
+    mocks.membership.mockResolvedValue({ data: null });
     expect(await getAutopacificAccountContext()).toBeNull();
-    expect(mocks.from).not.toHaveBeenCalled();
+  });
+  it("allows an individually enabled teammate to reach MFA setup", async () => {
+    mocks.claims.mockResolvedValue({ data: { claims: { sub: "teammate", email: "colleague@example.com", aal: "aal1" } } });
+    expect((await getAutopacificAccountContext())?.claims.sub).toBe("teammate");
   });
   it("rejects unsigned or invalid sessions before looking up memberships", async () => {
     mocks.claims.mockResolvedValue({ data: null, error: {} });

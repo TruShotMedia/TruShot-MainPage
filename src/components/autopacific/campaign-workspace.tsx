@@ -11,6 +11,8 @@ import { formatDate, todayDateInput } from "@/lib/format";
 import type { JobStatus } from "@/lib/types";
 import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import "./campaign-workspace.css";
+import { TeamAssignmentField, TeamAvatars, useProductionTeam } from "./team-context";
+import { assignedTo } from "@/lib/production-team";
 
 function LinkedTasks({ job, disabled, onCreated, onBusy }: { job: CampaignPlanJob; disabled: boolean; onCreated: () => Promise<void>; onBusy: (pending: boolean) => void }) {
   const [pending, setPending] = useState(false), [error, setError] = useState("");
@@ -34,7 +36,8 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
   initial: CampaignPlan; statuses: JobStatus[]; editable: boolean; marketing: boolean; busy: boolean; error: string;
   onClose: () => void; onSave: (plan: CampaignPlan) => void; onArchive: () => void; onReload: () => Promise<void>;
 }) {
-  const [plan, setPlan] = useState(initial);
+  const team = useProductionTeam();
+  const [plan, setPlan] = useState<CampaignPlan>(() => ({ ...initial, assignee_ids: initial.assignee_ids ?? (team ? [team.members.some(member => member.user_id === team.userId) ? team.userId : team.videographerId] : undefined) }));
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [taskBusy, setTaskBusy] = useState(false);
   const locked = busy || taskBusy;
@@ -75,6 +78,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
       <aside className="campaign-plan-summary">
         <div className="campaign-auto-status"><span style={{ background: progress.status?.color }} /><strong>{progress.status?.label ?? "Planning"}</strong><small>Automatic status</small></div>
         <label>Campaign title{editable ? <input required minLength={2} maxLength={180} value={plan.title} onChange={event => setPlan({ ...plan, title: event.target.value })} placeholder="R.A.T. Run content campaign" /> : <strong>{plan.title}</strong>}</label>
+        {editable ? <TeamAssignmentField initialIds={plan.assignee_ids} onChange={ids => setPlan(current => ({ ...current, assignee_ids: ids }))} /> : <TeamAvatars ids={plan.assignee_ids} />}
         <label>First week starts{editable ? <input type="date" required value={plan.start_date} onChange={event => { if (event.target.value) setPlan(changeCampaignStart(plan, event.target.value, statuses)); }} /> : <strong>{formatDate(plan.start_date)}</strong>}</label>
         <small className="campaign-help">Seven-day weeks follow this date. Planning/Scheduled dates shift with weeks; work already underway keeps its dates.</small>
         <details className="campaign-context"><summary>Objective & planning notes <ChevronDown size={14} /></summary><div>
@@ -104,6 +108,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
                 }}><X size={15} /></button> : null}</header>
                 <div className="campaign-job-fields">
                   <label className="campaign-field-wide">Job / content brief{canEdit ? <input required minLength={2} maxLength={220} value={job.title} onChange={event => updateJob(week.id, job.id, { title: event.target.value })} placeholder="Episode 1 — Hit the dirt" /> : <strong>{job.title}</strong>}</label>
+                  {canEdit ? <TeamAssignmentField initialIds={job.assignee_ids ?? plan.assignee_ids} onChange={ids => updateJob(week.id, job.id, { assignee_ids: ids })} /> : <TeamAvatars ids={job.assignee_ids} />}
                   <label>Status{canEdit ? <select value={job.status_id} onChange={event => updateJob(week.id, job.id, { status_id: event.target.value })}>{statuses.filter(item => item.key !== "delayed").map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select> : <strong>{stage?.label}</strong>}</label>
                   <label>Shoot date{canEdit ? <div className="optional-deliverable-date"><input type="date" data-empty={!job.shoot_date} value={job.shoot_date ?? ""} onChange={event => updateJob(week.id, job.id, { shoot_date: event.target.value || null })} />{!job.shoot_date ? <span aria-hidden="true">Not scheduled</span> : null}</div> : <strong>{formatDate(job.shoot_date)}</strong>}</label>
                   <label>Job deadline{canEdit ? <div className="optional-deliverable-date"><input type="date" data-empty={!job.due_date} min={job.shoot_date ?? undefined} value={job.due_date ?? ""} onChange={event => updateJob(week.id, job.id, { due_date: event.target.value || null })} />{!job.due_date ? <span aria-hidden="true">No deadline</span> : null}</div> : <strong>{formatDate(job.due_date)}</strong>}</label>
@@ -131,7 +136,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
   </WorkspaceDialog>;
 }
 
-export function CampaignWorkspace({ statuses, marketing = false, editable = true, refreshKey = 0, onChanged }: { statuses: JobStatus[]; marketing?: boolean; editable?: boolean; refreshKey?: number; onChanged?: () => void }) {
+export function CampaignWorkspace({ statuses, marketing = false, editable = true, refreshKey = 0, onChanged, assigneeIds }: { statuses: JobStatus[]; marketing?: boolean; editable?: boolean; refreshKey?: number; onChanged?: () => void; assigneeIds?: string[] }) {
   const [plans, setPlans] = useState<CampaignPlan[]>([]), [loading, setLoading] = useState(true), [error, setError] = useState("");
   useWorkspaceTabTitle(marketing ? "marketing" : "production", "campaigns", undefined, !loading);
   const [view, setView] = useState("pipeline"), [search, setSearch] = useState("");
@@ -154,7 +159,7 @@ export function CampaignWorkspace({ statuses, marketing = false, editable = true
     return () => { window.clearTimeout(timer); invalidatePendingRequest(); };
   }, [reload, refreshKey, open, invalidatePendingRequest]);
   const stages = statuses.filter(status => status.key !== "delayed").sort((a, b) => a.position - b.position);
-  const visible = plans.filter(plan => plan.title.toLowerCase().includes(search.toLowerCase()));
+  const visible = plans.filter(plan => (!assigneeIds || assignedTo(plan, assigneeIds) || plan.weeks.some(week => week.jobs.some(job => assignedTo(job, assigneeIds)))) && plan.title.toLowerCase().includes(search.toLowerCase()));
   const columns = view === "planning" ? stages.filter(status => status.key === "planning") : stages.filter(status => status.key !== "planning");
   function openPlanner(plan: CampaignPlan) {
     setDialogHost(workspaceRef.current?.closest(".tablet-kiosk,.apg-desktop") ?? document.body);
@@ -178,7 +183,7 @@ export function CampaignWorkspace({ statuses, marketing = false, editable = true
         const items = visible.filter(plan => campaignProgress(plan, statuses).status?.id === status.id);
         return <section className="campaign-column" key={status.id}><header><i style={{ background: status.color }} /><h2>{status.label}</h2><small>{items.length}</small></header><div>{items.map(plan => {
           const progress = campaignProgress(plan, statuses), end = campaignWeekRange(plan.start_date, Math.max(0, plan.weeks.length - 1)).end;
-          return <button type="button" className="campaign-card" style={{ "--campaign-status-color": status.color } as CSSProperties} key={plan.id} onClick={() => openPlanner(plan)}><small>{plan.weeks.length} WEEK CAMPAIGN</small><h3>{plan.title}</h3>{plan.objective ? <p>{plan.objective}</p> : null}<span><CalendarDays size={13} /> {formatDate(plan.start_date)} — {formatDate(end)}</span><div className="campaign-card-progress"><span style={{ width: `${progress.jobs ? progress.completed / progress.jobs * 100 : 0}%` }} /></div><footer><span>{progress.completed}/{progress.jobs} jobs complete</span><span>{progress.deliverables} deliverables</span></footer></button>;
+          return <button type="button" className="campaign-card" style={{ "--campaign-status-color": status.color } as CSSProperties} key={plan.id} onClick={() => openPlanner(plan)}><small>{plan.weeks.length} WEEK CAMPAIGN</small><h3>{plan.title}</h3><TeamAvatars ids={plan.assignee_ids} />{plan.objective ? <p>{plan.objective}</p> : null}<span><CalendarDays size={13} /> {formatDate(plan.start_date)} — {formatDate(end)}</span><div className="campaign-card-progress"><span style={{ width: `${progress.jobs ? progress.completed / progress.jobs * 100 : 0}%` }} /></div><footer><span>{progress.completed}/{progress.jobs} jobs complete</span><span>{progress.deliverables} deliverables</span></footer></button>;
         })}{!items.length ? <p className="campaign-column-empty">{view === "planning" ? "No planning campaigns" : "No campaigns at this stage"}</p> : null}</div></section>;
       })}
     </div>}

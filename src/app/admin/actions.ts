@@ -14,6 +14,9 @@ import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { datedJobDeliverablesInputSchema, jobDeliverablesInputSchema } from "@/lib/job-deliverables";
 import { jobBriefInputSchema } from "@/lib/job-brief";
+import { assignmentIdsSchema, assignmentValues } from "@/lib/production-assignment-input";
+import { getProductionTeam } from "@/lib/data/production-team";
+import { mentionedMembers } from "@/lib/production-team";
 import { runNotionSync } from "@/lib/notion/sync";
 import { nextTaskPosition } from "@/lib/task-position";
 import { getAdminContext, getProductionContext } from "@/lib/data/admin";
@@ -37,6 +40,8 @@ const optionalHttpUrlSchema = z.string().trim().max(2_048).refine((value) => {
   }
 }, "Enter a complete link beginning with http:// or https://.");
 const jobEditorInputSchema = z.object({
+  assignee_ids: assignmentIdsSchema,
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
   brief_details: jobBriefInputSchema.optional(),
   shoot_end_time: optionalTimeSchema.optional(),
   expected_updated_at: z.iso.datetime({ offset: true }).optional(),
@@ -254,6 +259,8 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     requireClient(context, input.client_id),
   ]);
   let update = context.supabase.from("website-jobs").update({
+    assignee_ids: input.assignee_ids,
+    priority: input.priority,
     brief_details: input.brief_details,
     shoot_end_time: input.shoot_end_time === undefined ? undefined : input.shoot_end_time || null,
     title: input.title,
@@ -496,6 +503,8 @@ export async function createJob(formData: FormData) {
   if (!context) redirect("/admin/login");
   await Promise.all([requireJobStatus(context, input.status_id), requireClient(context, input.client_id)]);
   const { error } = await context.supabase.from("website-jobs").insert({
+    ...assignmentValues(formData),
+    priority: z.enum(["low", "normal", "high", "urgent"]).parse(formData.get("priority") || "normal"),
     workspace_id: TRUSHOT_WORKSPACE_ID,
     title: input.title,
     client_id: input.client_id || null,
@@ -712,6 +721,7 @@ export async function createTask(formData: FormData) {
   const [, job] = await Promise.all([requireTaskStatus(context, input.status_id), requireJob(context, input.job_id)]);
   const position = await getNextTaskPosition(context, input.status_id);
   const { error } = await context.supabase.from("website-job-tasks").insert({
+    ...assignmentValues(formData),
     workspace_id: TRUSHOT_WORKSPACE_ID,
     title: input.title,
     job_id: input.job_id,
@@ -809,6 +819,7 @@ export async function updateTask(formData: FormData) {
   if (currentError || !currentTask) throw new Error("That task is no longer available.");
   const sameJob = currentTask.job_id === input.job_id;
   const { data, error } = await context.supabase.from("website-job-tasks").update({
+    ...assignmentValues(formData),
     title: input.title,
     job_id: input.job_id,
     status_id: input.status_id,
@@ -878,15 +889,17 @@ export async function saveWorkRecordNote(formData: FormData) {
   }
 
   const recordMatch = input.record_kind === "job" ? { job_id: input.record_id } : { task_id: input.record_id };
+  const team = await getProductionTeam(context.supabase, context.claims.sub, context.access === "admin");
+  const mention_user_ids = mentionedMembers(input.body, team.members);
   if (input.note_id) {
     const { data: updated, error } = await context.supabase
       .from("website-work-record-notes")
-      .update({ body: input.body, updated_by: context.claims.sub, updated_at: new Date().toISOString() })
+      .update({ body: input.body, mention_user_ids, updated_by: context.claims.sub, updated_at: new Date().toISOString() })
       .eq("id", input.note_id)
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("record_kind", input.record_kind)
       .match(recordMatch)
-      .select("id,body,created_at,updated_at,rescheduled_date")
+      .select("id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
       .single();
     if (error || !updated) throw new Error(error?.message ?? "That note could not be updated.");
     revalidateProductionPages();
@@ -900,10 +913,11 @@ export async function saveWorkRecordNote(formData: FormData) {
       record_kind: input.record_kind,
       ...recordMatch,
       body: input.body,
+      mention_user_ids,
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
-    .select("id,body,created_at,updated_at,rescheduled_date")
+    .select("id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
     .single();
   if (error || !created) throw new Error(error?.message ?? "That note could not be saved.");
   revalidateProductionPages();
@@ -1065,6 +1079,7 @@ export async function createCalendarEvent(formData: FormData): Promise<CalendarE
   const { data, error } = await context.supabase
     .from("website-calendar-events")
     .insert({
+      ...assignmentValues(formData),
       ...parsed.data,
       workspace_id: TRUSHOT_WORKSPACE_ID,
       created_by: context.claims.sub,
@@ -1094,7 +1109,7 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
   if (client?.error || (parsed.data.client_id && !client?.data)) return { ok: false, error: "Choose an active client from this workspace." };
   const { data, error } = await context.supabase
     .from("website-calendar-events")
-    .update({ ...parsed.data, updated_by: context.claims.sub })
+    .update({ ...parsed.data, ...assignmentValues(formData), updated_by: context.claims.sub })
     .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")

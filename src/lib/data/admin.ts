@@ -4,6 +4,7 @@ import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { AUTOPACIFIC_PORTAL_KEY } from "@/lib/autopacific-access";
 import { hasAutopacificMfaAssurance } from "@/lib/autopacific-mfa";
+import { getProductionTeam } from "@/lib/data/production-team";
 import { buildDelayInfoByRecord } from "@/lib/delay-history";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
@@ -38,8 +39,9 @@ export const getProductionContext = cache(async () => {
     .eq("portal_key", AUTOPACIFIC_PORTAL_KEY).eq("is_active", true).maybeSingle();
   if (!membership) return null;
   if (!await hasAutopacificMfaAssurance(supabase, data.claims.aal)) return null;
+  const team = await getProductionTeam(supabase, data.claims.sub);
   // All queries use the caller's session. Client-scoped RLS remains authoritative.
-  return { supabase, claims: data.claims, membership: { ...membership, role: "editor" }, access: "autopacific" as const };
+  return { supabase, claims: data.claims, membership: { ...membership, role: "editor" }, team, access: "autopacific" as const };
 });
 
 export async function getOverviewData() {
@@ -217,7 +219,7 @@ export async function getPipeline() {
   if (!context) return { statuses: [], tasks: [], jobOptions: [] };
   const [statusesResult, tasksResult, jobsResult, clientsResult, delayHistoryResult] = await Promise.all([
     context.supabase.from("website-task-statuses").select("id,key,label,color,position,is_open").eq("is_active", true).order("position"),
-    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override").is("archived_at", null).order("position"),
+    context.supabase.from("website-job-tasks").select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override,assignee_ids").is("archived_at", null).order("position"),
     context.supabase.from("website-jobs").select("id,title,client_id,job_number,shoot_date,due_date").is("archived_at", null),
     context.supabase.from("website-clients").select("id,name").is("archived_at", null),
     context.supabase
@@ -277,18 +279,18 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .order("position"),
     supabase
       .from("website-job-tasks")
-      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override")
+      .select("id,title,job_id,status_id,asset_type,hours,due_date,due_time,priority,description,position,completed_at,updated_at,source_deliverable_id,due_date_is_override,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null)
       .order("position"),
     supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at,assignee_ids,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
       .from("website-campaigns")
-      .select("id,title,client_id")
+      .select("id,title,client_id,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     supabase
@@ -298,13 +300,13 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .is("archived_at", null),
     supabase
       .from("website-calendar-events")
-      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),
     supabase
       .from("website-flight-events")
-      .select("id,client_id,travel_plan_id,leg_order,leg_kind,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_airline_code,arrival_airline_code,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at")
+      .select("id,client_id,travel_plan_id,leg_order,leg_kind,title,departure_date,departure_time,arrival_date,arrival_time,origin_location,destination_location,departure_airline,arrival_airline,departure_airline_code,arrival_airline_code,departure_flight_number,arrival_flight_number,departure_terminal,arrival_terminal,travel_class,seat_number,notes,accommodation_title,accommodation_location,accommodation_notes,vehicle_title,vehicle_location,vehicle_notes,color,created_at,updated_at,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("departure_date")
       .order("departure_time"),
@@ -333,7 +335,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     supabase
       .from("website-work-record-notes")
-      .select("id,record_kind,job_id,task_id,body,created_at,updated_at,rescheduled_date")
+      .select("id,record_kind,job_id,task_id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("created_at"),
   ]);
@@ -368,8 +370,8 @@ export async function getTabletKioskData(options: { clientName?: string; include
     rescheduled_date: item.rescheduled_due_date,
     created_at: item.created_at,
   })));
-  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
-  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null }>>();
+  const notesByJobId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null; created_by?: string | null; mention_user_ids?: string[] }>>();
+  const notesByTaskId = new Map<string, Array<{ id: string; body: string; created_at: string; updated_at: string; rescheduled_date?: string | null; created_by?: string | null; mention_user_ids?: string[] }>>();
   for (const note of workRecordNotesResult.data ?? []) {
     const target = note.record_kind === "job" ? note.job_id : note.task_id;
     if (!target) continue;
@@ -377,6 +379,8 @@ export async function getTabletKioskData(options: { clientName?: string; include
     targetMap.set(target, [...(targetMap.get(target) ?? []), {
       id: note.id,
       body: note.body,
+      created_by: note.created_by,
+      mention_user_ids: note.mention_user_ids,
       rescheduled_date: note.rescheduled_date,
       created_at: note.created_at,
       updated_at: note.updated_at,
@@ -405,6 +409,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       delay_info: delayInfoByJobId.get(job.id),
       record_notes: notesByJobId.get(job.id) ?? [],
       total_tasks: relatedTasks.length,
+      completed_tasks: relatedTasks.filter(task => taskStatusesById.get(task.status_id)?.key === "posted_done").length,
       open_tasks: relatedTasks.filter((task) => taskStatusesById.get(task.status_id)?.is_open ?? true).length,
     };
   });
@@ -414,6 +419,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
     return {
       id: job.id,
       entity_type: "job",
+      assignee_ids: job.assignee_ids,
       title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
       shoot_date: job.shoot_date,
@@ -435,6 +441,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
     return [{
       id: task.id,
       entity_type: "task",
+      assignee_ids: task.assignee_ids,
       title: task.title,
       job_title: job.title,
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
@@ -455,6 +462,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
     return [{
       id: asset.id,
       entity_type: "campaign-asset",
+      assignee_ids: campaign.assignee_ids,
       title: asset.title,
       campaign_title: campaign.title,
       client_name: campaign.client_id ? clientsById.get(campaign.client_id)?.name ?? null : null,
@@ -583,8 +591,8 @@ export async function getFinanceData() {
     context.supabase.from("website-expenses").select("id,category_id,job_id,client_id,campaign_id,vendor,description,incurred_on,amount_cents,gst_credit_cents,deductible_percent,receipt_path,receipt_file_name,receipt_mime_type,receipt_size_bytes,receipt_extraction").is("archived_at", null).order("incurred_on", { ascending: false }),
     context.supabase.from("website-expense-categories").select("id,name,tax_category").eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("is_active", true).order("name"),
     context.supabase.from("website-clients").select("id,name,package_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("name"),
-    context.supabase.from("website-jobs").select("id,title,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
-    context.supabase.from("website-campaigns").select("id,title,client_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
+    context.supabase.from("website-jobs").select("id,title,client_id,assignee_ids").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
+    context.supabase.from("website-campaigns").select("id,title,client_id,assignee_ids").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).order("title"),
     context.supabase.from("website-campaign-assets").select("id,campaign_id,invoice_id").eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null),
     context.supabase.from("website-pricing-packages").select("id,title").eq("workspace_id", TRUSHOT_WORKSPACE_ID),
     context.supabase.from("website-tax-settings").select("*").eq("workspace_id", TRUSHOT_WORKSPACE_ID).maybeSingle(),
@@ -909,7 +917,7 @@ export async function getCalendarData() {
       .is("archived_at", null),
     context.supabase
       .from("website-campaigns")
-      .select("id,title,client_id")
+      .select("id,title,client_id,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .is("archived_at", null),
     context.supabase
@@ -919,7 +927,7 @@ export async function getCalendarData() {
       .is("archived_at", null),
     context.supabase
       .from("website-calendar-events")
-      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),

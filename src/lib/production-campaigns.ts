@@ -3,6 +3,7 @@ import type { JobStatus } from "./types";
 import type { JobDeliverable } from "./job-deliverable-model";
 
 export type CampaignPlanJob = {
+  assignee_ids?: string[];
   id: string; title: string; status_id: string; shoot_date: string | null; due_date: string | null;
   description: string | null; location: string | null; deliverables: JobDeliverable[];
   updated_at: string | null;
@@ -10,6 +11,7 @@ export type CampaignPlanJob = {
 };
 export type CampaignPlanWeek = { id: string; title: string; jobs: CampaignPlanJob[] };
 export type CampaignPlan = {
+  assignee_ids?: string[];
   id: string; title: string; objective: string | null; notes: string | null;
   start_date: string; updated_at: string | null; weeks: CampaignPlanWeek[];
 };

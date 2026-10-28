@@ -1,4 +1,5 @@
 import "server-only";
+import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 
 import { after } from "next/server";
 import {
@@ -134,7 +135,7 @@ async function upsertRemoteEvent({
 }) {
   const { data: event, error: eventError } = await supabase
     .from("website-calendar-events")
-    .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,client_id,updated_at")
+    .select("id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,client_id,updated_at,assignee_ids")
     .eq("workspace_id", integration.workspace_id)
     .eq("id", calendarEventId)
     .maybeSingle();
@@ -143,6 +144,7 @@ async function upsertRemoteEvent({
     await removeRemoteEvent({ calendarEventId, integration, operation: integration.deletion_mode, supabase });
     return;
   }
+  if (!await assignedToClickUpOwner(supabase, integration.workspace_id, event.assignee_ids)) return;
   if (!integration.assigned_user_id) throw new Error("The ClickUp assignee has not been connected.");
 
   const snapshot: ClickUpCalendarEventSnapshot = {

@@ -5,10 +5,20 @@ import {
   queueAutopacificOfflineMutation,
   readAutopacificOfflineQueue,
   removeAutopacificOfflineMutations,
+  writeAutopacificOfflineSnapshot,
+  readAutopacificOfflineSnapshot,
 } from "@/lib/autopacific-offline";
 
 describe("AutoPacific field queue", () => {
   beforeEach(() => window.localStorage.clear());
+  it("never reads or syncs another signed-in person's field copy", () => {
+    queueAutopacificOfflineMutation({ entity: "job", expectedUpdatedAt: "2026-10-28T00:00:00Z", recordId: "job", statusId: "scheduled", title: "John's work" }, "john");
+    writeAutopacificOfflineSnapshot({ private: "john" }, "john");
+    expect(readAutopacificOfflineQueue("colleague")).toEqual([]);
+    expect(readAutopacificOfflineSnapshot("colleague")).toBeNull();
+    expect(readAutopacificOfflineQueue("john")).toHaveLength(1);
+    expect(readAutopacificOfflineSnapshot<{ private: string }>("john")?.snapshot.private).toBe("john");
+  });
 
   it("compacts repeated moves while preserving the first live revision guard", () => {
     const first = queueAutopacificOfflineMutation({
