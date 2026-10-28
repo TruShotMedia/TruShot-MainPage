@@ -3,6 +3,7 @@ import { BRISBANE_TIMEZONE, type CalendarReminderSettings } from "@/lib/calendar
 import { ACTIVE_CLIENT_REQUEST_STATUSES } from "@/lib/client-requests";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { AUTOPACIFIC_PORTAL_KEY } from "@/lib/autopacific-access";
+import { hasAutopacificMfaAssurance } from "@/lib/autopacific-mfa";
 import { buildDelayInfoByRecord } from "@/lib/delay-history";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
@@ -36,6 +37,7 @@ export const getProductionContext = cache(async () => {
     .eq("user_id", data.claims.sub).eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .eq("portal_key", AUTOPACIFIC_PORTAL_KEY).eq("is_active", true).maybeSingle();
   if (!membership) return null;
+  if (!await hasAutopacificMfaAssurance(supabase, data.claims.aal)) return null;
   // All queries use the caller's session. Client-scoped RLS remains authoritative.
   return { supabase, claims: data.claims, membership: { ...membership, role: "editor" }, access: "autopacific" as const };
 });

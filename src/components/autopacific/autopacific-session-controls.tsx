@@ -21,6 +21,12 @@ export function AutopacificLoginCleanup() {
   return null;
 }
 
+/** Preserve unsynced changes, but never keep an offline shell behind an MFA challenge. */
+export function AutopacificMfaLocalCleanup() {
+  useEffect(() => { void clearFieldCopy(false).catch(() => undefined); }, []);
+  return null;
+}
+
 export function AutopacificSignOutButton({ destination = "/autopacific", showLabel = false }: { destination?: string; showLabel?: boolean }) {
   const [pending, setPending] = useState(false);
   return <button className="tablet-signout-button" type="button" disabled={pending} aria-label="Sign out of AutoPacific" title="Sign out" onClick={async () => {

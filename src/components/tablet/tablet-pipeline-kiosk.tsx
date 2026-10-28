@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, FolderKanban, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, SunMedium, X } from "lucide-react";
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, FolderKanban, LayoutDashboard, ListChecks, ListTodo, Moon, Pause, Pencil, Plane, Play, Plus, RectangleHorizontal, RectangleVertical, RefreshCw, Rows3, ShieldCheck, SunMedium, X } from "lucide-react";
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
@@ -825,7 +825,10 @@ export function TabletPipelineKiosk({
                   <span><LayoutDashboard size={18} /></span>
                   <strong>Open TruShot CRM<small>Continue in the complete administration workspace.</small></strong>
                 </Link> : null}
-                {branding.theme === "autopacific" ? <AutopacificSignOutButton destination={isMarketing ? "/marketing" : "/autopacific"} showLabel /> : null}
+                {branding.theme === "autopacific" ? <>
+                  <Link href={`/autopacific/security?next=${isMarketing ? "/marketing" : "/autopacific/mobile"}`} onClick={() => setIsMobileActionsOpen(false)}><span><ShieldCheck size={18} /></span><strong>Account security<small>Set up or check authenticator verification.</small></strong></Link>
+                  <AutopacificSignOutButton destination={isMarketing ? "/marketing" : "/autopacific"} showLabel />
+                </> : null}
               </div>
             </section>
           </>

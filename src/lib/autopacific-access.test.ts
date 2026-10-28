@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeAutopacificPath } from "./autopacific-access";
+import { autopacificMfaDestination, autopacificMfaPath, safeAutopacificPath } from "./autopacific-access";
 import { jobDeliverablesInputSchema } from "./job-deliverables";
 
 describe("AutoPacific login destinations", () => {
@@ -8,6 +8,13 @@ describe("AutoPacific login destinations", () => {
   });
   it("cannot redirect to other applications or an external host", () => {
     for (const path of ["/admin/finance", "//evil.test", "https://evil.test", "/autopacific/login", "/autopacific/../admin", "/autopacific\\evil", "/ingreign", undefined]) expect(safeAutopacificPath(path)).toBe("/autopacific");
+  });
+  it("supports setup without open redirects or verification loops", () => {
+    expect(safeAutopacificPath("/autopacific/security?next=%2Fmarketing")).toBe("/autopacific/security?next=%2Fmarketing");
+    expect(autopacificMfaDestination("/autopacific/security?next=/marketing")).toBe("/marketing");
+    expect(autopacificMfaDestination("/autopacific/security?next=/autopacific/security")).toBe("/autopacific");
+    expect(autopacificMfaPath("/marketing?view=calendar")).toBe("/autopacific/security?next=%2Fmarketing%3Fview%3Dcalendar");
+    expect(autopacificMfaDestination("https://evil.test")).toBe("/autopacific");
   });
 });
 

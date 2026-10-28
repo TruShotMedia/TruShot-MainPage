@@ -19,6 +19,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sun,
   X,
 } from "lucide-react";
@@ -575,6 +576,7 @@ export function ProductionDesktop({
           ))}
         </nav>
         <div className="apg-sidebar-bottom">
+          <Link href={`/autopacific/security?next=${marketing ? "/marketing" : "/autopacific"}`}><ShieldCheck size={16} /> Account security</Link>
           {!marketing ? (
             <Link href="/autopacific?display=kiosk">
               <Monitor size={16} /> Kiosk display

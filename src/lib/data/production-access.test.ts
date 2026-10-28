@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ claims: vi.fn(), from: vi.fn(), admin: vi.fn(), portal: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { getClaims: mocks.claims }, from: mocks.from }) }));
+const mocks = vi.hoisted(() => ({ claims: vi.fn(), factors: vi.fn(), from: vi.fn(), admin: vi.fn(), portal: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: { getClaims: mocks.claims, mfa: { listFactors: mocks.factors } }, from: mocks.from }) }));
 import { getAdminContext, getProductionContext } from "./admin";
 
 beforeEach(() => {
@@ -8,6 +8,7 @@ beforeEach(() => {
   mocks.claims.mockResolvedValue({ data: { claims: { sub: "work-user" } } });
   mocks.admin.mockResolvedValue({ data: null });
   mocks.portal.mockResolvedValue({ data: null });
+  mocks.factors.mockResolvedValue({ data: { all: [], totp: [] }, error: null });
   mocks.from.mockImplementation((table: string) => ({ select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: table === "website-admin-users" ? mocks.admin : mocks.portal }));
 });
 
@@ -24,6 +25,23 @@ describe("production versus full CRM authorization", () => {
     mocks.admin.mockResolvedValue({ data: { id: "admin", workspace_id: "workspace", display_name: "Owner", role: "owner" } });
     expect((await getProductionContext())?.access).toBe("admin");
     expect(mocks.portal).not.toHaveBeenCalled();
+    expect(mocks.factors).not.toHaveBeenCalled();
+  });
+  it("blocks password-only operational access once a factor is verified", async () => {
+    mocks.portal.mockResolvedValue({ data: { id: "portal" } });
+    mocks.factors.mockResolvedValue({ data: { all: [{ status: "verified" }], totp: [] } });
+    expect(await getProductionContext()).toBeNull();
+  });
+  it("allows verified MFA sessions without an extra Auth request", async () => {
+    mocks.portal.mockResolvedValue({ data: { id: "portal" } });
+    mocks.claims.mockResolvedValue({ data: { claims: { sub: "work-user", aal: "aal2" } } });
+    expect((await getProductionContext())?.access).toBe("autopacific");
+    expect(mocks.factors).not.toHaveBeenCalled();
+  });
+  it("fails closed if the live factor check fails", async () => {
+    mocks.portal.mockResolvedValue({ data: { id: "portal" } });
+    mocks.factors.mockResolvedValue({ data: null, error: { message: "Unavailable" } });
+    expect(await getProductionContext()).toBeNull();
   });
   it("does not query memberships without verified claims", async () => {
     mocks.claims.mockResolvedValue({ data: null });

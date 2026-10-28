@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { AUTOPACIFIC_LOGIN_EMAIL, AUTOPACIFIC_PORTAL_KEY, safeAutopacificPath } from "@/lib/autopacific-access";
+import { AUTOPACIFIC_LOGIN_EMAIL, AUTOPACIFIC_PORTAL_KEY, autopacificMfaPath, safeAutopacificPath } from "@/lib/autopacific-access";
+import { readAutopacificMfa } from "@/lib/autopacific-mfa";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +27,9 @@ export async function signInToAutopacific(formData: FormData) {
   }
   revalidatePath("/autopacific", "layout");
   revalidatePath("/marketing", "layout");
+  const factors = await readAutopacificMfa(supabase);
+  if (!factors) redirect(failure("verification"));
+  if (factors.verified.length) redirect(autopacificMfaPath(destination));
   redirect(destination);
 }
 

@@ -16,7 +16,12 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
   const isMarketing = mode === "marketing";
   const context = await getProductionContext();
   if (!context) {
-    const destination = isMarketing ? "/marketing" : experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
+    const pathname = isMarketing ? "/marketing" : experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
+    const query = new URLSearchParams();
+    if (requestedView) query.set("view", requestedView);
+    if (requestedJobId) query.set("job", requestedJobId);
+    if (forceKiosk) query.set("display", "kiosk");
+    const destination = `${pathname}${query.size ? `?${query}` : ""}`;
     redirect(`${isMarketing ? "/marketing" : "/autopacific"}/login?next=${encodeURIComponent(destination)}`);
   }
 

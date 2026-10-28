@@ -14,3 +14,33 @@
 .autopacific-login button:disabled { opacity: .65; cursor: wait; }
 .autopacific-login .autopacific-login-error { margin: 0; padding: 12px; border-radius: 10px; color: #ffb6ae; background: #9a33252b; font-size: 13px; line-height: 1.5; }
 .autopacific-login small { display: block; margin-top: 28px; color: #8ba0ae; font-size: 11px; }
+
+.autopacific-security .autopacific-login-card { width: min(100%, 500px); }
+.autopacific-security .autopacific-login-logo { margin-bottom: 28px; }
+.autopacific-mfa-form { min-width: 0; }
+.autopacific-mfa-notice, .autopacific-mfa-success { padding: 16px; border: 1px solid #74aecf35; border-radius: 14px; background: #74aecf0c; font-size: 13px; line-height: 1.6; }
+.autopacific-mfa-notice p, .autopacific-mfa-success p { margin: 6px 0 0; color: #b1c4cf; }
+.autopacific-mfa-success { display: flex; gap: 12px; margin-top: 24px; }
+.autopacific-mfa-success > svg { flex-shrink: 0; color: #8fd8b2; }
+.autopacific-mfa-steps { padding-left: 22px; margin: 0; color: #b1c4cf; font-size: 13px; line-height: 1.6; }
+.autopacific-mfa-steps li + li { margin-top: 8px; }
+.autopacific-mfa-steps strong { color: #edf5fa; }
+.autopacific-mfa-qr { padding: 16px; width: fit-content; max-width: 100%; margin: 8px auto; background: #fff; border-radius: 16px; }
+.autopacific-mfa-qr img { display: block; width: min(100%, 240px); height: auto; }
+.autopacific-mfa-manual { padding: 12px 0; font-size: 13px; color: #b1c4cf; }
+.autopacific-mfa-manual summary { cursor: pointer; color: #9bcee9; }
+.autopacific-mfa-manual code { display: block; overflow-wrap: anywhere; padding: 12px; border: 1px solid #66879c60; border-radius: 10px; color: #fff; user-select: all; }
+.autopacific-login input.autopacific-mfa-code, .autopacific-mfa-form select { width: 100%; min-height: 54px; padding: 12px 15px; border: 1px solid #66879c60; border-radius: 12px; background: #071017; color: #fff; font: inherit; font-size: 18px; }
+.autopacific-login input.autopacific-mfa-code { text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+.autopacific-mfa-form select { font-size: 16px; }
+.autopacific-mfa-hint, .autopacific-login-card > .autopacific-mfa-help { margin: 0; font-size: 12px; line-height: 1.6; color: #99adba; }
+.autopacific-login-card > .autopacific-mfa-help { margin-top: 24px; }
+.autopacific-mfa-back { justify-self: center; color: #b1c4cf; font-size: 13px; padding: 10px 0; }
+.autopacific-mfa-continue { display: flex; justify-content: center; align-items: center; min-height: 52px; padding: 12px 20px; margin-top: 24px; border-radius: 12px; background: #74aecf; color: #071017; font-size: 14px; font-weight: 750; text-decoration: none; }
+.autopacific-login .autopacific-mfa-secondary, .autopacific-security .tablet-signout-button { color: #b1c4cf; background: transparent; border: 1px solid #66879c50; }
+.autopacific-security .tablet-signout-button { width: 100%; margin-top: 24px; text-align: left; font-weight: 600; }
+.autopacific-security .tablet-signout-button small { margin-top: 4px; font-weight: 400; line-height: 1.5; }
+.autopacific-security a:focus-visible, .autopacific-security summary:focus-visible, .autopacific-security select:focus-visible { outline: 3px solid #8ac4e4; outline-offset: 3px; }
+.autopacific-mfa-spinner { animation: autopacific-mfa-spin 1s linear infinite; }
+@keyframes autopacific-mfa-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .autopacific-mfa-spinner { animation: none; } }
