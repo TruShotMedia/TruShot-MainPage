@@ -26,6 +26,7 @@ import {
 } from "@/lib/autopacific-offline";
 import { parseTabletOrientation, TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME, type TabletOrientation, type TabletView } from "@/lib/tablet-view";
 import { workspaceInitialView, type WorkspaceMode } from "@/lib/workspace-mode";
+import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus } from "@/lib/types";
 
 const tabletPipelineStatusKeys = ["not_started", "in_progress", "ready_for_revision", "final_draft_notes"];
@@ -307,11 +308,12 @@ export function TabletPipelineKiosk({
   const liveTaskStatuses = liveTaskStatusSnapshot.version === taskStatusVersion ? liveTaskStatusSnapshot.statuses : initialStatuses;
   const incomingSchedule = useMemo(() => ({ calendarCampaignAssets, calendarEvents, calendarJobs, calendarTasks, flightEvents }), [calendarCampaignAssets, calendarEvents, calendarJobs, calendarTasks, flightEvents]);
   const scheduleVersion = useMemo(() => scheduleVersionFor(incomingSchedule), [incomingSchedule]);
-  const liveSchedule = useMemo(() => (
+  const liveSchedule = useMemo(() => scopeCalendarForWorkspace(
     liveScheduleSnapshot.version === scheduleVersion
       ? liveScheduleSnapshot
-      : { ...incomingSchedule, version: scheduleVersion }
-  ), [incomingSchedule, liveScheduleSnapshot, scheduleVersion]);
+      : { ...incomingSchedule, version: scheduleVersion },
+    workspaceMode,
+  ), [incomingSchedule, liveScheduleSnapshot, scheduleVersion, workspaceMode]);
   const isDedicatedMobile = experience === "mobile";
   const colorModeStorageKey = branding.theme === "autopacific" ? "autopacific-color-mode" : "tablet-color-mode";
   const isMobileViewport = isDedicatedMobile || Boolean(viewportSize && Math.min(viewportSize.width, viewportSize.height) <= 760);
@@ -379,7 +381,7 @@ export function TabletPipelineKiosk({
       const headers = new Headers();
       const eTag = tabETags.current.get(tab);
       if (eTag) headers.set("If-None-Match", eTag);
-      const response = await fetch(`/api/autopacific/tab?view=${tab}`, {
+      const response = await fetch(`/api/autopacific/tab?view=${tab}&mode=${workspaceMode}`, {
         cache: "no-store",
         credentials: "same-origin",
         headers,
@@ -416,7 +418,7 @@ export function TabletPipelineKiosk({
     } finally {
       tabRefreshInFlight.current.delete(tab);
     }
-  }, [jobPipelineVersion, jobStatusVersion, offlineQueue.length, pipelineVersion, scheduleVersion, taskStatusVersion]);
+  }, [jobPipelineVersion, jobStatusVersion, offlineQueue.length, pipelineVersion, scheduleVersion, taskStatusVersion, workspaceMode]);
 
   const refreshActiveTab = useCallback(() => {
     void refreshTab(activeView);

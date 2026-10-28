@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { describe,expect,it,vi } from "vitest";
 import { ProductionDesktop } from "./production-desktop";
 import { TabletRecordEditEditor } from "@/components/tablet/tablet-workspace-editors";
-import type { TabletKioskData,TabletJobRecord } from "@/lib/types";
+import type { CalendarCustomEvent, TabletKioskData,TabletJobRecord } from "@/lib/types";
 import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 const weatherMock = vi.hoisted(() => vi.fn(() => ({ days: [], unavailable: false })));
 const taskMoveMock = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
@@ -23,6 +23,22 @@ const statuses=[{id:"plan",key:"planning",label:"Planning",color:"#7c8790",posit
 const job:TabletJobRecord={id:"11111111-2222-4333-8444-555555555555",title:"Rola launch content",job_number:null,client_id:"apg",status_id:"scheduled",shoot_date:"2026-11-10",shoot_time:"09:00",shoot_end_time:"11:00",due_date:"2026-11-13",due_time:"17:00",photos_delivered:0,description:"Capture the product range in a real workshop.",notes:null,location:"Geebung workshop",delivery_url:null,delivered_at:null,updated_at:"2026-10-27T00:00:00.000Z",open_tasks:1,total_tasks:2,status:statuses[1],client:{id:"apg",name:"Autopacific Group"},brief_details:{objective:"Show practical use of the new range",audience:"Trade customers",sections:[{key:"output_specs",body:"9:16 social reel, 30 seconds · MP4"}]},deliverables:[{id:"22222222-3333-4444-8555-666666666666",name:"Product launch reel",date:"2026-11-13"},{id:"33333333-4444-4555-8666-777777777777",name:"Workshop photographs",date:null}]};
 const data:TabletKioskData={statuses:[{id:"todo",key:"not_started",label:"Not started",color:"#777",position:1,is_open:true},{id:"progress",key:"in_progress",label:"In progress",color:"#579",position:2,is_open:true},{id:"review",key:"final_draft_notes",label:"Final Draft/Notes",color:"#795",position:3,is_open:true},{id:"posted",key:"posted_done",label:"Posted / Done",color:"#375",position:4,is_open:false}],jobStatuses:statuses,clientOptions:[{id:"apg",name:"Autopacific Group"}],jobOptions:[],pipelineJobs:[job,{...job,id:"draft",title:"Undated planning brief",status_id:"plan",status:statuses[0],shoot_date:null,due_date:null}],pipelineTasks:[{id:"task",job_id:job.id,title:"Launch reel",status_id:"review",asset_type:"Asset",hours:2,due_date:"2026-11-13",due_time:null,priority:"normal",description:null,position:10,completed_at:null,updated_at:job.updated_at,job:{title:job.title,client:{name:"Autopacific Group"}}}],calendarJobs:[{...job,entity_type:"job",client_name:"Autopacific Group",status_label:"Scheduled",status_color:"#579",is_complete:false}],calendarTasks:[],calendarCampaignAssets:[],calendarEvents:[],flightEvents:[],pendingRequestCount:0};
 describe("shared desktop workspace",()=>{
+ it.each(["production","marketing"] as const)("scopes initial and refreshed calendar data correctly in %s", async mode => {
+  (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
+  const privateEvent: CalendarCustomEvent = {id:"ingreign",entity_type:"calendar-event",client_id:null,client_name:null,title:"INGREIGN CONFERENCE",description:null,location:null,start_date:"2026-11-10",end_date:"2026-11-10",start_time:"19:00:00",end_time:"21:00:00",is_all_day:false,color:"#579",reminder_offsets_minutes:[],created_at:job.updated_at,updated_at:job.updated_at};
+  const fixture={...data,calendarEvents:[privateEvent,{...privateEvent,id:"meeting",title:"Marketing catch-up",start_time:"09:00:00"}]};
+  const fetchMock=vi.fn(async()=>({status:200,ok:true,headers:new Headers(),json:async()=>({calendarEvents:fixture.calendarEvents})}));
+  vi.stubGlobal("fetch",fetchMock);
+  const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
+  try {
+   await act(async()=>root.render(<ProductionDesktop experience="mobile" data={fixture} mode={mode} initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
+   expect(container.textContent).toContain("Marketing catch-up");
+   expect(container.textContent?.includes("INGREIGN CONFERENCE")).toBe(mode==="production");
+   await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Refresh current page"]')!.click());
+   expect(fetchMock).toHaveBeenCalledWith(`/api/autopacific/tab?view=schedule&mode=${mode}`,expect.any(Object));
+   expect(container.textContent?.includes("INGREIGN CONFERENCE")).toBe(mode==="production");
+  } finally {await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
+ });
  it.each(["production","marketing"] as const)("has three task views and keeps %s permissions intact", async mode => {
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   taskMoveMock.mockClear();

@@ -43,7 +43,7 @@ describe("TabletPipelineKiosk", () => {
       expect(container.querySelector('[data-testid="kiosk-screensaver"]')).toBeNull();
       await act(async () => nav.querySelectorAll<HTMLButtonElement>("button")[0].click());
       expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({ visibleStatusKeys: ["scheduled"], editable: true });
-      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=jobs", expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=jobs&mode=marketing", expect.anything());
       await act(async()=>[...container.querySelectorAll<HTMLButtonElement>(".marketing-job-views button")].find(button=>button.textContent==="Planning")!.click());
       expect(componentMocks.jobPipeline.mock.lastCall?.[0]).toMatchObject({editable:true,visibleStatusKeys:["planning"],enableCompletion:false});
       expect(document.title).toBe("Planning | AutoPacific Marketing");
@@ -72,7 +72,7 @@ describe("TabletPipelineKiosk", () => {
       expect(container.querySelector('[data-testid="record-edit-editor"]')).toBeNull();
       await act(async () => [...nav.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Jobs")!.click());
       await act(async () => [...nav.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Today")!.click());
-      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule", expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule&mode=marketing", expect.anything());
       expect(document.cookie).toContain("autopacific-marketing-view=today");
     } finally { vi.unstubAllGlobals(); }
   });
@@ -362,7 +362,7 @@ describe("TabletPipelineKiosk", () => {
     ));
 
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
-    expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule", expect.objectContaining({ cache: "no-store" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule&mode=production", expect.objectContaining({ cache: "no-store" }));
     expect(routerMocks.refresh).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="pipeline-view"], [data-testid="calendar-view"]')).not.toBeNull();
 

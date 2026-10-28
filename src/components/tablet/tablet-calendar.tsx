@@ -19,7 +19,7 @@ import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRig
 import { AirlineLogo } from "@/components/tablet/airline-logo";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather, WeatherIcon } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather, WeatherLocationKey } from "@/lib/calendar-weather";
-import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
+import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
 import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
@@ -446,6 +446,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, TabletCalendarEvent[]>();
     for (const event of events) grouped.set(event.date, [...(grouped.get(event.date) ?? []), event]);
+    for (const dayEvents of grouped.values()) dayEvents.sort((left, right) => calendarBookingTime(left.item, left.date).localeCompare(calendarBookingTime(right.item, right.date)) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id));
     return grouped;
   }, [events]);
   const selectedMobileRanges = useMemo(

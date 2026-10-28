@@ -1,7 +1,16 @@
-import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob } from "@/lib/types";
+import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob } from "@/lib/types";
 
 export type CalendarRangeItem = CalendarJob | CalendarCampaignAsset;
 export type CalendarScheduleRangeItem = CalendarRangeItem | CalendarCustomEvent | CalendarFlightEvent;
+
+/** All-day/untimed items stay above bookings; timed cards run earliest to latest. */
+export function calendarBookingTime(item: CalendarScheduleRangeItem | CalendarItem, date?: string): string {
+  if (item.entity_type === "calendar-event") return item.is_all_day ? "" : date && item.start_date < date ? "00:00" : (item.start_time ?? "").slice(0, 5);
+  if (item.entity_type === "flight-event") return date && item.departure_date < date ? "00:00" : item.departure_time.slice(0, 5);
+  if (item.entity_type === "job") return ((date && item.shoot_date !== date ? item.due_time : item.shoot_time) ?? "").slice(0, 5);
+  if (item.entity_type === "campaign-asset") return ((date && item.start_date !== date ? item.due_time : item.start_time) ?? "").slice(0, 5);
+  return (item.due_time ?? "").slice(0, 5);
+}
 
 export type CalendarJobRange<T extends CalendarScheduleRangeItem = CalendarRangeItem> = {
   id: string;
@@ -83,7 +92,7 @@ export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(i
         item,
       }];
     })
-    .sort((left, right) => left.start.localeCompare(right.start) || right.end.localeCompare(left.end) || left.item.title.localeCompare(right.item.title));
+    .sort((left, right) => left.start.localeCompare(right.start) || right.end.localeCompare(left.end) || calendarBookingTime(left.item).localeCompare(calendarBookingTime(right.item)) || left.item.title.localeCompare(right.item.title) || left.id.localeCompare(right.id));
 }
 
 export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(dayKeys: string[], ranges: CalendarJobRange<T>[]): CalendarRangeWeek<T>[] {
@@ -134,7 +143,14 @@ export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(day
           lane: 0,
         }];
       })
-      .sort((left, right) => left.startColumn - right.startColumn || right.laneSpan - left.laneSpan || right.span - left.span || left.item.title.localeCompare(right.item.title))
+      .sort((left, right) => left.startColumn - right.startColumn
+        || Number(right.start !== right.end) - Number(left.start !== left.end)
+        // Keep spanning bars stable, but place the day's bookings by time rather
+        // than title (including single-day flights with their taller cards).
+        || (left.start === left.end && right.start === right.end ? calendarBookingTime(left.item).localeCompare(calendarBookingTime(right.item)) : 0)
+        || right.laneSpan - left.laneSpan || right.span - left.span
+        || calendarBookingTime(left.item).localeCompare(calendarBookingTime(right.item))
+        || left.item.title.localeCompare(right.item.title) || left.id.localeCompare(right.id))
       .map((segment) => {
         const endColumn = segment.startColumn + segment.span - 1;
         let lane = 0;

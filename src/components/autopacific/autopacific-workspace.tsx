@@ -9,6 +9,7 @@ import { todayDateInput } from "@/lib/format";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
 import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
+import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
@@ -25,10 +26,11 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
     redirect(`${isMarketing ? "/marketing" : "/autopacific"}/login?next=${encodeURIComponent(destination)}`);
   }
 
-  const [data, cookieStore] = await Promise.all([
+  const [workspaceData, cookieStore] = await Promise.all([
     getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
     cookies(),
   ]);
+  const data = scopeCalendarForWorkspace(workspaceData, mode);
   const notion = getNotionConfigurationSummary();
   const userAgent=(await headers()).get("user-agent")??"";
   const desktop=experience!=="mobile"&&!forceKiosk&&!/Android|iPad|iPhone|CrOS|SMART-TV|Tizen|Web0S|TV|Kiosk/i.test(userAgent);

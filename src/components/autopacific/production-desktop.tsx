@@ -62,6 +62,7 @@ import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import { ProductionTaskList } from "./production-task-list";
 import { useProductionFieldMode } from "./use-production-field-mode";
 import { mergeProductionRecords, tasksForProductionView, type ProductionRecordView } from "@/lib/production-task-views";
+import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import "./production-desktop.css";
@@ -327,7 +328,7 @@ export function ProductionDesktop({
   const [snapshot, setSnapshot] = useState({ source: data, data });
   const field = useProductionFieldMode();
   const syncFieldChanges = field.sync;
-  const sourceData = snapshot.source === data ? snapshot.data : data;
+  const sourceData = useMemo(() => scopeCalendarForWorkspace(snapshot.source === data ? snapshot.data : data, mode), [data, mode, snapshot]);
   const live = useMemo(() => {
     if (field.online || !field.queue.length) return sourceData;
     return { ...sourceData,
@@ -455,7 +456,7 @@ export function ProductionDesktop({
         const headers = new Headers();
         if (etags.current.has(key))
           headers.set("If-None-Match", etags.current.get(key)!);
-        const response = await fetch(`/api/autopacific/tab?view=${key}`, {
+        const response = await fetch(`/api/autopacific/tab?view=${key}&mode=${mode}`, {
           cache: "no-store",
           headers,
           credentials: "same-origin",
@@ -491,7 +492,7 @@ export function ProductionDesktop({
         if (refreshAgain.current.delete(key) && navigator.onLine) void refreshTab(target);
       }
     },
-    [data, experience, syncFieldChanges, marketing],
+    [data, experience, syncFieldChanges, marketing, mode],
   );
   useEffect(() => {
     if (initialFieldSync.current) return;

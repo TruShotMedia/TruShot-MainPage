@@ -112,6 +112,23 @@ describe("calendar range layout", () => {
     expect(weeks[1].segments[0]).toMatchObject({ startColumn: 0, span: 2, startsBeforeWeek: true });
   });
 
+  it("stacks same-day events by booking time, not title or completion colour", () => {
+    const event = (title: string, start_time: string | null, end_time = "14:00:00"): CalendarCustomEvent => ({
+      id: title, entity_type: "calendar-event", client_id: null, client_name: null,
+      title, description: null, location: null, start_date: "2026-08-12", end_date: "2026-08-12",
+      start_time, end_time, is_all_day: !start_time, color: "#3f9b68", reminder_offsets_minutes: [],
+      created_at: "2026-08-01T00:00:00Z", updated_at: "2026-08-01T00:00:00Z",
+    });
+    const items = [event("Daniel Keyshot Product Meeting", "13:30:00"), event("Milford Marketing Area", "09:30:00"), event("Musud & Chris - Factory Photos", "12:30:00"), event("ZiFlow Approval Software", "08:45:00", "09:00:00"), event("All-day reminder", null)];
+    const ranges = getCalendarScheduleRanges(items);
+    const orderedTitles = ["All-day reminder", "ZiFlow Approval Software", "Milford Marketing Area", "Musud & Chris - Factory Photos", "Daniel Keyshot Product Meeting"];
+    expect(ranges.map(range => range.item.title)).toEqual(orderedTitles);
+    const segments = buildCalendarRangeWeeks(dayKeys, ranges)[0].segments;
+    expect(segments.map(segment => segment.item.title)).toEqual(orderedTitles);
+    expect(segments.map(segment => segment.lane)).toEqual([0, 1, 2, 3, 4]);
+    expect(items[0].title).toBe("Daniel Keyshot Product Meeting");
+  });
+
   it("breaks Autopacific work at weekends while preserving its original date window", () => {
     const autopacificDays = [
       "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11",

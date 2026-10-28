@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getTabletKioskData, getProductionContext } from "@/lib/data/admin";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
+import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
+import type { WorkspaceMode } from "@/lib/workspace-mode";
 import type { PipelineTask, TabletJobRecord } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -197,30 +199,32 @@ async function tasksPayload() {
   };
 }
 
-async function schedulePayload() {
+async function schedulePayload(mode: WorkspaceMode) {
   if (!await getProductionContext()) return null;
   const data = scopeTabletKioskDataByClient(
     await getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
     AUTOPACIFIC_CLIENT_NAME,
     { includeOtherCalendarItems: true },
   );
-  return {
+  return scopeCalendarForWorkspace({
     kind: "schedule" as const,
     calendarCampaignAssets: data.calendarCampaignAssets,
     calendarEvents: data.calendarEvents,
     calendarJobs: data.calendarJobs,
     calendarTasks: data.calendarTasks,
     flightEvents: data.flightEvents,
-  };
+  }, mode);
 }
 
 export async function GET(request: Request) {
-  const requested = new URL(request.url).searchParams.get("view");
+  const params = new URL(request.url).searchParams;
+  const requested = params.get("view");
+  const mode: WorkspaceMode = params.get("mode") === "marketing" ? "marketing" : "production";
   if (requested !== "jobs" && requested !== "tasks" && requested !== "schedule") {
     return NextResponse.json({ error: "Unknown workspace tab." }, { status: 400, headers: responseHeaders });
   }
   try {
-    const payload = requested === "jobs" ? await jobsPayload() : requested === "tasks" ? await tasksPayload() : await schedulePayload();
+    const payload = requested === "jobs" ? await jobsPayload() : requested === "tasks" ? await tasksPayload() : await schedulePayload(mode);
     if (!payload) return NextResponse.json({ error: "Unauthorised" }, { status: 401, headers: responseHeaders });
     const cached = notModified(request, payload);
     if (cached) return cached;

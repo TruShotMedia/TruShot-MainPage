@@ -163,6 +163,20 @@ describe("TabletCalendar", () => {
     expect(calendarEvent?.title).toContain("Geebung");
   });
 
+  it("renders timed event cards earliest to latest beneath all-day bars", async () => {
+    const booking = (title: string, time: string): CalendarCustomEvent => ({ ...customEvents[0], id: title, title, is_all_day: false, start_time: time, end_time: "14:00:00" });
+    await act(async () => root.render(<TabletCalendar jobs={[]} tasks={[]} customEvents={[
+      booking("Daniel Keyshot Product Meeting", "13:30:00"),
+      booking("Milford Marketing Area", "09:30:00"),
+      booking("Musud & Chris - Factory Photos", "12:30:00"),
+      booking("ZiFlow Approval Software", "08:45:00"),
+      customEvents[0],
+    ]} density="capacity" today="2026-08-12" />));
+    const cards = [...container.querySelectorAll<HTMLElement>(".tablet-calendar-job-range.is-calendar-event")];
+    expect(cards.map(card => card.textContent)).toEqual(["First day AUTOPACIFIC", "ZiFlow Approval Software", "Milford Marketing Area", "Musud & Chris - Factory Photos", "Daniel Keyshot Product Meeting"]);
+    expect(cards.map(card => card.style.gridRow)).toEqual(["1 / span 1", "2 / span 1", "3 / span 1", "4 / span 1", "5 / span 1"]);
+  });
+
   it("uses the client accent only for matching work and mutes unrelated calendar items", async () => {
     const autopacificJob: CalendarJob = {
       ...jobs[0],
