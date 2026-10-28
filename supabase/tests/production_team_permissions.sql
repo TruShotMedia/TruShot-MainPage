@@ -60,6 +60,8 @@ do $$ declare c record; changed integer; begin
   end;
   perform public."website-approve-production-task"(c.task);
   if not exists(select 1 from public."website-job-tasks" t join public."website-task-statuses" s on s.id=t.status_id where t.id=c.task and s.key='posted_done' and t.approved_by=c.colleague) then raise exception 'Review approval failed'; end if;
+  update public."website-jobs" set due_date='2027-02-03' where id=c.job;
+  if (select due_date from public."website-job-tasks" where id=c.task) is distinct from '2027-02-03'::date then raise exception 'Marketing brief deadline did not propagate to the inherited task'; end if;
   insert into public."website-job-tasks"(id,workspace_id,job_id,status_id,title)
   select c.own_task,c.workspace_id,c.job,s.id,'QA personal task' from public."website-task-statuses" s where s.workspace_id=c.workspace_id and s.key='not_started';
   if (select assignee_ids from public."website-job-tasks" where id=c.own_task)<>array[c.colleague] then raise exception 'Personal task did not default to current user'; end if;
@@ -84,6 +86,8 @@ do $$ declare c record; changed integer; begin
   insert into public."website-note-reads"(note_id,user_id,seen_revision)
   select id,c.colleague,updated_at from public."website-work-record-notes" where id=c.note;
   if not exists(select 1 from public."website-note-reads" where note_id=c.note) then raise exception 'Read acknowledgement failed'; end if;
+  update public."website-note-reads" set seen_revision=seen_revision-interval '1 minute' where note_id=c.note;
+  if not exists(select 1 from public."website-note-reads" r join public."website-work-record-notes" n on n.id=r.note_id where r.note_id=c.note and r.seen_revision=n.updated_at) then raise exception 'A stale tab regressed the comment read receipt'; end if;
 end $$;
 
 select set_config('request.jwt.claims',jsonb_build_object('sub',outsider,'role','authenticated','aal','aal2')::text,true) from team_qa_context;

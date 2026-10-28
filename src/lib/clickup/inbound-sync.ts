@@ -15,6 +15,7 @@ import {
 } from "@/lib/clickup/shared-state";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
+import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
 
@@ -211,6 +212,11 @@ async function processDeletion(
   const { data: link } = await supabase.from("website-clickup-job-links").select("job_id")
     .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
   if (!link) return { status: "ignored", detail: "Deleted ClickUp task was not linked to a CRM job." };
+  const { data: assignedJob, error: assignedJobError } = await supabase.from("website-jobs").select("assignee_ids")
+    .eq("workspace_id", integration.workspace_id).eq("client_id", integration.target_client_id).eq("id", link.job_id).maybeSingle();
+  if (assignedJobError) throw assignedJobError;
+  if (!assignedJob || !await assignedToClickUpOwner(supabase, integration.workspace_id, assignedJob.assignee_ids))
+    return { status: "ignored", detail: "This CRM job is no longer assigned to the connected ClickUp owner; its records were preserved.", jobId: link.job_id };
   if (integration.inbound_mode === "paused") return { status: "ignored", detail: "Inbound syncing was paused.", jobId: link.job_id };
   if (integration.inbound_mode === "observe") return { status: "observed", detail: "Observed a ClickUp deletion without changing the CRM.", jobId: link.job_id };
   if (!integration.archive_on_remote_delete) {
@@ -490,10 +496,12 @@ async function processRemoteTask(
   }
 
   const { data: job, error: jobError } = await supabase.from("website-jobs")
-    .select("id,title,status_id,shoot_date,shoot_time,due_date,due_time,updated_at,archived_at")
+    .select("id,title,status_id,shoot_date,shoot_time,due_date,due_time,updated_at,archived_at,assignee_ids")
     .eq("workspace_id", integration.workspace_id).eq("id", link.job_id).maybeSingle();
   if (jobError) throw jobError;
   if (!job || job.archived_at) return { status: "ignored", detail: "The linked CRM job is archived or unavailable.", jobId: link.job_id };
+  if (!await assignedToClickUpOwner(supabase, integration.workspace_id, job.assignee_ids))
+    return { status: "ignored", detail: "This CRM job is no longer assigned to the connected ClickUp owner.", jobId: link.job_id };
   const { data: crmStatus, error: crmStatusError } = await supabase.from("website-job-statuses").select("key")
     .eq("workspace_id", integration.workspace_id).eq("id", job.status_id).single();
   if (crmStatusError || !crmStatus) throw crmStatusError ?? new Error("The CRM job status is unavailable.");

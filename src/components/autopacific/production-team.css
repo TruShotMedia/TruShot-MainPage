@@ -42,6 +42,8 @@
 .team-inbox-button { position:relative; }
 .team-inbox-button b { position:absolute; top:-4px; right:-4px; display:flex; align-items:center; justify-content:center; min-width:17px; height:17px; padding:0 3px; border-radius:9px; color:#fff; background:#bc4d45; font-size:9px; }
 .team-inbox-dialog { width:min(640px,100%); }
+.team-inbox-device { display:flex; align-items:center; gap:7px; margin-right:auto; }
+.team-inbox-device>button { display:grid; place-items:center; width:38px; height:38px; border:1px solid var(--apg-border,#dce5ec); border-radius:9px; color:var(--apg-accent,#35799f); background:var(--apg-accent-soft,#edf6fb); }
 .team-inbox-dialog h2 small { color:var(--apg-muted,#607581); font-size:12px; font-weight:500; }
 .team-comment-feed { display:grid; gap:9px; padding:16px 0; }
 .team-comment-feed>button { display:flex; gap:12px; align-items:flex-start; width:100%; min-width:0; padding:16px; border:1px solid var(--apg-border,#dce5ec); border-radius:12px; text-align:left; background:var(--apg-surface,#fff); color:var(--apg-text,#19313f); cursor:pointer; }

@@ -179,6 +179,7 @@ export function ProductionCalendar({
   mobile = false,
   marketing,
   personalTools = false,
+  readOnly = false,
   onOpenItem,
   onOpenEvent,
   onOpenFlight,
@@ -190,6 +191,7 @@ export function ProductionCalendar({
   mobile?: boolean;
   marketing: boolean;
   personalTools?: boolean;
+  readOnly?: boolean;
   onOpenItem: (item: CalendarItem) => void;
   onOpenEvent: (event: CalendarCustomEvent) => void;
   onOpenFlight: (flight: CalendarFlightEvent) => void;
@@ -226,7 +228,7 @@ export function ProductionCalendar({
     (job) => job.status_label.toLowerCase() !== "planning",
   );
   const schedule = { ...data, calendarJobs: range };
-  if (mobile) return <ProductionMobileSchedule data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={date => onCreate("event", date)} />;
+  if (mobile) return <ProductionMobileSchedule data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={readOnly ? undefined : date => onCreate("event", date)} />;
   return (
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">
@@ -287,9 +289,9 @@ export function ProductionCalendar({
             </button>
           </div>
         ) : null}
-        <button type="button" onClick={() => onCreate("event", date)}>
+        {!readOnly ? <button type="button" onClick={() => onCreate("event", date)}>
           <Plus size={14} /> Event
-        </button>
+        </button> : null}
       </div>
       {mode === "fortnight" ? (
         <TabletCalendar
@@ -306,7 +308,7 @@ export function ProductionCalendar({
           campaignAssets={data.calendarCampaignAssets ?? []}
           customEvents={data.calendarEvents}
           flightEvents={data.flightEvents}
-          editable
+          editable={!readOnly}
           onCreateEvent={(date) => onCreate("event", date)}
           onEditItem={onOpenItem}
           onEditEvent={onOpenEvent}

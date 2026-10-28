@@ -8,6 +8,7 @@ import type { TeamComment, TeamDirectoryMember } from "@/lib/production-team";
 import { teamInitials } from "@/lib/production-team";
 import { useProductionTeam } from "./team-context";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
+import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 
 export function TeamManagement({ onClose }: { onClose: () => void }) {
   const [members, setMembers] = useState<TeamDirectoryMember[]>([]);
@@ -40,7 +41,7 @@ export function TeamManagement({ onClose }: { onClose: () => void }) {
   </WorkspaceDialog>;
 }
 
-export function TeamNotifications({ onOpenRecord }: { onOpenRecord: (kind: "job" | "task", id: string) => void }) {
+export function TeamNotifications({ onOpenRecord, publicKey = "" }: { onOpenRecord: (kind: "job" | "task", id: string) => void; publicKey?: string }) {
   const team = useProductionTeam();
   const [open, setOpen] = useState(false), [items, setItems] = useState<TeamComment[]>([]), [error, setError] = useState("");
   const [loading, setLoading] = useState(false), [filter, setFilter] = useState("all");
@@ -69,7 +70,7 @@ export function TeamNotifications({ onOpenRecord }: { onOpenRecord: (kind: "job"
   return <><button type="button" className="team-inbox-button" aria-label={`Team updates${unread ? `, ${unread} unread` : ""}`} onClick={() => { setOpen(true); void refresh(); }}><Bell size={17} />{unread ? <b>{unread > 99 ? "99+" : unread}</b> : null}</button>
     {open ? <WorkspaceDialog className="team-inbox-dialog" titleId="team-inbox-title" onClose={() => setOpen(false)}
       header={<><div><span>Team communication</span><h2 id="team-inbox-title">Updates <small>{unread} unread</small></h2></div><button type="button" onClick={() => setOpen(false)} aria-label="Close updates"><X size={20} /></button></>}
-      footer={<><button type="button" onClick={() => void refresh()} disabled={loading}>Refresh</button><button type="button" className="admin-primary-button" disabled={!unread} onClick={() => void mark(items.filter(item => item.unread))}><CheckCheck size={16} /> Mark all as read</button></>}>
+      footer={<>{publicKey ? <div className="team-inbox-device"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={publicKey} /><small>Device reminders</small></div> : null}<button type="button" onClick={() => void refresh()} disabled={loading}>Refresh</button><button type="button" className="admin-primary-button" disabled={!unread} onClick={() => void mark(items.filter(item => item.unread))}><CheckCheck size={16} /> Mark all as read</button></>}>
       <div className="apg-view-pills" aria-label="Update filters">{["all", "unread", "mentions"].map(value => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
       {error ? <p role="alert">{error}</p> : null}{loading && !items.length ? <p role="status">Loading updates…</p> : null}
       <div className="team-comment-feed">{visible.map(item => { const author = team?.members.find(member => member.user_id === item.created_by); return <button type="button" key={item.id} className={item.unread ? "is-unread" : ""} onClick={() => { void mark([item]); setOpen(false); onOpenRecord(item.record_kind, item.job_id ?? item.task_id ?? ""); }}>

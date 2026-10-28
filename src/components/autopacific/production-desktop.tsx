@@ -716,7 +716,7 @@ export function ProductionDesktop({
             <h1>{label}</h1>
           </div>
           <div className="apg-desktop-controls">
-            {team ? <TeamNotifications onOpenRecord={(kind, id) => { void refresh(kind === "job" ? "jobs" : "pipeline"); const record = kind === "job" ? allLive.pipelineJobs.find(item => item.id === id) : allLive.pipelineTasks.find(item => item.id === id); if (record) { if (kind === "job") setViewing({ kind, record: record as TabletJobRecord }); else setViewing({ kind, record: record as PipelineTask }); } }} /> : null}
+            {team ? <TeamNotifications publicKey={notificationPublicKey} onOpenRecord={(kind, id) => { void refresh(kind === "job" ? "jobs" : "pipeline"); const record = kind === "job" ? allLive.pipelineJobs.find(item => item.id === id) : allLive.pipelineTasks.find(item => item.id === id); if (record) { if (kind === "job") setViewing({ kind, record: record as TabletJobRecord }); else setViewing({ kind, record: record as PipelineTask }); } }} /> : null}
             <button
               type="button"
               disabled={refreshing}
@@ -742,17 +742,17 @@ export function ProductionDesktop({
                 <button type="button" onClick={() => start("job")}>
                   Job brief
                 </button>
-                <button type="button" onClick={() => start("event")}>
+                {space !== "team" ? <button type="button" onClick={() => start("event")}>
                   Calendar event
-                </button>
+                </button> : null}
                 {!reviewOnly ? (
                   <>
                     <button type="button" onClick={() => start("task")}>
                       Task / asset
                     </button>
-                    <button type="button" onClick={() => start("flight")}>
+                    {space !== "team" ? <button type="button" onClick={() => start("flight")}>
                       Flight plan
-                    </button>
+                    </button> : null}
                   </>
                 ) : null}
               </div>
@@ -953,6 +953,7 @@ export function ProductionDesktop({
               mobile={isMobileLayout}
               marketing={marketing}
               personalTools={space === "mine"}
+              readOnly={space === "team"}
               onOpenItem={openItem}
               onOpenEvent={(item) => {
                 setEvent(item);
