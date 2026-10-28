@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Image from "next/image";
+import { ProductionWordmark } from "./production-wordmark";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -545,13 +545,7 @@ export function ProductionDesktop({
         intervalMinutes={notionSyncIntervalMinutes}
       />
       <aside className="apg-desktop-sidebar">
-        <Image
-          src="/brand/autopacific-logo-clean.png"
-          alt="AutoPacific Group"
-          width={1800}
-          height={312}
-          priority
-        />
+        <ProductionWordmark className="apg-desktop-wordmark" preload sizes="168px" />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
         <nav aria-label="Workspace pages">
           {workspaceViews(mode, true, true).map((key) => (

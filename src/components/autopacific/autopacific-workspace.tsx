@@ -8,6 +8,7 @@ import { getProductionContext, getTabletKioskData } from "@/lib/data/admin";
 import { todayDateInput } from "@/lib/format";
 import { getNotionConfigurationSummary } from "@/lib/notion/config";
 import { parseTabletView, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
+import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 
 const AUTOPACIFIC_CLIENT_NAME = "Autopacific Group";
 
@@ -43,17 +44,14 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
         calendarCompletedColor: "#3f9b68",
         calendarMutedColor: "#687177",
         calendarOverdueColor: "#c5524a",
-        logoAlt: "Autopacific Group",
-        logoHeight: 312,
-        logoSrc: "/brand/autopacific-logo-clean.png",
+        logoAlt: PRODUCTION_WORDMARK.alt,
+        logoHeight: PRODUCTION_WORDMARK.height,
+        logoSrc: PRODUCTION_WORDMARK.src,
         logoSurface: "light",
-        logoWidth: 1800,
+        logoWidth: PRODUCTION_WORDMARK.width,
         screensaverLogo: {
-          alt: "Autopacific Group",
-          height: 312,
-          src: "/brand/autopacific-logo-clean.png",
+          ...PRODUCTION_WORDMARK,
           surface: "light",
-          width: 1800,
         },
         name: "Autopacific Group",
         location: isMarketing ? "Marketing" : "Production",

@@ -9,6 +9,8 @@ import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, CalendarPlus2, Fol
 import { PipelineBoard } from "@/components/admin/pipeline-board";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
+import { ProductionWordmark } from "@/components/autopacific/production-wordmark";
+import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 import { useWorkspaceTabTitle } from "@/components/autopacific/use-workspace-tab-title";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
@@ -741,7 +743,9 @@ export function TabletPipelineKiosk({
         <header className="tablet-kiosk-header">
           <div className="tablet-kiosk-identity">
             <span className={`tablet-kiosk-brandmark ${branding.logoSurface === "light" ? "is-light-backed" : ""}`}>
-              <Image src={branding.logoSrc} alt={branding.logoAlt} width={branding.logoWidth} height={branding.logoHeight} priority />
+              {branding.logoSrc === PRODUCTION_WORDMARK.src
+                ? <ProductionWordmark preload sizes="(max-width: 640px) 150px, 180px" />
+                : <Image src={branding.logoSrc} alt={branding.logoAlt} width={branding.logoWidth} height={branding.logoHeight} priority />}
             </span>
             <div className="tablet-kiosk-clock" aria-label={`Brisbane time ${timeFormatter.format(now)}`}>
               <strong suppressHydrationWarning>{timeFormatter.format(now)}</strong>
@@ -1045,7 +1049,9 @@ export function TabletPipelineKiosk({
             </div>
 
             <div className={`tablet-screensaver-hero ${screensaverLogo.surface === "light" ? "has-light-backed-logo" : ""}`}>
-              <Image src={screensaverLogo.src} alt={screensaverLogo.alt} width={screensaverLogo.width} height={screensaverLogo.height} priority sizes="(max-width: 800px) 72vw, 680px" />
+              {screensaverLogo.src === PRODUCTION_WORDMARK.src
+                ? <ProductionWordmark preload sizes="(max-width: 800px) 72vw, 680px" />
+                : <Image src={screensaverLogo.src} alt={screensaverLogo.alt} width={screensaverLogo.width} height={screensaverLogo.height} priority sizes="(max-width: 800px) 72vw, 680px" />}
             </div>
 
             <div className="tablet-screensaver-summary" aria-label="Studio summary">

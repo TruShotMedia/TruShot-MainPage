@@ -76,7 +76,7 @@ html.apg-desktop-active body {
   background: var(--workspace-surface);
   border-right: 1px solid var(--workspace-line);
 }
-.apg-desktop-sidebar > img {
+.apg-desktop-sidebar > .apg-desktop-wordmark {
   width: 100%;
   height: auto;
   background: #fff;

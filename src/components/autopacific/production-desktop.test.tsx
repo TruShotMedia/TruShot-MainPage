@@ -7,10 +7,11 @@ import { describe,expect,it,vi } from "vitest";
 import { ProductionDesktop } from "./production-desktop";
 import { TabletRecordEditEditor } from "@/components/tablet/tablet-workspace-editors";
 import type { TabletKioskData,TabletJobRecord } from "@/lib/types";
+import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 const weatherMock = vi.hoisted(() => vi.fn(() => ({ days: [], unavailable: false })));
 vi.mock("next/navigation",()=>({useRouter:()=>({refresh:vi.fn()})}));
 // eslint-disable-next-line @next/next/no-img-element -- Native image stub for component/layout tests only.
-vi.mock("next/image",()=>({default:({alt,src,...props}:{alt:string;src:string})=><img alt={alt} src={src} {...props}/> }));
+vi.mock("next/image",()=>({default:({alt,src,preload,...props}:{alt:string;src:string;preload?:boolean})=><img alt={alt} src={src} data-preload={String(preload)} {...props}/> }));
 vi.mock("next/link",()=>({default:({href,children}:{href:string;children:ReactNode})=><a href={href}>{children}</a>}));
 vi.mock("next/dynamic",()=>({default:()=>()=>null}));
 vi.mock("@/components/admin/notion-auto-sync",()=>({NotionAutoSync:()=>null}));
@@ -21,6 +22,12 @@ const statuses=[{id:"plan",key:"planning",label:"Planning",color:"#7c8790",posit
 const job:TabletJobRecord={id:"11111111-2222-4333-8444-555555555555",title:"Rola launch content",job_number:null,client_id:"apg",status_id:"scheduled",shoot_date:"2026-11-10",shoot_time:"09:00",shoot_end_time:"11:00",due_date:"2026-11-13",due_time:"17:00",photos_delivered:0,description:"Capture the product range in a real workshop.",notes:null,location:"Geebung workshop",delivery_url:null,delivered_at:null,updated_at:"2026-10-27T00:00:00.000Z",open_tasks:1,total_tasks:2,status:statuses[1],client:{id:"apg",name:"Autopacific Group"},brief_details:{objective:"Show practical use of the new range",audience:"Trade customers",sections:[{key:"output_specs",body:"9:16 social reel, 30 seconds · MP4"}]},deliverables:[{id:"22222222-3333-4444-8555-666666666666",name:"Product launch reel",date:"2026-11-13"},{id:"33333333-4444-4555-8666-777777777777",name:"Workshop photographs",date:null}]};
 const data:TabletKioskData={statuses:[{id:"todo",key:"not_started",label:"Not started",color:"#777",position:1,is_open:true},{id:"progress",key:"in_progress",label:"In progress",color:"#579",position:2,is_open:true},{id:"review",key:"final_draft_notes",label:"Final Draft/Notes",color:"#795",position:3,is_open:true},{id:"posted",key:"posted_done",label:"Posted / Done",color:"#375",position:4,is_open:false}],jobStatuses:statuses,clientOptions:[{id:"apg",name:"Autopacific Group"}],jobOptions:[],pipelineJobs:[job,{...job,id:"draft",title:"Undated planning brief",status_id:"plan",status:statuses[0],shoot_date:null,due_date:null}],pipelineTasks:[{id:"task",job_id:job.id,title:"Launch reel",status_id:"review",asset_type:"Asset",hours:2,due_date:"2026-11-13",due_time:null,priority:"normal",description:null,position:10,completed_at:null,updated_at:job.updated_at,job:{title:job.title,client:{name:"Autopacific Group"}}}],calendarJobs:[{...job,entity_type:"job",client_name:"Autopacific Group",status_label:"Scheduled",status_color:"#579",is_complete:false}],calendarTasks:[],calendarCampaignAssets:[],calendarEvents:[],flightEvents:[],pendingRequestCount:0};
 describe("shared desktop workspace",()=>{
+ it.each(["production","marketing"] as const)("uses the approved workspace logo on %s",mode=>{
+  const html=renderToStaticMarkup(<ProductionDesktop data={data} mode={mode} initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>);
+  expect(html).toContain(PRODUCTION_WORDMARK.src);
+  expect(html).toContain(PRODUCTION_WORDMARK.alt);
+  expect(html).not.toContain("/brand/autopacific-logo-clean.png");
+ });
  it("gives Marketing campaign planning and review-only task actions",async()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);

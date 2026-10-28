@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TABLET_AUTO_ROTATION_PAUSED_STORAGE_KEY, TABLET_ORIENTATION_STORAGE_KEY, TABLET_VIEW_COOKIE_NAME } from "@/lib/tablet-view";
 import { TabletPipelineKiosk } from "./tablet-pipeline-kiosk";
 import type { CalendarTask, PipelineTask } from "@/lib/types";
+import { PRODUCTION_WORDMARK } from "@/lib/production-branding";
 
 const routerMocks = vi.hoisted(() => ({ refresh: vi.fn() }));
 const componentMocks = vi.hoisted(() => ({ calendar: vi.fn(), jobPipeline: vi.fn(), pipeline: vi.fn(), today: vi.fn() }));
@@ -189,17 +190,14 @@ describe("TabletPipelineKiosk", () => {
         branding={{
           calendarAccentColor: "#5d91b0",
           calendarCompletedColor: "#3f9b68",
-          logoAlt: "Autopacific Group",
-          logoHeight: 312,
-          logoSrc: "/brand/autopacific-logo-clean.png",
+          logoAlt: PRODUCTION_WORDMARK.alt,
+          logoHeight: PRODUCTION_WORDMARK.height,
+          logoSrc: PRODUCTION_WORDMARK.src,
           logoSurface: "light",
-          logoWidth: 1800,
+          logoWidth: PRODUCTION_WORDMARK.width,
           screensaverLogo: {
-            alt: "Autopacific Group screensaver",
-            height: 312,
-            src: "/brand/autopacific-logo-clean.png",
+            ...PRODUCTION_WORDMARK,
             surface: "light",
-            width: 1800,
           },
           name: "Autopacific Group",
           location: "Production",
@@ -220,8 +218,8 @@ describe("TabletPipelineKiosk", () => {
       />,
     ));
 
-    const headerLogo = container.querySelector('.tablet-kiosk-brandmark [data-src="/brand/autopacific-logo-clean.png"]');
-    expect(headerLogo?.getAttribute("aria-label")).toBe("Autopacific Group");
+    const headerLogo = container.querySelector(`.tablet-kiosk-brandmark [data-src="${PRODUCTION_WORDMARK.src}"]`);
+    expect(headerLogo?.getAttribute("aria-label")).toBe(PRODUCTION_WORDMARK.alt);
     expect(container.querySelector(".tablet-kiosk-brandmark")?.classList.contains("is-light-backed")).toBe(true);
     expect(container.querySelector(".tablet-kiosk")?.classList.contains("theme-autopacific")).toBe(true);
     expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ accentColor: "#5d91b0", completedColor: "#3f9b68", currentTime: "10:00" });
@@ -230,8 +228,8 @@ describe("TabletPipelineKiosk", () => {
     const screensaver = container.querySelector('[data-testid="kiosk-screensaver"]');
     expect(screensaver?.getAttribute("aria-label")).toBe("Autopacific Group overview");
     expect(screensaver?.textContent).toContain("Autopacific Group · Production");
-    const screensaverLogo = screensaver?.querySelector('.tablet-screensaver-hero [data-src="/brand/autopacific-logo-clean.png"]');
-    expect(screensaverLogo?.getAttribute("aria-label")).toBe("Autopacific Group screensaver");
+    const screensaverLogo = screensaver?.querySelector(`.tablet-screensaver-hero [data-src="${PRODUCTION_WORDMARK.src}"]`);
+    expect(screensaverLogo?.getAttribute("aria-label")).toBe(PRODUCTION_WORDMARK.alt);
   });
 
   afterEach(async () => {

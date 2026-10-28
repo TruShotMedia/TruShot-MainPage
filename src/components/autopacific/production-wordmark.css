@@ -1,0 +1,25 @@
+.production-wordmark {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* A 2172 x 300 display window removes empty canvas, not any lettering.
+   Percentage padding also works on the Chrome 86 kiosk (no aspect-ratio dependency). */
+.production-wordmark-frame {
+  display: block;
+  position: relative;
+  height: 0;
+  padding-bottom: 13.8121547%;
+  overflow: hidden;
+}
+
+.production-wordmark .production-wordmark-frame > img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}

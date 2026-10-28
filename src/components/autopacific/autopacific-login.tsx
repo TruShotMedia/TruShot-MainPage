@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ProductionWordmark } from "@/components/autopacific/production-wordmark";
 import { LockKeyhole } from "lucide-react";
 import { redirect } from "next/navigation";
 import { signInToAutopacific } from "@/app/autopacific/actions";
@@ -15,7 +15,7 @@ export async function AutopacificLogin({ searchParams, surface = "autopacific" }
   return <main className="autopacific-login">
     <AutopacificLoginCleanup />
     <section className="autopacific-login-card">
-      <div className="autopacific-login-logo"><Image src="/brand/autopacific-logo-clean.png" width={1800} height={312} alt="AutoPacific Group" priority /></div>
+      <div className="autopacific-login-logo"><ProductionWordmark preload sizes="(max-width: 440px) 240px, 280px" /></div>
       <span className="autopacific-login-eyebrow"><LockKeyhole size={15} /> {surface === "marketing" ? "Private marketing workspace" : "Private production workspace"}</span>
       <h1>{surface === "marketing" ? "Good ideas. Clear plans." : "Ready for what’s next."}</h1>
       <p>{surface === "marketing" ? "Plan the brief, shape deliverables and keep production moving." : "Your jobs, content and schedule. One focused workspace."}</p>
