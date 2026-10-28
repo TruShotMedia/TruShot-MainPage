@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FocusEvent } from "re
 import { Check, Search } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import type { JobSearchOption } from "@/lib/types";
+import "./job-search-field.css";
 
 function jobSearchText(job: JobSearchOption) {
   return [job.name, job.jobNumber, job.clientName, job.dueDate]
@@ -68,8 +69,8 @@ export function JobSearchField({
     <div ref={wrapperRef} className="job-search-field form-span" onBlur={closeWhenFocusLeaves}>
       <label htmlFor={inputId}>{label}</label>
       <input type="hidden" name="job_id" value={selectedId} />
-      <div className="invoice-search-picker job-search-picker">
-        <div className="invoice-search-control">
+      <div className="job-search-picker">
+        <div className="job-search-control">
           <Search size={16} aria-hidden="true" />
           <input
             ref={inputRef}
@@ -108,10 +109,10 @@ export function JobSearchField({
               }
             }}
           />
-          {selectedJob ? <Check className="invoice-search-confirmed" size={16} aria-hidden="true" /> : null}
+          {selectedJob ? <Check className="job-search-confirmed" size={16} aria-hidden="true" /> : null}
         </div>
         {open ? (
-          <div id={listboxId} className="invoice-search-results job-search-results" role="listbox" aria-label="Matching jobs and shoots">
+          <div id={listboxId} className="job-search-results" role="listbox" aria-label="Matching jobs and shoots">
             {matches.length ? matches.map((job, index) => (
               <button
                 id={`${listboxId}-${job.id}`}

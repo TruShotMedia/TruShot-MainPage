@@ -1,0 +1,94 @@
+/* Shared by CRM, Production and Marketing. Inherit their light/dark tokens;
+   keep this picker independent of the legacy invoice dropdown's colours. */
+.job-search-field .job-search-picker { position: relative; width: 100%; min-width: 0; }
+.job-search-field .job-search-control {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--workspace-line, #cddbe0);
+  border-radius: 11px;
+  background: var(--workspace-field, #fff);
+  padding-inline: 13px;
+  color: var(--workspace-text, #192d37);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.job-search-field .job-search-control:focus-within { border-color: var(--workspace-accent, #246e4d); box-shadow: 0 0 0 3px var(--workspace-accent-soft, #e9f4ed); }
+.job-search-field .job-search-control > svg { position: static; width: 16px; height: 16px; color: var(--workspace-muted, #526b77); pointer-events: none; }
+.job-search-field .job-search-control > .job-search-confirmed { color: var(--workspace-accent, #246e4d); }
+/* These reset only the nested input: generic editor inputs otherwise add a
+   second border/focus ring and horizontal padding underneath the icons. */
+.job-search-field .job-search-control > input[type="search"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0;
+  outline: 0 !important;
+  background: transparent !important;
+  padding: 10px 0 !important;
+  box-shadow: none !important;
+  color: var(--workspace-text, #192d37);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.job-search-field .job-search-control > input::placeholder { color: var(--workspace-muted, #526b77); opacity: 1; }
+.job-search-field .job-search-results {
+  position: absolute;
+  z-index: 75;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  min-width: 0;
+  max-width: 100%;
+  max-height: min(320px, 40vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--workspace-line, #cddbe0);
+  border-radius: 12px;
+  background: var(--workspace-surface, #fff);
+  padding: 5px;
+  box-shadow: 0 12px 30px #07151f24;
+}
+.job-search-field .job-search-results > button {
+  display: grid;
+  width: 100%;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 10px;
+  color: var(--workspace-text, #192d37);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.job-search-field .job-search-results > button:hover,
+.job-search-field .job-search-results > button[data-active="true"],
+.job-search-field .job-search-results > button[aria-selected="true"] { background: var(--workspace-accent-soft, #e9f4ed); color: var(--workspace-text, #192d37); }
+.job-search-field .job-search-results > button[data-active="true"],
+.job-search-field .job-search-results > button:focus-visible { border-color: var(--workspace-accent, #246e4d); }
+.job-search-field .job-search-results > button > span { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.job-search-field .job-search-results > button > span:last-child { align-items: flex-end; }
+.job-search-field .job-search-results strong { color: var(--workspace-text, #192d37); font-size: 13px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.job-search-field .job-search-results small { color: var(--workspace-muted, #526b77); font-size: 11px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.job-search-field .job-search-results > p { margin: 0; padding: 18px 12px; color: var(--workspace-muted, #526b77); font-size: 13px; text-align: center; }
+.job-search-field > .job-search-deadline { color: var(--workspace-muted, #526b77); }
+.job-search-field > .job-search-deadline strong { color: var(--workspace-text, #192d37); }
+@media (max-width: 760px) {
+  .job-search-field .job-search-control > input[type="search"] { min-height: 48px; font-size: 16px; }
+}
+@media (max-width: 480px) {
+  .job-search-field .job-search-results > button { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .job-search-field .job-search-results > button > span:last-child { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .job-search-field .job-search-control { transition: none; }
+}
