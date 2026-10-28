@@ -2,6 +2,7 @@
 /* Keep drag handles usable on touch screens without disabling page scrolling
    everywhere else. Overlay previews escape clipped pipeline scroll regions. */
 .pipeline-card-content { min-width: 0; }
+.apg-compact-delay-label { display: none; }
 .pipeline-task .drag-handle { touch-action: none; cursor: grab; }
 .pipeline-task .drag-handle:active { cursor: grabbing; }
 .pipeline-task.is-dragging { opacity: .28; }

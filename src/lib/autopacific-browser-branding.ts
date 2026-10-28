@@ -33,6 +33,8 @@ export function autopacificTabTitle(mode: WorkspaceMode, view: TabletView, jobVi
     ? "Planning"
     : view === "jobs" && jobView === "completed"
       ? "Completed jobs"
+      : view === "pipeline" && jobView === "planning" ? "Planning tasks"
+      : view === "pipeline" && jobView === "completed" ? "Completed tasks"
       : viewNames[view];
   return `${section} | ${autopacificApplicationNames[mode]}`;
 }

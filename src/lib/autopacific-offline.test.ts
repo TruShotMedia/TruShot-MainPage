@@ -47,4 +47,11 @@ describe("AutoPacific field queue", () => {
     removeAutopacificOfflineMutations([queue[0]!.clientMutationId]);
     expect(readAutopacificOfflineQueue()).toEqual([]);
   });
+  it("keeps a newer offline move made while an older one was syncing", () => {
+    const sent = queueAutopacificOfflineMutation({ entity: "task", expectedUpdatedAt: "2026-10-28T00:00:00Z", recordId: "task", statusId: "progress", title: "Clip" });
+    queueAutopacificOfflineMutation({ ...sent[0], statusId: "review" });
+    const remaining = removeAutopacificOfflineMutations([sent[0].clientMutationId], sent);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].statusId).toBe("review");
+  });
 });

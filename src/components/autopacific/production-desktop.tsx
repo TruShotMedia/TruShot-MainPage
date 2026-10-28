@@ -15,6 +15,7 @@ import {
   List,
   ListTodo,
   Monitor,
+  MoreHorizontal,
   Moon,
   Plus,
   RefreshCw,
@@ -58,8 +59,13 @@ import { TabletNotificationControl } from "@/components/tablet/tablet-notificati
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { ProductionCalendar } from "./production-calendar";
 import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
-import { bulkUpdateJobStatus } from "@/app/admin/actions";
+import { ProductionTaskList } from "./production-task-list";
+import { useProductionFieldMode } from "./use-production-field-mode";
+import { mergeProductionRecords, tasksForProductionView, type ProductionRecordView } from "@/lib/production-task-views";
+import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
+import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import "./production-desktop.css";
+import "./production-mobile.css";
 
 const CalendarEventEditor = dynamic(() =>
   import("@/components/admin/calendar-event-editor").then(
@@ -303,6 +309,7 @@ export function ProductionDesktop({
   notificationPublicKey,
   notionSyncEnabled = false,
   notionSyncIntervalMinutes = 15,
+  experience = "desktop",
 }: {
   data: Data;
   mode: WorkspaceMode;
@@ -313,24 +320,38 @@ export function ProductionDesktop({
   notificationPublicKey: string;
   notionSyncEnabled?: boolean;
   notionSyncIntervalMinutes?: number;
+  experience?: "desktop" | "mobile";
 }) {
   const marketing = mode === "marketing",
     router = useRouter();
   const [snapshot, setSnapshot] = useState({ source: data, data });
-  const live = snapshot.source === data ? snapshot.data : data;
+  const field = useProductionFieldMode();
+  const syncFieldChanges = field.sync;
+  const sourceData = snapshot.source === data ? snapshot.data : data;
+  const live = useMemo(() => {
+    if (field.online || !field.queue.length) return sourceData;
+    return { ...sourceData,
+      pipelineJobs: sourceData.pipelineJobs.map(job => { const move = field.queue.find(item => item.entity === "job" && item.recordId === job.id); return move ? { ...job, status_id: move.statusId, status: sourceData.jobStatuses.find(status => status.id === move.statusId) ?? job.status } : job; }),
+      pipelineTasks: sourceData.pipelineTasks.map(task => { const move = field.queue.find(item => item.entity === "task" && item.recordId === task.id); return move ? { ...task, status_id: move.statusId } : task; }),
+    };
+  }, [field.online, field.queue, sourceData]);
   const [view, setView] = useState<TabletView>(
-    workspaceInitialView(parseTabletView(initialView), mode, true, true),
+    workspaceInitialView(initialView === "planning" ? "jobs" : parseTabletView(initialView), mode, true, true),
   );
   const [jobView, setJobView] = useState<"active" | "planning" | "completed">(
     initialView === "planning" ? "planning" : "active",
   );
-  useWorkspaceTabTitle(mode, view, jobView);
+  const [taskView, setTaskView] = useState<ProductionRecordView>("active");
+  useWorkspaceTabTitle(mode, view, view === "pipeline" ? taskView : jobView);
   const [layout, setLayout] = useState("board"),
     [search, setSearch] = useState("");
   const [theme, setTheme] = useState("light"),
     [notice, setNotice] = useState(""),
     [refreshing, setRefreshing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [startingTask, setStartingTask] = useState<string | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [isMobileLayout, setIsMobileLayout] = useState(experience === "mobile");
   const [campaignRefresh, setCampaignRefresh] = useState(0);
   const [viewing, setViewing] = useState<OpenRecord | null>(() => {
     const job = data.pipelineJobs.find((job) => job.id === requestedJobId);
@@ -351,6 +372,8 @@ export function ProductionDesktop({
   const etags = useRef(new Map<string, string>()),
     inflight = useRef(new Set<string>()),
     newMenu = useRef<HTMLDetailsElement>(null);
+  const refreshAgain = useRef(new Set<string>());
+  const initialFieldSync = useRef(false);
   useEffect(() => {
     document.documentElement.classList.add("apg-desktop-active");
     const saved = localStorage.getItem("apg-desktop-theme");
@@ -363,18 +386,54 @@ export function ProductionDesktop({
     };
   }, []);
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 760px)");
+    const update = () => setIsMobileLayout(experience === "mobile" || media.matches);
+    const timer = window.setTimeout(update, 0);
+    media.addEventListener("change", update);
+    return () => { window.clearTimeout(timer); media.removeEventListener("change", update); };
+  }, [experience]);
+  useEffect(() => {
     document.cookie = `${marketing ? "autopacific-marketing-view" : "trushot-tablet-view"}=${view}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, [marketing, view]);
+  useEffect(() => {
+    const root = document.documentElement;
+    const oldScheme = root.style.colorScheme;
+    const oldBackground = root.style.background;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const oldColor = meta?.getAttribute("content");
+    const statusMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    const oldStatus = statusMeta?.getAttribute("content");
+    const background = theme === "dark" ? "#0b171f" : "#f4f6f8";
+    root.style.colorScheme = theme;
+    root.style.background = background;
+    meta?.setAttribute("content", background);
+    statusMeta?.setAttribute("content", theme === "dark" ? "black" : "default");
+    return () => { root.style.colorScheme = oldScheme; root.style.background = oldBackground; if (oldColor) meta?.setAttribute("content", oldColor); if (oldStatus) statusMeta?.setAttribute("content", oldStatus); };
+  }, [theme]);
+  useEffect(() => {
+    if (!navigator.onLine) {
+      const stored = readAutopacificOfflineSnapshot<{ kind: string; data: Data }>();
+      const required = ["pipelineJobs", "pipelineTasks", "jobStatuses", "statuses", "clientOptions", "jobOptions", "calendarJobs", "calendarTasks", "calendarEvents", "flightEvents"] as const;
+      if (stored?.snapshot?.kind === "production-workspace-v2" && required.every(key => Array.isArray(stored.snapshot.data?.[key]))) {
+        const timer = window.setTimeout(() => setSnapshot({ source: data, data: stored.snapshot.data }), 0);
+        return () => window.clearTimeout(timer);
+      }
+    }
+  }, [data]);
+  useEffect(() => { if (field.online && navigator.onLine) writeAutopacificOfflineSnapshot({ kind: "production-workspace-v2", data: sourceData }); }, [field.online, sourceData]);
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (newMenu.current && !newMenu.current.contains(event.target as Node))
         newMenu.current.open = false;
     };
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && newMenu.current?.open) { newMenu.current.open = false; newMenu.current.querySelector("summary")?.focus(); } };
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
   }, []);
   const refresh = useCallback(
-    async (target: TabletView) => {
+    async function refreshTab(target: TabletView) {
       if (target === "campaigns") { setCampaignRefresh(value => value + 1); return; }
       const key =
         target === "jobs"
@@ -382,7 +441,7 @@ export function ProductionDesktop({
           : target === "pipeline"
             ? "tasks"
             : "schedule";
-      if (inflight.current.has(key)) return;
+      if (inflight.current.has(key)) { refreshAgain.current.add(key); return; }
       if (!navigator.onLine) {
         setNotice(
           "Offline · your last loaded records remain visible. Reconnect before saving changes.",
@@ -392,6 +451,7 @@ export function ProductionDesktop({
       inflight.current.add(key);
       setRefreshing(true);
       try {
+        if (!await syncFieldChanges()) return;
         const headers = new Headers();
         if (etags.current.has(key))
           headers.set("If-None-Match", etags.current.get(key)!);
@@ -401,6 +461,12 @@ export function ProductionDesktop({
           credentials: "same-origin",
         });
         if (response.status !== 304) {
+          if (response.status === 401) {
+            const destination = marketing ? "/marketing" : experience === "mobile" ? "/autopacific/mobile" : "/autopacific";
+            // Discard stale authenticated clients rather than leave a cached workspace in history.
+            window.location.replace(`/${marketing ? "marketing" : "autopacific"}/login?next=${encodeURIComponent(destination)}`);
+            return;
+          }
           if (!response.ok)
             throw new Error(
               "Workspace refresh failed. Your displayed records are unchanged.",
@@ -422,12 +488,19 @@ export function ProductionDesktop({
       } finally {
         inflight.current.delete(key);
         setRefreshing(inflight.current.size > 0);
+        if (refreshAgain.current.delete(key) && navigator.onLine) void refreshTab(target);
       }
     },
-    [data],
+    [data, experience, syncFieldChanges, marketing],
   );
+  useEffect(() => {
+    if (initialFieldSync.current) return;
+    initialFieldSync.current = true;
+    // Resume an interrupted field sync without waiting for the refresh timer.
+    if (navigator.onLine && readAutopacificOfflineQueue().length) void syncFieldChanges().then(ok => { if (ok) void refresh(view); });
+  }, [refresh, syncFieldChanges, view]);
   const editorOpen = Boolean(
-    editing || create || eventDate || flightDate || scheduleItem,
+    editing || create || eventDate || flightDate || scheduleItem || viewing || controlsOpen,
   );
   useEffect(() => {
     const update = () => {
@@ -447,7 +520,22 @@ export function ProductionDesktop({
     setView(next);
     setSearch("");
     setViewing(null);
+    setControlsOpen(false);
+    if (newMenu.current) newMenu.current.open = false;
     void refresh(next);
+  }
+  function toggleTheme() {
+    setTheme(current => { const next = current === "light" ? "dark" : "light"; localStorage.setItem("apg-desktop-theme", next); return next; });
+  }
+  async function startPlanningTask(task: PipelineTask) {
+    const status = live.statuses.find(item => item.key === "in_progress");
+    if (marketing || !status || startingTask) return;
+    setStartingTask(task.id);
+    try {
+      if (!navigator.onLine) field.queueMove("task", { recordId: task.id, statusId: status.id, expectedUpdatedAt: task.updated_at, title: task.title });
+      else { await movePipelineTask(task.id, status.id); await refresh("pipeline"); }
+    } catch (reason) { setNotice(reason instanceof Error ? reason.message : "The task could not be started. Please retry."); }
+    finally { setStartingTask(null); }
   }
   function saved() {
     setEditing(null);
@@ -517,12 +605,8 @@ export function ProductionDesktop({
   );
   const tasks = useMemo(
     () =>
-      live.pipelineTasks.filter((task) =>
-        `${task.title} ${task.job?.title ?? ""}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [live.pipelineTasks, search],
+      tasksForProductionView(live.pipelineTasks, live.statuses, taskView, search),
+    [live.pipelineTasks, live.statuses, taskView, search],
   );
   const label =
     view === "pipeline"
@@ -540,7 +624,7 @@ export function ProductionDesktop({
         viewing.record)
       : null;
   return (
-    <main className={`apg-desktop theme-autopacific is-${theme}`}>
+    <main className={`apg-desktop theme-autopacific is-${theme} ${experience === "mobile" ? "is-mobile-app" : ""}`}>
       <NotionAutoSync
         enabled={notionSyncEnabled}
         intervalMinutes={notionSyncIntervalMinutes}
@@ -591,6 +675,7 @@ export function ProductionDesktop({
       <div className="apg-desktop-content">
         <header className="apg-desktop-toolbar">
           <div>
+            <ProductionWordmark className="apg-mobile-wordmark" sizes="140px" />
             <span>
               AutoPacific Group / {marketing ? "Marketing" : "Production"}
             </span>
@@ -617,19 +702,13 @@ export function ProductionDesktop({
               className="apg-toolbar-theme"
               type="button"
               aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-              onClick={() =>
-                setTheme((current) => {
-                  const next = current === "light" ? "dark" : "light";
-                  localStorage.setItem("apg-desktop-theme", next);
-                  return next;
-                })
-              }
+              onClick={toggleTheme}
             >
               <span className="apg-toolbar-icon">{theme === "light" ? <Moon size={16} /> : <Sun size={16} />}</span>
             </button>
             <details className="apg-new-menu" ref={newMenu}>
-              <summary>
-                <span className="apg-create-icon"><Plus size={16} /></span> Create
+              <summary aria-label="Create a new item">
+                <span className="apg-create-icon"><Plus size={16} /></span><span className="apg-create-label">Create</span>
               </summary>
               <div>
                 <button type="button" onClick={() => start("job")}>
@@ -650,6 +729,7 @@ export function ProductionDesktop({
                 ) : null}
               </div>
             </details>
+            <button type="button" className="apg-mobile-more" onClick={() => setControlsOpen(true)} aria-label="Open workspace settings"><MoreHorizontal size={20} /></button>
           </div>
         </header>
         {notice ? (
@@ -657,6 +737,7 @@ export function ProductionDesktop({
             {notice}
           </p>
         ) : null}
+        {!field.online || field.queue.length || field.message ? <p className="apg-field-status" role="status"><span>{field.online ? field.queue.length ? `${field.queue.length} changes waiting to sync` : "Field changes synced" : "Offline field mode"}</span>{field.message || "Your last loaded workspace is available. Status changes will sync when reception returns."}</p> : null}
         {view === "jobs" || view === "pipeline" ? (
           <div className="apg-desktop-filterbar">
             {view === "jobs" ? (
@@ -675,11 +756,9 @@ export function ProductionDesktop({
                 ))}
               </div>
             ) : (
-              <p>
-                {marketing
-                  ? "View production progress. Approve reviewed assets to complete them."
-                  : "Capture, edit and deliver your assets."}
-              </p>
+              <div className="apg-view-pills" aria-label="Task views">
+                {(["active", "planning", "completed"] as const).map(key => <button type="button" key={key} aria-pressed={taskView === key} onClick={() => { setTaskView(key); void refresh("pipeline"); }}>{key === "active" ? "Active jobs" : key[0].toUpperCase() + key.slice(1)}</button>)}
+              </div>
             )}
             <label className="apg-search">
               <Search size={15} />
@@ -713,7 +792,8 @@ export function ProductionDesktop({
           </div>
         ) : null}
         <section
-          className={`apg-desktop-main ${jobView === "planning" ? "is-planning" : ""}`}
+          key={view}
+          className={`apg-desktop-main ${view === "jobs" && jobView === "planning" ? "is-planning" : ""}`}
           aria-label={`${label} workspace`}
         >
           {view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} /> : view === "jobs" ? (
@@ -765,6 +845,9 @@ export function ProductionDesktop({
                   .map((status) => status.key)}
                 enableCompletion={jobView === "active"}
                 editable
+                isOffline={!field.online}
+                onQueueMove={mutation => field.queueMove("job", mutation)}
+                onJobsChange={changed => { if (!field.online) setSnapshot(current => ({ source: data, data: { ...(current.source === data ? current.data : data), pipelineJobs: mergeProductionRecords((current.source === data ? current.data : data).pipelineJobs, changed) } })); }}
                 onViewJob={(job) => setViewing({ kind: "job", record: job })}
                 onEditJob={(job) => setEditing({ kind: "job", record: job })}
                 onDuplicateJob={(job) =>
@@ -777,6 +860,8 @@ export function ProductionDesktop({
                 onMoveSaved={() => void refresh("jobs")}
               />
             )
+          ) : view === "pipeline" && taskView !== "active" ? (
+            <ProductionTaskList tasks={tasks} statuses={live.statuses} completed={taskView === "completed"} onOpen={task => setViewing({ kind: "task", record: task })} onStart={!marketing && taskView === "planning" ? task => void startPlanningTask(task) : undefined} startingId={startingTask} onDuplicate={!marketing ? task => setCreate({ kind: "task", date: today, source: task }) : undefined} />
           ) : view === "pipeline" ? (
             <PipelineBoard
               key={JSON.stringify(
@@ -793,14 +878,16 @@ export function ProductionDesktop({
                   : live.statuses
               }
               editable={!marketing}
+              isOffline={!field.online}
+              onQueueMove={mutation => field.queueMove("task", mutation)}
+              onTasksChange={changed => { if (!field.online) setSnapshot(current => ({ source: data, data: { ...(current.source === data ? current.data : data), pipelineTasks: mergeProductionRecords((current.source === data ? current.data : data).pipelineTasks, changed) } })); }}
               workflowEnabled={!marketing}
               approvalOnly={marketing}
               completionStatusKey="final_draft_notes"
               visibleStatusKeys={
                 marketing
-                  ? ["not_started", "in_progress", "final_draft_notes"]
+                  ? ["in_progress", "final_draft_notes"]
                   : [
-                      "not_started",
                       "in_progress",
                       "ready_for_revision",
                       "final_draft_notes",
@@ -832,6 +919,7 @@ export function ProductionDesktop({
               data={live}
               today={today}
               todayOnly={view === "today"}
+              mobile={isMobileLayout}
               marketing={marketing}
               onOpenItem={openItem}
               onOpenEvent={(item) => {
@@ -850,6 +938,14 @@ export function ProductionDesktop({
           )}
         </section>
       </div>
+      {controlsOpen ? <WorkspaceDialog className="apg-settings-sheet" titleId="apg-settings-title" onClose={() => setControlsOpen(false)} header={<><div><span>AutoPacific {marketing ? "Marketing" : "Production"}</span><h2 id="apg-settings-title">Workspace settings</h2></div><button type="button" onClick={() => setControlsOpen(false)} aria-label="Close workspace settings"><X size={20} /></button></>} footer={<button type="button" className="admin-primary-button" onClick={() => setControlsOpen(false)}>Done</button>}>
+        <div className="apg-settings-actions">
+          <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={20} /> : <Sun size={20} />}<span>Appearance<small>Switch to {theme === "light" ? "dark" : "light"} mode</small></span></button>
+          {!marketing && notificationPublicKey ? <div className="apg-settings-notifications"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={notificationPublicKey} /><span>Device notifications<small>Calendar reminders and flight briefings</small></span></div> : null}
+          <Link href={`/autopacific/security?next=${marketing ? "/marketing" : "/autopacific/mobile"}`}><ShieldCheck size={20} /><span>Account security<small>Password and authenticator verification</small></span></Link>
+          <AutopacificSignOutButton destination={marketing ? "/marketing" : "/autopacific"} showLabel />
+        </div>
+      </WorkspaceDialog> : null}
       {openedJob ? (
         <JobBriefPanel
           key={openedJob.id}

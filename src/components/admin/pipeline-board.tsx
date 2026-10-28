@@ -201,7 +201,7 @@ export function PipelineBoard({
     <>
       {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={canUpdateWorkflow ? sensors : []} collisionDetection={pipelineColumnCollision} onDragStart={({active}) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
-        <div className={`pipeline-board pipeline-board-${variant}`}>
+        <div className={`pipeline-board pipeline-board-${variant}`} style={{ "--pipeline-columns": visibleStatuses.length } as CSSProperties}>
           {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} approvalOnly={approvalOnly} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} onViewTask={onViewTask} variant={variant} completionStatusKey={completionStatusKey} />)}
         </div>
         <PipelineDragPreview title={tasks.find(task => task.id === activeId)?.title} />

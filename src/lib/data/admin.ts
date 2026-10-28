@@ -392,7 +392,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       due_date: task.due_date ?? job?.due_date ?? null,
       delay_info: delayInfoByTaskId.get(task.id),
       record_notes: notesByTaskId.get(task.id) ?? [],
-      job: job ? { id: job.id, title: job.title, client } : null,
+      job: job ? { id: job.id, title: job.title, shoot_date: job.shoot_date, client } : null,
     };
   }) as PipelineTask[];
 

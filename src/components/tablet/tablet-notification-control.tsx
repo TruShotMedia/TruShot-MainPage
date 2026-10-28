@@ -167,7 +167,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
         ref={buttonRef}
         type="button"
         className={`tablet-alert-toggle ${enabled ? "is-enabled" : ""}`}
-        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk") ?? document.body); setIsOpen((open) => !open); }}
+        onClick={(event) => { setDialogHost(event.currentTarget.closest(".tablet-kiosk, .apg-desktop") ?? document.body); setIsOpen((open) => !open); }}
         aria-label={`${experienceName} notifications`}
         aria-expanded={isOpen}
         title={enabled ? "Notifications enabled" : "Set up notifications"}

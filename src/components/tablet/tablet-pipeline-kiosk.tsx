@@ -467,7 +467,7 @@ export function TabletPipelineKiosk({
       if (!response.ok || !payload?.results) throw new Error(payload?.error ?? "The connection is not ready to sync yet.");
 
       const settled = payload.results.filter((result) => result.status !== "rejected");
-      const queue = removeAutopacificOfflineMutations(settled.map((result) => result.clientMutationId));
+      const queue = removeAutopacificOfflineMutations(settled.map((result) => result.clientMutationId), pending);
       setOfflineQueue(queue);
       const conflicts = settled.filter((result) => result.status === "conflict").length;
       setOfflineNotice(conflicts

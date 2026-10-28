@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
+import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import {
   productionDayAgenda,
   type AgendaSource,
@@ -175,6 +176,7 @@ export function ProductionCalendar({
   data,
   today,
   todayOnly = false,
+  mobile = false,
   marketing,
   onOpenItem,
   onOpenEvent,
@@ -184,6 +186,7 @@ export function ProductionCalendar({
   data: ScheduleData;
   today: string;
   todayOnly?: boolean;
+  mobile?: boolean;
   marketing: boolean;
   onOpenItem: (item: CalendarItem) => void;
   onOpenEvent: (event: CalendarCustomEvent) => void;
@@ -221,6 +224,7 @@ export function ProductionCalendar({
     (job) => job.status_label.toLowerCase() !== "planning",
   );
   const schedule = { ...data, calendarJobs: range };
+  if (mobile) return <ProductionMobileSchedule data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={date => onCreate("event", date)} />;
   return (
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">

@@ -57,9 +57,15 @@ export function queueAutopacificOfflineMutation(mutation: Omit<AutopacificOfflin
   return compacted;
 }
 
-export function removeAutopacificOfflineMutations(clientMutationIds: string[]) {
+export function removeAutopacificOfflineMutations(clientMutationIds: string[], acknowledged?: AutopacificOfflineMutation[]) {
   const ids = new Set(clientMutationIds);
-  const queue = readAutopacificOfflineQueue().filter((item) => !ids.has(item.clientMutationId));
+  const queue = readAutopacificOfflineQueue().filter((item) => {
+    if (!ids.has(item.clientMutationId)) return true;
+    if (!acknowledged) return false;
+    const sent = acknowledged.find(entry => entry.clientMutationId === item.clientMutationId);
+    // The same record may have been moved again while this request was in flight.
+    return !sent || sent.statusId !== item.statusId || sent.expectedUpdatedAt !== item.expectedUpdatedAt;
+  });
   writeAutopacificOfflineQueue(queue);
   return queue;
 }

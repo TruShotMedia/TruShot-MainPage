@@ -61,7 +61,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
         aria-label={`Delay ${recordTitle}`}
       >
         <RotateCcw size={compact ? 14 : 15} />
-        {!compact ? "Delay" : null}
+        {!compact ? "Delay" : <span className="apg-compact-delay-label">Reschedule</span>}
       </button>
       {open && typeof document !== "undefined" ? createPortal(
           <WorkspaceDialog className="delay-record-dialog" backdropClassName="delay-record-layer" onSubmit={submit} busy={saving} titleId={headingId} onClose={close} header={<>

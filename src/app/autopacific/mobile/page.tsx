@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: { absolute: "AutoPacific Production" },
   description: "AutoPacific Group jobs, tasks, calendar and daily itinerary for mobile.",
   robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: "AutoPacific", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -13,8 +14,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  colorScheme: "dark",
-  themeColor: "#061017",
+  colorScheme: "light dark",
+  themeColor: "#f4f6f8",
 };
 
 export default async function AutopacificMobilePage({ searchParams }: { searchParams: Promise<{ view?: string | string[]; job?:string }> }) {

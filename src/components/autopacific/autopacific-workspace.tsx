@@ -32,7 +32,7 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
   const notion = getNotionConfigurationSummary();
   const userAgent=(await headers()).get("user-agent")??"";
   const desktop=experience!=="mobile"&&!forceKiosk&&!/Android|iPad|iPhone|CrOS|SMART-TV|Tizen|Web0S|TV|Kiosk/i.test(userAgent);
-  if(desktop) return <ProductionDesktop data={data} mode={mode} initialView={requestedView??cookieStore.get(isMarketing?"autopacific-marketing-view":TABLET_VIEW_COOKIE_NAME)?.value??"jobs"} requestedJobId={requestedJobId} today={todayDateInput()} refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES} notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY??""} notionSyncEnabled={context.access==="admin"&&notion.configured} notionSyncIntervalMinutes={notion.syncIntervalMinutes}/>;
+  if(desktop || experience === "mobile") return <ProductionDesktop experience={experience === "mobile" ? "mobile" : "desktop"} data={data} mode={mode} initialView={requestedView??cookieStore.get(isMarketing?"autopacific-marketing-view":TABLET_VIEW_COOKIE_NAME)?.value??"jobs"} requestedJobId={requestedJobId} today={todayDateInput()} refreshIntervalMinutes={TABLET_REFRESH_INTERVAL_MINUTES} notificationPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY??""} notionSyncEnabled={context.access==="admin"&&notion.configured} notionSyncIntervalMinutes={notion.syncIntervalMinutes}/>;
   const pipelineVersion = data.pipelineTasks
     .map((task) => `${task.id}:${task.status_id}:${task.updated_at}`)
     .join("|");
