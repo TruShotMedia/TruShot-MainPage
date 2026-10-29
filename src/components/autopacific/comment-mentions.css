@@ -1,7 +1,7 @@
 .comment-mention-field { position:relative; min-width:0; width:100%; }
 .tablet-record-note-edit > .comment-mention-field { display:block; margin-top:0; }
 .comment-mention-field textarea { display:block; min-width:0; max-width:100%; }
-.comment-mention-menu { max-height:220px; max-height:min(220px,25dvh); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; margin:0 0 9px; padding:5px; border:1px solid var(--workspace-line,#36505f); border-radius:12px; background:var(--workspace-surface,#15252e); color:var(--workspace-text,#edf4f8); box-shadow:0 6px 22px #00121e12; }
+.comment-mention-menu { position:absolute; z-index:10; left:0; right:0; bottom:calc(100% + 8px); max-height:220px; max-height:min(220px,25dvh,calc(var(--workspace-visual-height,100dvh)*.28)); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; margin:0; padding:5px; border:1px solid var(--workspace-line,#36505f); border-radius:12px; background:var(--workspace-surface,#15252e); color:var(--workspace-text,#edf4f8); box-shadow:0 6px 22px #00121e24; }
 .comment-mention-menu-label { display:flex; align-items:center; gap:6px; padding:7px 8px; color:var(--workspace-muted,#adbfcb); font-size:10px; font-weight:650; }
 .comment-mention-menu button[role=option] { display:flex; align-items:center; gap:9px; width:100%; min-width:0; min-height:46px; margin:0; padding:7px 8px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--workspace-text,#edf4f8); text-align:left; cursor:pointer; }
 .comment-mention-menu button[role=option][aria-selected=true],.comment-mention-menu button[role=option]:hover { border-color:var(--workspace-line,#36505f); background:var(--workspace-accent-soft,#22465e); }
