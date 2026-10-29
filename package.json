@@ -21,7 +21,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": "24.x"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
