@@ -1,4 +1,5 @@
-import type { PipelineTask, TaskStatus } from "@/lib/types";
+import type { JobStatus, PipelineTask, TabletJobRecord, TaskStatus } from "@/lib/types";
+import { compareCompletedRecords } from "./production-completed";
 
 export type ProductionRecordView = "active" | "planning" | "completed";
 
@@ -15,8 +16,20 @@ export function tasksForProductionView(tasks: PipelineTask[], statuses: TaskStat
   const query = search.trim().toLowerCase();
   return tasks.filter(task => productionTaskView(byId.get(task.status_id)) === view && `${task.title} ${task.job?.title ?? ""}`.toLowerCase().includes(query))
     .sort((left, right) => view === "completed"
-      ? (right.completed_at ?? right.updated_at).localeCompare(left.completed_at ?? left.updated_at)
+      ? compareCompletedRecords(left, right)
       : (right.job?.shoot_date ?? "").localeCompare(left.job?.shoot_date ?? "") || left.title.localeCompare(right.title));
+}
+
+export function jobsForProductionView(jobs: TabletJobRecord[], statuses: JobStatus[], view: ProductionRecordView, search = "") {
+  const byId = new Map(statuses.map(status => [status.id, status]));
+  const query = search.trim().toLowerCase();
+  const filtered = jobs.filter(job => {
+    const status = byId.get(job.status_id);
+    return (view === "planning" ? status?.key === "planning"
+      : view === "completed" ? status?.key === "delivered"
+      : !status?.is_closed && status?.key !== "planning") && job.title.toLowerCase().includes(query);
+  });
+  return view === "completed" ? filtered.sort(compareCompletedRecords) : filtered;
 }
 
 /** Board callbacks contain only the currently visible subset, never the whole workspace. */

@@ -8,6 +8,7 @@ import type { TeamComment, TeamDirectoryMember } from "@/lib/production-team";
 import { TeamAvatar, useProductionTeam } from "./team-context";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
+import { MentionText } from "./comment-mentions";
 
 export function TeamManagement({ onClose }: { onClose: () => void }) {
   const team = useProductionTeam();
@@ -75,7 +76,7 @@ export function TeamNotifications({ onOpenRecord, publicKey = "" }: { onOpenReco
       {error ? <p role="alert">{error}</p> : null}{loading && !items.length ? <p role="status">Loading updates…</p> : null}
       <div className="team-comment-feed">{visible.map(item => { const author = team?.members.find(member => member.user_id === item.created_by); return <button type="button" key={item.id} className={item.unread ? "is-unread" : ""} onClick={() => { void mark([item]); setOpen(false); onOpenRecord(item.record_kind, item.job_id ?? item.task_id ?? ""); }}>
         <TeamAvatar member={author} name={author?.display_name ?? "Team"} />
-        <span><strong>{author?.display_name ?? "Team member"} commented</strong><small>{item.record_title} · {new Date(item.updated_at).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</small><span className="team-comment-preview">{item.body}</span></span>{item.unread ? <i aria-label="Unread" /> : null}
+        <span><strong>{author?.display_name ?? "Team member"} commented</strong><small>{item.record_title} · {new Date(item.updated_at).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</small><span className="team-comment-preview"><MentionText>{item.body}</MentionText></span></span>{item.unread ? <i aria-label="Unread" /> : null}
       </button>; })}{!loading && !visible.length ? <div className="apg-empty"><Users size={24} /><p>{filter === "unread" ? "You’re all caught up." : "No updates in this view yet."}</p></div> : null}</div>
     </WorkspaceDialog> : null}
   </>;

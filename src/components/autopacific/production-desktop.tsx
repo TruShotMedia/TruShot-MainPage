@@ -64,7 +64,7 @@ import { ProductionCalendar } from "./production-calendar";
 import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import { ProductionTaskList } from "./production-task-list";
 import { useProductionFieldMode } from "./use-production-field-mode";
-import { mergeProductionRecords, tasksForProductionView, type ProductionRecordView } from "@/lib/production-task-views";
+import { jobsForProductionView, mergeProductionRecords, tasksForProductionView, type ProductionRecordView } from "@/lib/production-task-views";
 import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
@@ -615,20 +615,7 @@ export function ProductionDesktop({
     } else if (!marketing) setScheduleItem(item);
   }
   const jobs = useMemo(
-    () =>
-      live.pipelineJobs.filter((job) => {
-        const status = live.jobStatuses.find(
-          (status) => status.id === job.status_id,
-        );
-        return (
-          (jobView === "planning"
-            ? status?.key === "planning"
-            : jobView === "completed"
-              ? status?.key === "delivered"
-              : !status?.is_closed && status?.key !== "planning") &&
-          job.title.toLowerCase().includes(search.toLowerCase())
-        );
-      }),
+    () => jobsForProductionView(live.pipelineJobs, live.jobStatuses, jobView, search),
     [jobView, live.jobStatuses, live.pipelineJobs, search],
   );
   const tasks = useMemo(

@@ -44,6 +44,8 @@ export function WorkspaceDialog({ backdropClassName = "", busy = false, children
     function onKeyDown(event: KeyboardEvent) {
       if ([...openDialogs].at(-1) !== surface) return;
       if (event.key === "Escape") {
+        // The first Escape dismisses a combobox's suggestions, not its dialog.
+        if (event.target instanceof Element && event.target.closest('[role="combobox"][aria-expanded="true"]')) return;
         event.preventDefault();
         event.stopPropagation();
         if (!latest.current.busy) latest.current.onClose();

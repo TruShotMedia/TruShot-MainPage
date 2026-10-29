@@ -18,6 +18,7 @@ import { briefSectionLabels } from "@/lib/job-brief";
 import { formatDate } from "@/lib/format";
 import { TeamAssignmentField, useProductionTeam } from "@/components/autopacific/team-context";
 import { markTeamCommentsRead } from "@/app/autopacific/team-actions";
+import { MentionTextarea, MentionText } from "@/components/autopacific/comment-mentions";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
@@ -125,16 +126,15 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
             <header><small>{team ? `${team.members.find(member => member.user_id === note.created_by)?.display_name ?? "Team"} · ` : ""}{note.rescheduled_date ? `Rescheduled to ${formatDate(note.rescheduled_date)} · ` : ""}{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small>{!team || team.canManage || note.created_by === team.userId ? <button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button> : null}</header>
             {editingId === note.id ? (
               <div className="tablet-record-note-edit">
-                <textarea value={editingBody} onChange={(event) => setEditingBody(event.target.value)} maxLength={4000} rows={4} disabled={saving} autoFocus />
+                <MentionTextarea aria-label="Edit internal note" value={editingBody} onChange={setEditingBody} maxLength={4000} rows={4} disabled={saving} autoFocus />
                 <div><button type="button" onClick={() => { setEditingId(null); setEditingBody(""); }} disabled={saving}>Cancel</button><button type="button" className="admin-primary-button" onClick={() => { void saveNote(note.id); }} disabled={saving}>{saving ? "Saving…" : "Save note"}</button></div>
               </div>
-            ) : <p>{note.body}</p>}
+            ) : <p><MentionText>{note.body}</MentionText></p>}
           </article>
         )) : !hasLegacyFallback ? <div className="tablet-record-notes-empty"><MessageSquareText size={17} /><strong>No internal notes yet</strong><span>Capture context, decisions or handover details here.</span></div> : null}
       </div>
       <div className="tablet-record-note-compose">
-        {team ? <label className="team-mention-picker">Mention a teammate<select value="" aria-label="Mention a team member" onChange={event => { if (event.target.value) setDraft(current => `${current}${current && !/\s$/.test(current) ? " " : ""}@${event.target.value} `); }}><option value="">Add @mention…</option>{team.members.map(member => <option key={member.user_id} value={member.username}>{member.display_name} · @{member.username}</option>)}</select></label> : null}
-        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={4000} rows={4} placeholder="Add an internal note…" disabled={saving} />
+        <MentionTextarea aria-label="Add an internal note" value={draft} onChange={setDraft} maxLength={4000} rows={4} placeholder={team ? "Add a note · type @ to mention…" : "Add an internal note…"} disabled={saving} />
         <button type="button" onClick={() => { void saveNote(); }} disabled={saving || !draft.trim()}><SendHorizontal size={14} /> {saving ? "Saving" : "Add note"}</button>
       </div>
       {errorMessage ? <p className="tablet-record-note-error" role="alert">{errorMessage}</p> : null}

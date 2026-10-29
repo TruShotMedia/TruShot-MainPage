@@ -65,8 +65,6 @@
 .team-directory-fields input,.team-directory-fields select { display:block; width:100%; min-width:0; max-width:100%; padding:10px; border:1px solid var(--apg-border,#dce5ec); border-radius:9px; color:var(--apg-text,#19313f); background:var(--apg-surface,#fff); font:inherit; min-height:40px; }
 .team-directory-fields .team-enabled { display:flex; align-items:center; gap:8px; min-height:40px; }
 .team-role-guide { font-size:12px; color:var(--apg-muted,#607581); line-height:1.65; }
-.team-mention-picker { display:grid; gap:6px; margin-bottom:8px; font-size:11px; }
-.team-mention-picker select { width:100%; min-width:0; min-height:38px; border:1px solid var(--apg-border,#dce5ec); border-radius:8px; padding:7px; color:var(--apg-text,#19313f); background:var(--apg-surface,#fff); }
 .apg-desktop.is-dark { --apg-surface:#142630; --apg-text:#e7eff4; --apg-muted:#a4b9c6; --apg-border:#304650; --apg-accent-soft:#1c3645; --apg-accent:#8dc3df; }
 @media(max-width:760px) {
   .apg-workspace-groups { display:none; }

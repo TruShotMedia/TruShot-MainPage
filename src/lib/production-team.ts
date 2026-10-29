@@ -1,4 +1,5 @@
 import type { JobStatus, TabletKioskData } from "@/lib/types";
+import { findTeamMentions } from "./production-mentions";
 
 export type TeamRole = "manager" | "videographer" | "marketing";
 export type TeamMember = { user_id: string; display_name: string; username: string; role: TeamRole; is_active: boolean; avatar_color: string; avatar_url?: string | null; enabled_at?: string; is_primary_videographer?: boolean };
@@ -48,8 +49,7 @@ export function teamInitials(name: string) {
 }
 
 export function mentionedMembers(body: string, members: TeamMember[]) {
-  const handles = new Set(Array.from(body.matchAll(/(?:^|\s)@([a-z0-9_.-]+)/gi), match => match[1].toLowerCase()));
-  return members.filter(member => member.is_active && handles.has(member.username.toLowerCase())).map(member => member.user_id);
+  return [...new Set(findTeamMentions(body, members).map(mention => mention.member.user_id))];
 }
 
 export type TeamComment = {
