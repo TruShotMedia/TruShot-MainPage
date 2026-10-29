@@ -71,8 +71,8 @@ import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import "./production-desktop.css";
 import "./production-mobile.css";
 import "./production-team.css";
-import { useProductionTeam, TeamAvatars } from "./team-context";
-import { scopeProductionSpace, type ProductionSpace } from "@/lib/production-team";
+import { useProductionTeam, TeamAvatars, TeamAvatar } from "./team-context";
+import { normalizeProductionSpace, scopeProductionSpace, type ProductionSpace } from "@/lib/production-team";
 import { TeamManagement, TeamNotifications } from "./team-workspace";
 
 const CalendarEventEditor = dynamic(() =>
@@ -81,6 +81,7 @@ const CalendarEventEditor = dynamic(() =>
   ),
 );
 const CampaignWorkspace = dynamic(() => import("./campaign-workspace").then(module => module.CampaignWorkspace));
+const MyAccountDialog = dynamic(() => import("./my-account").then(module => module.MyAccountDialog));
 const FlightEventEditor = dynamic(() =>
   import("@/components/tablet/flight-event-editor").then(
     (module) => module.FlightEventEditor,
@@ -334,9 +335,10 @@ export function ProductionDesktop({
     router = useRouter();
   const team = useProductionTeam();
   const userId = team?.userId;
-  const [space, setSpace] = useState<ProductionSpace>("videographer");
+  const [space, setSpace] = useState<ProductionSpace>(() => normalizeProductionSpace(null, marketing));
   const [teamSelection, setTeamSelection] = useState<string[] | null>(null);
   const [manageTeam, setManageTeam] = useState(false);
+  const [myAccount, setMyAccount] = useState(false);
   const reviewOnly = marketing && space === "videographer";
   const [snapshot, setSnapshot] = useState({ source: data, data });
   const field = useProductionFieldMode(team?.userId, team?.userId === team?.videographerId);
@@ -389,13 +391,15 @@ export function ProductionDesktop({
     newMenu = useRef<HTMLDetailsElement>(null);
   const refreshAgain = useRef(new Set<string>());
   const initialFieldSync = useRef(false);
+  const spacePreferenceTouched = useRef(false);
   useEffect(() => {
     if (!userId) return;
-    const stored = localStorage.getItem(`apg-space:${userId}`);
-    if (stored !== "mine" && stored !== "team") return;
-    const timer = setTimeout(() => { setSpace(stored); if (stored === "team") setView("calendar"); }, 0);
+    const saved = localStorage.getItem(`apg-space:${mode}:${userId}`) ?? localStorage.getItem(`apg-space:${userId}`);
+    if (!saved) return;
+    const stored = normalizeProductionSpace(saved, marketing);
+    const timer = setTimeout(() => { if (spacePreferenceTouched.current) return; setSpace(stored); if (stored === "team") setView("calendar"); }, 0);
     return () => clearTimeout(timer);
-  }, [userId]);
+  }, [userId, marketing, mode]);
   useEffect(() => {
     document.documentElement.classList.add("apg-desktop-active");
     const saved = localStorage.getItem("apg-desktop-theme");
@@ -522,7 +526,7 @@ export function ProductionDesktop({
     if (navigator.onLine && readAutopacificOfflineQueue(team?.userId).length) void syncFieldChanges().then(ok => { if (ok) void refresh(view); });
   }, [refresh, syncFieldChanges, view, team?.userId]);
   const editorOpen = Boolean(
-    editing || create || eventDate || flightDate || scheduleItem || viewing || controlsOpen || manageTeam,
+    editing || create || eventDate || flightDate || scheduleItem || viewing || controlsOpen || manageTeam || myAccount,
   );
   useEffect(() => {
     const update = () => {
@@ -547,7 +551,7 @@ export function ProductionDesktop({
     if (newMenu.current) newMenu.current.open = false;
     void refresh(next);
   }
-  function chooseSpace(next: ProductionSpace) { setSpace(next); if (team) localStorage.setItem(`apg-space:${team.userId}`, next); }
+  function chooseSpace(next: ProductionSpace) { spacePreferenceTouched.current = true; const normalized = normalizeProductionSpace(next, marketing); setSpace(normalized); if (team) localStorage.setItem(`apg-space:${mode}:${team.userId}`, normalized); }
   function toggleTheme() {
     setTheme(current => { const next = current === "light" ? "dark" : "light"; localStorage.setItem("apg-desktop-theme", next); return next; });
   }
@@ -657,7 +661,7 @@ export function ProductionDesktop({
         <ProductionWordmark className="apg-desktop-wordmark" preload sizes="168px" />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
         <div className="apg-workspace-groups">
-          {(["videographer", "mine"] as const).map(group => <details key={group} open={space === group} className="apg-workspace-group">
+          {(marketing ? ["videographer", "mine"] as const : ["mine"] as const).map(group => <details key={group} open={space === group} className="apg-workspace-group">
             <summary>{group === "mine" ? <UserRound size={15} /> : <BriefcaseBusiness size={15} />} {group === "mine" ? "My Space" : "Videographer"}<ChevronDown size={14} /></summary>
             <nav aria-label={`${group === "mine" ? "My Space" : "Videographer"} pages`}>{workspaceViews(mode, true, true).map(key => <button type="button" key={key} aria-current={space === group && view === key ? "page" : undefined} onClick={() => { select(key); chooseSpace(group); }}>
               {key === "jobs" ? <BriefcaseBusiness size={17} /> : key === "pipeline" ? <ListTodo size={17} /> : key === "campaigns" ? <FolderKanban size={17} /> : key === "calendar" ? <CalendarDays size={17} /> : <Sun size={17} />}<span>{key === "pipeline" ? "Tasks" : key[0].toUpperCase() + key.slice(1)}</span>
@@ -694,6 +698,7 @@ export function ProductionDesktop({
           ))}
         </nav>
         <div className="apg-sidebar-bottom">
+          <button type="button" className="apg-account-button" onClick={() => setMyAccount(true)}><TeamAvatar member={team?.members.find(member => member.user_id === team.userId)} name="My Account" url={team?.selfAvatarUrl} /> My Account</button>
           <Link href={`/autopacific/security?next=${marketing ? "/marketing" : "/autopacific"}`}><ShieldCheck size={16} /> Account security</Link>
           {!marketing ? (
             <Link href="/autopacific?display=kiosk">
@@ -760,7 +765,7 @@ export function ProductionDesktop({
             <button type="button" className="apg-mobile-more" onClick={() => setControlsOpen(true)} aria-label="Open workspace settings"><MoreHorizontal size={20} /></button>
           </div>
         </header>
-        <div className="apg-mobile-space-picker"><label>Workspace<select aria-label="Choose workspace" value={space} onChange={event => { const next = event.target.value as ProductionSpace; chooseSpace(next); if (next === "team") select("calendar"); }}><option value="videographer">Videographer</option><option value="mine">My Space</option><option value="team">Team calendar</option></select></label></div>
+        <div className="apg-mobile-space-picker"><label>Workspace<select aria-label="Choose workspace" value={space} onChange={event => { const next = event.target.value as ProductionSpace; chooseSpace(next); if (next === "team") select("calendar"); }}>{marketing ? <option value="videographer">Videographer</option> : null}<option value="mine">My Space</option><option value="team">Team calendar</option></select></label></div>
         {space === "team" && team ? <div className="team-calendar-people"><strong><Users size={16} /> Team</strong><button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>{team.members.map(member => <label key={member.user_id}><input type="checkbox" checked={(teamSelection ?? team.members.map(item => item.user_id)).includes(member.user_id)} onChange={event => setTeamSelection(current => { const ids = current ?? team.members.map(item => item.user_id); return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id); })} /><i style={{ background: member.avatar_color }} />{member.display_name}</label>)}</div> : null}
         {notice ? (
           <p className="apg-notice" role="status">
@@ -973,6 +978,7 @@ export function ProductionDesktop({
       </div>
       {controlsOpen ? <WorkspaceDialog className="apg-settings-sheet" titleId="apg-settings-title" onClose={() => setControlsOpen(false)} header={<><div><span>AutoPacific {marketing ? "Marketing" : "Production"}</span><h2 id="apg-settings-title">Workspace settings</h2></div><button type="button" onClick={() => setControlsOpen(false)} aria-label="Close workspace settings"><X size={20} /></button></>} footer={<button type="button" className="admin-primary-button" onClick={() => setControlsOpen(false)}>Done</button>}>
         <div className="apg-settings-actions">
+          <button type="button" onClick={() => { setControlsOpen(false); setMyAccount(true); }}><TeamAvatar member={team?.members.find(member => member.user_id === team.userId)} url={team?.selfAvatarUrl} /><span>My Account<small>Your profile photo and account details</small></span></button>
           {!marketing && team?.canManage ? <button type="button" onClick={() => { setControlsOpen(false); setManageTeam(true); }}><Users size={20} /><span>Manage team<small>People, usernames and permissions</small></span></button> : null}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={20} /> : <Sun size={20} />}<span>Appearance<small>Switch to {theme === "light" ? "dark" : "light"} mode</small></span></button>
           {notificationPublicKey ? <div className="apg-settings-notifications"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={notificationPublicKey} /><span>Device notifications<small>Reminders for your assigned work and flights</small></span></div> : null}
@@ -981,6 +987,7 @@ export function ProductionDesktop({
         </div>
       </WorkspaceDialog> : null}
       {manageTeam ? <TeamManagement onClose={() => setManageTeam(false)} /> : null}
+      {myAccount ? <MyAccountDialog marketing={marketing} onClose={() => setMyAccount(false)} /> : null}
       {openedJob ? (
         <JobBriefPanel
           key={openedJob.id}

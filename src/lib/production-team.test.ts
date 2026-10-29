@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignedTo, jobProgress, mentionedMembers, scopeProductionSpace, teamInitials, type TeamMember } from "./production-team";
+import { assignedTo, jobProgress, mentionedMembers, normalizeProductionSpace, scopeProductionSpace, teamInitials, type TeamMember } from "./production-team";
 import { assignmentValues } from "./production-assignment-input";
 import type { JobStatus, TabletKioskData } from "./types";
 
@@ -7,6 +7,19 @@ const john = "d61eb1c9-8a31-4c49-81fd-93dd478493ce", colleague = "938e5a99-a7e2-
 const workflow: JobStatus[] = ["planning", "scheduled", "in_production", "client_review", "delivered"].map((key, index) => ({
   id: key, key, label: key, color: "#579", position: index * 10, is_closed: key === "delivered",
 }));
+
+describe("workspace navigation", () => {
+  it("uses My Space on AutoPacific, including saved Videographer preferences", () => {
+    expect(normalizeProductionSpace(null, false)).toBe("mine");
+    expect(normalizeProductionSpace("videographer", false)).toBe("mine");
+    expect(normalizeProductionSpace("team", false)).toBe("team");
+  });
+  it("keeps shared and personal spaces available on Marketing", () => {
+    expect(normalizeProductionSpace(null, true)).toBe("videographer");
+    expect(normalizeProductionSpace("videographer", true)).toBe("videographer");
+    expect(normalizeProductionSpace("mine", true)).toBe("mine");
+  });
+});
 
 describe("job progress", () => {
   it.each([[0, 0], [1, 25], [2, 50], [3, 75], [4, 100]])("uses workflow stage %i for a job without tasks", (stage, percent) => {

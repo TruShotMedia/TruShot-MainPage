@@ -1,11 +1,15 @@
 import type { JobStatus, TabletKioskData } from "@/lib/types";
 
 export type TeamRole = "manager" | "videographer" | "marketing";
-export type TeamMember = { user_id: string; display_name: string; username: string; role: TeamRole; is_active: boolean; avatar_color: string; enabled_at?: string; is_primary_videographer?: boolean };
+export type TeamMember = { user_id: string; display_name: string; username: string; role: TeamRole; is_active: boolean; avatar_color: string; avatar_url?: string | null; enabled_at?: string; is_primary_videographer?: boolean };
 export type TeamDirectoryMember = TeamMember & { email: string };
-export type TeamContextData = { userId: string; role: TeamRole | "admin"; members: TeamMember[]; videographerId: string; canManage: boolean };
+export type TeamContextData = { userId: string; role: TeamRole | "admin"; members: TeamMember[]; videographerId: string; canManage: boolean; selfAvatarUrl?: string | null };
 export type ProductionSpace = "videographer" | "mine" | "team";
 export type AssignedRecord = { assignee_ids?: string[] };
+
+export function normalizeProductionSpace(value: string | null, marketing: boolean): ProductionSpace {
+  return value === "team" || value === "mine" ? value : marketing ? "videographer" : "mine";
+}
 
 export function assignedTo(record: AssignedRecord, ids: readonly string[]) {
   return Boolean(record.assignee_ids?.some(id => ids.includes(id)));

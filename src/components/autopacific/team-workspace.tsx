@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, LoaderCircle, Users, X } from "lucide-react";
 import { loadTeamComments, loadTeamDirectory, markTeamCommentsRead, saveTeamMember } from "@/app/autopacific/team-actions";
 import type { TeamComment, TeamDirectoryMember } from "@/lib/production-team";
-import { teamInitials } from "@/lib/production-team";
-import { useProductionTeam } from "./team-context";
+import { TeamAvatar, useProductionTeam } from "./team-context";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 
 export function TeamManagement({ onClose }: { onClose: () => void }) {
+  const team = useProductionTeam();
   const [members, setMembers] = useState<TeamDirectoryMember[]>([]);
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -29,7 +29,7 @@ export function TeamManagement({ onClose }: { onClose: () => void }) {
     {loading ? <p role="status"><LoaderCircle className="spin" size={16} /> Loading accounts…</p> : null}
     {error ? <p role="alert" className="team-field-warning">{error}</p> : null}{notice ? <p role="status">{notice}</p> : null}
     <div className="team-directory">{members.map(member => <article key={member.user_id}>
-      <header><span className="team-avatar" style={{ background: member.avatar_color }}>{teamInitials(member.display_name)}</span><div><strong>{member.email}</strong><small>{member.is_active ? "Enabled team member" : "Hidden · no team access"}</small></div></header>
+      <header><TeamAvatar member={team?.members.find(person => person.user_id === member.user_id) ?? member} /><div><strong>{member.email}</strong><small>{member.is_active ? "Enabled team member" : "Hidden · no team access"}</small></div></header>
       <div className="team-directory-fields"><label>Display name<input value={member.display_name} maxLength={80} onChange={event => change(member.user_id, { display_name: event.target.value })} /></label>
         <label>Username<input autoCapitalize="none" spellCheck={false} value={member.username ?? ""} placeholder="e.g. john.smith" maxLength={40} onChange={event => change(member.user_id, { username: event.target.value.toLowerCase() })} /></label>
         <label>Role<select value={member.role} onChange={event => change(member.user_id, { role: event.target.value as TeamDirectoryMember["role"] })}><option value="marketing">Marketing</option><option value="videographer">Videographer</option><option value="manager">Team manager</option></select></label>
@@ -74,7 +74,7 @@ export function TeamNotifications({ onOpenRecord, publicKey = "" }: { onOpenReco
       <div className="apg-view-pills" aria-label="Update filters">{["all", "unread", "mentions"].map(value => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
       {error ? <p role="alert">{error}</p> : null}{loading && !items.length ? <p role="status">Loading updates…</p> : null}
       <div className="team-comment-feed">{visible.map(item => { const author = team?.members.find(member => member.user_id === item.created_by); return <button type="button" key={item.id} className={item.unread ? "is-unread" : ""} onClick={() => { void mark([item]); setOpen(false); onOpenRecord(item.record_kind, item.job_id ?? item.task_id ?? ""); }}>
-        <span className="team-avatar" style={{ background: author?.avatar_color ?? "#7c8891" }}>{teamInitials(author?.display_name ?? "Team")}</span>
+        <TeamAvatar member={author} name={author?.display_name ?? "Team"} />
         <span><strong>{author?.display_name ?? "Team member"} commented</strong><small>{item.record_title} · {new Date(item.updated_at).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</small><span className="team-comment-preview">{item.body}</span></span>{item.unread ? <i aria-label="Unread" /> : null}
       </button>; })}{!loading && !visible.length ? <div className="apg-empty"><Users size={24} /><p>{filter === "unread" ? "You’re all caught up." : "No updates in this view yet."}</p></div> : null}</div>
     </WorkspaceDialog> : null}

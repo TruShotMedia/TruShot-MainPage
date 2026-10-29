@@ -3,6 +3,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import type { TeamContextData, TeamMember } from "@/lib/production-team";
+import { profilePhotoUrl } from "@/lib/production-profile";
 
 export const getProductionTeam = cache(async (supabase: SupabaseClient, userId: string, admin = false): Promise<TeamContextData> => {
   const { data, error } = await supabase.from("website-production-team")
@@ -14,5 +15,9 @@ export const getProductionTeam = cache(async (supabase: SupabaseClient, userId: 
   if (!admin && !self) throw new Error("Your account is not enabled for this team.");
   const videographerId = members.find(member => member.is_primary_videographer)?.user_id ?? "";
   if (!videographerId) throw new Error("The shared Videographer workspace is not configured.");
-  return { userId, role: admin ? "admin" : self!.role, members, videographerId, canManage: admin || self?.role === "manager" };
+  const { data: profiles } = await supabase.from("website-production-profiles").select("user_id,avatar_path,updated_at")
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID).in("user_id", [...new Set([...members.map(member => member.user_id), userId])]);
+  const photos = new Map((profiles ?? []).filter(profile => profile.avatar_path).map(profile => [profile.user_id, profilePhotoUrl(profile.user_id, profile.updated_at)]));
+  return { userId, role: admin ? "admin" : self!.role, members: members.map(member => ({ ...member, avatar_url: photos.get(member.user_id) ?? null })),
+    selfAvatarUrl: photos.get(userId) ?? null, videographerId, canManage: admin || self?.role === "manager" };
 });

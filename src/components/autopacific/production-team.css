@@ -10,7 +10,10 @@
 .apg-workspace-group nav button { padding-left:20px; }
 .apg-team-nav { display:flex; align-items:center; gap:10px; width:100%; min-height:42px; padding:10px 8px; background:transparent; color:inherit; border:0; border-radius:9px; font-size:12px; text-align:left; cursor:pointer; }
 .apg-team-nav[aria-current=page] { background:var(--apg-accent-soft,#e8f3f9); color:var(--apg-accent,#377da1); }
-.team-avatar { display:inline-flex; flex:0 0 28px; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; color:#fff!important; font-size:10px!important; line-height:1; font-weight:750; letter-spacing:0; }
+.team-avatar { position:relative; overflow:hidden; display:inline-flex; flex:0 0 28px; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; color:#fff!important; font-size:10px!important; line-height:1; font-weight:750; letter-spacing:0; }
+.team-avatar img { display:block; width:100%; height:100%; max-width:none; object-fit:cover; }
+.apg-account-button { display:flex; align-items:center; gap:9px; width:100%; min-height:42px; padding:8px; border:0; border-radius:9px; background:transparent; color:inherit; text-align:left; font-size:12px; cursor:pointer; }
+.apg-account-button:hover { background:var(--apg-accent-soft); }
 .team-avatar-stack { display:inline-flex; align-items:center; padding-left:5px; }
 .team-avatar-stack .team-avatar { margin-left:-5px; outline:2px solid var(--apg-surface,#fff); }
 .team-job-meta { display:flex; gap:8px; align-items:center; justify-content:space-between; margin:12px 0 10px; }

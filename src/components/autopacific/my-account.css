@@ -1,0 +1,23 @@
+.my-account-dialog { width:min(680px,100%); color:var(--workspace-text,#19313f); }
+.my-account-dialog .workspace-dialog-body { padding:24px; }
+.my-account-identity { display:flex; align-items:center; gap:18px; padding:0 0 24px; border-bottom:1px solid var(--workspace-line); }
+.team-avatar.my-account-avatar { width:84px; height:84px; flex-basis:84px; font-size:26px!important; outline:4px solid var(--workspace-accent-soft); }
+.my-account-identity>div { min-width:0; }.my-account-identity h3 { margin:0 0 5px; font-size:20px; letter-spacing:-.4px; }.my-account-identity p { margin:0 0 8px; font-size:13px; color:var(--workspace-muted); overflow-wrap:anywhere; }
+.my-account-identity>div>span { font-size:11px; font-weight:650; color:var(--workspace-accent); }
+.my-account-photo-section { padding:22px 0; }.my-account-photo-section h3 { font-size:14px; margin:0 0 6px; }.my-account-photo-section p { font-size:12px; line-height:1.6; color:var(--workspace-muted); margin:0 0 12px; }
+.my-account-photo-section>small { display:block; font-size:11px; color:var(--workspace-muted); margin-top:10px; }
+.my-account-file { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.my-account-photo-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.my-account-photo-actions>button,.my-account-remove>button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:40px; padding:8px 13px; border:1px solid var(--workspace-line); border-radius:9px; background:var(--workspace-surface); color:var(--workspace-text); font-size:12px; font-weight:600; cursor:pointer; }
+.my-account-photo-actions>button:first-child { color:var(--workspace-accent); background:var(--workspace-accent-soft); }
+.my-account-dialog button:disabled { opacity:.55; cursor:wait; }
+.my-account-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 24px; margin:0; padding:0 16px; border:1px solid var(--workspace-line); border-radius:12px; background:var(--workspace-subtle,var(--workspace-surface)); }
+.my-account-facts>div { min-width:0; padding:14px 0; border-bottom:1px solid var(--workspace-line); }.my-account-facts>div:nth-last-child(-n+2) { border-bottom:0; }.my-account-facts dt { font-size:10px; font-weight:600; color:var(--workspace-muted); margin-bottom:5px; }.my-account-facts dd { margin:0; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.my-account-security { display:flex; align-items:center; gap:12px; margin:22px 0 12px; color:var(--workspace-accent); }.my-account-security>div { flex:1; min-width:0; }.my-account-security strong { font-size:12px; color:var(--workspace-text); }.my-account-security p,.my-account-role-note { font-size:11px; line-height:1.6; color:var(--workspace-muted); margin:3px 0 0; }.my-account-security a { padding:10px 0 10px 10px; font-size:12px; font-weight:600; text-decoration:underline; text-underline-offset:3px; }
+.my-account-private { display:flex; align-items:center; gap:6px; margin-right:auto; font-size:10px; color:var(--workspace-muted); }
+.my-account-loading,.my-account-success { display:flex; align-items:center; gap:8px; font-size:12px; }.my-account-success { color:var(--workspace-accent); padding:12px; border-radius:10px; background:var(--workspace-accent-soft); }.my-account-error { padding:12px; border:1px solid #bd6861; border-radius:10px; color:var(--workspace-text); font-size:12px; line-height:1.5; }
+.my-account-remove { margin-top:12px; padding:14px; border:1px solid var(--workspace-line); border-radius:10px; }.my-account-remove>button { margin-right:8px; }.my-account-remove>button:last-child { color:#c5564e; }
+@media(max-width:760px) {
+  .my-account-dialog .workspace-dialog-body { padding:20px 16px; }.team-avatar.my-account-avatar { width:68px; height:68px; flex-basis:68px; font-size:22px!important; }.my-account-identity { gap:14px; }.my-account-identity h3 { font-size:18px; }.my-account-facts { gap:0 14px; padding:0 12px; }.my-account-private { flex-basis:100%; font-size:10px; }.my-account-dialog .workspace-dialog-footer { flex-wrap:wrap; }.my-account-photo-actions>button { min-height:44px; }
+}
+@media(max-width:360px) { .my-account-facts { grid-template-columns:minmax(0,1fr); }.my-account-facts>div:nth-last-child(2) { border-bottom:1px solid var(--workspace-line); } }
