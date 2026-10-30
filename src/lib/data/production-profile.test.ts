@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 const mocks = vi.hoisted(() => ({ context: vi.fn(), team: vi.fn(), user: vi.fn(), previous: vi.fn(), upsert: vi.fn(), upload: vi.fn(), remove: vi.fn(), eq: vi.fn() }));
 vi.mock("./admin", () => ({ getProductionContext: mocks.context }));
 vi.mock("./production-team", () => ({ getProductionTeam: mocks.team }));
@@ -15,7 +16,8 @@ beforeEach(() => {
   mocks.previous.mockResolvedValue({ data: { avatar_path: previous }, error: null });
   mocks.upsert.mockResolvedValue({ error: null }); mocks.upload.mockResolvedValue({ error: null }); mocks.remove.mockResolvedValue({ error: null });
 });
-const photo = () => new File(["RIFF0000WEBPdata"], "photo.webp", { type: "image/webp" });
+const fixture = await sharp({ create: { width: 32, height: 32, channels: 3, background: "#609abb" } }).png().toBuffer();
+const photo = () => new File([new Uint8Array(fixture)], "photo.png", { type: "image/png" });
 describe("my account data boundary", () => {
   it("returns only current-user account facts, not Auth metadata", async () => {
     const account = await getMyAccount();
@@ -32,6 +34,7 @@ describe("my account data boundary", () => {
     const result = await updateMyPhoto(photo());
     const path = mocks.upload.mock.calls[0][0];
     expect(path).toMatch(new RegExp(`^${workspace}/${user}/.+\\.webp$`));
+    expect((await sharp(mocks.upload.mock.calls[0][1]).metadata()).format).toBe("webp");
     expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({ workspace_id: workspace, user_id: user, avatar_path: path }), { onConflict: "workspace_id,user_id" });
     expect(mocks.remove).toHaveBeenCalledWith([previous]);
     expect(mocks.remove.mock.invocationCallOrder[0]).toBeGreaterThan(mocks.upsert.mock.invocationCallOrder[0]);

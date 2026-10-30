@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { getProductionContext } from "./admin";
 import { getProductionTeam } from "./production-team";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
-import { ownsProfilePhoto, PROFILE_PHOTO_BUCKET, profilePhotoUrl, validateProfilePhoto, type MyAccount } from "@/lib/production-profile";
+import { ownsProfilePhoto, PROFILE_PHOTO_BUCKET, profilePhotoUrl, type MyAccount } from "@/lib/production-profile";
+import { normalizeProfilePhoto } from "@/lib/server/normalize-profile-photo";
 
 async function accountContext() {
   const context = await getProductionContext();
@@ -26,7 +27,7 @@ export async function getMyAccount(): Promise<MyAccount> {
 /** The owner comes from the verified session, never from form fields. */
 export async function updateMyPhoto(file: File | null) {
   const { supabase, team } = await accountContext();
-  const bytes = file ? await validateProfilePhoto(file) : null;
+  const bytes = file ? await normalizeProfilePhoto(file) : null;
   const { data: previous, error: readError } = await supabase.from("website-production-profiles").select("avatar_path")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("user_id", team.userId).maybeSingle();
   if (readError) throw new Error("Your photo could not be loaded. Please retry.");

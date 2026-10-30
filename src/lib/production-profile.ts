@@ -19,12 +19,15 @@ export function ownsProfilePhoto(path: string, workspace: string, userId: string
 }
 
 export async function validateProfilePhoto(file: File) {
-  if (file.type !== "image/webp" || !file.size || file.size > PROFILE_PHOTO_MAX_BYTES) {
+  if (!["image/webp", "image/jpeg", "image/png"].includes(file.type) || !file.size || file.size > PROFILE_PHOTO_MAX_BYTES) {
     throw new Error("Choose a photo and let it finish preparing before saving.");
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   const header = String.fromCharCode(...bytes.slice(0, 12));
-  if (bytes.length < 12 || header.slice(0, 4) !== "RIFF" || header.slice(8, 12) !== "WEBP") {
+  const webp = header.slice(0, 4) === "RIFF" && header.slice(8, 12) === "WEBP";
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value);
+  if (!(file.type === "image/webp" && webp || file.type === "image/jpeg" && jpeg || file.type === "image/png" && png)) {
     throw new Error("This image could not be read. Try a JPG, PNG or WebP photo.");
   }
   return bytes;

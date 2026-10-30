@@ -30,7 +30,7 @@ describe("My Account flow", () => {
   it("shows the signed-in account and security status without editable permission fields", async () => {
     await render(); expect(container.textContent).toContain("john@example.test"); expect(container.textContent).toContain("Enabled · verified this session");
     expect(container.querySelector('input[name="role"],input[name="user_id"]')).toBeNull();
-    expect(container.querySelector("a")?.getAttribute("href")).toContain("next=/marketing");
+    expect(container.querySelector('.my-account-security a')?.getAttribute("href")).toContain("next=/marketing");
   });
   it("prepares a local preview and uploads only when Save photo is pressed", async () => {
     await render(); await choose();
@@ -44,6 +44,17 @@ describe("My Account flow", () => {
     await act(async () => button("Save photo").click());
     expect(container.querySelector('[role="alert"]')?.textContent).toBe("Upload failed");
     expect(button("Save photo").disabled).toBe(false); expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:photo-preview");
+  });
+  it("keeps Close available during phone-photo preparation and aborts when closed", async () => {
+    let signal: AbortSignal | undefined;
+    mocks.prepare.mockImplementation((_file, options) => { signal = options.signal; return new Promise(() => {}); });
+    const onClose = vi.fn();
+    await act(async () => root.render(<MyAccountDialog marketing onClose={onClose} />));
+    await choose();
+    const close = container.querySelector<HTMLButtonElement>('[aria-label="Close My Account"]')!;
+    expect(close.disabled).toBe(false); expect(container.textContent).toContain("Preparing…");
+    await act(async () => close.click());
+    expect(signal?.aborted).toBe(true); expect(onClose).toHaveBeenCalledOnce(); expect(mocks.save).not.toHaveBeenCalled();
   });
   it("requires confirmation before removing a saved photo", async () => {
     mocks.load.mockResolvedValue({ ...account, avatarUrl: "/saved-photo" }); await render();
