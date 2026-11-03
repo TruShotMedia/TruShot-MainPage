@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import type { ClickUpTask } from "@/lib/clickup/client";
+import { undecoratedClickUpJobTitle } from "./job-progress";
 
 export type ClickUpSharedState = {
   title: string;
@@ -58,11 +59,11 @@ export function sharedStateFromCrm(job: CrmSharedJob, clickUpStatus: string): Cl
   };
 }
 
-export function sharedStateFromClickUp(task: ClickUpTask): ClickUpSharedState {
+export function sharedStateFromClickUp(task: ClickUpTask, { linkedJob = true } = {}): ClickUpSharedState {
   const start = clickUpDate(task.start_date, task.start_date_time);
   const due = clickUpDate(task.due_date, task.due_date_time);
   return {
-    title: task.name?.trim() || "Untitled ClickUp job",
+    title: (linkedJob ? undecoratedClickUpJobTitle(task.name?.trim() || "") : task.name?.trim()) || "Untitled ClickUp job",
     status: task.status?.status?.trim().toUpperCase() || "TO DO",
     shoot_date: start.date,
     shoot_time: start.time,

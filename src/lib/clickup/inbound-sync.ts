@@ -365,7 +365,7 @@ async function processRemoteTask(
     return { status: "conflict", detail: "A linked task moved outside the configured sync scope.", jobId: link.job_id };
   }
 
-  const remoteState = sharedStateFromClickUp(task);
+  const remoteState = sharedStateFromClickUp(task, { linkedJob: Boolean(link) });
   const remoteHash = sharedStateHash(remoteState);
   const statusKey = reverseStatus(integration, remoteState.status);
   if (!statusKey) {
