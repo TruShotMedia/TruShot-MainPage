@@ -17,6 +17,13 @@ const job: ClickUpJobSnapshot = {
 };
 
 describe("ClickUp job mapping", () => {
+  it("shows progress in create and update titles and the description, without changing the CRM job", () => {
+    const snapshot = { ...job, progress: { completed: 3, total: 4, percent: 75 } };
+    expect(buildClickUpJobPayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[3/4 · 75%] Spring launch capture");
+    expect(buildClickUpJobUpdatePayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[3/4 · 75%] Spring launch capture");
+    expect(buildClickUpJobDescription(snapshot)).toContain("**Progress:** 3/4 deliverables completed · 75%");
+    expect(snapshot.title).toBe(job.title);
+  });
   it("exports dated deliverables with parent-deadline fallback and omits empty brief sections",()=>{
     const text=buildClickUpJobDescription({...job,brief_details:{objective:"Show the new range",sections:[{key:"shot_list",body:"Workshop wide"}]},deliverables:[{id:"first",name:"Launch reel",date:null},{id:"second",name:"Photos",date:"2026-10-22"}]});
     expect(text).toContain("Launch reel — 2026-10-24");expect(text).toContain("Photos — 2026-10-22");expect(text).toContain("Workshop wide");expect(text).toContain(`/autopacific?job=${job.id}`);

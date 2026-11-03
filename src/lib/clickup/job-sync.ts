@@ -9,6 +9,7 @@ import { ensureClickUpWebhook } from "@/lib/clickup/webhook-registration";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
+import { clickUpJobProgress, clickUpJobTitle } from "@/lib/clickup/job-progress";
 
 type Integration = {
   workspace_id: string;
@@ -188,7 +189,16 @@ async function upsertRemoteTask({
   if (!clickUpStatus) throw new Error(`No ClickUp status is mapped for CRM status '${status.key}'.`);
   if (!integration.assigned_user_id) throw new Error("The ClickUp assignee has not been connected.");
 
+  const { data: tasks, error: tasksError } = await supabase.from("website-job-tasks")
+    .select("source_deliverable_id,status:website-task-statuses!website-job-tasks-status-fkey(key)")
+    .eq("workspace_id", integration.workspace_id).eq("job_id", job.id).is("archived_at", null);
+  if (tasksError) throw tasksError;
+  const progress = clickUpJobProgress(
+    (tasks ?? []) as unknown as Parameters<typeof clickUpJobProgress>[0], job.deliverables ?? [],
+  );
+
   const snapshot: ClickUpJobSnapshot = {
+    progress,
     brief_details: job.brief_details,
     deliverables: job.deliverables,
     id: job.id,
@@ -219,12 +229,16 @@ async function upsertRemoteTask({
   if (taskId) {
     try {
       const currentTask = await getClickUpTask(taskId);
-      const remoteState = sharedStateFromClickUp(currentTask);
+      const remoteState = sharedStateFromClickUp(currentTask, { linkedJob: true });
       const remoteHash = isLegacyStatusRename(remoteState, link?.last_shared_hash as string | null) ? link!.last_shared_hash as string : sharedStateHash(remoteState);
       const lastHash = link?.last_shared_hash as string | null;
       if (remoteHash === desiredHash) {
-        if ((currentTask.markdown_description ?? "") !== buildClickUpJobDescription(snapshot)) {
-          await updateClickUpTask(taskId, buildClickUpOwnedFieldsPayload({ assignedUserId: integration.assigned_user_id, job: snapshot }));
+        if (currentTask.name !== clickUpJobTitle(snapshot.title, progress)
+          || (currentTask.markdown_description ?? "") !== buildClickUpJobDescription(snapshot)) {
+          await updateClickUpTask(taskId, {
+            ...buildClickUpOwnedFieldsPayload({ assignedUserId: integration.assigned_user_id, job: snapshot }),
+            name: clickUpJobTitle(snapshot.title, progress),
+          });
         }
         taskUrl = currentTask.url ?? `https://app.clickup.com/t/${taskId}`;
       } else if (lastHash && remoteHash !== lastHash && desiredHash !== lastHash) {

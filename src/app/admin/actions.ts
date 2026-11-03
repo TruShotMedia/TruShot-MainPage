@@ -629,6 +629,7 @@ export async function createDeliverableTasks(jobId: string) {
   if (!context) throw new Error("Your session has expired. Sign in again.");
   const { data, error } = await context.supabase.rpc("website-create-deliverable-tasks", { p_job_id: id });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidateProductionPages();
   const result = (data as Array<{ created_count: number; existing_count: number }> | null)?.[0];
   return { createdCount: result?.created_count ?? 0, existingCount: result?.existing_count ?? 0 };
@@ -701,6 +702,7 @@ export async function archiveTask(formData: FormData) {
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "Task could not be removed.");
+  scheduleClickUpJobSync();
   revalidateProductionPages();
   return { ok: true };
 }
@@ -737,6 +739,7 @@ export async function createTask(formData: FormData) {
     position,
   });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/calendar");
@@ -788,6 +791,7 @@ export async function duplicateTask(formData: FormData) {
     updated_by: context.claims.sub,
   });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
   revalidatePath("/admin/pipeline");
@@ -835,6 +839,7 @@ export async function updateTask(formData: FormData) {
     updated_by: context.claims.sub,
   }).eq("id", input.id).eq("workspace_id", TRUSHOT_WORKSPACE_ID).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Task could not be updated.");
+  scheduleClickUpJobSync();
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/jobs");
@@ -857,6 +862,7 @@ export async function delayTask(formData: FormData) {
     p_reason: input.reason,
   });
   if (error) throw new Error(error.message);
+  scheduleClickUpJobSync();
   revalidateProductionPages();
   return { successorTaskId: (data as Array<{ successor_task_id: string }> | null)?.[0]?.successor_task_id ?? null };
 }
@@ -1192,6 +1198,7 @@ export async function movePipelineTask(taskId: string, statusId: string) {
     updated_by: context.claims.sub,
   }).eq("id", parsed.taskId).eq("workspace_id", TRUSHOT_WORKSPACE_ID).is("archived_at", null).select("id").single();
   if (error || !task) throw new Error(error?.message ?? "The task could not be moved.");
+  scheduleClickUpJobSync();
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/jobs");
@@ -1299,6 +1306,7 @@ export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) 
     .select("id");
   if (error || data?.length !== parsed.taskIds.length) throw new Error(error?.message ?? "The selected assets could not be updated.");
 
+  scheduleClickUpJobSync();
   revalidatePath("/admin/tasks");
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/jobs");

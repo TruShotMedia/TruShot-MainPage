@@ -1,6 +1,8 @@
 import { briefAsMarkdown, type JobBrief } from "@/lib/job-brief";
 import type { JobDeliverable } from "@/lib/job-deliverable-model";
+import { clickUpJobTitle, type ClickUpJobProgress } from "./job-progress";
 export type ClickUpJobSnapshot = {
+  progress?: ClickUpJobProgress;
   brief_details?: JobBrief;
   deliverables?: JobDeliverable[];
   id: string;
@@ -30,6 +32,7 @@ function clean(value: string | null) {
 
 export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
   const details = [
+    job.progress?.total ? `**Progress:** ${job.progress.completed}/${job.progress.total} deliverables completed · ${job.progress.percent}%` : null,
     job.job_number ? `**CRM job:** ${job.job_number}` : null,
     clean(job.location) ? `**Location:** ${job.location?.trim()}` : null,
     job.photos_delivered > 0 ? `**Photos delivered:** ${job.photos_delivered}` : null,
@@ -59,7 +62,7 @@ export function buildClickUpJobPayload({
   const startDate = brisbaneTimestamp(job.shoot_date, job.shoot_time);
   const dueDate = brisbaneTimestamp(job.due_date, job.due_time);
   return {
-    name: job.title,
+    name: clickUpJobTitle(job.title, job.progress),
     markdown_content: buildClickUpJobDescription(job),
     status,
     archived: false,

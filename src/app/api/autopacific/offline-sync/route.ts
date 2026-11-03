@@ -147,18 +147,18 @@ export async function POST(request: Request) {
   try {
     const clientId = await getAutopacificClientId(context);
     const results: Array<{ clientMutationId: string; status: "synced" | "conflict" | "rejected" }> = [];
-    let didSyncJob = false;
+    let didSyncWork = false;
 
     for (const mutation of parsed.data.mutations) {
       const status = mutation.entity === "job"
         ? await syncJobMutation(context, clientId, mutation)
         : await syncTaskMutation(context, clientId, mutation);
-      didSyncJob ||= status === "synced" && mutation.entity === "job";
+      didSyncWork ||= status === "synced";
       results.push({ clientMutationId: mutation.clientMutationId, status });
     }
 
     if (results.some((result) => result.status === "synced")) revalidateWorkspace();
-    if (didSyncJob) scheduleClickUpJobSync();
+    if (didSyncWork) scheduleClickUpJobSync();
     return Response.json({ results }, { headers: responseHeaders });
   } catch (error) {
     console.error("AutoPacific offline sync failed.", error);
