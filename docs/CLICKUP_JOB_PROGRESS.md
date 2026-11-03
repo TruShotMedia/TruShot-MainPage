@@ -30,9 +30,10 @@ the response. A task lookup failure retries instead of exporting false zeroes.
 ## Release order
 
 1. Deploy the title-compatibility commit first, before any decorated names exist.
-2. Run `supabase/tests/clickup_job_progress.sql` together with the new migration
-   inside its rollback transaction. This includes temporary fixtures only.
-3. Apply `20261103022307_clickup_job_progress.sql` and verify trigger privileges.
+2. Verify the migration and temporary fixture tests in a rollback transaction.
+3. Apply `20261103210012_clickup_job_progress.sql`, matching the server migration
+   history version. Run `supabase/tests/clickup_job_progress.sql` against the
+   installed trigger; it rolls back all fixtures and checks private privileges.
 4. Deploy the progress writer and task-action wakeups.
 5. Queue existing linked, active AutoPacific jobs with tasks/deliverables for one
    refresh, restricted to the primary videographer. Do not touch job records.

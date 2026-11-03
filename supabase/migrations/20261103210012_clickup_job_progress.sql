@@ -48,7 +48,6 @@ end;
 $$;
 
 revoke all on function "website-private"."website-queue-clickup-task-progress"() from public, anon, authenticated;
-drop trigger if exists "website-job-tasks-clickup-progress" on public."website-job-tasks";
 create trigger "website-job-tasks-clickup-progress"
 after insert or delete or update of workspace_id, job_id, status_id, archived_at, source_deliverable_id
 on public."website-job-tasks"
