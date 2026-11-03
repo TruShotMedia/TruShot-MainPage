@@ -81,6 +81,20 @@ describe("outbound ClickUp progress syncing", () => {
     taskError = new Error("Task lookup failed");
     expect(await dispatchClickUpJobSync()).toMatchObject({ failed: 1, succeeded: 0 }); expect(mocks.updateTask).not.toHaveBeenCalled();
   });
+  it.each(["deferred", "conflict"])("removes only the generated backlink when shared-field sync is %s", async outcome => {
+    link = { id: "link", clickup_task_id: "remote", last_shared_hash: outcome === "deferred" ? baseline : "older-shared-state" };
+    mocks.getTask.mockResolvedValue({
+      id: "remote", name: "Renamed in ClickUp", status: { status: "SCHEDULED" },
+      markdown_description: "Keep the remote briefing.\n\n[Open full brief & private attachments](https://www.trushotmedia.com/autopacific?job=job)\n\n[Delivery files](https://files.example.com/launch)",
+    });
+    expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1, failed: 0 });
+    expect(mocks.updateTask).toHaveBeenCalledExactlyOnceWith("remote", {
+      markdown_content: "Keep the remote briefing.\n\n[Delivery files](https://files.example.com/launch)",
+    });
+    expect(queries.find(query => query.table === "website-clickup-sync-audit" && query.action === "insert")?.payload)
+      .toMatchObject({ outcome: outcome === "conflict" ? "conflict" : "ignored" });
+    expect(queries.find(query => query.table === "website-jobs" && query.action !== "read")).toBeUndefined();
+  });
   it("includes progress when creating the first ClickUp mirror", async () => {
     link = null; await dispatchClickUpJobSync();
     expect(mocks.createTask).toHaveBeenCalledWith("list", expect.objectContaining({ name: "[3/4 · 75%] Launch" }));

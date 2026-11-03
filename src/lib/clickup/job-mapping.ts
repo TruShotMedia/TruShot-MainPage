@@ -30,6 +30,13 @@ function clean(value: string | null) {
   return value?.trim() || null;
 }
 
+/** Remove only our former generated backlink, preserving the remote brief and other links. */
+export function removeGeneratedClickUpJobBacklink(description: string, jobId: string) {
+  const backlink = `[Open full brief & private attachments](https://www.trushotmedia.com/autopacific?job=${jobId})`;
+  if (!description.includes(backlink)) return description;
+  return description.split(backlink).join("").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
   const details = [
     job.progress?.total ? `**Progress:** ${job.progress.completed}/${job.progress.total} deliverables completed · ${job.progress.percent}%` : null,
@@ -43,7 +50,6 @@ export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
     clean(job.description),
     briefAsMarkdown(job.brief_details),
     job.deliverables?.length ? `**Deliverables**\n${job.deliverables.map(item=>`- ${item.name} — ${item.date??job.due_date??"No deadline set"}`).join("\n")}` : null,
-    `[Open full brief & private attachments](https://www.trushotmedia.com/autopacific?job=${job.id})`,
     clean(job.notes) ? `**Production notes**\n${job.notes?.trim()}` : null,
     `---\nSynced from John's CRM · Job ID: \`${job.id}\``,
   ].filter(Boolean);

@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 import { CLICKUP_LIST_ID, CLICKUP_LIST_NAME, CLICKUP_STATUS_MAPPING, getClickUpToken } from "@/lib/clickup/config";
 import { ClickUpApiError, createClickUpTask, deleteClickUpTask, getClickUpAuthorizedUser, getClickUpList, getClickUpTask, updateClickUpTask } from "@/lib/clickup/client";
-import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, buildClickUpOwnedFieldsPayload, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
+import { buildClickUpJobDescription, buildClickUpJobPayload, buildClickUpJobUpdatePayload, buildClickUpOwnedFieldsPayload, removeGeneratedClickUpJobBacklink, type ClickUpJobSnapshot } from "@/lib/clickup/job-mapping";
 import { changedSharedFields, isLegacyStatusRename, sharedStateFromClickUp, sharedStateFromCrm, sharedStateHash } from "@/lib/clickup/shared-state";
 import { ensureClickUpWebhook } from "@/lib/clickup/webhook-registration";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
@@ -232,6 +232,14 @@ async function upsertRemoteTask({
       const remoteState = sharedStateFromClickUp(currentTask, { linkedJob: true });
       const remoteHash = isLegacyStatusRename(remoteState, link?.last_shared_hash as string | null) ? link!.last_shared_hash as string : sharedStateHash(remoteState);
       const lastHash = link?.last_shared_hash as string | null;
+      // Removing the retired backlink is safe even when shared fields need review.
+      // Do not rewrite the remote brief, title, dates or status in that situation.
+      if (lastHash && remoteHash !== lastHash && remoteHash !== desiredHash && currentTask.markdown_description) {
+        const description = removeGeneratedClickUpJobBacklink(currentTask.markdown_description, job.id);
+        if (description !== currentTask.markdown_description) {
+          await updateClickUpTask(taskId, { markdown_content: description });
+        }
+      }
       if (remoteHash === desiredHash) {
         if (currentTask.name !== clickUpJobTitle(snapshot.title, progress)
           || (currentTask.markdown_description ?? "") !== buildClickUpJobDescription(snapshot)) {

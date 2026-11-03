@@ -26,7 +26,7 @@ describe("ClickUp job mapping", () => {
   });
   it("exports dated deliverables with parent-deadline fallback and omits empty brief sections",()=>{
     const text=buildClickUpJobDescription({...job,brief_details:{objective:"Show the new range",sections:[{key:"shot_list",body:"Workshop wide"}]},deliverables:[{id:"first",name:"Launch reel",date:null},{id:"second",name:"Photos",date:"2026-10-22"}]});
-    expect(text).toContain("Launch reel — 2026-10-24");expect(text).toContain("Photos — 2026-10-22");expect(text).toContain("Workshop wide");expect(text).toContain(`/autopacific?job=${job.id}`);
+    expect(text).toContain("Launch reel — 2026-10-24");expect(text).toContain("Photos — 2026-10-22");expect(text).toContain("Workshop wide");
   });
   it("builds a useful client-facing task description without losing the CRM identity", () => {
     const description = buildClickUpJobDescription(job);
@@ -68,5 +68,21 @@ describe("ClickUp job mapping", () => {
     expect(payload).not.toHaveProperty("status");
     expect(payload).not.toHaveProperty("start_date");
     expect(payload).not.toHaveProperty("due_date");
+  });
+
+  it("omits generated CRM backlinks from new and existing mirrors while retaining delivery links", () => {
+    const input = { assignedUserId: 183, job, status: "EDITING" };
+    const descriptions = [
+      buildClickUpJobDescription(job),
+      buildClickUpJobPayload(input).markdown_content,
+      buildClickUpJobUpdatePayload(input).markdown_content,
+      buildClickUpOwnedFieldsPayload(input).markdown_content,
+    ];
+    for (const description of descriptions) {
+      expect(description).not.toContain("Open full brief & private attachments");
+      expect(description).not.toContain("https://www.trushotmedia.com/autopacific");
+      expect(description).toContain("[Open delivered files](https://files.example.com/spring-launch)");
+      expect(description).toContain(job.id);
+    }
   });
 });
