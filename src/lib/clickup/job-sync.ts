@@ -10,6 +10,7 @@ import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 import { clickUpJobProgress, clickUpJobTitle } from "@/lib/clickup/job-progress";
+import { archiveClickUpJobSubtasks, ClickUpSubtaskDeferredError, syncClickUpJobSubtasks } from "./task-sync";
 
 type Integration = {
   workspace_id: string;
@@ -21,6 +22,7 @@ type Integration = {
   assigned_user_name: string | null;
   deletion_mode: "archive" | "delete";
   status_mapping: Record<string, string>;
+  sync_subtasks?: boolean;
 };
 
 type SyncEvent = {
@@ -99,6 +101,8 @@ async function removeRemoteTask({
     .maybeSingle();
   if (error) throw error;
   if (!link) return;
+
+  await archiveClickUpJobSubtasks({ supabase, integration, jobId });
 
   try {
     if (operation === "delete") await deleteClickUpTask(link.clickup_task_id);
@@ -296,6 +300,8 @@ async function upsertRemoteTask({
     last_error: null,
   }, { onConflict: "workspace_id,job_id" });
   if (saveError) throw saveError;
+  await syncClickUpJobSubtasks({ supabase, integration, jobId, parentTaskId: taskId,
+    job: { id: job.id, title: job.title, due_date: job.due_date, due_time: job.due_time, status_key: status.key } });
   return "synced" as const;
 }
 
@@ -306,7 +312,7 @@ export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<Click
 
   const { data: integrationData, error: integrationError } = await supabase
     .from("website-clickup-integrations")
-    .select("workspace_id,target_client_id,list_id,list_name,enabled,assigned_user_id,assigned_user_name,deletion_mode,status_mapping")
+    .select("workspace_id,target_client_id,list_id,list_name,enabled,assigned_user_id,assigned_user_name,deletion_mode,status_mapping,sync_subtasks")
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .maybeSingle();
   if (integrationError) throw integrationError;
@@ -335,7 +341,9 @@ export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<Click
   let succeeded = 0;
   let failed = 0;
   let lastError: string | null = null;
+  const batchDeadline = Date.now() + 60_000;
   for (const candidate of (candidates ?? []) as SyncEvent[]) {
+    if (integration.sync_subtasks && Date.now() >= batchDeadline) break;
     const { data: claimed } = await supabase.from("website-clickup-sync-outbox").update({
       status: "processing",
       processing_started_at: new Date().toISOString(),
@@ -357,6 +365,10 @@ export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<Click
       });
       succeeded += 1;
     } catch (error) {
+      if (error instanceof ClickUpSubtaskDeferredError) {
+        await supabase.from("website-clickup-sync-outbox").update({ status: "retry", available_at: new Date(Date.now() + 15_000).toISOString(), processing_started_at: null, last_error: error.message }).eq("id", candidate.id);
+        continue;
+      }
       lastError = await markEventFailure(supabase, candidate, error);
       failed += 1;
     }

@@ -43,6 +43,7 @@ export type ClickUpTask = {
   parent?: string | null;
   list?: { id?: string };
   assignees?: Array<{ id: number | string }>;
+  subtasks?: ClickUpTask[];
 };
 
 export type ClickUpWebhook = {
@@ -87,8 +88,8 @@ export function getClickUpList(listId: string) {
   return clickUpRequest<ClickUpList>(`/list/${encodeURIComponent(listId)}`);
 }
 
-export function getClickUpTask(taskId: string) {
-  return clickUpRequest<ClickUpTask>(`/task/${encodeURIComponent(taskId)}?include_markdown_description=true`);
+export function getClickUpTask(taskId: string, { includeSubtasks = false }: { includeSubtasks?: boolean } = {}) {
+  return clickUpRequest<ClickUpTask>(`/task/${encodeURIComponent(taskId)}?include_markdown_description=true${includeSubtasks ? "&include_subtasks=true" : ""}`);
 }
 
 export function getClickUpTasks(listId: string, { page = 0, updatedAfter }: { page?: number; updatedAfter?: number } = {}) {

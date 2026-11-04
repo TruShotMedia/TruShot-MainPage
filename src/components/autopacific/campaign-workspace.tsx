@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, CalendarDays, Check, ChevronDown, FolderKanban, ListPlus, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, Check, ChevronDown, FolderKanban, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { loadProductionCampaigns, saveProductionCampaign, archiveProductionCampaign } from "@/app/autopacific/campaign-actions";
-import { createDeliverableTasks } from "@/app/admin/actions";
 import { campaignProgress, campaignWeekRange, changeCampaignStart, newCampaignId, newCampaignJob, newCampaignWeek, shiftCampaignWeek, type CampaignPlan, type CampaignPlanJob } from "@/lib/production-campaigns";
 import { formatDate, todayDateInput } from "@/lib/format";
 import type { JobStatus } from "@/lib/types";
@@ -14,33 +13,25 @@ import "./campaign-workspace.css";
 import { TeamAssignmentField, TeamAvatars, useProductionTeam } from "./team-context";
 import { assignedTo } from "@/lib/production-team";
 
-function LinkedTasks({ job, disabled, onCreated, onBusy }: { job: CampaignPlanJob; disabled: boolean; onCreated: () => Promise<void>; onBusy: (pending: boolean) => void }) {
-  const [pending, setPending] = useState(false), [error, setError] = useState("");
+function LinkedTasks({ job }: { job: CampaignPlanJob }) {
   const linked = new Set(job.tasks.map(task => task.source_deliverable_id));
   const remaining = job.deliverables.filter(item => !linked.has(item.id)).length;
   if (!job.deliverables.length) return null;
   const deliverableIds = new Set(job.deliverables.map(item => item.id));
   if (!remaining) return <p className="campaign-linked"><Check size={14} /> All {job.deliverables.length} deliverables have linked tasks · {job.tasks.filter(task => task.source_deliverable_id && deliverableIds.has(task.source_deliverable_id) && task.completed_at).length} complete</p>;
-  return <div className="campaign-task-action"><button type="button" disabled={disabled || pending || !job.updated_at} onClick={async () => {
-    setPending(true); onBusy(true); setError("");
-    try { await createDeliverableTasks(job.id); await onCreated(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Tasks could not be created."); }
-    finally { setPending(false); onBusy(false); }
-  }}>{pending ? <LoaderCircle size={14} className="spin" /> : <ListPlus size={14} />} Create {remaining} linked {remaining === 1 ? "task" : "tasks"}</button>
-    <small>{disabled || !job.updated_at ? "Save the campaign first to use the latest deliverables." : "Deliverable date → job deadline → no deadline. Existing tasks are not duplicated."}</small>
-    {error ? <p role="alert">{error}</p> : null}
+  return <div className="campaign-task-action" role="status">
+    <small>Tasks are created automatically when you save the campaign. Renames update linked tasks; progress, hours and notes are kept. Dates use the deliverable date, then the job deadline.</small>
   </div>;
 }
 
-export function CampaignPlanner({ initial, statuses, editable, marketing, busy, error, onClose, onSave, onArchive, onReload }: {
+export function CampaignPlanner({ initial, statuses, editable, busy, error, onClose, onSave, onArchive }: {
   initial: CampaignPlan; statuses: JobStatus[]; editable: boolean; marketing: boolean; busy: boolean; error: string;
   onClose: () => void; onSave: (plan: CampaignPlan) => void; onArchive: () => void; onReload: () => Promise<void>;
 }) {
   const team = useProductionTeam();
   const [plan, setPlan] = useState<CampaignPlan>(() => ({ ...initial, assignee_ids: initial.assignee_ids ?? (team ? [team.members.some(member => member.user_id === team.userId) ? team.userId : team.videographerId] : undefined) }));
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const [taskBusy, setTaskBusy] = useState(false);
-  const locked = busy || taskBusy;
+  const locked = busy;
   const dirty = JSON.stringify(plan) !== JSON.stringify(initial);
   const progress = campaignProgress(plan, statuses);
   const planningId = statuses.find(status => status.key === "planning")?.id ?? statuses[0]?.id ?? "";
@@ -122,7 +113,7 @@ export function CampaignPlanner({ initial, statuses, editable, marketing, busy, 
                   </div>)}
                   {canEdit ? <button type="button" className="campaign-add-quiet" disabled={job.deliverables.length >= 30} onClick={() => updateJob(week.id, job.id, { deliverables: [...job.deliverables, { id: newCampaignId(), name: "", date: null }] })}><Plus size={14} /> Add deliverable</button> : null}
                   {!job.deliverables.length && !canEdit ? <p>No deliverables planned yet.</p> : null}
-                  {!marketing && canEdit && !stage?.is_closed ? <LinkedTasks job={job} disabled={dirty || busy} onCreated={onReload} onBusy={setTaskBusy} /> : null}
+                  {canEdit && !stage?.is_closed ? <LinkedTasks job={job} /> : null}
                 </div>
               </article>;
             })}

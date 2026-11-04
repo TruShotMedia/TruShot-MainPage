@@ -34,12 +34,15 @@ describe("Campaign weekly editor", () => {
     expect(container.querySelectorAll(".campaign-week")).toHaveLength(2);
     expect(container.querySelectorAll(".campaign-plan-job")).toHaveLength(2);
     expect(container.textContent).toContain("6 Jan 2027 — 12 Jan 2027");
-    expect(container.querySelector<HTMLButtonElement>(".campaign-task-action button")?.disabled).toBe(true);
+    expect(container.textContent).toContain("Tasks are created automatically when you save the campaign.");
+    expect(container.querySelector(".campaign-task-action button")).toBeNull();
   });
-  it("lets Marketing plan deliverables without creating or editing tasks", async () => {
+  it("lets Marketing plan automatic deliverables without direct task mutation controls", async () => {
     await act(async () => root.render(planner({ marketing: true })));
     expect(container.querySelector(".campaign-deliverable input")).not.toBeNull();
-    expect(container.querySelector(".campaign-task-action")).toBeNull();
+    expect(container.textContent).toContain("Tasks are created automatically when you save the campaign.");
+    expect(container.querySelector(".campaign-task-action button")).toBeNull();
+    expect(actions.createDeliverableTasks).not.toHaveBeenCalled();
   });
   it("provides a read-only view while kiosk editing is off", async () => {
     await act(async () => root.render(planner({ editable: false })));

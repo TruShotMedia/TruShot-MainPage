@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ service: vi.fn(), getTask: vi.fn(), updateTask: vi.fn(), createTask: vi.fn(), assigned: vi.fn() }));
+const mocks = vi.hoisted(() => ({ service: vi.fn(), getTask: vi.fn(), updateTask: vi.fn(), createTask: vi.fn(), assigned: vi.fn(), subtasks: vi.fn(), archiveSubtasks: vi.fn() }));
+vi.mock("./task-sync", () => ({
+  syncClickUpJobSubtasks: mocks.subtasks, archiveClickUpJobSubtasks: mocks.archiveSubtasks,
+  ClickUpSubtaskDeferredError: class extends Error {},
+}));
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: mocks.service }));
 vi.mock("@/lib/clickup/assignment-scope", () => ({ assignedToClickUpOwner: mocks.assigned }));
 vi.mock("@/lib/clickup/config", () => ({ getClickUpToken: () => "test", CLICKUP_LIST_ID: "list", CLICKUP_LIST_NAME: "Jobs", CLICKUP_STATUS_MAPPING: {} }));
@@ -11,6 +15,7 @@ vi.mock("@/lib/clickup/webhook-registration", () => ({ ensureClickUpWebhook: vi.
 import { dispatchClickUpJobSync } from "./job-sync";
 import { sharedStateFromCrm, sharedStateHash } from "./shared-state";
 import { buildClickUpJobDescription } from "./job-mapping";
+import { ClickUpSubtaskDeferredError } from "./task-sync";
 
 const workspace = "11111111-1111-4111-8111-111111111111";
 const job = { id: "job", title: "Launch", client_id: "client", archived_at: null, status_id: "scheduled", updated_at: "2026-11-03", assignee_ids: ["john"],
@@ -19,6 +24,7 @@ const baseline = sharedStateHash(sharedStateFromCrm(job, "SCHEDULED"));
 type Result = { data: unknown; error: unknown };
 let taskRows: { source_deliverable_id: null; status: { key: string } }[], taskError: unknown, link: { id: string; clickup_task_id: string; last_shared_hash: string } | null;
 let queries: Query[];
+let syncSubtasks: boolean;
 class Query {
   action = "read"; selected = false; filters: Record<string, unknown> = {}; payload: unknown;
   constructor(readonly table: string) { queries.push(this); }
@@ -33,7 +39,7 @@ class Query {
   delete() { this.action = "delete"; return this; }
   result(): Result {
     if (this.action === "read") {
-      if (this.table === "website-clickup-integrations") return { data: { workspace_id: workspace, target_client_id: "client", list_id: "list", enabled: true, assigned_user_id: 42, status_mapping: { scheduled: "SCHEDULED" } }, error: null };
+      if (this.table === "website-clickup-integrations") return { data: { workspace_id: workspace, target_client_id: "client", list_id: "list", enabled: true, sync_subtasks: syncSubtasks, assigned_user_id: 42, status_mapping: { scheduled: "SCHEDULED" } }, error: null };
       if (this.table === "website-jobs") return { data: job, error: null };
       if (this.table === "website-job-statuses") return { data: { key: "scheduled" }, error: null };
       if (this.table === "website-job-tasks") return { data: taskRows, error: taskError };
@@ -49,7 +55,7 @@ class Query {
   }
 }
 beforeEach(() => {
-  vi.clearAllMocks(); queries = []; taskError = null; link = { id: "link", clickup_task_id: "remote", last_shared_hash: baseline };
+  vi.clearAllMocks(); queries = []; syncSubtasks = false; mocks.subtasks.mockResolvedValue(undefined); taskError = null; link = { id: "link", clickup_task_id: "remote", last_shared_hash: baseline };
   taskRows = ["posted_done", "posted_done", "posted_done", "in_progress"].map(key => ({ source_deliverable_id: null, status: { key } }));
   mocks.service.mockReturnValue({ from: (table: string) => new Query(table) }); mocks.assigned.mockResolvedValue(true);
   mocks.getTask.mockResolvedValue({ id: "remote", name: job.title, status: { status: "SCHEDULED" } });
@@ -98,5 +104,26 @@ describe("outbound ClickUp progress syncing", () => {
   it("includes progress when creating the first ClickUp mirror", async () => {
     link = null; await dispatchClickUpJobSync();
     expect(mocks.createTask).toHaveBeenCalledWith("list", expect.objectContaining({ name: "[3/4 · 75%] Launch" }));
+  });
+  it("syncs child assets only after saving a stable parent mapping", async () => {
+    syncSubtasks = true;
+    mocks.subtasks.mockImplementation(async input => {
+      expect(input).toMatchObject({ jobId: "job", parentTaskId: "remote", job: { title: "Launch", status_key: "scheduled" } });
+      expect(queries.some(query => query.table === "website-clickup-job-links" && query.action === "upsert")).toBe(true);
+    });
+    expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1,failed: 0 });
+    expect(mocks.subtasks).toHaveBeenCalledOnce();
+  });
+  it("does not touch children while parent shared fields need conflict resolution", async () => {
+    syncSubtasks = true; link!.last_shared_hash = "older-shared-state";
+    mocks.getTask.mockResolvedValue({ id: "remote",name: "Conflicting name",status: { status: "SCHEDULED" } });
+    await dispatchClickUpJobSync(); expect(mocks.subtasks).not.toHaveBeenCalled();
+  });
+  it("defers a busy child batch without exhausting the event retry count", async () => {
+    syncSubtasks = true; mocks.subtasks.mockRejectedValue(new ClickUpSubtaskDeferredError("Lease busy"));
+    expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 0,failed: 0 });
+    const deferred = queries.find(query => query.table === "website-clickup-sync-outbox" && query.action === "update" && (query.payload as { last_error?: string })?.last_error === "Lease busy");
+    expect(deferred?.payload).toMatchObject({ status: "retry",processing_started_at: null });
+    expect(deferred?.payload).not.toHaveProperty("attempts");
   });
 });

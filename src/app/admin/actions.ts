@@ -527,11 +527,7 @@ export async function createJob(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   scheduleClickUpJobSync();
-  revalidatePath("/admin/jobs");
-  revalidatePath("/admin/overview");
-  revalidatePath("/admin/calendar");
-  revalidatePath("/tablet");
-  revalidatePath("/autopacific");
+  revalidateProductionPages();
 }
 
 export async function duplicateJob(formData: FormData) {
@@ -586,11 +582,7 @@ export async function duplicateJob(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   scheduleClickUpJobSync();
-  revalidatePath("/admin/jobs");
-  revalidatePath("/admin/overview");
-  revalidatePath("/admin/calendar");
-  revalidatePath("/admin/clients");
-  revalidatePath("/tablet");
+  revalidateProductionPages();
 }
 
 export async function updateJob(formData: FormData) {
@@ -602,15 +594,9 @@ export async function updateJob(formData: FormData) {
   await saveJobDetails(context, input);
   await syncJobInvoiceRelations(context, input.id, invoiceIds);
   scheduleClickUpJobSync();
-  revalidatePath("/admin/jobs");
-  revalidatePath("/admin/tasks");
-  revalidatePath("/admin/pipeline");
-  revalidatePath("/admin/overview");
-  revalidatePath("/admin/calendar");
+  revalidateProductionPages();
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/finance");
-  revalidatePath("/admin/clients");
-  revalidatePath("/tablet");
 }
 
 export async function updateTabletJob(formData: FormData) {

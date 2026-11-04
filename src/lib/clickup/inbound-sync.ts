@@ -330,6 +330,15 @@ async function processRemoteTask(
   if (integration.inbound_mode === "paused") return { status: "ignored", detail: "Inbound syncing was paused.", jobId: link?.job_id };
   if (integration.inbound_mode === "observe") return { status: "observed", detail: "Validated the ClickUp event in observation mode.", jobId: link?.job_id };
 
+  // One-way asset mirrors must never be imported as CRM jobs, even if someone
+  // converts a managed subtask to a top-level ClickUp task later.
+  if (!link && !task.parent) {
+    const { data: ownedAsset, error: ownedError } = await supabase.from("website-clickup-subtask-links")
+      .select("task_id").eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();
+    if (ownedError) throw ownedError;
+    if (ownedAsset) return { status: "ignored", detail: "CRM asset subtasks are outbound-only." };
+  }
+
   // A source that has been delayed is immutable CRM history. ClickUp may
   // replay a pre-delay webhook after the CRM transaction has already created
   // its successor; never let that stale remote event resurrect the source.
