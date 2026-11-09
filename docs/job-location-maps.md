@@ -6,6 +6,8 @@ Both workspaces have a Map tab, using the same job permissions and My Space / Vi
 
 The job create/edit and campaign planning editors share one address picker. Search is debounced by 450 ms, requires at least three characters and is cancelled when the query changes. No search happens just because an editor opens. A selected result saves its coordinates and attribution. A manual pin is also available, without an address-search account. Free text is still supported and appears under **Needs location**, not at a guessed point.
 
+The picker also includes owner-defined quick-location buttons, configured in `src/lib/job-location-presets.ts`. Each shows its full address and fills both the editable address and saved building pin without an autocomplete call. It changes only the draft; the normal job/campaign save is still required. Shortcut display names are explicit owner configuration, not a rule for inferring the location's city.
+
 `website-jobs.location` remains the human-readable location (and existing ClickUp description value). `location_details` holds the versioned label, coordinates, source, precision and attribution. `location_original` retains original text when a location changes. A database trigger clears coordinates on text-only location changes from older clients or integrations, preventing stale pins. Campaign saves remain atomic and preserve concurrency, assignment and RLS checks.
 
 Only exact legacy AutoPacific `MEL` / `Melbourne` entries are normalised to Melbourne city-level coordinates. They are explicitly approximate, not a venue or airport. Ambiguous names such as `Glass House` and empty fields are not geocoded automatically. No historical record is silently given a fabricated address.

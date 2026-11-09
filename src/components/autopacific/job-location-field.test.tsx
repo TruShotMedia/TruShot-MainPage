@@ -4,6 +4,7 @@ import { createRoot,type Root } from "react-dom/client";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { JobLocationField } from "./job-location-field";
 import type { JobLocation } from "@/lib/job-location";
+import { JOB_LOCATION_SHORTCUTS } from "@/lib/job-location-presets";
 vi.mock("next/dynamic",()=>({default:()=>function MapMock(props:{onPick?:(lat:number,lon:number)=>void}) {return <button type="button" onClick={()=>props.onPick?.(-27.47,153.02)}>Map pin test</button>;}}));
 const point:JobLocation={version:1,label:"Brisbane, Australia",latitude:-27.47,longitude:153.02,precision:"city",provider:"geoapify",attribution:"OpenStreetMap"};
 describe("job location picker",()=> {
@@ -38,5 +39,19 @@ describe("job location picker",()=> {
     await act(async()=>[...container.querySelectorAll("button")].find(button=>button.textContent==="Drop a pin")!.click());
     await act(async()=>[...container.querySelectorAll("button")].find(button=>button.textContent==="Map pin test")!.click());
     expect(JSON.parse(hidden().value)).toMatchObject({label:"My venue",provider:"manual",latitude:-27.47});expect(changed).toHaveBeenCalledWith("My venue",expect.objectContaining({precision:"manual"}));expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each(JOB_LOCATION_SHORTCUTS)("prefills $name with the owner's exact address and a saved pin without a search request",async shortcut=> {
+    const changed=vi.fn();
+    await act(async()=>root.render(<form><JobLocationField onValueChange={changed}/></form>));
+    const button=[...container.querySelectorAll<HTMLButtonElement>(".job-location-shortcuts button")].find(button=>button.textContent?.includes(shortcut.name))!;
+    expect(button.textContent).toContain(shortcut.location.label);
+    await act(async()=>button.click());await advance();
+    expect(input().value).toBe(shortcut.location.label);
+    expect(JSON.parse(hidden().value)).toEqual(shortcut.location);
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(new FormData(container.querySelector("form")!).get("location")).toBe(shortcut.location.label);
+    expect(changed).toHaveBeenLastCalledWith(shortcut.location.label,shortcut.location);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await type("A different venue");expect(button.getAttribute("aria-pressed")).toBe("false");expect(hidden().value).toBe("");
   });
 });

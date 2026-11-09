@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Check, MapPin, Search, X } from "lucide-react";
 import { locationIsApproximate, readJobLocation, type JobLocation } from "@/lib/job-location";
+import { JOB_LOCATION_SHORTCUTS } from "@/lib/job-location-presets";
 import "./job-map.css";
 
 const MapCanvas=dynamic(()=>import("./job-map-canvas").then(m=>m.JobMapCanvas),{ssr:false,loading:()=> <div className="job-map-loading">Loading map…</div>});
@@ -61,6 +62,11 @@ export function JobLocationField({initialText,initialLocation,onValueChange}:{in
   function choose(value:JobLocation) {setLocation(value);setText(value.label);setOpen(false);setResults([]);setShowMap(true);setPicking(false);setMessage("");onValueChange?.(value.label,value);}
   return <div ref={root} className="job-location-field form-span">
     <label htmlFor={id}>Location</label>
+    <div className="job-location-shortcuts" role="group" aria-label="Quick locations">
+      {JOB_LOCATION_SHORTCUTS.map(shortcut=><button type="button" key={shortcut.id} aria-pressed={location?.label===shortcut.location.label && location.latitude===shortcut.location.latitude && location.longitude===shortcut.location.longitude} onClick={()=>choose(shortcut.location)}>
+        <MapPin size={16} aria-hidden="true"/><span><strong>{shortcut.name}</strong><small>{shortcut.location.label}</small></span>
+      </button>)}
+    </div>
     <div className="job-location-input"><Search size={17} aria-hidden="true"/><input id={id} name="location" value={text} maxLength={300} placeholder="Search an address or place…" autoComplete="off" role="combobox" aria-autocomplete="list" aria-expanded={open&&results.length>0} aria-controls={`${id}-results`} aria-activedescendant={active>=0?`${id}-${active}`:undefined} aria-describedby={`${id}-hint`} onFocus={()=>setOpen(true)} onBlur={event=> {if(!event.currentTarget.parentElement?.parentElement?.contains(event.relatedTarget)) setOpen(false);}} onChange={event=> {setText(event.target.value);setLocation(null);setResults([]);setActive(-1);setEdited(true);setOpen(true);setMessage("");onValueChange?.(event.target.value,null);}} onKeyDown={event=> {
       if(event.key==="Escape"&&open){event.preventDefault();event.stopPropagation();setOpen(false);}
       if(event.key==="ArrowDown"&&results.length){event.preventDefault();setOpen(true);setActive(value=>(value+1)%results.length);}
