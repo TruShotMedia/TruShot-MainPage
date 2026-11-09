@@ -51,6 +51,7 @@
 .job-location-input { position:relative; display:flex; align-items:center; gap:8px; }
 .job-location-input>svg:first-child { position:absolute; left:14px; pointer-events:none; color:var(--workspace-muted,#586d79); }
 .job-location-field .job-location-input input { width:100%; min-width:0; max-width:100%; min-height:46px; padding:11px 72px 11px 42px; border:1px solid var(--workspace-line,#dce5ea); border-radius:10px; font:inherit; font-size:14px; background:var(--workspace-field,#fff); color:var(--workspace-text,#182e3a); }
+.workspace-dialog .job-location-field .job-location-input>input[name="location"][role="combobox"],.tablet-kiosk .workspace-dialog .job-location-field .job-location-input>input[name="location"][role="combobox"] { padding-left:42px; padding-right:72px; }
 .job-location-input>svg:not(:first-child) { position:absolute; right:40px; color:var(--workspace-accent,#397fa6); }
 .job-location-input>button { position:absolute; right:4px; display:grid; place-items:center; width:36px; height:36px; min-height:36px; padding:0; border:0; border-radius:8px; color:var(--workspace-muted,#586d79); background:transparent; }
 .job-location-results { position:relative; z-index:5; list-style:none; padding:5px; margin:0; max-height:250px; overflow-y:auto; border:1px solid var(--workspace-line,#dce5ea); border-radius:12px; background:var(--workspace-surface,#fff); box-shadow:0 8px 20px #0001; }
