@@ -10,6 +10,22 @@ it("round-trips Brisbane times as unambiguous UTC with stable identity and revis
   expect(result.uid).toBe("job-123-shoot@calendar.trushotmedia.com");
   expect(serializeCalendar([event])).toBe(serializeCalendar([event]));
 });
+it.each(["Job / shoot", "Job deadline", "Task / deliverable deadline", "Event", "Flight"])("shows %s titles with normal Outlook sensitivity, not Private appointment", kind => {
+  const text = serializeCalendar([{ ...event, kind, title: `AutoPacific ${kind}` }]);
+  expect(parsed({ ...event, kind, title: `AutoPacific ${kind}` }).summary).toBe(`AutoPacific ${kind}`);
+  expect(text).toContain("CLASS:PUBLIC\r\n");
+  expect(text).not.toContain("CLASS:PRIVATE");
+  expect(text).not.toContain("ATTACH"); expect(text).not.toContain("VALARM"); expect(text).not.toContain("URL:");
+});
+it("updates existing appointments for the sensitivity correction without changing their UIDs or generating per-request revisions", () => {
+  const text = serializeCalendar([event]);
+  expect(text).toContain("UID:job-123-shoot@calendar.trushotmedia.com");
+  expect(text).toContain("LAST-MODIFIED:20261109T233958Z");
+  expect(text).toContain("DTSTAMP:20261109T233958Z");
+  expect(text).toContain("SEQUENCE:1\r\n");
+  expect(serializeCalendar([event])).toBe(text);
+  expect(serializeCalendar([{ ...event, updated_at: "2026-11-10T01:00:00Z" }])).toContain("LAST-MODIFIED:20261110T010000Z");
+});
 it("uses exclusive all-day end dates, including month/year transitions", () => {
   const result = parsed({ ...event, start_date: "2026-12-31", end_date: "2027-01-02", is_all_day: true });
   const date = (value: Date) => value.toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" });

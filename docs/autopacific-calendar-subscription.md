@@ -6,6 +6,8 @@ AutoPacific → Calendar → Outlook calendar → **Subscribe in Outlook**. Crea
 
 Outlook shows a separate read-only calendar, not entries written to the primary mailbox. This does not set Teams availability. Outlook controls refresh frequency; changes can take more than 24 hours. The existing Outlook → CRM import remains independent and unchanged.
 
+Appointments use normal Outlook sensitivity (`CLASS:PUBLIC`) so their actual titles are displayed, rather than “Private appointment”. This does **not** publish the feed publicly: the secret, revocable subscription URL remains required. Once subscribed, Outlook's own calendar-sharing permissions govern visibility inside Microsoft. Stable event UIDs and a fixed publisher revision/sequence let an existing subscription receive this format correction without duplicating appointments or requiring a new link.
+
 The URL is displayed only immediately after creation/replacement. It is masked and never stored in browser storage. Copy before closing. Lost link: replace it, remove the old subscribed calendar in Outlook, and subscribe again. Revocation blocks further reads immediately at our endpoint, but cannot erase events already downloaded by Outlook. Keep the URL private: anyone holding it can read the exported information.
 
 ## Included data

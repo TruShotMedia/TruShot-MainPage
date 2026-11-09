@@ -8,6 +8,11 @@ export type SubscriptionEvent = {
 };
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+// A fixed publisher revision makes presentation-only corrections visible to
+// subscribers even when the underlying CRM record has not been edited. Keep
+// UIDs stable; do not use the current request time (which would churn the feed).
+const publisherRevision = Date.parse("2026-11-09T23:39:58Z");
+const publisherSequence = 1;
 function day(value: string) {
   if (!datePattern.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00Z`)) || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) throw new Error("Invalid calendar date");
   return value.replaceAll("-", "");
@@ -42,7 +47,8 @@ export function serializeCalendar(events: readonly SubscriptionEvent[]) {
     const modified = new Date(event.updated_at);
     if (!Number.isFinite(modified.getTime())) throw new Error("Invalid calendar revision");
     const detail = [event.kind, event.status ? `Status: ${event.status}` : "", event.detail ?? ""];
-    const item = ["BEGIN:VEVENT", `UID:${event.uid}@calendar.trushotmedia.com`, `DTSTAMP:${utc(modified)}`, `LAST-MODIFIED:${utc(modified)}`];
+    const revision = utc(new Date(Math.max(modified.getTime(), publisherRevision)));
+    const item = ["BEGIN:VEVENT", `UID:${event.uid}@calendar.trushotmedia.com`, `DTSTAMP:${revision}`, `LAST-MODIFIED:${revision}`, `SEQUENCE:${publisherSequence}`];
     if (event.is_all_day || !event.start_time) {
       const end = event.end_date ?? event.start_date;
       if (end < event.start_date) throw new Error("Invalid calendar window");
@@ -58,7 +64,10 @@ export function serializeCalendar(events: readonly SubscriptionEvent[]) {
       item.push(`DTSTART:${utc(start)}`, `DTEND:${utc(finish)}`);
     }
     item.push(`SUMMARY:${escapeText(event.title)}`, `DESCRIPTION:${escapeText(detail.filter(Boolean).join("\n"))}`,
-      `STATUS:${event.cancelled ? "CANCELLED" : event.tentative ? "TENTATIVE" : "CONFIRMED"}`, `TRANSP:${event.transparent || event.cancelled ? "TRANSPARENT" : "OPAQUE"}`, "CLASS:PRIVATE");
+      // Outlook treats CLASS:PRIVATE as an instruction to hide appointment
+      // titles. PUBLIC means normal item sensitivity, not a public feed: the
+      // private bearer URL, owner checks and minimal projection still apply.
+      `STATUS:${event.cancelled ? "CANCELLED" : event.tentative ? "TENTATIVE" : "CONFIRMED"}`, `TRANSP:${event.transparent || event.cancelled ? "TRANSPARENT" : "OPAQUE"}`, "CLASS:PUBLIC");
     if (event.location) item.push(`LOCATION:${escapeText(event.location)}`);
     lines.push(...item, "END:VEVENT");
   }
