@@ -11,6 +11,7 @@ import { JobDeliverablesField } from "@/components/shared/job-deliverables-field
 import { JobScheduleFields } from "@/components/shared/job-schedule-fields";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
 import { JobBriefFields } from "@/components/autopacific/job-brief-fields";
+import { JobLocationField } from "@/components/autopacific/job-location-field";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
 import { getJobDeliverables } from "@/lib/job-deliverable-model";
@@ -310,7 +311,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
             <label>Shoot finish time <small>Optional</small><input type="time" name="shoot_end_time" defaultValue={sourceJob?.shoot_end_time?.slice(0,5)??""} /></label>
             <div className="workspace-form-section"><strong>Production & delivery</strong><p>Keep location, files and context together.</p></div>
             {fixedClientId ? <input type="hidden" name="photos_delivered" value="0" /> : <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>}
-            <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>
+            {fixedClientId ? <JobLocationField initialText={sourceJob?.location} initialLocation={sourceJob?.location_details} /> : <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>}
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={sourceJob?.delivery_url ?? ""} /></label>
             <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={sourceJob?.description ?? ""} /></label>
             <JobDeliverablesField initialItems={sourceJob?.deliverables} legacyItems={sourceJob?.key_deliverables} />
@@ -433,7 +434,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             <details className="brief-module form-span" open={!job.shoot_date && job.status?.key !== "planning"}><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : job.status?.key === "planning" ? "Dates optional while planning" : "Choose a shoot date"}</summary><div className="brief-module-fields tablet-record-editor-fields">
               <JobScheduleFields planning={jobStatuses.find((status) => status.id === selectedJobStatusId)?.key === "planning"} initial={job} />
               <label>Shoot finish time <small>Optional · same day</small><input type="time" name="shoot_end_time" defaultValue={job.shoot_end_time?.slice(0,5)??""} /></label>
-              <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>
+              {fixedClientId ? <JobLocationField initialText={job.location} initialLocation={job.location_details} /> : <label className="form-span">Location<input name="location" maxLength={300} defaultValue={job.location ?? ""} /></label>}
             </div></details>
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={job.delivery_url ?? ""} /></label>
             <div className="form-span"><JobFiles jobId={job.id} /></div>

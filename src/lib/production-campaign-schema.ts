@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobLocationSchema } from "./job-location";
 
 const date = z.iso.date().nullable();
 export const campaignPlanSchema = z.object({
@@ -9,6 +10,7 @@ export const campaignPlanSchema = z.object({
   weeks: z.array(z.object({
     id: z.uuid(), title: z.string().trim().max(180),
     jobs: z.array(z.object({
+      location_details: jobLocationSchema.nullable().optional(),
       assignee_ids: z.array(z.uuid()).min(1).max(100).optional(),
       id: z.uuid(), title: z.string().trim().min(2, "Give every job a title.").max(220), status_id: z.uuid(),
       shoot_date: date, due_date: date, description: z.string().max(2000).nullable(), location: z.string().max(300).nullable(),

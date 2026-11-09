@@ -14,6 +14,7 @@ import { invoiceStatusAfterEdit } from "@/lib/invoice-payments";
 import { getInvoiceRelationChanges } from "@/lib/invoice-relations";
 import { datedJobDeliverablesInputSchema, jobDeliverablesInputSchema } from "@/lib/job-deliverables";
 import { jobBriefInputSchema } from "@/lib/job-brief";
+import { jobLocationInputSchema } from "@/lib/job-location";
 import { assignmentIdsSchema, assignmentValues } from "@/lib/production-assignment-input";
 import { getProductionTeam } from "@/lib/data/production-team";
 import { mentionedMembers } from "@/lib/production-team";
@@ -58,6 +59,7 @@ const jobEditorInputSchema = z.object({
   key_deliverables: jobDeliverablesInputSchema.optional(),
   deliverables: datedJobDeliverablesInputSchema.optional(),
   location: z.string().trim().max(300),
+  location_details: jobLocationInputSchema.optional(),
   delivery_url: optionalHttpUrlSchema,
   description: z.string().trim().max(2_000),
   notes: z.string().trim().max(4_000),
@@ -275,6 +277,7 @@ async function saveJobDetails(context: AdminContext, input: z.infer<typeof jobEd
     key_deliverables: input.key_deliverables,
     deliverables: input.deliverables,
     location: input.location || null,
+    location_details: input.location_details,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
     notes: input.notes || null,
@@ -495,6 +498,7 @@ export async function createJob(formData: FormData) {
     key_deliverables: jobDeliverablesInputSchema.optional().default([]),
     deliverables: datedJobDeliverablesInputSchema.optional(),
     location: z.string().trim().max(300).optional().default(""),
+    location_details: jobLocationInputSchema.optional(),
     delivery_url: optionalHttpUrlSchema.optional().default(""),
     description: z.string().trim().max(2_000).optional().default(""),
     notes: z.string().trim().max(4_000).optional().default(""),
@@ -519,6 +523,7 @@ export async function createJob(formData: FormData) {
     key_deliverables: input.key_deliverables,
     deliverables: input.deliverables,
     location: input.location || null,
+    location_details: input.location_details,
     delivery_url: input.delivery_url || null,
     description: input.description || null,
     notes: input.notes || null,
@@ -536,7 +541,7 @@ export async function duplicateJob(formData: FormData) {
   if (!context) redirect("/admin/login");
   const { data: source, error: sourceError } = await context.supabase
     .from("website-jobs")
-    .select("title,client_id,status_id,package_id,package_snapshot,description,brief_details,key_deliverables,deliverables,shoot_date,shoot_time,shoot_end_time,due_date,due_time,location,delivery_url,notes")
+    .select("title,client_id,status_id,package_id,package_snapshot,description,brief_details,key_deliverables,deliverables,shoot_date,shoot_time,shoot_end_time,due_date,due_time,location,location_details,delivery_url,notes")
     .eq("id", id)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
@@ -574,6 +579,7 @@ export async function duplicateJob(formData: FormData) {
     due_date: source.due_date,
     due_time: source.due_time,
     location: source.location,
+    location_details: source.location_details,
     delivery_url: source.delivery_url,
     notes: source.notes,
     photos_delivered: 0,

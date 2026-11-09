@@ -31,7 +31,7 @@ export async function loadProductionCampaigns(): Promise<CampaignPlan[]> {
   if (weekError) throw new Error("Campaign weeks could not be loaded.");
   const weekIds = (weeks ?? []).map(week => week.id);
   const { data: jobs, error: jobError } = weekIds.length ? await supabase.from("website-jobs")
-    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,deliverables,updated_at,assignee_ids,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at)')
+    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,location_details,deliverables,updated_at,assignee_ids,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at)')
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("client_id", clientId).in("campaign_week_id", weekIds)
     .is("archived_at", null).order("shoot_date", { nullsFirst: false }) : { data: [], error: null };
   if (jobError) throw new Error("Campaign jobs could not be loaded.");

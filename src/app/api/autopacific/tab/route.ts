@@ -53,7 +53,7 @@ async function jobsPayload() {
   const [jobsResult, statusesResult, taskStatusesResult] = await Promise.all([
     context.supabase
       .from("website-jobs")
-      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,delivery_url,description,notes,delivered_at,updated_at,assignee_ids,priority")
+      .select("id,title,job_number,client_id,status_id,shoot_date,shoot_time,shoot_end_time,due_date,due_time,photos_delivered,key_deliverables,deliverables,brief_details,location,location_details,location_original,delivery_url,description,notes,delivered_at,updated_at,assignee_ids,priority")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("client_id", client.id)
       .is("archived_at", null),

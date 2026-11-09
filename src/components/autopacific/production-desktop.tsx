@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   List,
   ListTodo,
+  MapPin,
   Monitor,
   MoreHorizontal,
   Moon,
@@ -81,6 +82,7 @@ const CalendarEventEditor = dynamic(() =>
   ),
 );
 const CampaignWorkspace = dynamic(() => import("./campaign-workspace").then(module => module.CampaignWorkspace));
+const JobMapWorkspace = dynamic(() => import("./job-map-workspace").then(module => module.JobMapWorkspace));
 const MyAccountDialog = dynamic(() => import("./my-account").then(module => module.MyAccountDialog));
 const FlightEventEditor = dynamic(() =>
   import("@/components/tablet/flight-event-editor").then(
@@ -353,7 +355,7 @@ export function ProductionDesktop({
   }, [field.online, field.queue, sourceData]);
   const live = useMemo(() => team ? scopeProductionSpace(allLive, space === "mine" ? [team.userId] : space === "team" ? teamSelection ?? team.members.map(member => member.user_id) : [team.videographerId], space === "team") : allLive, [allLive, space, team, teamSelection]);
   const [view, setView] = useState<TabletView>(
-    workspaceInitialView(initialView === "planning" ? "jobs" : parseTabletView(initialView), mode, true, true),
+    workspaceInitialView(initialView === "planning" ? "jobs" : parseTabletView(initialView), mode, true, true, true),
   );
   const [jobView, setJobView] = useState<"active" | "planning" | "completed">(
     initialView === "planning" ? "planning" : "active",
@@ -462,7 +464,7 @@ export function ProductionDesktop({
     async function refreshTab(target: TabletView) {
       if (target === "campaigns") { setCampaignRefresh(value => value + 1); return; }
       const key =
-        target === "jobs"
+        target === "jobs" || target === "map"
           ? "jobs"
           : target === "pipeline"
             ? "tasks"
@@ -624,7 +626,7 @@ export function ProductionDesktop({
     [live.pipelineTasks, live.statuses, taskView, search],
   );
   const label =
-    space === "team" ? "Team calendar" : view === "pipeline"
+    space === "team" ? "Team calendar" : view === "map" ? "Map" : view === "pipeline"
       ? "Tasks"
       : view === "calendar"
         ? "Calendar"
@@ -650,15 +652,15 @@ export function ProductionDesktop({
         <div className="apg-workspace-groups">
           {(marketing ? ["videographer", "mine"] as const : ["mine"] as const).map(group => <details key={group} open={space === group} className="apg-workspace-group">
             <summary>{group === "mine" ? <UserRound size={15} /> : <BriefcaseBusiness size={15} />} {group === "mine" ? "My Space" : "Videographer"}<ChevronDown size={14} /></summary>
-            <nav aria-label={`${group === "mine" ? "My Space" : "Videographer"} pages`}>{workspaceViews(mode, true, true).map(key => <button type="button" key={key} aria-current={space === group && view === key ? "page" : undefined} onClick={() => { select(key); chooseSpace(group); }}>
-              {key === "jobs" ? <BriefcaseBusiness size={17} /> : key === "pipeline" ? <ListTodo size={17} /> : key === "campaigns" ? <FolderKanban size={17} /> : key === "calendar" ? <CalendarDays size={17} /> : <Sun size={17} />}<span>{key === "pipeline" ? "Tasks" : key[0].toUpperCase() + key.slice(1)}</span>
+            <nav aria-label={`${group === "mine" ? "My Space" : "Videographer"} pages`}>{workspaceViews(mode, true, true, true).map(key => <button type="button" key={key} aria-current={space === group && view === key ? "page" : undefined} onClick={() => { select(key); chooseSpace(group); }}>
+              {key === "jobs" ? <BriefcaseBusiness size={17} /> : key === "pipeline" ? <ListTodo size={17} /> : key === "campaigns" ? <FolderKanban size={17} /> : key === "calendar" ? <CalendarDays size={17} /> : key === "map" ? <MapPin size={17}/> : <Sun size={17} />}<span>{key === "pipeline" ? "Tasks" : key[0].toUpperCase() + key.slice(1)}</span>
             </button>)}</nav>
           </details>)}
           <button type="button" className="apg-team-nav" aria-current={space === "team" ? "page" : undefined} onClick={() => { select("calendar"); chooseSpace("team"); }}><Users size={18} /> Team calendar</button>
           {!marketing && team?.canManage ? <button type="button" className="apg-team-nav" onClick={() => setManageTeam(true)}><Users size={18} /> Manage team</button> : null}
         </div>
         <nav aria-label="Workspace pages" className="apg-mobile-bottom-nav">
-          {workspaceViews(mode, true, true).map((key) => (
+          {workspaceViews(mode, true, true, true).map((key) => (
             <button
               type="button"
               key={key}
@@ -673,7 +675,7 @@ export function ProductionDesktop({
                 <FolderKanban size={18} />
               ) : key === "calendar" ? (
                 <CalendarDays size={18} />
-              ) : (
+              ) : key === "map" ? <MapPin size={18}/> : (
                 <Sun size={18} />
               )}
               <span>
@@ -818,7 +820,7 @@ export function ProductionDesktop({
           className={`apg-desktop-main ${view === "jobs" && jobView === "planning" ? "is-planning" : ""}`}
           aria-label={`${label} workspace`}
         >
-          {view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} assigneeIds={space === "mine" && team ? [team.userId] : team ? [team.videographerId] : undefined} /> : view === "jobs" ? (
+          {view === "map" ? <JobMapWorkspace jobs={live.pipelineJobs} statuses={live.jobStatuses} dark={theme === "dark"} onOpen={job=>setViewing({kind:"job",record:job})}/> : view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} assigneeIds={space === "mine" && team ? [team.userId] : team ? [team.videographerId] : undefined} /> : view === "jobs" ? (
             layout === "list" || jobView === "completed" ? (
               <div className="apg-job-list">
                 {jobs.length ? (

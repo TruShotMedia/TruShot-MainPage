@@ -172,6 +172,8 @@ export type JobRecord = {
 };
 
 export type TabletJobRecord = {
+  location_details?: import("./job-location").JobLocation | null;
+  location_original?: string | null;
   assignee_ids?: string[];
   priority?: string;
   completed_tasks?: number;

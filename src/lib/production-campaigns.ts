@@ -3,6 +3,7 @@ import type { JobStatus } from "./types";
 import type { JobDeliverable } from "./job-deliverable-model";
 
 export type CampaignPlanJob = {
+  location_details?: import("./job-location").JobLocation | null;
   assignee_ids?: string[];
   id: string; title: string; status_id: string; shoot_date: string | null; due_date: string | null;
   description: string | null; location: string | null; deliverables: JobDeliverable[];

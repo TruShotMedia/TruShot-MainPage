@@ -104,7 +104,7 @@ describe("shared desktop workspace",()=>{
    if(mode==="marketing")expect(container.querySelector(".apg-task-copy,.apg-task-start")).toBeNull();
   } finally {await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
- it("opens and dismisses the mobile settings sheet and preserves all five pages",async()=>{
+ it("opens and dismisses the mobile settings sheet and preserves all six pages",async()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));
   const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
@@ -112,7 +112,7 @@ describe("shared desktop workspace",()=>{
    await act(async()=>root.render(<ProductionDesktop experience="mobile" data={data} mode="production" initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
    expect(container.querySelector(".is-mobile-app")).not.toBeNull();
    expect(container.querySelector('[aria-label="Today agenda"]')).not.toBeNull();
-   expect(container.querySelectorAll(".apg-mobile-bottom-nav button")).toHaveLength(5);
+   expect(container.querySelectorAll(".apg-mobile-bottom-nav button")).toHaveLength(6);
    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Open workspace settings"]')!.click());
    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Account security");
    await act(async()=>container.querySelector<HTMLButtonElement>('[aria-label="Close workspace settings"]')!.click());
@@ -129,7 +129,7 @@ describe("shared desktop workspace",()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
   try{await act(async()=>root.render(<ProductionDesktop data={data} mode="marketing" initialView="jobs" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
-    expect([...container.querySelectorAll(".apg-mobile-bottom-nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar","Today"]);
+    expect([...container.querySelectorAll(".apg-mobile-bottom-nav button")].map(button=>button.textContent)).toEqual(["Jobs","Tasks","Campaigns","Calendar","Today","Map"]);
     expect(document.title).toBe("Jobs | AutoPacific Marketing");
     expect(container.textContent).not.toContain("Undated planning brief");
     await act(async()=>[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Planning")!.click());expect(container.textContent).toContain("Undated planning brief");

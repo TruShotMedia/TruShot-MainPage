@@ -41,6 +41,7 @@ const tabletViewCopy: Record<TabletView, { eyebrow: string; title: string }> = {
   calendar: { eyebrow: "Schedule", title: "Calendar" },
   today: { eyebrow: "Daily briefing", title: "Today" },
   campaigns: { eyebrow: "Connected content plans", title: "Campaigns" },
+  map: { eyebrow: "Location history", title: "Map" },
 };
 
 type TabletKioskBranding = {
