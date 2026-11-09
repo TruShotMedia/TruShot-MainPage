@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarSync, LockKeyhole, RefreshCw, Unplug, X } from "lucide-react";
 import { WorkspaceDialog } from "./workspace-dialog";
+import { CalendarSubscriptionPanel } from "./calendar-subscription-panel";
 import { OUTLOOK_REFRESH_MINUTES, type OutlookCalendarStatus } from "@/lib/outlook-calendar/model";
 import "./outlook-calendar.css";
 
@@ -19,6 +20,7 @@ function ConnectionDialog({ onClose, onChanged }: { onClose: () => void; onChang
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [direction, setDirection] = useState<"import" | "export">("import");
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/calendar/outlook", { cache: "no-store", signal: controller.signal }).then(async response => {
@@ -50,9 +52,11 @@ function ConnectionDialog({ onClose, onChanged }: { onClose: () => void; onChang
     if (input instanceof HTMLInputElement) input.value = "";
   }
   return <WorkspaceDialog className="outlook-connection-dialog" titleId="outlook-connection-title" onClose={onClose} busy={busy}
-    header={<><div><span><CalendarSync size={15} /> Connected calendar</span><h2 id="outlook-connection-title">Your Outlook, alongside your work</h2><p>See your schedule here. Keep managing Outlook events in Outlook.</p></div><button type="button" aria-label="Close Outlook connection" onClick={onClose} disabled={busy}><X size={20} /></button></>}
+    header={<><div><span><CalendarSync size={15} /> Calendar connections</span><h2 id="outlook-connection-title">Outlook & your workspace</h2><p>Bring Outlook in, or subscribe to your AutoPacific work.</p></div><button type="button" aria-label="Close Outlook connection" onClick={onClose} disabled={busy}><X size={20} /></button></>}
     footer={<><span className="outlook-private-label"><LockKeyhole size={13} /> Private to your login</span><button type="button" onClick={onClose} disabled={busy}>Done</button></>}>
     <div className="outlook-connection-content">
+      <div className="calendar-connection-directions" role="group" aria-label="Calendar direction"><button type="button" aria-pressed={direction === "import"} disabled={busy} onClick={() => setDirection("import")}>Outlook → CRM</button><button type="button" aria-pressed={direction === "export"} disabled={busy} onClick={() => setDirection("export")}>Subscribe in Outlook</button></div>
+      {direction === "export" ? <CalendarSubscriptionPanel onBusyChange={setBusy} /> : <>
       {loading ? <p role="status">Loading connection…</p> : calendars.length ? calendars.map(calendar => <section className="outlook-status" key={calendar.id}>
         <span className="outlook-source-label">OUTLOOK · READ ONLY</span><h3>{calendar.name}</h3>
         <p>{calendar.event_count} events available · Refreshes about every {OUTLOOK_REFRESH_MINUTES} minutes</p>
@@ -69,6 +73,7 @@ function ConnectionDialog({ onClose, onChanged }: { onClose: () => void; onChang
       {error ? <p className="outlook-message is-error" role="alert">{error}</p> : null}
       {message ? <p className="outlook-message" role="status">{message}</p> : null}
       <aside className="outlook-connection-help"><strong>One-way, no duplicates</strong><p>Outlook events cannot be edited here and are not sent to ClickUp or used for CRM push reminders. A cancelled or removed Outlook event disappears after the next successful refresh.</p><p>Times are shown in Brisbane time. The app reads up to a year either side of today, within the date range Outlook publishes. If Outlook is unavailable, your last saved events remain visible.</p><p>Treat your ICS link like a password: anyone who has it can read the details you published.</p></aside>
+      </>}
     </div>
   </WorkspaceDialog>;
 }
