@@ -1,11 +1,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ client: vi.fn(), rpc: vi.fn(), from: vi.fn(), insert: vi.fn(), upsert: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ client: vi.fn(), rpc: vi.fn(), from: vi.fn(), insert: vi.fn(), upsert: vi.fn(), remove: vi.fn(), account: vi.fn() }));
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: mocks.client }));
 import { createSubscription, hashSubscriptionToken, readSubscription, revokeSubscription, subscriptionStatus } from "./service";
-beforeEach(() => { vi.clearAllMocks(); mocks.client.mockReturnValue({ rpc: mocks.rpc, from: mocks.from }); });
+beforeEach(() => { vi.clearAllMocks(); mocks.account.mockResolvedValue({ data: { user: { id: "owner" } }, error: null }); mocks.client.mockReturnValue({ rpc: mocks.rpc, from: mocks.from, auth: { admin: { getUserById: mocks.account } } }); });
 it("validates keys before database access and sends only a digest to the RPC", async () => {
   expect(await readSubscription("invalid")).toBeNull(); expect(mocks.client).not.toHaveBeenCalled();
-  const token = "a".repeat(64); mocks.rpc.mockResolvedValue({ data: { events: [] }, error: null });
+  const token = "a".repeat(64); mocks.rpc.mockResolvedValue({ data: { owner_id: "owner", events: [] }, error: null });
   const result = await readSubscription(token);
   expect(mocks.rpc).toHaveBeenCalledWith("website-read-calendar-subscription", { p_token_hash: hashSubscriptionToken(token) });
   expect(result?.body).toContain("BEGIN:VCALENDAR"); expect(result?.body).not.toContain(token);
@@ -13,8 +13,19 @@ it("validates keys before database access and sends only a digest to the RPC", a
 });
 it("does not turn lookup failures or oversized feeds into empty calendars", async () => {
   mocks.rpc.mockResolvedValue({ error: { message: "unavailable" } }); await expect(readSubscription("a".repeat(64))).rejects.toThrow();
-  mocks.rpc.mockResolvedValue({ data: { events: Array(4001).fill({}) } }); await expect(readSubscription("a".repeat(64))).rejects.toThrow();
+  mocks.rpc.mockResolvedValue({ data: { owner_id: "owner", events: Array(4001).fill({}) } }); await expect(readSubscription("a".repeat(64))).rejects.toThrow();
   mocks.rpc.mockResolvedValue({ data: null }); expect(await readSubscription("a".repeat(64))).toBeNull();
+});
+it("checks account status through Auth without granting direct access to auth.users", async () => {
+  mocks.rpc.mockResolvedValue({ data: { owner_id: "owner", events: [] } });
+  mocks.account.mockResolvedValue({ data: { user: { id: "owner", banned_until: "2099-01-01T00:00:00Z" } } });
+  expect(await readSubscription("a".repeat(64))).toBeNull();
+  mocks.account.mockResolvedValue({ data: { user: { id: "owner", deleted_at: "2026-11-10" } } });
+  expect(await readSubscription("a".repeat(64))).toBeNull();
+  mocks.account.mockResolvedValue({ data: { user: null }, error: { status: 404 } });
+  expect(await readSubscription("a".repeat(64))).toBeNull();
+  mocks.account.mockResolvedValue({ data: { user: null }, error: { status: 503 } });
+  await expect(readSubscription("a".repeat(64))).rejects.toThrow();
 });
 it("stores random 256-bit token digests only; an existing link needs explicit replacement", async () => {
   mocks.insert.mockResolvedValue({ error: null }); mocks.upsert.mockResolvedValue({ error: null }); mocks.from.mockReturnValue({ insert: mocks.insert, upsert: mocks.upsert });

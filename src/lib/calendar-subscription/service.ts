@@ -35,12 +35,24 @@ export async function revokeSubscription(owner: string) {
 }
 export async function readSubscription(token: string) {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  // One bounded DB query, no per-event network calls, scheduler or write-on-read.
+  // One bounded DB query plus one supported Auth admin account check. No
+  // per-event network calls, scheduler, direct auth.users grant or write-on-read.
   // The service-only RPC rechecks the owner's active account/permissions on
   // every request and returns only explicit, minimal native AutoPacific fields.
-  const { data, error } = await service().rpc("website-read-calendar-subscription", { p_token_hash: hashSubscriptionToken(token) });
+  const client = service();
+  const { data, error } = await client.rpc("website-read-calendar-subscription", { p_token_hash: hashSubscriptionToken(token) });
   if (error) throw new Error("Calendar subscription unavailable");
   if (!data) return null;
+  if (typeof data.owner_id !== "string") throw new Error("Calendar owner verification unavailable");
+  const { data: account, error: accountError } = await client.auth.admin.getUserById(data.owner_id);
+  if (accountError?.status === 404) return null;
+  if (accountError || !account.user) throw new Error("Calendar owner verification unavailable");
+  if (account.user.id !== data.owner_id || account.user.deleted_at) return null;
+  if (account.user.banned_until) {
+    const until = Date.parse(account.user.banned_until);
+    if (!Number.isFinite(until)) throw new Error("Calendar owner verification unavailable");
+    if (until > Date.now()) return null;
+  }
   const events = data.events as SubscriptionEvent[];
   if (!Array.isArray(events) || events.length > 4000) throw new Error("Calendar subscription limit exceeded");
   const body = serializeCalendar(events);
