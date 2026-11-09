@@ -1,5 +1,3 @@
-import type { CalendarCustomEvent } from "@/lib/types";
-
 export type OutlookCalendarStatus = {
   id: string;
   name: string;
@@ -17,6 +15,6 @@ export function outlookNextSyncAt(now: Date, minutes = OUTLOOK_REFRESH_MINUTES) 
   return new Date((Math.floor(now.getTime() / interval) + Math.ceil(minutes / OUTLOOK_REFRESH_MINUTES)) * interval).toISOString();
 }
 
-export function isOutlookEvent(event: CalendarCustomEvent) {
-  return event.external_source === "outlook";
+export function isOutlookEvent(event: { entity_type: string; external_source?: string }) {
+  return event.entity_type === "calendar-event" && event.external_source === "outlook";
 }

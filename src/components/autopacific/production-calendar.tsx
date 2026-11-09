@@ -4,6 +4,8 @@ import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
+import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
+import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import {
   productionDayAgenda,
@@ -107,10 +109,12 @@ export function TimedSchedule({
                 type="button"
                 key={item.id}
                 className={agendaTone(item.source, today)}
+                data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined}
                 onClick={() => onOpen(item.source)}
               >
                 <strong>{item.title}</strong>
                 <small>{item.detail}</small>
+                {isOutlookEvent(item.source) ? <OutlookEventMark /> : null}
               </button>
             ))}
             {!agenda.allDay.length ? (
@@ -145,6 +149,7 @@ export function TimedSchedule({
                 key={block.id}
                 type="button"
                 className={`timetable-booking ${block.end-block.start<45?"is-short":""} ${agendaTone(block.source, today)}`}
+                data-calendar-source={isOutlookEvent(block.source) ? "outlook" : undefined}
                 style={
                   {
                     top: ((block.start - firstHour * 60) * 64) / 60,
@@ -162,6 +167,7 @@ export function TimedSchedule({
               >
                 <small>{block.time}</small>
                 <strong>{block.title}</strong>
+                {isOutlookEvent(block.source) ? <OutlookEventMark /> : null}
                 {block.end - block.start >= 60 ? (
                   <span>{block.detail}</span>
                 ) : null}

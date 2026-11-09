@@ -44,6 +44,7 @@ it("uses a read-only detail view even if the common event editor is requested", 
 });
 it("renders source details as plain text, never executable HTML", async () => {
   await render(<OutlookEventDetails event={{ ...event, description: '<img src=x onerror="alert(1)">' }} onClose={vi.fn()} />);
-  expect(container.querySelector("img")).toBeNull();
+  expect(container.querySelector('img[src="x"]')).toBeNull();
+  expect(container.querySelectorAll('img[src="/brands/outlook.svg"]')).toHaveLength(1);
   expect(container.textContent).toContain("<img src=x");
 });

@@ -117,6 +117,21 @@ describe("TabletCalendar", () => {
     Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 
+  it("marks only Outlook imports with the local provider logo and keeps them read-only", async () => {
+    const outlook: CalendarCustomEvent = { ...customEvents[0], id: "outlook-private", title: "Outlook planning call", external_source: "outlook" };
+    const onOpen = vi.fn();
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} customEvents={[outlook, customEvents[0]]} today="2026-08-12" onEditEvent={onOpen} />));
+    const imported = container.querySelector<HTMLElement>('.tablet-calendar-job-range[data-calendar-source="outlook"]')!;
+    expect(imported).not.toBeNull();
+    expect(imported.querySelector('img')?.getAttribute("src")).toBe("/brands/outlook.svg");
+    expect(imported.getAttribute("title")).toContain("Read only");
+    await act(async () => imported.click());
+    expect(onOpen).toHaveBeenCalledWith(outlook);
+    const native = [...container.querySelectorAll('.tablet-calendar-job-range')].find(card => card.textContent === customEvents[0].title)!;
+    expect(native.querySelector('.outlook-event-mark')).toBeNull();
+    expect(container.querySelector('.tablet-calendar-day-add')).toBeNull();
+  });
+
   it("draws inclusive multi-day job bars and greys completed deadlines", async () => {
     await act(async () => root.render(<TabletCalendar jobs={jobs} tasks={tasks} today="2026-08-25" />));
 

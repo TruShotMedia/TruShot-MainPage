@@ -1,0 +1,9 @@
+Microsoft Outlook is a trademark of Microsoft Corporation.
+This unmodified product icon identifies imported Outlook calendar events only;
+it does not imply that this application is made, sponsored or endorsed by Microsoft.
+
+Icon: Microsoft Outlook (2025–present), authored by Microsoft.
+Original source: https://www.microsoft.com/en-gb/microsoft-365
+Asset reference: https://commons.wikimedia.org/wiki/File:Microsoft_Outlook_Icon_(2025%E2%80%93present).svg
+Retrieved 10 November 2026. Wikimedia Commons identifies the geometric logo as
+PD-textlogo; trademark rights remain with Microsoft.

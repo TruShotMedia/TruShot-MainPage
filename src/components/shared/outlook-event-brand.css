@@ -1,0 +1,53 @@
+/* Provider identity is separate from job/client status. Keep these explicit
+   colours compatible with the older Chrome kiosk (no color-mix dependency). */
+.apg-desktop, .tablet-kiosk {
+  --outlook-event-bg: #122e49;
+  --outlook-event-text: #e0f0ff;
+  --outlook-event-muted: #acd2f3;
+  --outlook-event-line: #366386;
+  --outlook-event-accent: #50aeff;
+}
+.apg-desktop:not(.is-dark), .tablet-kiosk.is-light {
+  --outlook-event-bg: #eaf4ff;
+  --outlook-event-text: #123d62;
+  --outlook-event-muted: #345f85;
+  --outlook-event-line: #a4c9ec;
+  --outlook-event-accent: #0078d4;
+}
+.apg-desktop .tablet-calendar .tablet-calendar-job-range.is-calendar-event[data-calendar-source="outlook"],
+.tablet-kiosk .tablet-calendar .tablet-calendar-job-range.is-calendar-event[data-calendar-source="outlook"],
+.apg-desktop .tablet-calendar .tablet-calendar-mobile-entry[data-calendar-source="outlook"],
+.tablet-kiosk .tablet-calendar .tablet-calendar-mobile-entry[data-calendar-source="outlook"],
+.apg-desktop .production-timetable button[data-calendar-source="outlook"],
+.apg-desktop .apg-mobile-schedule button[data-calendar-source="outlook"] {
+  position: relative;
+  border: 1px solid var(--outlook-event-line);
+  border-left: 3px solid var(--outlook-event-accent);
+  background: var(--outlook-event-bg);
+  color: var(--outlook-event-text);
+  opacity: 1;
+  filter: none;
+  padding-right: 30px;
+  pointer-events: auto;
+}
+.apg-desktop [data-calendar-source="outlook"] strong,
+.apg-desktop [data-calendar-source="outlook"] em,
+.tablet-kiosk [data-calendar-source="outlook"] strong,
+.tablet-kiosk [data-calendar-source="outlook"] em { color: var(--outlook-event-text); }
+.apg-desktop [data-calendar-source="outlook"] small,
+.apg-desktop [data-calendar-source="outlook"] .tablet-calendar-mobile-entry-time,
+.tablet-kiosk [data-calendar-source="outlook"] small,
+.tablet-kiosk [data-calendar-source="outlook"] .tablet-calendar-mobile-entry-time { color: var(--outlook-event-muted); }
+.outlook-event-mark { position: absolute; top: 7px; right: 7px; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; flex: none; overflow: visible; pointer-events: none; line-height: 1; opacity: 1; }
+.outlook-event-mark > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.outlook-event-mark.is-inline { position: static; width: 18px; height: 18px; transform: none; vertical-align: middle; }
+.tablet-calendar-job-range[data-calendar-source="outlook"] > .outlook-event-mark { top: 50%; right: 6px; width: 13px; height: 13px; transform: translateY(-50%); }
+.tablet-calendar-mobile-entry[data-calendar-source="outlook"] > .outlook-event-mark { width: 20px; height: 20px; top: 12px; right: 10px; }
+.timetable-booking.is-short[data-calendar-source="outlook"] > .outlook-event-mark { width: 10px; height: 10px; top: 50%; right: 3px; transform: translateY(-50%); }
+.apg-desktop .apg-mobile-all-day > button[data-calendar-source="outlook"] > .outlook-event-mark { grid-column: auto; grid-row: auto; }
+.apg-desktop .apg-mobile-all-day > button[data-calendar-source="outlook"] > strong,
+.apg-desktop .apg-mobile-all-day > button[data-calendar-source="outlook"] > small { grid-column: 1; }
+.apg-desktop .apg-mobile-timeline article > button[data-calendar-source="outlook"] > .outlook-event-mark { flex: none; }
+/* Never dim the provider mark when a past event is given a completed class. */
+.apg-desktop [data-calendar-source="outlook"] > .outlook-event-mark,
+.tablet-kiosk [data-calendar-source="outlook"] > .outlook-event-mark { opacity: 1; }

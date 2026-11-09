@@ -17,6 +17,8 @@ import {
 } from "date-fns";
 import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Megaphone, Plane, Plus, RotateCcw } from "lucide-react";
 import { AirlineLogo } from "@/components/tablet/airline-logo";
+import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
+import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather, WeatherIcon } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather, WeatherLocationKey } from "@/lib/calendar-weather";
 import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges, type CalendarRangeSegment, type CalendarScheduleRangeItem } from "@/lib/calendar-layout";
@@ -198,6 +200,7 @@ function dateFallsInRange(date: string, range: { end: string; start: string; wee
 
 function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, today }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; range: ReturnType<typeof getCalendarScheduleRanges>[number]; today: string }) {
   const item = range.item;
+  const outlook = isOutlookEvent(item);
   const isFlight = item.entity_type === "flight-event";
   const isCalendarEvent = item.entity_type === "calendar-event";
   const isComplete = isCalendarItemComplete(item, today, currentTime);
@@ -207,7 +210,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
   const kicker = isFlight
     ? "Flight itinerary"
     : isCalendarEvent
-      ? "Calendar event"
+      ? outlook ? "Outlook · Read only" : "Calendar event"
       : isOverdue
         ? "Overdue job"
       : item.entity_type === "campaign-asset"
@@ -225,6 +228,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
   return (
     <article
       className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isOverdue ? "is-overdue" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
+      data-calendar-source={outlook ? "outlook" : undefined}
       style={{ "--tablet-calendar-color": color } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
@@ -236,6 +240,7 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
         }
       } : undefined}
     >
+      {outlook ? <OutlookEventMark /> : null}
       <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
       <span className="tablet-calendar-mobile-entry-copy"><small>{kicker}</small><strong>{item.title}</strong><MobileBookingTime label={mobileRangeTimeLabel(item)} />{detail ? <em>{detail}</em> : null}</span>
       <span className="tablet-calendar-mobile-entry-side">{isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
@@ -314,6 +319,7 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
 
 function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string }) {
   const windowLabel = dateWindowLabel(segment.start, segment.end);
+  const outlook = isOutlookEvent(segment.item);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
   const isComplete = isCalendarItemComplete(segment.item, today, currentTime);
   const isOverdue = isOverdueAccentWork(segment.item, palette, today);
@@ -324,9 +330,10 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
     : segment.item.entity_type === "campaign-asset"
       ? segment.item.campaign_title
       : segment.item.client_name ?? "No client";
-  const statusLabel = segment.item.entity_type === "calendar-event" ? "Calendar event" : segment.item.status_label;
+  const statusLabel = segment.item.entity_type === "calendar-event" ? outlook ? "Outlook · Read only" : "Calendar event" : segment.item.status_label;
   return (
     <article
+      data-calendar-source={outlook ? "outlook" : undefined}
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
       className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       role={editable ? "button" : undefined}
@@ -346,6 +353,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
       } as CSSProperties}
     >
       <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
+      {outlook ? <OutlookEventMark /> : null}
       {!isCalendarEvent ? <em>{context}</em> : null}
       {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </article>
