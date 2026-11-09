@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
+import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import {
   productionDayAgenda,
@@ -232,6 +233,7 @@ export function ProductionCalendar({
   return (
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">
+        {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
         <div className="apg-view-pills" aria-label="Schedule view">
           {(!todayOnly ? ["fortnight", "week", "day"] : ["day"]).map((key) => (
             <button

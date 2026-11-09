@@ -8,6 +8,7 @@ import { getProductionTeam } from "@/lib/data/production-team";
 import { buildDelayInfoByRecord } from "@/lib/delay-history";
 import { createClient } from "@/lib/supabase/server";
 import { scopeTabletKioskDataByClient } from "@/lib/tablet-client-scope";
+import { getOutlookEvents } from "@/lib/outlook-calendar/service";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarJob, CalendarTask, Campaign, ClientEnquiry, ExpenseRecord, GlobalSearchItem, InvoiceOption, PipelineTask, PortfolioCategory, PortfolioItem, PortfolioMiscLogo, TabletJobRecord, TabletKioskData, TaskStatus } from "@/lib/types";
 
 export const getAdminContext = cache(async () => {
@@ -266,12 +267,12 @@ export async function getPipeline() {
   };
 }
 
-export async function getTabletKioskData(options: { clientName?: string; includeOtherCalendarItems?: boolean } = {}): Promise<TabletKioskData> {
+export async function getTabletKioskData(options: { clientName?: string; includeOtherCalendarItems?: boolean; includeOutlook?: boolean } = {}): Promise<TabletKioskData> {
   const context = options.clientName ? await getProductionContext() : await getAdminContext();
   if (!context) return { statuses: [], jobStatuses: [], clientOptions: [], jobOptions: [], pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [], calendarEvents: [], flightEvents: [], pendingRequestCount: 0 };
   const { supabase } = context;
 
-  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult, workRecordNotesResult] = await Promise.all([
+  const [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult, workRecordNotesResult, outlookEvents] = await Promise.all([
     supabase
       .from("website-task-statuses")
       .select("id,key,label,color,position,is_open,is_active")
@@ -338,6 +339,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .select("id,record_kind,job_id,task_id,body,created_at,updated_at,rescheduled_date,created_by,mention_user_ids")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("created_at"),
+    options.includeOutlook && options.clientName?.trim().toLowerCase() === "autopacific group" ? getOutlookEvents(supabase) : Promise.resolve([]),
   ]);
 
   const queryError = [taskStatusesResult, tasksResult, jobsResult, campaignsResult, campaignAssetsResult, calendarEventsResult, flightEventsResult, clientsResult, jobStatusesResult, enquiriesResult, jobDelayHistoryResult, taskDelayHistoryResult, workRecordNotesResult]
@@ -477,14 +479,14 @@ export async function getTabletKioskData(options: { clientName?: string; include
     }];
   });
 
-  const calendarEvents = (calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
+  const calendarEvents = [...outlookEvents, ...(calendarEventsResult.data ?? []).map((event): CalendarCustomEvent => ({
     ...event,
     entity_type: "calendar-event",
     client_name: event.client_id ? clientsById.get(event.client_id)?.name ?? null : null,
     reminder_offsets_minutes: Array.isArray(event.reminder_offsets_minutes)
       ? event.reminder_offsets_minutes.map(Number).filter(Number.isFinite)
       : [],
-  }));
+  }))];
 
   const flightEvents = (flightEventsResult.data ?? []).map((event): CalendarFlightEvent => ({
     ...event,

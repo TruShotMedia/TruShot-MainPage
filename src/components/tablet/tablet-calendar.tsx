@@ -485,6 +485,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   }
 
   function openRangeItem(item: CalendarScheduleRangeItem) {
+    if (item.entity_type === "calendar-event" && item.external_source === "outlook") { onEditEvent?.(item); return; }
     if (!editable) return;
     if (item.entity_type === "calendar-event") onEditEvent?.(item);
     else if (item.entity_type === "flight-event") onEditFlight?.(item);
@@ -534,7 +535,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
               {editable ? <button type="button" onClick={() => onCreateEvent?.(activeMobileDate)} aria-label={`Add event on ${format(parseISO(activeMobileDate), "d MMMM yyyy")}`}><Plus size={16} /> Add</button> : null}
             </header>
             <div className="tablet-calendar-mobile-list">
-              {selectedMobileRanges.map((range) => <MobileRangeAgendaCard currentTime={currentTime} editable={editable} key={range.id} onOpen={openRangeItem} palette={palette} range={range} today={today} />)}
+              {selectedMobileRanges.map((range) => <MobileRangeAgendaCard currentTime={currentTime} editable={editable || (range.item.entity_type === "calendar-event" && range.item.external_source === "outlook")} key={range.id} onOpen={openRangeItem} palette={palette} range={range} today={today} />)}
               {selectedMobileEvents.map((event) => <MobileDeadlineAgendaCard editable={editable} event={event} key={event.id} onOpen={onEditItem} />)}
               {!selectedMobileRanges.length && !selectedMobileEvents.length ? <div className="tablet-calendar-mobile-empty"><Clock3 size={22} /><strong>Clear day</strong><span>Nothing is scheduled for this date.</span></div> : null}
             </div>
@@ -598,7 +599,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                 </div>
                 {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange currentTime={currentTime} editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange currentTime={currentTime} editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}

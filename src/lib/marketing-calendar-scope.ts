@@ -16,7 +16,7 @@ export function scopeCalendarForWorkspace<T extends CalendarData>(data: T, mode:
     calendarJobs: data.calendarJobs.filter(item => !isIngreign(item)),
     calendarTasks: data.calendarTasks.filter(item => !isIngreign(item)),
     calendarCampaignAssets: data.calendarCampaignAssets.filter(item => !isIngreign(item)),
-    calendarEvents: data.calendarEvents.filter(item => !isIngreign(item)),
+    calendarEvents: data.calendarEvents.filter(item => !isIngreign(item) && item.external_source !== "outlook"),
     flightEvents: data.flightEvents.filter(item => !isIngreign(item)),
   };
 }

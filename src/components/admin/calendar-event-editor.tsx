@@ -7,6 +7,8 @@ import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
 import { calendarEventWindowError } from "@/lib/calendar-event";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
+import { OutlookEventDetails } from "@/components/shared/outlook-event-details";
+import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import type { CalendarCustomEvent, SelectOption } from "@/lib/types";
 
 const reminderOptions = [
@@ -30,7 +32,11 @@ type CalendarEventEditorProps = {
   onSaved: (event: CalendarCustomEvent) => void;
 };
 
-export function CalendarEventEditor({ clientOptions = [], defaultClientId = null, event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
+export function CalendarEventEditor(props: CalendarEventEditorProps) {
+  return props.event && isOutlookEvent(props.event) ? <OutlookEventDetails event={props.event} onClose={props.onClose} /> : <EditableCalendarEvent {...props} />;
+}
+
+function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
   const [allDay, setAllDay] = useState(event?.is_all_day ?? false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);

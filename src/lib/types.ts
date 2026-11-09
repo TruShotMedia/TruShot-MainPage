@@ -290,6 +290,9 @@ export type CalendarCampaignAsset = {
 export type CalendarItem = CalendarJob | CalendarTask | CalendarCampaignAsset;
 
 export type CalendarCustomEvent = {
+  external_source?: "outlook";
+  external_calendar_name?: string;
+  external_revision?: string;
   assignee_ids?: string[];
   id: string;
   entity_type: "calendar-event";

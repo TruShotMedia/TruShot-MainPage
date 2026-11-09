@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { ProductionWordmark } from "./production-wordmark";
+import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -967,6 +968,7 @@ export function ProductionDesktop({
       </div>
       {controlsOpen ? <WorkspaceDialog className="apg-settings-sheet" titleId="apg-settings-title" onClose={() => setControlsOpen(false)} header={<><div><span>AutoPacific {marketing ? "Marketing" : "Production"}</span><h2 id="apg-settings-title">Workspace settings</h2></div><button type="button" onClick={() => setControlsOpen(false)} aria-label="Close workspace settings"><X size={20} /></button></>} footer={<button type="button" className="admin-primary-button" onClick={() => setControlsOpen(false)}>Done</button>}>
         <div className="apg-settings-actions">
+          {!marketing ? <OutlookCalendarConnection onChanged={() => void refresh("calendar")} /> : null}
           <button type="button" onClick={() => { setControlsOpen(false); setMyAccount(true); }}><TeamAvatar member={team?.members.find(member => member.user_id === team.userId)} url={team?.selfAvatarUrl} /><span>My Account<small>Your profile photo and account details</small></span></button>
           {!marketing && team?.canManage ? <button type="button" onClick={() => { setControlsOpen(false); setManageTeam(true); }}><Users size={20} /><span>Manage team<small>People, usernames and permissions</small></span></button> : null}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={20} /> : <Sun size={20} />}<span>Appearance<small>Switch to {theme === "light" ? "dark" : "light"} mode</small></span></button>

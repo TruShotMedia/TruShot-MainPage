@@ -6,6 +6,7 @@ import { dispatchClickUpJobSync } from "@/lib/clickup/job-sync";
 import { reconcileClickUpJobs } from "@/lib/clickup/inbound-sync";
 import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 import { dispatchLifestyleReminders } from "@/lib/lifestyle-reminders";
+import { dispatchOutlookCalendarSync } from "@/lib/outlook-calendar/service";
 
 export const runtime = "nodejs";
 // A status migration can queue existing mirrors together. Let the bounded batch
@@ -40,13 +41,14 @@ export async function POST(request: Request) {
         message: "ClickUp could not be reached during this reminder run.",
       };
     });
-    const [calendar, ingreign, lifestyle, clickup] = await Promise.all([
+    const [calendar, ingreign, lifestyle, clickup, outlook] = await Promise.all([
       dispatchCalendarReminders(),
       dispatchIngreignReminders(),
       dispatchLifestyleReminders(),
       clickUpSync,
+      dispatchOutlookCalendarSync().catch(() => ({ status: "unavailable" })),
     ]);
-    return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup });
+    return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup, outlook });
   } catch (error) {
     console.error("Calendar reminder dispatch failed.", error);
     return Response.json({ error: "Calendar reminders could not be processed." }, { status: 500 });

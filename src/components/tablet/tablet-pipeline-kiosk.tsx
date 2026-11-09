@@ -140,7 +140,7 @@ function scheduleVersionFor(snapshot: Omit<TabletScheduleSnapshot, "version">) {
     ...snapshot.calendarJobs.map((item) => `job:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
     ...snapshot.calendarTasks.map((item) => `task:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
     ...snapshot.calendarCampaignAssets.map((item) => `campaign:${item.id}:${item.status_label}:${item.status_color}:${item.is_complete}`),
-    ...snapshot.calendarEvents.map((item) => `event:${item.id}:${item.updated_at}`),
+    ...snapshot.calendarEvents.map((item) => `event:${item.id}:${item.updated_at}:${item.external_revision ?? ""}`),
     ...snapshot.flightEvents.map((item) => `flight:${item.id}:${item.updated_at}`),
   ].join("|");
 }
@@ -382,7 +382,7 @@ export function TabletPipelineKiosk({
       const headers = new Headers();
       const eTag = tabETags.current.get(tab);
       if (eTag) headers.set("If-None-Match", eTag);
-      const response = await fetch(`/api/autopacific/tab?view=${tab}&mode=${workspaceMode}`, {
+      const response = await fetch(`/api/autopacific/tab?view=${tab}&mode=${workspaceMode}${branding.theme === "autopacific" || isMarketing ? "" : "&outlook=0"}`, {
         cache: "no-store",
         credentials: "same-origin",
         headers,
@@ -419,7 +419,7 @@ export function TabletPipelineKiosk({
     } finally {
       tabRefreshInFlight.current.delete(tab);
     }
-  }, [jobPipelineVersion, jobStatusVersion, offlineQueue.length, pipelineVersion, scheduleVersion, taskStatusVersion, workspaceMode]);
+  }, [branding.theme, isMarketing, jobPipelineVersion, jobStatusVersion, offlineQueue.length, pipelineVersion, scheduleVersion, taskStatusVersion, workspaceMode]);
 
   const refreshActiveTab = useCallback(() => {
     void refreshTab(activeView);

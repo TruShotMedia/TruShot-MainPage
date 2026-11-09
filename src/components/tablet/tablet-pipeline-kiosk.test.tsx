@@ -362,7 +362,7 @@ describe("TabletPipelineKiosk", () => {
     ));
 
     await act(async () => vi.advanceTimersByTime(15 * 60_000));
-    expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule&mode=production", expect.objectContaining({ cache: "no-store" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/autopacific/tab?view=schedule&mode=production&outlook=0", expect.objectContaining({ cache: "no-store" }));
     expect(routerMocks.refresh).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="pipeline-view"], [data-testid="calendar-view"]')).not.toBeNull();
 

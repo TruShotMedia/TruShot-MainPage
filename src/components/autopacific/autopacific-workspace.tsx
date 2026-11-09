@@ -30,7 +30,7 @@ export async function AutopacificWorkspace({ experience, requestedView, requeste
   }
 
   const [workspaceData, cookieStore, team] = await Promise.all([
-    getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
+    getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true, includeOutlook: !isMarketing }),
     cookies(),
     getProductionTeam(context.supabase, context.claims.sub, context.access === "admin"),
   ]);

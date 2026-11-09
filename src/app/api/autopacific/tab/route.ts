@@ -204,10 +204,10 @@ async function tasksPayload() {
   };
 }
 
-async function schedulePayload(mode: WorkspaceMode) {
+async function schedulePayload(mode: WorkspaceMode, includeOutlook: boolean) {
   if (!await getProductionContext()) return null;
   const data = scopeTabletKioskDataByClient(
-    await getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true }),
+    await getTabletKioskData({ clientName: AUTOPACIFIC_CLIENT_NAME, includeOtherCalendarItems: true, includeOutlook: mode !== "marketing" && includeOutlook }),
     AUTOPACIFIC_CLIENT_NAME,
     { includeOtherCalendarItems: true },
   );
@@ -229,7 +229,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown workspace tab." }, { status: 400, headers: responseHeaders });
   }
   try {
-    const payload = requested === "jobs" ? await jobsPayload() : requested === "tasks" ? await tasksPayload() : await schedulePayload(mode);
+    const payload = requested === "jobs" ? await jobsPayload() : requested === "tasks" ? await tasksPayload() : await schedulePayload(mode, params.get("outlook") !== "0");
     if (!payload) return NextResponse.json({ error: "Unauthorised" }, { status: 401, headers: responseHeaders });
     const cached = notModified(request, payload);
     if (cached) return cached;
