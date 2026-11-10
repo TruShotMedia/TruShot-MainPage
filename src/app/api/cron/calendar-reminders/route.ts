@@ -7,6 +7,7 @@ import { reconcileClickUpJobs } from "@/lib/clickup/inbound-sync";
 import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 import { dispatchLifestyleReminders } from "@/lib/lifestyle-reminders";
 import { dispatchOutlookCalendarSync } from "@/lib/outlook-calendar/service";
+import { dispatchOutlookClickUpSync } from "@/lib/clickup/outlook-sync";
 
 export const runtime = "nodejs";
 // A status migration can queue existing mirrors together. Let the bounded batch
@@ -46,7 +47,11 @@ export async function POST(request: Request) {
       dispatchIngreignReminders(),
       dispatchLifestyleReminders(),
       clickUpSync,
-      dispatchOutlookCalendarSync().catch(() => ({ status: "unavailable" })),
+      // Always finish the Outlook import before mirroring its latest snapshot.
+      // A failed import retains good data; completion still advances with time.
+      dispatchOutlookCalendarSync().catch(() => ({ status: "unavailable" })).then(async imported => ({
+        ...imported, clickup: await dispatchOutlookClickUpSync().catch(() => ({ status: "unavailable" })),
+      })),
     ]);
     return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup, outlook });
   } catch (error) {

@@ -2,6 +2,7 @@ import "server-only";
 
 import { extractClickUpCalendarEventId } from "@/lib/clickup/calendar-event-mapping";
 import { extractClickUpFlightEventId } from "@/lib/clickup/flight-event-mapping";
+import { extractOutlookMirror } from "@/lib/clickup/outlook-mapping";
 import { ClickUpApiError, getClickUpTask, getClickUpTasks, type ClickUpTask } from "@/lib/clickup/client";
 import { claimClickUpImport } from "@/lib/clickup/import-claim";
 import {
@@ -249,6 +250,10 @@ async function processRemoteTask(
   task: ClickUpTask,
 ): Promise<EventOutcome> {
   const taskId = task.id;
+  // Outlook is authoritative. Even a mirror moved into the Jobs list must not
+  // turn into a new CRM job or feed back into the Outlook subscription.
+  if (extractOutlookMirror(task.markdown_description ?? task.description))
+    return { status: "ignored", detail: "Outlook calendar mirrors are outbound-only." };
   const { data: eventLink, error: eventLinkError } = await supabase.from("website-clickup-calendar-event-links")
     .select("calendar_event_id")
     .eq("workspace_id", integration.workspace_id).eq("clickup_task_id", taskId).maybeSingle();

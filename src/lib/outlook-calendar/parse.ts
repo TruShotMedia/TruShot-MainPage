@@ -37,6 +37,9 @@ export async function parseOutlookCalendar(body: string, calendarId: string, own
     const result: CalendarCustomEvent[] = [];
     for (const event of Object.values(parsed)) {
       if (!event || event.type !== "VEVENT" || event.status === "CANCELLED") continue;
+      // Native CRM subscriptions can be overlaid in Outlook. Never re-import
+      // our own published records and mirror them into ClickUp a second time.
+      if (/@calendar\.trushotmedia\.com$/i.test(event.uid ?? "")) continue;
       if (!event.start || !Number.isFinite(event.start.getTime()) || !event.uid) throw new Error("Invalid event");
       const instances = ical.expandRecurringEvent(event, { from, to, expandOngoing: true, maxIterations: 4096 });
       for (const instance of instances) {
@@ -47,7 +50,12 @@ export async function parseOutlookCalendar(body: string, calendarId: string, own
         const exclusiveEndDate = instance.isFullDay ? new Date(`${allDayDate(instance.end)}T00:00:00Z`) : null;
         const inclusiveEnd = exclusiveEndDate ? new Date(exclusiveEndDate.getTime() - 86_400_000).toISOString().slice(0, 10) : "";
         const end = instance.isFullDay ? { date: inclusiveEnd < start.date ? start.date : inclusiveEnd, time: null } : brisbaneParts(instance.end);
-        const id = createHash("sha256").update(`${calendarId}:${event.uid}:${instance.start.toISOString()}`).digest("hex").slice(0, 32);
+        // A one-off retains its identity when moved. A recurring exception uses
+        // its ORIGINAL occurrence time, not the replacement start time.
+        const original = instance.event.recurrenceid ?? instance.start;
+        const occurrence = instance.isRecurring || instance.isOverride
+          ? instance.isFullDay ? allDayDate(original) : original.toISOString() : "single";
+        const id = createHash("sha256").update(`${calendarId}:${event.uid}:${occurrence}`).digest("hex").slice(0, 32);
         result.push({ id: `outlook-${id}`, entity_type: "calendar-event", external_source: "outlook", external_calendar_name: name,
           assignee_ids: [ownerId], client_id: null, client_name: null, title: text(instance.summary, 180) || "Busy (Outlook)",
           description: text(instance.event.description) || null, location: text(instance.event.location, 300) || null,

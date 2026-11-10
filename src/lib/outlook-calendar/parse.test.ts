@@ -47,4 +47,19 @@ describe("Outlook iCalendar projection", () => {
   it("redacts parser errors rather than returning private content", async () => {
     await expect(parse(wrap(event("SUMMARY:Private meeting secret")))).rejects.toThrow("could not be read safely");
   });
+  it("keeps a one-off identity when its appointment time changes", async () => {
+    const [before] = await parse(wrap(event("DTSTART:20261110T230000Z\nDTEND:20261111T000000Z\nSUMMARY:Meeting")));
+    const [after] = await parse(wrap(event("DTSTART:20261112T230000Z\nDTEND:20261113T000000Z\nSUMMARY:Moved meeting")));
+    expect(after.id).toBe(before.id);
+  });
+  it("keeps a recurring occurrence identity when moved by an override", async () => {
+    const series = event("DTSTART:20261110T230000Z\nDTEND:20261111T000000Z\nRRULE:FREQ=DAILY;COUNT=2\nSUMMARY:Standup");
+    const before = await parse(wrap(series));
+    const after = await parse(wrap(series+"\r\n"+event("RECURRENCE-ID:20261111T230000Z\nDTSTART:20261112T010000Z\nDTEND:20261112T020000Z\nSUMMARY:Moved")));
+    expect(after.find(row=>row.title==="Moved")?.id).toBe(before[1].id);
+    expect(after[0].id).not.toBe(after[1].id);
+  });
+  it("excludes our own CRM calendar subscription to stop mirror loops", async () => {
+    expect(await parse(wrap(event("DTSTART:20261110T230000Z\nDTEND:20261111T000000Z\nSUMMARY:CRM Job", "job-123@calendar.trushotmedia.com")))).toEqual([]);
+  });
 });

@@ -1,6 +1,7 @@
 import { getProductionContext } from "@/lib/data/admin";
 import { connectOutlookCalendar, disconnectOutlookCalendar, getOutlookStatuses, syncOutlookCalendar } from "@/lib/outlook-calendar/service";
 import { OutlookFeedError } from "@/lib/outlook-calendar/feed";
+import { readOutlookBridgeStatus } from "@/lib/clickup/outlook-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +11,10 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 export async function GET() {
   const context = await getProductionContext();
   if (!context) return json({ error: "Sign in to manage your calendar connection." }, 401);
-  try { return json({ calendars: await getOutlookStatuses(context.supabase) }); }
+  try {
+    const [calendars,bridge]=await Promise.all([getOutlookStatuses(context.supabase),readOutlookBridgeStatus(context.claims.sub)]);
+    return json({calendars,bridge});
+  }
   catch { return json({ error: "Your Outlook connection could not be loaded." }, 503); }
 }
 export async function POST(request: Request) {

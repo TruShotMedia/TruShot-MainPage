@@ -48,3 +48,15 @@ it("renders source details as plain text, never executable HTML", async () => {
   expect(container.querySelectorAll('img[src="/brands/outlook.svg"]')).toHaveLength(1);
   expect(container.textContent).toContain("<img src=x");
 });
+it("clearly explains ClickUp sharing, completion and private descriptions",async()=>{
+  mocks.fetch.mockResolvedValue({ok:true,json:async()=>({calendars:[{id:"one",name:"Work",last_success_at:null,last_error:null,event_count:12}],bridge:{enabled:true,list_id:"destination",last_success_at:null,last_error:null,last_counts:{}}})});
+  await render(<OutlookCalendarConnection/>);await open();
+  expect(container.textContent).toContain("Selected details shared to ClickUp");
+  expect(container.textContent).toContain("People with access to that list can see these details");
+  expect(container.textContent).toContain("not appointment descriptions");
+  const sync=[...container.querySelectorAll("button")].find(button=>button.textContent==="Sync ClickUp now")!;
+  mocks.fetch.mockResolvedValueOnce({ok:true,json:async()=>({result:{status:"completed"},bridge:{enabled:true,last_counts:{}}})});
+  await act(async()=>sync.click());
+  expect(mocks.fetch).toHaveBeenLastCalledWith("/api/calendar/outlook-clickup",expect.objectContaining({method:"POST",credentials:"same-origin"}));
+  expect(container.textContent).toContain("up to date in ClickUp");
+});

@@ -1,11 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ context: vi.fn(), connect: vi.fn(), refresh: vi.fn(), disconnect: vi.fn(), statuses: vi.fn() }));
+const mocks = vi.hoisted(() => ({ context: vi.fn(), connect: vi.fn(), refresh: vi.fn(), disconnect: vi.fn(), statuses: vi.fn(), bridge:vi.fn() }));
 vi.mock("@/lib/data/admin", () => ({ getProductionContext: mocks.context }));
 vi.mock("@/lib/outlook-calendar/service", () => ({ connectOutlookCalendar: mocks.connect, syncOutlookCalendar: mocks.refresh, disconnectOutlookCalendar: mocks.disconnect, getOutlookStatuses: mocks.statuses }));
+vi.mock("@/lib/clickup/outlook-sync",()=>({readOutlookBridgeStatus:mocks.bridge}));
 import { GET, POST } from "./route";
 const origin = "https://www.trushotmedia.com";
 const request = (body: unknown, requestOrigin: string | null = origin) => new Request(`${origin}/api/calendar/outlook`, { method: "POST", headers: requestOrigin ? { origin: requestOrigin } : {}, body: JSON.stringify(body) });
-beforeEach(() => { vi.clearAllMocks(); mocks.context.mockResolvedValue({ claims: { sub: "verified-owner" }, supabase: {} }); mocks.statuses.mockResolvedValue([]); });
+beforeEach(() => { vi.clearAllMocks(); mocks.context.mockResolvedValue({ claims: { sub: "verified-owner" }, supabase: {} }); mocks.statuses.mockResolvedValue([]); mocks.bridge.mockResolvedValue(null); });
 it("requires an authorised session", async () => {
   mocks.context.mockResolvedValue(null);
   expect((await GET()).status).toBe(401);

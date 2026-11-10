@@ -92,7 +92,7 @@ export function getClickUpTask(taskId: string, { includeSubtasks = false }: { in
   return clickUpRequest<ClickUpTask>(`/task/${encodeURIComponent(taskId)}?include_markdown_description=true${includeSubtasks ? "&include_subtasks=true" : ""}`);
 }
 
-export function getClickUpTasks(listId: string, { page = 0, updatedAfter }: { page?: number; updatedAfter?: number } = {}) {
+export function getClickUpTasks(listId: string, { page = 0, updatedAfter, archived }: { page?: number; updatedAfter?: number; archived?: boolean } = {}) {
   const query = new URLSearchParams({
     page: String(page),
     include_closed: "true",
@@ -101,6 +101,7 @@ export function getClickUpTasks(listId: string, { page = 0, updatedAfter }: { pa
     reverse: "true",
   });
   if (updatedAfter) query.set("date_updated_gt", String(updatedAfter));
+  if (archived !== undefined) query.set("archived", String(archived));
   return clickUpRequest<{ tasks: ClickUpTask[] }>(`/list/${encodeURIComponent(listId)}/task?${query}`);
 }
 

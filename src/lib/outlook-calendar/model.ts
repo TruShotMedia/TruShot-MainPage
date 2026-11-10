@@ -6,6 +6,10 @@ export type OutlookCalendarStatus = {
   last_error: string | null;
   event_count: number;
 };
+export type OutlookBridgeStatus = {
+  enabled: boolean; list_id: string; last_success_at: string | null; last_error: string | null;
+  last_counts: Record<string, number>;
+};
 
 export const OUTLOOK_REFRESH_MINUTES = 15;
 

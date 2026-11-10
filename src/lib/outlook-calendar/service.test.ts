@@ -19,7 +19,7 @@ function database(results: unknown[]) {
   return { client: { from }, calls };
 }
 const existingEvents = [{ id: "outlook-existing" }];
-const row = { id: "calendar", user_id: "owner", name: "Work", events: existingEvents, failure_count: 0 };
+const row = { id: "calendar", user_id: "owner", name: "Work", events: existingEvents, failure_count: 0, source_format_version: 2 };
 const secret = { encrypted_url: {}, etag: "v1", expanded_on: new Date().toISOString().slice(0, 10) };
 beforeEach(() => { vi.clearAllMocks(); mocks.parse.mockResolvedValue(existingEvents); });
 describe("Outlook synchronization safety", () => {

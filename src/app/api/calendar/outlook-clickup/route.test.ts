@@ -1,0 +1,14 @@
+import {beforeEach,expect,it,vi} from "vitest";
+const mocks=vi.hoisted(()=>({context:vi.fn(),status:vi.fn(),dispatch:vi.fn(),calendars:vi.fn(),refresh:vi.fn()}));
+vi.mock("@/lib/data/admin",()=>({getProductionContext:mocks.context}));
+vi.mock("@/lib/clickup/outlook-sync",()=>({readOutlookBridgeStatus:mocks.status,dispatchOutlookClickUpSync:mocks.dispatch}));
+vi.mock("@/lib/outlook-calendar/service",()=>({getOutlookStatuses:mocks.calendars,syncOutlookCalendar:mocks.refresh}));
+import {GET,POST} from "./route";
+const origin="https://www.trushotmedia.com";
+const request=(from:string|null=origin)=>new Request(`${origin}/api/calendar/outlook-clickup`,{method:"POST",headers:from?{origin:from}:{},body:JSON.stringify({ownerId:"other-user"})});
+beforeEach(()=>{vi.clearAllMocks();mocks.context.mockResolvedValue({claims:{sub:"verified-owner"},supabase:{}});mocks.status.mockResolvedValue({enabled:true});mocks.calendars.mockResolvedValue([{id:"owned-calendar"}]);mocks.dispatch.mockResolvedValue({status:"completed"});});
+it("requires an active authenticated session",async()=>{mocks.context.mockResolvedValue(null);expect((await GET()).status).toBe(401);expect((await POST(request())).status).toBe(401);expect(mocks.dispatch).not.toHaveBeenCalled();});
+it.each([null,"https://attacker.example"])("requires same-origin POST %s",async from=>{expect((await POST(request(from))).status).toBe(403);expect(mocks.context).not.toHaveBeenCalled();});
+it("does not allow a team member to publish somebody else's Outlook calendar",async()=>{mocks.status.mockResolvedValue(null);expect((await POST(request())).status).toBe(403);expect(mocks.status).toHaveBeenCalledWith("verified-owner");expect(mocks.dispatch).not.toHaveBeenCalled();});
+it("imports first and scopes dispatch only to the verified owner",async()=>{const response=await POST(request());expect(response.status).toBe(200);expect(mocks.refresh).toHaveBeenCalledWith("owned-calendar","verified-owner");expect(mocks.dispatch).toHaveBeenCalledWith("verified-owner");expect(mocks.refresh.mock.invocationCallOrder[0]).toBeLessThan(mocks.dispatch.mock.invocationCallOrder[0]);expect(response.headers.get("cache-control")).toContain("no-store");});
+it("redacts unexpected provider/database failures",async()=>{mocks.status.mockRejectedValue(new Error("SECRET FEED LINK"));const response=await POST(request());expect(response.status).toBe(503);expect(await response.text()).not.toContain("SECRET");});

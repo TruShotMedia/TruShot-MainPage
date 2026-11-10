@@ -45,7 +45,7 @@ export async function connectOutlookCalendar(ownerId: string, input: { url: stri
   const { parseOutlookCalendar } = await import("./parse");
   const events = await parseOutlookCalendar(feed.body, id, ownerId, input.name, now);
   const { data: row, error } = await service.from(TABLE).insert({ id, workspace_id: TRUSHOT_WORKSPACE_ID, user_id: ownerId, name: input.name, events,
-    last_success_at: now.toISOString(), last_attempt_at: now.toISOString(), next_sync_at: outlookNextSyncAt(now) }).select(safeColumns).single();
+    source_format_version: 2, last_success_at: now.toISOString(), last_attempt_at: now.toISOString(), next_sync_at: outlookNextSyncAt(now) }).select(safeColumns).single();
   if (error) throw new OutlookFeedError("The calendar could not be connected. Please refresh and try again.");
   const { error: secretError } = await service.from(SECRETS).insert({ calendar_id: id, encrypted_url: encrypted, etag: feed.etag, last_modified: feed.last_modified, expanded_on: now.toISOString().slice(0, 10) });
   if (secretError) {
@@ -69,7 +69,7 @@ export async function syncOutlookCalendar(id: string, ownerId?: string) {
     .or(`lease_until.is.null,lease_until.lt.${now.toISOString()}`)
     .lt("last_attempt_at", new Date(now.getTime() - 60_000).toISOString());
   if (ownerId) query = query.eq("user_id", ownerId);
-  const { data: row, error } = await query.select("id,user_id,name,events,failure_count").maybeSingle();
+  const { data: row, error } = await query.select("id,user_id,name,events,failure_count,source_format_version").maybeSingle();
   if (error) throw new Error("Calendar sync claim failed");
   if (!row) return { status: "busy" as const };
   try {
@@ -78,10 +78,11 @@ export async function syncOutlookCalendar(id: string, ownerId?: string) {
     const url = decryptFeedUrl(secret.encrypted_url);
     // Re-expand daily even if HTTP validators haven't changed, so recurring
     // events move into the rolling one-year import window.
-    const feed = await fetchOutlookFeed(url, secret.expanded_on === now.toISOString().slice(0, 10) ? secret : {});
+    const feed = await fetchOutlookFeed(url, row.source_format_version === 2 && secret.expanded_on === now.toISOString().slice(0, 10) ? secret : {});
     const events = feed.unchanged ? row.events : await (await import("./parse")).parseOutlookCalendar(feed.body, row.id, row.user_id, row.name, now);
     const changed = JSON.stringify(events) !== JSON.stringify(row.events);
     const { error: saveError } = await service.from(TABLE).update({ ...(changed ? { events, updated_at: now.toISOString() } : {}),
+      ...(!feed.unchanged ? { source_format_version: 2 } : {}),
       last_success_at: now.toISOString(), last_error: null, failure_count: 0, next_sync_at: outlookNextSyncAt(now), lease_token: null, lease_until: null })
       .eq("id", id).eq("lease_token", token);
     if (saveError) throw new Error("Calendar snapshot save failed");

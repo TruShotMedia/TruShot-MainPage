@@ -31,6 +31,12 @@ beforeEach(() => {
   mocks.get.mockResolvedValue({ id: "child",name: "Asset",parent: "parent",list: { id: "list" },assignees: [{ id: 42 }] });
 });
 describe("outbound-only asset webhook isolation", () => {
+  it("never imports an Outlook mirror moved into the Jobs list",async()=>{
+    mocks.get.mockResolvedValue({id:"child",parent:null,list:{id:"list"},assignees:[{id:42}],description:`[JOHN_OUTLOOK_EVENT:46cc22c6-095d-4403-8a09-945f7f70b67f:outlook-${"a".repeat(32)}]`});
+    expect(await dispatchClickUpInboundSync()).toMatchObject({processed:1,failed:0});
+    expect(queries.find(q=>q.table==="website-jobs")).toBeUndefined();
+    expect(queries.find(q=>q.values.last_error==="Outlook calendar mirrors are outbound-only.")).toBeDefined();
+  });
   it("never imports normal ClickUp subtasks as top-level CRM jobs", async () => {
     expect(await dispatchClickUpInboundSync()).toMatchObject({ processed: 1,failed: 0 });
     expect(queries.find(q => q.table === "website-jobs")).toBeUndefined();
