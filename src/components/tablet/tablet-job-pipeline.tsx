@@ -63,13 +63,13 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
       <div className="pipeline-card-content">
-      {automaticStatus ? <small className="task-client" title="The least-advanced active task sets this job’s stage.">Status follows linked tasks</small> : null}
       <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <DelayedJobMarker job={job} />
           <strong>{job.title}</strong>
           <JobSchedulePills job={job} />
       </button>
+      {automaticStatus ? <small className="tablet-job-status-follow" title="The least-advanced active task sets this job’s stage.">Status follows linked tasks</small> : null}
       {team ? <div className="team-job-meta"><span className={`team-priority is-${job.priority ?? "normal"}`}><i />{job.priority ?? "normal"} priority</span><TeamAvatars ids={job.assignee_ids} /></div> : null}
       {team ? <div className="team-job-progress"><span>{progressLabel}<b>{progress.percent}%</b></span><progress max="100" value={progress.percent} aria-label={`Job progress for ${job.title}`} aria-valuetext={`${progress.percent}% · ${progressLabel}`} title={progress.total ? "Workflow progress averages each task’s stage. Only finished tasks count as complete." : "Workflow progress based on the job’s current status."} /></div> : null}
       <details className="tablet-job-card-operational">
