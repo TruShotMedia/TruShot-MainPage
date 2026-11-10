@@ -7,6 +7,8 @@ import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
+import { ProductionDayPane } from "./production-day-pane";
+import styles from "./production-hybrid.module.css";
 import {
   productionDayAgenda,
   type AgendaSource,
@@ -204,10 +206,27 @@ export function ProductionCalendar({
   onOpenFlight: (flight: CalendarFlightEvent) => void;
   onCreate: (kind: TabletCreateKind, date?: string) => void;
 }) {
-  const [mode, setMode] = useState<"fortnight" | "week" | "day">(
+  const [mode, setMode] = useState<"fortnight" | "week" | "day" | "hybrid">(
     todayOnly ? "day" : "fortnight",
   );
   const [date, setDate] = useState(today);
+  const [calendarAnchor, setCalendarAnchor] = useState(today);
+  function selectDate(value: string) {
+    setDate(value);
+    const first = format(startOfWeek(parseISO(calendarAnchor), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const last = format(addDays(parseISO(first), 13), "yyyy-MM-dd");
+    if (value < first || value > last) setCalendarAnchor(value);
+  }
+  function changeMode(value: typeof mode) {
+    if (value === "hybrid" || value === "fortnight") {
+      if (mode === "week" || mode === "day") setCalendarAnchor(date);
+      else if (value === "hybrid") {
+        const first = startOfWeek(parseISO(calendarAnchor), { weekStartsOn: 1 });
+        if (date < format(first, "yyyy-MM-dd") || date > format(addDays(first, 13), "yyyy-MM-dd")) setDate(calendarAnchor);
+      }
+    }
+    setMode(value);
+  }
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -241,12 +260,12 @@ export function ProductionCalendar({
       <div className="production-calendar-views">
         {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
         <div className="apg-view-pills" aria-label="Schedule view">
-          {(!todayOnly ? ["fortnight", "week", "day"] : ["day"]).map((key) => (
+          {(!todayOnly ? ["fortnight", "week", "day", "hybrid"] : ["day"]).map((key) => (
             <button
               key={key}
               type="button"
               aria-pressed={mode === key}
-              onClick={() => setMode(key as typeof mode)}
+              onClick={() => changeMode(key as typeof mode)}
             >
               {key === "fortnight"
                 ? "Fortnight"
@@ -254,7 +273,7 @@ export function ProductionCalendar({
             </button>
           ))}
         </div>
-        {mode !== "fortnight" ? (
+        {mode !== "fortnight" && mode !== "hybrid" ? (
           <div className="production-day-controls">
             <button
               type="button"
@@ -301,8 +320,13 @@ export function ProductionCalendar({
           <Plus size={14} /> Event
         </button> : null}
       </div>
-      {mode === "fortnight" ? (
+      {mode === "fortnight" || mode === "hybrid" ? (
+        <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
         <TabletCalendar
+          anchorDate={calendarAnchor}
+          onAnchorDateChange={(value) => { setCalendarAnchor(value); setDate(value); }}
+          selectedDate={mode === "hybrid" ? date : undefined}
+          onSelectDate={mode === "hybrid" ? selectDate : undefined}
           currentTime={currentTime}
           weatherLocationKey={marketing ? "melbourne-city" : "brisbane-city"}
           accentColor="#5d91b0"
@@ -323,6 +347,8 @@ export function ProductionCalendar({
           onEditFlight={onOpenFlight}
           today={today}
         />
+        {mode === "hybrid" ? <ProductionDayPane data={schedule} date={date} today={today} currentTime={currentTime} onSelectDate={selectDate} onOpen={open} onCreate={readOnly ? undefined : value => onCreate("event", value)} /> : null}
+        </div>
       ) : (
         <TimedSchedule
           data={schedule}

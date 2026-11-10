@@ -3,17 +3,16 @@
 import { useState } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plane, Plus } from "lucide-react";
-import { productionDayAgenda, type AgendaSource } from "@/lib/production-agenda";
-import { getCalendarJobRanges } from "@/lib/calendar-layout";
+import type { AgendaSource } from "@/lib/production-agenda";
+import { productionSelectedDay, type ProductionScheduleData } from "@/lib/production-selected-day";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
-import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
-import type { CalendarCustomEvent, CalendarFlightEvent, CalendarJob, CalendarTask } from "@/lib/types";
+import styles from "./production-hybrid.module.css";
 
-type Data = { calendarJobs: CalendarJob[]; calendarTasks: CalendarTask[]; calendarEvents: CalendarCustomEvent[]; flightEvents: CalendarFlightEvent[] };
+type Data = ProductionScheduleData;
 function tone(item: AgendaSource, today: string) {
   if ((item.client_name ?? "").toLowerCase() !== "autopacific group") return "is-unrelated";
   if ("delay_info" in item && (item.delay_info?.delayed_from || item.delay_info?.delayed_to)) return "is-delayed";
@@ -24,7 +23,7 @@ function tone(item: AgendaSource, today: string) {
 }
 
 export function ProductionMobileSchedule({ data, today, todayOnly, marketing, onOpen: onOpenRecord, onCreate }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void }) {
-  const [period, setPeriod] = useState<"week" | "fortnight" | "day">("week");
+  const [period, setPeriod] = useState<"week" | "fortnight" | "day" | "hybrid">("week");
   const [anchor, setAnchor] = useState(today);
   const [selected, setSelected] = useState(today);
   const [weatherDay, setWeatherDay] = useState<SavedCalendarWeather | null>(null);
@@ -33,16 +32,7 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, on
   const dates = Array.from({ length }, (_, index) => format(addDays(first, index), "yyyy-MM-dd"));
   const location = marketing ? "melbourne-city" : "brisbane-city";
   const weather = useCalendarWeather(dates[0], dates.at(-1)!, location);
-  const agenda = productionDayAgenda(selected, { jobs: data.calendarJobs, tasks: data.calendarTasks, events: data.calendarEvents, flights: data.flightEvents });
-  const weekday = parseISO(selected).getDay();
-  for (const range of getCalendarJobRanges(data.calendarJobs)) {
-    if (range.start < selected && range.end > selected && (!range.weekdaysOnly || weekday > 0 && weekday < 6)) {
-      agenda.allDay.push({ id: `ongoing:${range.item.id}`, title: range.item.title, detail: `Production window · Due ${format(parseISO(range.end), "d MMM")}`, source: range.item });
-    }
-  }
-  for (const trip of buildFlightCalendarItineraries(data.flightEvents)) {
-    if (trip.departure_date < selected && trip.arrival_date > selected) agenda.allDay.push({ id: `trip:${trip.id}`, title: trip.title, detail: `Trip in progress · Returns ${format(parseISO(trip.arrival_date), "d MMM")}`, source: trip });
-  }
+  const agenda = productionSelectedDay(selected, data);
   function onOpen(source: AgendaSource) {
     // Combined itineraries are display-only; editors always receive an original leg.
     onOpenRecord(source.entity_type === "flight-event" ? data.flightEvents.find(flight => flight.id === source.id) ?? source : source);
@@ -52,7 +42,7 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, on
   function changePeriod(value: typeof period) { setPeriod(value); setAnchor(selected); }
   return <div className="apg-mobile-schedule" aria-label={todayOnly ? "Today agenda" : "Mobile calendar"}>
     {!todayOnly ? <>
-      <div className="apg-view-pills" aria-label="Schedule view">{(["week", "fortnight", "day"] as const).map(value => <button key={value} type="button" aria-pressed={period === value} onClick={() => changePeriod(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
+      <div className={`apg-view-pills ${styles.viewPills}`} aria-label="Schedule view">{(["fortnight", "week", "day", "hybrid"] as const).map(value => <button key={value} type="button" aria-pressed={period === value} onClick={() => changePeriod(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
       <div className="apg-mobile-period"><button type="button" aria-label="Previous schedule period" onClick={() => move(-length)}><ChevronLeft size={19} /></button><strong>{format(first, "d MMM")}{length > 1 ? ` – ${format(addDays(first, length - 1), "d MMM")}` : ""}</strong><button type="button" aria-label="Next schedule period" onClick={() => move(length)}><ChevronRight size={19} /></button><button type="button" onClick={() => { setAnchor(today); setSelected(today); }}>Today</button></div>
       {length > 1 ? <div className="apg-mobile-date-strip" aria-label="Select a calendar day">{dates.map(date => <button type="button" key={date} aria-pressed={selected === date} aria-label={format(parseISO(date), "EEEE d MMMM")} className={date === today ? "is-today" : ""} onClick={() => setSelected(date)}><small>{format(parseISO(date), "EEE")}</small><strong>{format(parseISO(date), "d")}</strong>{date === today ? <i aria-hidden="true" /> : null}</button>)}</div> : null}
     </> : null}

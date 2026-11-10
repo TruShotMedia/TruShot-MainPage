@@ -360,9 +360,14 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   );
 }
 
-export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city" }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey }) {
+export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city", anchorDate, onAnchorDateChange, selectedDate, onSelectDate }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey; anchorDate?: string; onAnchorDateChange?: (date: string) => void; selectedDate?: string; onSelectDate?: (date: string) => void }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
-  const [currentMonth, setCurrentMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
+  const [internalMonth, setInternalMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
+  const currentMonth = useMemo(() => anchorDate ? parseISO(anchorDate) : internalMonth, [anchorDate, internalMonth]);
+  function setCurrentMonth(value: Date) {
+    if (onAnchorDateChange) onAnchorDateChange(format(value, "yyyy-MM-dd"));
+    else setInternalMonth(value);
+  }
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [selectedMobileDate, setSelectedMobileDate] = useState(today);
   const isCapacityCalendar = density === "capacity";
@@ -480,11 +485,11 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   function moveCalendar(direction: -1 | 1) {
     if (isCapacityCalendar) {
       const days = capacityWindowDays ?? capacityDesktopWindowDays;
-      setCurrentMonth((month) => addDays(month, direction * days));
+      setCurrentMonth(addDays(currentMonth, direction * days));
       if (isCompactViewport) setSelectedMobileDate((date) => format(addDays(parseISO(date), direction * days), "yyyy-MM-dd"));
       return;
     }
-    setCurrentMonth((month) => direction < 0 ? subMonths(month, 1) : addMonths(month, 1));
+    setCurrentMonth(direction < 0 ? subMonths(currentMonth, 1) : addMonths(currentMonth, 1));
   }
 
   function jumpToToday() {
@@ -574,8 +579,8 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                     const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
                     const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
                     return (
-                      <div className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""}`} key={dateKey}>
-                        <time dateTime={dateKey}>{format(day, "d")}</time>
+                      <div className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""} ${onSelectDate && selectedDate === dateKey ? "is-selected-day" : ""}`} key={dateKey}>
+                        {onSelectDate ? <button type="button" className="tablet-calendar-day-select" aria-label={`Show schedule for ${format(day, "EEEE d MMMM yyyy")}`} aria-pressed={selectedDate === dateKey} onClick={() => onSelectDate(dateKey)}><time dateTime={dateKey}>{format(day, "d")}</time></button> : <time dateTime={dateKey}>{format(day, "d")}</time>}
                         <CalendarWeatherBadge day={weatherByDay.get(dateKey)} onOpen={setSelectedWeather} />
                         {editable ? <button type="button" className="tablet-calendar-day-add" onClick={() => onCreateEvent?.(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`} title="Add event"><Plus size={11} /></button> : null}
                         <div className="tablet-calendar-day-events">

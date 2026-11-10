@@ -1,0 +1,38 @@
+.body { min-width:0; }
+.layout { display:grid; grid-template-columns:minmax(0,3fr) minmax(260px,1fr); gap:16px; align-items:start; min-width:0; }
+.layout > * { min-width:0; }
+.viewPills:global(.apg-view-pills) { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); max-width:100%; }
+.pane { position:sticky; top:0; display:flex; flex-direction:column; min-width:0; height:calc(100dvh - 190px); min-height:470px; max-height:900px; border:1px solid var(--workspace-line); border-radius:12px; overflow:hidden; background:var(--workspace-surface); color:var(--workspace-text); }
+.heading { padding:18px 16px 14px; border-bottom:1px solid var(--workspace-line); flex:none; }
+.heading > span { display:block; color:var(--workspace-accent); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
+.heading h2 { margin:7px 0 5px; font-size:23px; line-height:1.2; letter-spacing:-.6px; }
+.heading p { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0; color:var(--workspace-muted); font-size:12px; }
+.heading small { font-size:10px; white-space:nowrap; }
+.controls { display:flex; align-items:center; gap:5px; margin-top:15px; }
+.controls button { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:36px; min-width:34px; padding:7px 9px; border:1px solid var(--workspace-line); border-radius:8px; background:var(--workspace-surface); color:var(--workspace-text); font-size:11px; }
+.controls .add { margin-left:auto; color:var(--workspace-accent); background:var(--workspace-accent-soft); }
+.agenda { min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:16px; display:grid; align-content:start; gap:24px; scrollbar-gutter:stable; }
+.agenda section { display:grid; gap:9px; min-width:0; }
+.agenda h3 { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:650; margin:0 0 3px; color:var(--workspace-muted); }
+.agenda h3 span { margin-left:auto; font-size:9px; font-weight:400; }
+.card { position:relative; display:grid; gap:5px; width:100%; min-width:0; padding:12px; text-align:left; border:1px solid var(--workspace-line); border-left:3px solid currentColor; border-radius:9px; color:var(--workspace-accent); background:var(--workspace-accent-soft); transition:box-shadow 140ms ease,transform 140ms ease; }
+.card strong { font-size:12px; font-weight:650; line-height:1.45; overflow-wrap:anywhere; }
+.card small { font-size:10px; line-height:1.5; overflow-wrap:anywhere; opacity:.9; }
+.card time { font-size:11px; font-weight:700; }
+.card:hover { box-shadow:0 3px 10px #102c3912; transform:translateY(-1px); }
+.card[data-tone="unrelated"] { color:var(--workspace-muted); background:var(--workspace-panel); }
+.card[data-tone="overdue"] { color:var(--apg-negative); background:color-mix(in srgb,var(--apg-negative) 9%,var(--workspace-surface)); }
+.card[data-tone="complete"] { color:var(--apg-positive); background:color-mix(in srgb,var(--apg-positive) 9%,var(--workspace-surface)); }
+.card[data-tone="delayed"] { color:var(--workspace-delay-text,#984b31); background:var(--workspace-delay-bg,#fff1e9); border-color:var(--workspace-delay-line,#e4c0ae); }
+.card[data-calendar-source="outlook"] { padding-right:32px; background:var(--outlook-event-bg); color:var(--outlook-event-text); border-color:var(--outlook-event-line); border-left-color:var(--outlook-event-accent); }
+.empty { padding:20px 13px; border:1px dashed var(--workspace-line); border-radius:9px; margin:0; color:var(--workspace-muted); font-size:12px; line-height:1.7; }
+.layout :global(.tablet-calendar-day.is-selected-day) { background:var(--workspace-accent-soft); box-shadow:inset 0 0 0 2px var(--workspace-accent); }
+.layout :global(.tablet-calendar-day-select) { display:grid; place-items:center; width:30px; height:30px; padding:0; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--workspace-muted); font:inherit; font-size:11px; }
+.layout :global(.tablet-calendar-day-select[aria-pressed="true"]) { background:var(--workspace-action); color:white; }
+.layout :global(.tablet-calendar-day-select:hover) { border-color:var(--workspace-accent); }
+.layout :global(.tablet-calendar-day-select time) { position:static; width:auto; height:auto; background:none; color:inherit; font-size:inherit; }
+.layout :global(.tablet-calendar-day > .calendar-weather-badge) { left:38px; top:7px; }
+.layout :global(.tablet-calendar-range-layer) { top:40px; }
+.layout :global(.tablet-calendar-day-events) { margin-top:calc(var(--tablet-calendar-range-space) + 8px); }
+@media(max-width:1200px) { .layout { grid-template-columns:minmax(0,1fr); }.pane { position:static; height:auto; min-height:0; max-height:600px; }.heading { padding:16px; }.agenda { max-height:420px; } }
+@media(prefers-reduced-motion:reduce) { .card { transition:none; }.card:hover { transform:none; } }

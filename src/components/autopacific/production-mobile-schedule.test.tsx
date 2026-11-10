@@ -46,4 +46,13 @@ describe("mobile calendar and itinerary", () => {
     expect(container.querySelector(".apg-mobile-date-strip")).toBeNull();
     expect(container.querySelector(".production-timetable")).toBeNull();
   });
+  it("adapts Hybrid into a two-week overview above the selected-day agenda on phones", async () => {
+    await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly={false} marketing onOpen={() => {}} />));
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click());
+    expect(container.querySelectorAll(".apg-mobile-date-strip button")).toHaveLength(14);
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Thursday 29 October"]')!.click());
+    expect(container.querySelector(".apg-mobile-agenda-heading h2")?.textContent).toBe("Thursday, 29 Oct");
+    expect(container.querySelector(".apg-mobile-date-strip button:last-child")?.getAttribute("aria-label")).toBe("Sunday 8 November");
+    expect(container.querySelector('[aria-label^="Add event"]')).toBeNull();
+  });
 });
