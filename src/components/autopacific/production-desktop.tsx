@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { ProductionWordmark } from "./production-wordmark";
+import { useDesktopSidebar } from "./use-desktop-sidebar";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,8 @@ import {
   Monitor,
   MoreHorizontal,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
@@ -375,6 +378,8 @@ export function ProductionDesktop({
   const [startingTask, setStartingTask] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(experience === "mobile");
+  const [sidebarCollapsed, setSidebarCollapsed] = useDesktopSidebar(`apg-sidebar:v1:${mode}:${userId ?? "local"}`);
+  const hideSidebar = sidebarCollapsed && !isMobileLayout;
   const [campaignRefresh, setCampaignRefresh] = useState(0);
   const [viewing, setViewing] = useState<OpenRecord | null>(() => {
     const job = data.pipelineJobs.find((job) => job.id === requestedJobId);
@@ -645,12 +650,12 @@ export function ProductionDesktop({
         viewing.record)
       : null;
   return (
-    <main className={`apg-desktop theme-autopacific is-${theme} ${experience === "mobile" ? "is-mobile-app" : ""}`}>
+    <main className={`apg-desktop theme-autopacific is-${theme} ${experience === "mobile" ? "is-mobile-app" : ""} ${hideSidebar ? "is-sidebar-collapsed" : ""}`}>
       <NotionAutoSync
         enabled={notionSyncEnabled}
         intervalMinutes={notionSyncIntervalMinutes}
       />
-      <aside className="apg-desktop-sidebar">
+      <aside id="production-workspace-sidebar" className="apg-desktop-sidebar" aria-label="Workspace sidebar" aria-hidden={hideSidebar ? true : undefined} inert={hideSidebar}>
         <ProductionWordmark className="apg-desktop-wordmark" preload sizes="168px" />
         <small>{marketing ? "MARKETING" : "PRODUCTION"}</small>
         <div className="apg-workspace-groups">
@@ -706,7 +711,16 @@ export function ProductionDesktop({
       </aside>
       <div className="apg-desktop-content">
         <header className="apg-desktop-toolbar">
-          <div>
+          {!isMobileLayout ? <button
+            type="button"
+            className="apg-sidebar-toggle"
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-controls="production-workspace-sidebar"
+            aria-expanded={!sidebarCollapsed}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >{sidebarCollapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}</button> : null}
+          <div className="apg-toolbar-heading">
             <ProductionWordmark className="apg-mobile-wordmark" sizes="140px" />
             <span>
               AutoPacific Group / {space === "mine" ? "My Space" : space === "team" ? "Team" : "Videographer"}
