@@ -10,9 +10,22 @@ const event = (id: string, start_time: string, end_time: string): CalendarCustom
 const data = { calendarJobs: [], calendarTasks: [], flightEvents: [], calendarEvents: [event("Workshop capture", "09:00", "11:00"), event("Review call", "09:30", "10:00")] };
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
-beforeEach(() => { (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+beforeEach(() => { localStorage.clear(); (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 describe("mobile calendar and itinerary", () => {
+  it("restores its period and selected day after switching away, without changing Today", async () => {
+    const renderCalendar = async (todayOnly = false) => { await act(async () => root.render(<ProductionMobileSchedule data={data} memoryKey="calendar-view:v1:mobile-test" today="2026-10-28" todayOnly={todayOnly} marketing onOpen={() => {}} />)); };
+    await renderCalendar();
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next schedule period"]')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Thursday 12 November"]')!.click());
+    await act(async () => root.render(null)); await renderCalendar(true);
+    expect(container.querySelector(".apg-mobile-agenda-heading h2")?.textContent).toBe("Wednesday, 28 Oct");
+    await act(async () => root.render(null)); await renderCalendar();
+    expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+    expect(container.querySelector(".apg-mobile-agenda-heading h2")?.textContent).toBe("Thursday, 12 Nov");
+    expect(container.querySelectorAll(".apg-mobile-date-strip button")).toHaveLength(14);
+  });
   it("retains multi-day production windows but leaves AutoPacific weekends clear", async () => {
     const job: CalendarJob = { id: "shoot", entity_type: "job", title: "Multi-day project", client_name: "Autopacific Group", shoot_date: "2026-10-27", shoot_time: null, due_date: "2026-11-03", due_time: null, status_label: "Production", status_color: "#579", is_complete: false };
     await act(async () => root.render(<ProductionMobileSchedule data={{...data,calendarJobs:[job]}} today="2026-10-28" todayOnly={false} marketing={false} onOpen={() => {}} onCreate={() => {}} />));

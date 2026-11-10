@@ -11,6 +11,7 @@ import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import styles from "./production-hybrid.module.css";
+import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 
 type Data = ProductionScheduleData;
 function tone(item: AgendaSource, today: string) {
@@ -22,10 +23,10 @@ function tone(item: AgendaSource, today: string) {
   return "is-autopacific";
 }
 
-export function ProductionMobileSchedule({ data, today, todayOnly, marketing, onOpen: onOpenRecord, onCreate }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void }) {
-  const [period, setPeriod] = useState<"week" | "fortnight" | "day" | "hybrid">("week");
-  const [anchor, setAnchor] = useState(today);
-  const [selected, setSelected] = useState(today);
+export function ProductionMobileSchedule({ data, today, todayOnly, marketing, memoryKey, onOpen: onOpenRecord, onCreate }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void }) {
+  const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "week");
+  const { mode: period, anchor, date: selected } = view;
+  function setSelected(date: string) { rememberView({ date }); }
   const [weatherDay, setWeatherDay] = useState<SavedCalendarWeather | null>(null);
   const length = todayOnly || period === "day" ? 1 : period === "week" ? 7 : 14;
   const first = length === 1 ? parseISO(anchor) : startOfWeek(parseISO(anchor), { weekStartsOn: 1 });
@@ -38,12 +39,12 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, on
     onOpenRecord(source.entity_type === "flight-event" ? data.flightEvents.find(flight => flight.id === source.id) ?? source : source);
   }
   const overdue = [...data.calendarJobs, ...data.calendarTasks].filter(item => !item.is_complete && item.due_date && item.due_date < today);
-  function move(days: number) { const next = format(addDays(parseISO(anchor), days), "yyyy-MM-dd"); setAnchor(next); setSelected(next); }
-  function changePeriod(value: typeof period) { setPeriod(value); setAnchor(selected); }
+  function move(days: number) { const next = format(addDays(parseISO(anchor), days), "yyyy-MM-dd"); rememberView({ anchor: next, date: next }); }
+  function changePeriod(value: typeof period) { rememberView({ mode: value, anchor: selected }); }
   return <div className="apg-mobile-schedule" aria-label={todayOnly ? "Today agenda" : "Mobile calendar"}>
     {!todayOnly ? <>
       <div className={`apg-view-pills ${styles.viewPills}`} aria-label="Schedule view">{(["fortnight", "week", "day", "hybrid"] as const).map(value => <button key={value} type="button" aria-pressed={period === value} onClick={() => changePeriod(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
-      <div className="apg-mobile-period"><button type="button" aria-label="Previous schedule period" onClick={() => move(-length)}><ChevronLeft size={19} /></button><strong>{format(first, "d MMM")}{length > 1 ? ` – ${format(addDays(first, length - 1), "d MMM")}` : ""}</strong><button type="button" aria-label="Next schedule period" onClick={() => move(length)}><ChevronRight size={19} /></button><button type="button" onClick={() => { setAnchor(today); setSelected(today); }}>Today</button></div>
+      <div className="apg-mobile-period"><button type="button" aria-label="Previous schedule period" onClick={() => move(-length)}><ChevronLeft size={19} /></button><strong>{format(first, "d MMM")}{length > 1 ? ` – ${format(addDays(first, length - 1), "d MMM")}` : ""}</strong><button type="button" aria-label="Next schedule period" onClick={() => move(length)}><ChevronRight size={19} /></button><button type="button" onClick={() => rememberView({ anchor: today, date: today })}>Today</button></div>
       {length > 1 ? <div className="apg-mobile-date-strip" aria-label="Select a calendar day">{dates.map(date => <button type="button" key={date} aria-pressed={selected === date} aria-label={format(parseISO(date), "EEEE d MMMM")} className={date === today ? "is-today" : ""} onClick={() => setSelected(date)}><small>{format(parseISO(date), "EEE")}</small><strong>{format(parseISO(date), "d")}</strong>{date === today ? <i aria-hidden="true" /> : null}</button>)}</div> : null}
     </> : null}
     <header className="apg-mobile-agenda-heading">

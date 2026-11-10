@@ -9,6 +9,9 @@ import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
 import styles from "./production-hybrid.module.css";
+import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
+import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
+import { useProductionTeam } from "./team-context";
 import {
   productionDayAgenda,
   type AgendaSource,
@@ -206,26 +209,28 @@ export function ProductionCalendar({
   onOpenFlight: (flight: CalendarFlightEvent) => void;
   onCreate: (kind: TabletCreateKind, date?: string) => void;
 }) {
-  const [mode, setMode] = useState<"fortnight" | "week" | "day" | "hybrid">(
-    todayOnly ? "day" : "fortnight",
-  );
-  const [date, setDate] = useState(today);
-  const [calendarAnchor, setCalendarAnchor] = useState(today);
+  const team = useProductionTeam();
+  const memoryKey = calendarViewStorageKey(marketing ? "marketing" : "autopacific", team?.userId ?? "local",
+    readOnly ? "team" : personalTools ? "mine" : "videographer", mobile);
+  const [view, rememberView] = useCalendarViewMemory(todayOnly || mobile ? null : memoryKey, today, todayOnly ? "day" : "fortnight");
+  const { mode, date, anchor: calendarAnchor } = view;
+  function setDate(value: string) { rememberView({ date: value }); }
   function selectDate(value: string) {
-    setDate(value);
     const first = format(startOfWeek(parseISO(calendarAnchor), { weekStartsOn: 1 }), "yyyy-MM-dd");
     const last = format(addDays(parseISO(first), 13), "yyyy-MM-dd");
-    if (value < first || value > last) setCalendarAnchor(value);
+    rememberView({ date: value, anchor: value < first || value > last ? value : calendarAnchor });
   }
   function changeMode(value: typeof mode) {
+    let anchor = calendarAnchor;
+    let selected = date;
     if (value === "hybrid" || value === "fortnight") {
-      if (mode === "week" || mode === "day") setCalendarAnchor(date);
+      if (mode === "week" || mode === "day") anchor = date;
       else if (value === "hybrid") {
         const first = startOfWeek(parseISO(calendarAnchor), { weekStartsOn: 1 });
-        if (date < format(first, "yyyy-MM-dd") || date > format(addDays(first, 13), "yyyy-MM-dd")) setDate(calendarAnchor);
+        if (date < format(first, "yyyy-MM-dd") || date > format(addDays(first, 13), "yyyy-MM-dd")) selected = calendarAnchor;
       }
     }
-    setMode(value);
+    rememberView({ mode: value, date: selected, anchor });
   }
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -254,7 +259,7 @@ export function ProductionCalendar({
     (job) => job.status_label.toLowerCase() !== "planning",
   );
   const schedule = { ...data, calendarJobs: range };
-  if (mobile) return <ProductionMobileSchedule data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={readOnly ? undefined : date => onCreate("event", date)} />;
+  if (mobile) return <ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={readOnly ? undefined : date => onCreate("event", date)} />;
   return (
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">
@@ -324,7 +329,7 @@ export function ProductionCalendar({
         <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
         <TabletCalendar
           anchorDate={calendarAnchor}
-          onAnchorDateChange={(value) => { setCalendarAnchor(value); setDate(value); }}
+          onAnchorDateChange={(value) => rememberView({ anchor: value, date: value })}
           selectedDate={mode === "hybrid" ? date : undefined}
           onSelectDate={mode === "hybrid" ? selectDate : undefined}
           currentTime={currentTime}

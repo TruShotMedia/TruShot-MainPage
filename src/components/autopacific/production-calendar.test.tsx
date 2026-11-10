@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: () => ({ days: [], unavailable: false }), CalendarWeatherBadge: () => null, CalendarWeatherCredit: () => null, CalendarWeatherDetails: () => null, WeatherIcon: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { ProductionCalendar } from "./production-calendar";
 import { ProductionDayPane } from "./production-day-pane";
 import type { CalendarCustomEvent, CalendarJob } from "@/lib/types";
+import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 const event = (id: string, start: string, end: string, date = "2026-11-10"): CalendarCustomEvent => ({ id, entity_type: "calendar-event", title: id, client_id: "apg", client_name: "Autopacific Group", start_date: date, end_date: date, start_time: start, end_time: end, is_all_day: false, location: null, description: null, color: "#579", reminder_offsets_minutes: [], created_at: "", updated_at: "" });
 const data = { calendarJobs: [], calendarTasks: [], flightEvents: [], calendarEvents: [event("Late meeting", "15:00", "16:00"), event("Early shoot", "09:00", "11:00"), event("Other day", "12:00", "13:00", "2026-11-12")] };
 let container: HTMLDivElement, root: Root;
 const callbacks = { onOpenItem: vi.fn(), onOpenEvent: vi.fn(), onOpenFlight: vi.fn(), onCreate: vi.fn() };
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn()); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn()); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); });
 async function render(marketing = false, readOnly = false) { await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing={marketing} readOnly={readOnly} {...callbacks} />)); }
 const click = async (selector: string) => { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()); };
@@ -71,4 +73,63 @@ it("shows ongoing weekday work and native/Outlook themes without hiding complete
   expect(container.querySelector('[aria-label="Selected day all-day items"]')?.textContent).toContain("Ongoing capture");
   expect(container.querySelectorAll('[data-calendar-source="outlook"]')).toHaveLength(1);
   expect(container.querySelectorAll('[data-tone="complete"]')).toHaveLength(2);
+});
+
+it.each([false, true])("restores Hybrid, its fortnight and selected day after leaving the calendar (%s)", async marketing => {
+  await render(marketing); await hybrid(); await click('[aria-label="Next calendar period"]');
+  await click('[aria-label="Show schedule for Thursday 26 November 2026"]');
+  await act(async () => root.render(null));
+  await render(marketing);
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+  expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-26");
+  expect(container.querySelector('.tablet-calendar-day-select[aria-pressed="true"] time')?.getAttribute("datetime")).toBe("2026-11-26");
+});
+
+it("keeps the Today tab and Marketing preferences separate from the production calendar", async () => {
+  await render(); await hybrid(); await click('[aria-label="Next calendar period"]');
+  await act(async () => root.render(<ProductionCalendar key="today" data={data} today="2026-11-10" todayOnly marketing={false} {...callbacks} />));
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-11-10");
+  await act(async () => root.render(null));
+  await render(true);
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Fortnight");
+  await act(async () => root.render(null));
+  await render();
+  expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-24");
+});
+
+it("remembers Week and Day navigation and tolerates unavailable local storage", async () => {
+  await render();
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Week")!.click());
+  await click('[aria-label="Next schedule period"]');
+  await act(async () => root.render(null)); await render();
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Week");
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-11-17");
+  const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Storage unavailable"); });
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Day")!.click());
+  expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
+  storage.mockRestore();
+});
+
+it("does not overwrite saved preferences during hydration/mount", async () => {
+  const key = calendarViewStorageKey("autopacific", "local", "videographer", false);
+  const stored = JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01" });
+  localStorage.setItem(key, stored);
+  await render();
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-12-01");
+  expect(localStorage.getItem(key)).toBe(stored);
+});
+
+it("hydrates server markup safely before restoring the device's saved view", async () => {
+  const key = calendarViewStorageKey("autopacific", "local", "videographer", false);
+  localStorage.setItem(key, JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01" }));
+  const calendar = <ProductionCalendar data={data} today="2026-11-10" marketing={false} {...callbacks} />;
+  const html = renderToString(calendar);
+  expect(html).not.toContain('aria-label="Day schedule"');
+  await act(async () => root.unmount());
+  container.innerHTML = html;
+  const errors: unknown[] = [];
+  await act(async () => { root = hydrateRoot(container, calendar, { onRecoverableError: error => errors.push(error) }); });
+  expect(errors).toEqual([]);
+  expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-12-01");
 });
