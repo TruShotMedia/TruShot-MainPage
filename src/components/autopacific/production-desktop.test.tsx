@@ -141,6 +141,18 @@ describe("shared desktop workspace",()=>{
   }finally{await act(async()=>root.unmount());container.remove();vi.unstubAllGlobals();}
  });
  it("opens a brief from a stable deep link",()=>{const html=renderToStaticMarkup(<ProductionDesktop data={data} mode="production" initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>);expect(html).toContain("Edit full brief");expect(html).toContain("desktop-brief-panel");});
+ it.each(["production", "marketing"] as const)("shows all linked outputs on a job with no planned deliverables (%s)", async mode => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT",true); vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));
+  const linkedJob={...job,deliverables:[],linked_tasks:Array.from({length:5},(_,index)=>({id:`existing-${index}`,title:`Existing episode ${index+1}`,due_date:"2026-11-13",status_label:"In Progress"}))};
+  const container=document.createElement("div");document.body.append(container);const root=createRoot(container);
+  try {
+   await act(async()=>root.render(<ProductionDesktop data={{...data,pipelineJobs:[linkedJob]}} mode={mode} initialView="jobs" requestedJobId={job.id} today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey=""/>));
+   await act(async()=>container.querySelector<HTMLButtonElement>('#brief-tab-deliverables')!.click());
+   expect(document.querySelectorAll('.desktop-deliverables li')).toHaveLength(5);
+   expect(document.querySelector('.desktop-deliverables')?.textContent).toContain("Existing episode 5");
+   expect(document.querySelector('[role="tabpanel"]')?.textContent).not.toContain("No deliverables");
+  } finally {await act(async()=>root.unmount());container.remove();localStorage.clear();vi.unstubAllGlobals();}
+ });
  it.each(["production","marketing"] as const)("opens the day agenda when switching from Calendar to Today in %s",async(mode)=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
   vi.stubGlobal("fetch",vi.fn(async()=>({status:304})));const container=document.createElement("div");document.body.append(container);const root=createRoot(container);

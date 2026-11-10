@@ -14,7 +14,7 @@ import { JobBriefFields } from "@/components/autopacific/job-brief-fields";
 import { JobLocationField } from "@/components/autopacific/job-location-field";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
-import { getJobDeliverables } from "@/lib/job-deliverable-model";
+import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
 import { briefSectionLabels } from "@/lib/job-brief";
 import { formatDate } from "@/lib/format";
 import { TeamAssignmentField, useProductionTeam } from "@/components/autopacific/team-context";
@@ -153,7 +153,7 @@ export function JobBriefReadout({job}:{job:TabletJobRecord}) {
 }
 
 export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allowDeliverableTasks = false, onEdit }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean; allowDeliverableTasks?: boolean; onEdit?: () => void }) {
-  const deliverables = getJobDeliverables(job);
+  const deliverables = getJobDeliverableRows(job);
   return (
       <WorkspaceDialog className="tablet-job-detail-sheet" titleId="tablet-job-detail-title" onClose={onClose} header={<>
           <div>
@@ -200,7 +200,7 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
           {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
         </dl>
         {isAutopacific ? <><JobBriefReadout job={job} /><JobFiles jobId={job.id} editable={false} /></> : null}
-        {allowDeliverableTasks && deliverables.length && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} deliverables={deliverables} /> : null}
+        {allowDeliverableTasks && getJobDeliverables(job).length && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} deliverables={getJobDeliverables(job)} /> : null}
 
       </WorkspaceDialog>
   );
@@ -430,7 +430,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             {!fixedClientId ? <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label> : null}
             <label className="form-span">Brief / overview<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
             <JobBriefFields initial={job.brief_details} />
-            <JobDeliverablesField initialItems={job.deliverables} legacyItems={job.key_deliverables} />
+            <JobDeliverablesField initialItems={job.deliverables} legacyItems={job.key_deliverables} linkedTasks={job.linked_tasks} />
             <details className="brief-module form-span" open={!job.shoot_date && job.status?.key !== "planning"}><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : job.status?.key === "planning" ? "Dates optional while planning" : "Choose a shoot date"}</summary><div className="brief-module-fields tablet-record-editor-fields">
               <JobScheduleFields planning={jobStatuses.find((status) => status.id === selectedJobStatusId)?.key === "planning"} initial={job} />
               <label>Shoot finish time <small>Optional · same day</small><input type="time" name="shoot_end_time" defaultValue={job.shoot_end_time?.slice(0,5)??""} /></label>

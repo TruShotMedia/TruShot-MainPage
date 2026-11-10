@@ -65,7 +65,7 @@ async function jobsPayload() {
       .order("position"),
     context.supabase
       .from("website-task-statuses")
-      .select("id,key,is_open")
+      .select("id,key,label,is_open")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("is_active", true),
   ]);
@@ -76,10 +76,11 @@ async function jobsPayload() {
   const { data: tasks, error: taskError } = jobIds.length
     ? await context.supabase
       .from("website-job-tasks")
-      .select("id,job_id,status_id")
+      .select("id,job_id,status_id,title,due_date,source_deliverable_id,position")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .in("job_id", jobIds)
       .is("archived_at", null)
+      .order("position")
     : { data: [], error: null };
   if (taskError) throw taskError;
   const { data: recordNotes, error: noteError } = jobIds.length
@@ -114,6 +115,7 @@ async function jobsPayload() {
       client,
       status: jobStatusById.get(job.status_id) ?? null,
       record_notes: notesByJobId.get(job.id) ?? [],
+      linked_tasks: relatedTasks.map(task => ({ id: task.id, title: task.title, due_date: task.due_date ?? job.due_date, source_deliverable_id: task.source_deliverable_id, is_complete: taskStatusById.get(task.status_id)?.key === "posted_done", status_label: taskStatusById.get(task.status_id)?.label })),
       total_tasks: relatedTasks.length,
       completed_tasks: relatedTasks.filter(task => taskStatusById.get(task.status_id)?.key === "posted_done").length,
       open_tasks: relatedTasks.filter((task) => taskStatusById.get(task.status_id)?.is_open ?? true).length,

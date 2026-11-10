@@ -56,7 +56,7 @@ import {
 } from "@/components/tablet/tablet-workspace-editors";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
-import { getJobDeliverables } from "@/lib/job-deliverable-model";
+import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
@@ -112,7 +112,7 @@ function JobBriefPanel({
   scheduling: boolean;
 }) {
   const [tab, setTab] = useState("brief");
-  const deliverables = getJobDeliverables(job);
+  const deliverables = getJobDeliverableRows(job);
   return (
     <WorkspaceDialog
       className="tablet-job-detail-sheet desktop-brief-panel"
@@ -218,6 +218,7 @@ function JobBriefPanel({
                   <div>
                     <strong>{item.name}</strong>
                     <small>
+                      {item.status_label ? `${item.status_label} · ` : ""}
                       {item.date
                         ? `Due ${formatDate(item.date)}`
                         : job.due_date
@@ -231,10 +232,10 @@ function JobBriefPanel({
             {!deliverables.length ? (
               <p>No deliverables have been added yet.</p>
             ) : null}
-            {!marketing && deliverables.length && !job.status?.is_closed ? (
+            {!marketing && getJobDeliverables(job).length && !job.status?.is_closed ? (
               <CreateDeliverableTasksButton
                 jobId={job.id}
-                deliverables={deliverables}
+                deliverables={getJobDeliverables(job)}
               />
             ) : null}
           </>

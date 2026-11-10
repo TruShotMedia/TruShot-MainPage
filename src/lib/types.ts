@@ -191,6 +191,7 @@ export type TabletJobRecord = {
   photos_delivered: number;
   key_deliverables?: string[];
   deliverables?: import("@/lib/job-deliverable-model").JobDeliverable[];
+  linked_tasks?: import("@/lib/job-deliverable-model").JobLinkedTask[];
   location: string | null;
   delivery_url: string | null;
   description: string | null;
