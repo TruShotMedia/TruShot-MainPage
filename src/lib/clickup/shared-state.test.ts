@@ -10,7 +10,7 @@ beforeAll(async () => {
 
 describe("ClickUp shared job state", () => {
   it("ignores progress-only updates in hashes and preserves genuine ClickUp title edits", () => {
-    const remote = { id: "task", name: "[3/4 · 75%] Launch", status: { status: "EDITING" } };
+    const remote = { id: "task", name: "[68% · 0/4 done] Launch", status: { status: "EDITING" } };
     const crm = sharedState.sharedStateFromCrm({ title: "Launch", shoot_date: null, shoot_time: null, due_date: null, due_time: null }, "EDITING");
     const state = sharedState.sharedStateFromClickUp(remote);
     expect(sharedState.sharedStateHash(state)).toBe(sharedState.sharedStateHash(crm));

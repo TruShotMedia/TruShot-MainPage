@@ -31,7 +31,7 @@ it("includes separately linked tasks in job refreshes and invalidates the ETag w
   const request = () => new Request("https://example.test/api/autopacific/tab?view=jobs");
   const first = await GET(request());
   const payload = await first.json();
-  expect(payload.pipelineJobs[0].linked_tasks).toEqual([{ id: "task", title: "GoPro episode", due_date: "2026-11-13", source_deliverable_id: null, is_complete: false, status_label: "In Progress" }]);
+  expect(payload.pipelineJobs[0].linked_tasks).toEqual([{ id: "task", title: "GoPro episode", due_date: "2026-11-13", source_deliverable_id: null, is_complete: false, status_label: "In Progress", status_key: "in_progress" }]);
   expect(getJobDeliverableRows(payload.pipelineJobs[0])).toHaveLength(1);
   task.title = "GoPro episode renamed";
   const second = await GET(new Request(request(), { headers: { "If-None-Match": first.headers.get("etag")! } }));

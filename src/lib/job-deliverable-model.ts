@@ -6,6 +6,7 @@ export type JobLinkedTask = {
   source_deliverable_id?: string | null;
   is_complete?: boolean;
   status_label?: string;
+  status_key?: string;
 };
 export type JobDeliverableRow = JobDeliverable & {
   task_id?: string;

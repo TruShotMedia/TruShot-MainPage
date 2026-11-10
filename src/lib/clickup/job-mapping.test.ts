@@ -19,9 +19,9 @@ const job: ClickUpJobSnapshot = {
 describe("ClickUp job mapping", () => {
   it("shows progress in create and update titles and the description, without changing the CRM job", () => {
     const snapshot = { ...job, progress: { completed: 3, total: 4, percent: 75 } };
-    expect(buildClickUpJobPayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[3/4 · 75%] Spring launch capture");
-    expect(buildClickUpJobUpdatePayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[3/4 · 75%] Spring launch capture");
-    expect(buildClickUpJobDescription(snapshot)).toContain("**Progress:** 3/4 deliverables completed · 75%");
+    expect(buildClickUpJobPayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[75% · 3/4 done] Spring launch capture");
+    expect(buildClickUpJobUpdatePayload({ assignedUserId: 183, job: snapshot, status: "EDITING" }).name).toBe("[75% · 3/4 done] Spring launch capture");
+    expect(buildClickUpJobDescription(snapshot)).toContain("**Progress:** 75% workflow progress · 3/4 deliverables completed");
     expect(snapshot.title).toBe(job.title);
   });
   it("exports dated deliverables with parent-deadline fallback and omits empty brief sections",()=>{

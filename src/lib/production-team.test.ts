@@ -22,17 +22,17 @@ describe("workspace navigation", () => {
 });
 
 describe("job progress", () => {
-  it.each([[0, 0], [1, 25], [2, 50], [3, 75], [4, 100]])("uses workflow stage %i for a job without tasks", (stage, percent) => {
+  it.each([[0, 0], [1, 10], [2, 50], [3, 90], [4, 100]])("uses workflow stage %i for a job without tasks", (stage, percent) => {
     expect(jobProgress({ total_tasks: 0, open_tasks: 0, status: workflow[stage] }, workflow)).toEqual({ completed: 0, total: 0, percent });
   });
   it("resolves the status ID and uses the full sorted workflow without mutating it", () => {
     const delayed = { ...workflow[2], id: "delayed", key: "delayed", position: 25, is_closed: true };
     const unordered = [workflow[4], delayed, workflow[2], workflow[0], workflow[3], workflow[1]];
-    expect(jobProgress({ total_tasks: 0, open_tasks: 0, status_id: "client_review" }, unordered).percent).toBe(75);
+    expect(jobProgress({ total_tasks: 0, open_tasks: 0, status_id: "client_review" }, unordered).percent).toBe(90);
     expect(unordered.map(stage => stage.id)).toEqual(["delivered", "delayed", "in_production", "planning", "client_review", "scheduled"]);
     expect(jobProgress({ total_tasks: 0, open_tasks: 0, status: delayed }, unordered).percent).toBe(0);
   });
-  it("keeps task completion authoritative whenever tasks exist", () => {
+  it("keeps a conservative count-only fallback for older offline payloads", () => {
     expect(jobProgress({ total_tasks: 4, completed_tasks: 1, open_tasks: 2, status: workflow[4] }, workflow).percent).toBe(25);
     expect(jobProgress({ total_tasks: 4, completed_tasks: 0, open_tasks: 4, status: workflow[3] }, workflow).percent).toBe(0);
     expect(jobProgress({ total_tasks: 4, completed_tasks: 4, open_tasks: 0, status: workflow[1] }, workflow).percent).toBe(100);

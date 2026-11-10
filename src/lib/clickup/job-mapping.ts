@@ -39,7 +39,7 @@ export function removeGeneratedClickUpJobBacklink(description: string, jobId: st
 
 export function buildClickUpJobDescription(job: ClickUpJobSnapshot) {
   const details = [
-    job.progress?.total ? `**Progress:** ${job.progress.completed}/${job.progress.total} deliverables completed · ${job.progress.percent}%` : null,
+    job.progress ? `**Progress:** ${job.progress.percent}% workflow progress · ${job.progress.total ? `${job.progress.completed}/${job.progress.total} deliverables completed` : "Based on job status"}` : null,
     job.job_number ? `**CRM job:** ${job.job_number}` : null,
     clean(job.location) ? `**Location:** ${job.location?.trim()}` : null,
     job.photos_delivered > 0 ? `**Photos delivered:** ${job.photos_delivered}` : null,

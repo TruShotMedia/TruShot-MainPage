@@ -64,19 +64,19 @@ beforeEach(() => {
 describe("outbound ClickUp progress syncing", () => {
   it("updates the title when only child progress changes, without replacing dates or status", async () => {
     expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1, failed: 0 });
-    expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ name: "[3/4 · 75%] Launch" }));
+    expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ name: "[85% · 3/4 done] Launch" }));
     const patch = mocks.updateTask.mock.calls[0][1];
     expect(patch).not.toHaveProperty("status"); expect(patch).not.toHaveProperty("start_date"); expect(patch).not.toHaveProperty("due_date");
     expect(queries.find(query => query.table === "website-job-tasks")?.filters).toEqual({ workspace_id: workspace, job_id: "job", archived_at: null });
     expect(queries.find(query => query.table === "website-jobs" && query.action !== "read")).toBeUndefined();
   });
   it("does not send a redundant ClickUp update when progress is already current", async () => {
-    mocks.getTask.mockResolvedValue({ id: "remote", name: "[3/4 · 75%] Launch", status: { status: "SCHEDULED" }, markdown_description: buildClickUpJobDescription({ ...job, progress: { completed: 3, total: 4, percent: 75 } }) });
+    mocks.getTask.mockResolvedValue({ id: "remote", name: "[85% · 3/4 done] Launch", status: { status: "SCHEDULED" }, markdown_description: buildClickUpJobDescription({ ...job, progress: { completed: 3, total: 4, percent: 85 } }) });
     expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1 }); expect(mocks.updateTask).not.toHaveBeenCalled();
   });
-  it("removes the decoration after the final task is removed", async () => {
+  it("switches to job-status progress after the final task is removed", async () => {
     taskRows = []; mocks.getTask.mockResolvedValue({ id: "remote", name: "[1/1 · 100%] Launch", status: { status: "SCHEDULED" } });
-    await dispatchClickUpJobSync(); expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ name: "Launch" }));
+    await dispatchClickUpJobSync(); expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ name: "[10% · status] Launch" }));
   });
   it("preserves a real ClickUp rename and queues it for inbound syncing", async () => {
     mocks.getTask.mockResolvedValue({ id: "remote", name: "[3/4 · 75%] Renamed", status: { status: "SCHEDULED" } });
@@ -103,7 +103,7 @@ describe("outbound ClickUp progress syncing", () => {
   });
   it("includes progress when creating the first ClickUp mirror", async () => {
     link = null; await dispatchClickUpJobSync();
-    expect(mocks.createTask).toHaveBeenCalledWith("list", expect.objectContaining({ name: "[3/4 · 75%] Launch" }));
+    expect(mocks.createTask).toHaveBeenCalledWith("list", expect.objectContaining({ name: "[85% · 3/4 done] Launch" }));
   });
   it("syncs child assets only after saving a stable parent mapping", async () => {
     syncSubtasks = true;

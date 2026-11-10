@@ -198,7 +198,7 @@ async function upsertRemoteTask({
     .eq("workspace_id", integration.workspace_id).eq("job_id", job.id).is("archived_at", null);
   if (tasksError) throw tasksError;
   const progress = clickUpJobProgress(
-    (tasks ?? []) as unknown as Parameters<typeof clickUpJobProgress>[0], job.deliverables ?? [],
+    (tasks ?? []) as unknown as Parameters<typeof clickUpJobProgress>[0], job.deliverables ?? [], status.key,
   );
 
   const snapshot: ClickUpJobSnapshot = {

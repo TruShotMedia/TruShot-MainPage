@@ -410,7 +410,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       status: jobStatusesById.get(job.status_id) ?? null,
       delay_info: delayInfoByJobId.get(job.id),
       record_notes: notesByJobId.get(job.id) ?? [],
-      linked_tasks: relatedTasks.map(task => ({ id: task.id, title: task.title, due_date: task.due_date ?? job.due_date, source_deliverable_id: task.source_deliverable_id, is_complete: taskStatusesById.get(task.status_id)?.key === "posted_done", status_label: taskStatusesById.get(task.status_id)?.label })),
+      linked_tasks: relatedTasks.map(task => ({ id: task.id, title: task.title, due_date: task.due_date ?? job.due_date, source_deliverable_id: task.source_deliverable_id, is_complete: taskStatusesById.get(task.status_id)?.key === "posted_done", status_label: taskStatusesById.get(task.status_id)?.label, status_key: taskStatusesById.get(task.status_id)?.key })),
       total_tasks: relatedTasks.length,
       completed_tasks: relatedTasks.filter(task => taskStatusesById.get(task.status_id)?.key === "posted_done").length,
       open_tasks: relatedTasks.filter((task) => taskStatusesById.get(task.status_id)?.is_open ?? true).length,

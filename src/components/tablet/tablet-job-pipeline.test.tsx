@@ -72,7 +72,7 @@ describe("TabletJobPipeline", () => {
       id: key, key, label: key === "in_production" ? "In Production" : key, color: "#579", position: index, is_closed: key === "delivered",
     }));
     const taskless = { ...job, title: "Taskless shoot", total_tasks: 0, open_tasks: 0, status_id: workflow[2].id, status: workflow[2] };
-    const withTasks = { ...taskless, id: "with-tasks", title: "Edited clips", total_tasks: 3, completed_tasks: 1, open_tasks: 2 };
+    const withTasks = { ...taskless, id: "with-tasks", title: "Edited clips", total_tasks: 4, completed_tasks: 0, open_tasks: 4, linked_tasks: ["final_draft_notes","final_draft_notes","final_draft_notes","not_started"].map((status_key,index)=>({id:String(index),title:"Clip",due_date:null,status_key})) };
     await act(async () => root.render(<ProductionTeamProvider value={{ userId: "john", role: "manager", canManage: true, videographerId: "john", members: [] }}>
       <TabletJobPipeline editable={editable} initialJobs={[taskless, withTasks]} statuses={workflow} visibleStatusKeys={["in_production"]} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />
     </ProductionTeamProvider>));
@@ -80,8 +80,8 @@ describe("TabletJobPipeline", () => {
     expect(statusProgress.value).toBe(50);
     expect(statusProgress.getAttribute("aria-valuetext")).toBe("50% · Status: In Production");
     expect(container.textContent).toContain("Status: In Production");
-    expect(container.querySelector<HTMLProgressElement>('[aria-label="Job progress for Edited clips"]')!.value).toBe(33);
-    expect(container.textContent).toContain("1 of 3 tasks complete");
+    expect(container.querySelector<HTMLProgressElement>('[aria-label="Job progress for Edited clips"]')!.value).toBe(68);
+    expect(container.textContent).toContain("0 of 4 tasks complete");
     expect(container.textContent).not.toContain("No tasks yet");
   });
 

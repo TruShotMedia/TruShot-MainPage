@@ -68,7 +68,7 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
           <JobSchedulePills job={job} />
       </button>
       {team ? <div className="team-job-meta"><span className={`team-priority is-${job.priority ?? "normal"}`}><i />{job.priority ?? "normal"} priority</span><TeamAvatars ids={job.assignee_ids} /></div> : null}
-      {team ? <div className="team-job-progress"><span>{progressLabel}<b>{progress.percent}%</b></span><progress max="100" value={progress.percent} aria-label={`Job progress for ${job.title}`} aria-valuetext={`${progress.percent}% · ${progressLabel}`} /></div> : null}
+      {team ? <div className="team-job-progress"><span>{progressLabel}<b>{progress.percent}%</b></span><progress max="100" value={progress.percent} aria-label={`Job progress for ${job.title}`} aria-valuetext={`${progress.percent}% · ${progressLabel}`} title={progress.total ? "Workflow progress averages each task’s stage. Only finished tasks count as complete." : "Workflow progress based on the job’s current status."} /></div> : null}
       <details className="tablet-job-card-operational">
         <summary><span>Operational detail</span><ChevronDown size={14} /></summary>
         <div>
