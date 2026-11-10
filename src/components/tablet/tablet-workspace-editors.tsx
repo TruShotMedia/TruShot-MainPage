@@ -15,6 +15,7 @@ import { JobLocationField } from "@/components/autopacific/job-location-field";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
 import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
+import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
 import { briefSectionLabels } from "@/lib/job-brief";
 import { formatDate } from "@/lib/format";
 import { TeamAssignmentField, useProductionTeam } from "@/components/autopacific/team-context";
@@ -168,6 +169,8 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
         </>}>
 
         <DelayHistoryBanner delayInfo={job.delay_info} />
+
+        {jobFollowsLinkedTasks(job) ? <p>Status follows linked tasks. Update the tasks to move this job forward.</p> : null}
 
         <div className="tablet-job-detail-summary">
           <article>
@@ -360,6 +363,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
   const job = isJob ? record as TabletJobRecord : null;
   const task = !isJob ? record as PipelineTask : null;
   const [selectedJobStatusId, setSelectedJobStatusId] = useState(job?.status_id);
+  const automaticStatus = job ? jobFollowsLinkedTasks(job) : false;
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -426,7 +430,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             <label>Priority<select name="priority" defaultValue={job.priority ?? "normal"}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
             {fixedClientId ? <input type="hidden" name="job_number" value={job.job_number ?? ""} /> : <label>Job number<input name="job_number" maxLength={60} defaultValue={job.job_number ?? ""} /></label>}
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
-            <label>Status<select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select></label>
+            <label>Status{automaticStatus ? <><input type="hidden" name="status_id" value={job.status_id} /><input readOnly aria-label="Automatic job status" value={job.status?.label ?? "Follows linked tasks"} /><small>Automatically follows the least-advanced linked task.</small></> : <select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select>}</label>
             {!fixedClientId ? <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label> : null}
             <label className="form-span">Brief / overview<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
             <JobBriefFields initial={job.brief_details} />

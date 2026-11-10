@@ -31,14 +31,17 @@ export async function loadProductionCampaigns(): Promise<CampaignPlan[]> {
   if (weekError) throw new Error("Campaign weeks could not be loaded.");
   const weekIds = (weeks ?? []).map(week => week.id);
   const { data: jobs, error: jobError } = weekIds.length ? await supabase.from("website-jobs")
-    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,location_details,deliverables,updated_at,assignee_ids,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at)')
+    .select('id,campaign_week_id,title,status_id,shoot_date,due_date,description,location,location_details,deliverables,updated_at,assignee_ids,tasks:"website-job-tasks"(id,title,source_deliverable_id,completed_at,archived_at,status:"website-task-statuses"(key))')
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID).eq("client_id", clientId).in("campaign_week_id", weekIds)
     .is("archived_at", null).order("shoot_date", { nullsFirst: false }) : { data: [], error: null };
   if (jobError) throw new Error("Campaign jobs could not be loaded.");
   return campaigns.map(campaign => ({ ...campaign, start_date: campaign.start_date!, weeks: (weeks ?? [])
     .filter(week => week.campaign_id === campaign.id).map(week => ({ id: week.id, title: week.title,
       jobs: (jobs ?? []).filter(job => job.campaign_week_id === week.id).map(job => ({ ...job,
-        tasks: (job.tasks ?? []).filter(task => !task.archived_at),
+        tasks: (job.tasks ?? []).filter(task => !task.archived_at).map(task => ({
+          id: task.id, title: task.title, source_deliverable_id: task.source_deliverable_id,
+          completed_at: task.completed_at, status_key: (Array.isArray(task.status) ? task.status[0] : task.status)?.key,
+        })),
       })) as CampaignPlanJob[],
     })),
   }));

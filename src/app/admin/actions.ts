@@ -1197,6 +1197,9 @@ export async function movePipelineTask(taskId: string, statusId: string) {
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
   return { ok: true };
 }
 
@@ -1220,7 +1223,7 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
     .is("archived_at", null)
     .in("id", parsed.jobIds)
-    .select("id");
+    .select("id,status_id");
   if (error || data?.length !== parsed.jobIds.length) throw new Error(error?.message ?? "The selected jobs could not be updated.");
 
   scheduleClickUpJobSync();
@@ -1228,7 +1231,7 @@ export async function bulkUpdateJobStatus(jobIds: string[], statusId: string) {
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
-  return { ok: true, updated: data.length };
+  return { ok: true, updated: data.length, statuses: data };
 }
 
 export async function linkJobsToInvoice(jobIds: string[], invoiceId: string) {
@@ -1305,6 +1308,9 @@ export async function bulkUpdateTaskStatus(taskIds: string[], statusId: string) 
   revalidatePath("/admin/overview");
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
+  revalidatePath("/autopacific");
+  revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
   return { ok: true, updated: data.length };
 }
 

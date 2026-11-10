@@ -13,6 +13,7 @@ import "./campaign-workspace.css";
 import { TeamAssignmentField, TeamAvatars, useProductionTeam } from "./team-context";
 import { assignedTo } from "@/lib/production-team";
 import { JobLocationField } from "./job-location-field";
+import { linkedTaskJobStatus } from "@/lib/job-status-rollup";
 
 function LinkedTasks({ job }: { job: CampaignPlanJob }) {
   const linked = new Set(job.tasks.map(task => task.source_deliverable_id));
@@ -93,6 +94,7 @@ export function CampaignPlanner({ initial, statuses, editable, busy, error, onCl
               const stage = byStatus.get(job.status_id);
               const historical = stage?.key === "delayed";
               const canEdit = editable && !historical;
+              const automaticStatus = linkedTaskJobStatus(stage?.key, job.tasks) !== null;
               return <article className={`campaign-plan-job ${historical ? "is-history" : ""}`} key={job.id}>
                 <header><span>Job {jobIndex + 1}</span>{historical ? <small>Delayed original · retained for history</small> : null}{canEdit ? <button type="button" aria-label={`Remove ${job.title || "job"} from week ${index + 1}`} disabled={week.jobs.length <= 1 || busy} onClick={() => {
                   if (job.updated_at && !window.confirm("Remove this job from the campaign? The job and its tasks will stay in the workspace.")) return;
@@ -101,7 +103,7 @@ export function CampaignPlanner({ initial, statuses, editable, busy, error, onCl
                 <div className="campaign-job-fields">
                   <label className="campaign-field-wide">Job / content brief{canEdit ? <input required minLength={2} maxLength={220} value={job.title} onChange={event => updateJob(week.id, job.id, { title: event.target.value })} placeholder="Episode 1 — Hit the dirt" /> : <strong>{job.title}</strong>}</label>
                   {canEdit ? <TeamAssignmentField key={`${job.id}:${job.assignee_ids ? "explicit" : plan.assignee_ids?.join(",")}`} initialIds={job.assignee_ids ?? plan.assignee_ids} onChange={ids => updateJob(week.id, job.id, { assignee_ids: ids })} /> : <TeamAvatars ids={job.assignee_ids} />}
-                  <label>Status{canEdit ? <select value={job.status_id} onChange={event => updateJob(week.id, job.id, { status_id: event.target.value })}>{statuses.filter(item => item.key !== "delayed").map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select> : <strong>{stage?.label}</strong>}</label>
+                  <label>Status{canEdit && !automaticStatus ? <select value={job.status_id} onChange={event => updateJob(week.id, job.id, { status_id: event.target.value })}>{statuses.filter(item => item.key !== "delayed").map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select> : <strong>{stage?.label}{automaticStatus ? <small>Follows linked tasks</small> : null}</strong>}</label>
                   <label>Shoot date{canEdit ? <div className="optional-deliverable-date"><input type="date" data-empty={!job.shoot_date} value={job.shoot_date ?? ""} onChange={event => updateJob(week.id, job.id, { shoot_date: event.target.value || null })} />{!job.shoot_date ? <span aria-hidden="true">Not scheduled</span> : null}</div> : <strong>{formatDate(job.shoot_date)}</strong>}</label>
                   <label>Job deadline{canEdit ? <div className="optional-deliverable-date"><input type="date" data-empty={!job.due_date} min={job.shoot_date ?? undefined} value={job.due_date ?? ""} onChange={event => updateJob(week.id, job.id, { due_date: event.target.value || null })} />{!job.due_date ? <span aria-hidden="true">No deadline</span> : null}</div> : <strong>{formatDate(job.due_date)}</strong>}</label>
                 </div>

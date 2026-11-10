@@ -25,6 +25,7 @@ type Result = { data: unknown; error: unknown };
 let taskRows: { source_deliverable_id: null; status: { key: string } }[], taskError: unknown, link: { id: string; clickup_task_id: string; last_shared_hash: string } | null;
 let queries: Query[];
 let syncSubtasks: boolean;
+let jobStatusKey: string;
 class Query {
   action = "read"; selected = false; filters: Record<string, unknown> = {}; payload: unknown;
   constructor(readonly table: string) { queries.push(this); }
@@ -39,9 +40,9 @@ class Query {
   delete() { this.action = "delete"; return this; }
   result(): Result {
     if (this.action === "read") {
-      if (this.table === "website-clickup-integrations") return { data: { workspace_id: workspace, target_client_id: "client", list_id: "list", enabled: true, sync_subtasks: syncSubtasks, assigned_user_id: 42, status_mapping: { scheduled: "SCHEDULED" } }, error: null };
+      if (this.table === "website-clickup-integrations") return { data: { workspace_id: workspace, target_client_id: "client", list_id: "list", enabled: true, sync_subtasks: syncSubtasks, assigned_user_id: 42, status_mapping: { scheduled: "SCHEDULED", production: "EDITING", review: "APPROVAL", delivered: "COMPLETE" } }, error: null };
       if (this.table === "website-jobs") return { data: job, error: null };
-      if (this.table === "website-job-statuses") return { data: { key: "scheduled" }, error: null };
+      if (this.table === "website-job-statuses") return { data: { key: jobStatusKey }, error: null };
       if (this.table === "website-job-tasks") return { data: taskRows, error: taskError };
       if (this.table === "website-clickup-job-links") return { data: link, error: null };
       if (this.table === "website-clickup-sync-outbox") return { data: [{ id: "event", workspace_id: workspace, job_id: "job", operation: "upsert", status: "pending", attempts: 0 }], error: null };
@@ -55,6 +56,7 @@ class Query {
   }
 }
 beforeEach(() => {
+  jobStatusKey = "scheduled";
   vi.clearAllMocks(); queries = []; syncSubtasks = false; mocks.subtasks.mockResolvedValue(undefined); taskError = null; link = { id: "link", clickup_task_id: "remote", last_shared_hash: baseline };
   taskRows = ["posted_done", "posted_done", "posted_done", "in_progress"].map(key => ({ source_deliverable_id: null, status: { key } }));
   mocks.service.mockReturnValue({ from: (table: string) => new Query(table) }); mocks.assigned.mockResolvedValue(true);
@@ -62,6 +64,19 @@ beforeEach(() => {
   mocks.updateTask.mockResolvedValue({ id: "remote" }); mocks.createTask.mockResolvedValue({ id: "created" });
 });
 describe("outbound ClickUp progress syncing", () => {
+  it("sends an automatically advanced job stage through the existing shared-state queue", async () => {
+    jobStatusKey = "production";
+    expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1, failed: 0 });
+    expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ status: "EDITING" }));
+  });
+  it("corrects a parent status override/reopened job without treating it as a sync conflict", async () => {
+    // Inbound stores the remote baseline, then Postgres keeps the task-derived
+    // job stage. The queued outbound write must put that stage back in ClickUp.
+    link!.last_shared_hash = sharedStateHash(sharedStateFromCrm(job, "COMPLETE"));
+    mocks.getTask.mockResolvedValue({ id: "remote", name: job.title, status: { status: "COMPLETE" } });
+    expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1, failed: 0 });
+    expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ status: "SCHEDULED" }));
+  });
   it("updates the title when only child progress changes, without replacing dates or status", async () => {
     expect(await dispatchClickUpJobSync()).toMatchObject({ succeeded: 1, failed: 0 });
     expect(mocks.updateTask).toHaveBeenCalledWith("remote", expect.objectContaining({ name: "[85% · 3/4 done] Launch" }));

@@ -49,6 +49,13 @@ describe("Campaign weekly editor", () => {
     expect(container.querySelector("input,textarea,select,.campaign-add-week,.campaign-add-job")).toBeNull();
     expect(container.textContent).toContain("Episode 1");
   });
+  it("makes active task-backed job status read-only while keeping Planning editable", async () => {
+    const linked: CampaignPlan = { ...plan, weeks: [{ ...plan.weeks[0], jobs: [{ ...plan.weeks[0].jobs[0], status_id: "production", tasks: [{ id: "task", title: "Preview reel", source_deliverable_id: "item", completed_at: null, status_key: "in_progress" }] }] }] };
+    await act(async () => root.render(planner({ initial: linked })));
+    expect(container.querySelector(".campaign-plan-job select")).toBeNull();
+    expect(container.textContent).toContain("Follows linked tasks");
+  });
+
   it("shows already-linked tasks instead of offering duplicate generation", async () => {
     const linked: CampaignPlan = { ...plan, weeks: [{ ...plan.weeks[0], jobs: [{ ...plan.weeks[0].jobs[0], tasks: [{ id: "task", title: "Preview reel", source_deliverable_id: "item", completed_at: null }] }] }] };
     await act(async () => root.render(planner({ initial: linked })));

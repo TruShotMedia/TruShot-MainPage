@@ -85,6 +85,15 @@ describe("TabletJobPipeline", () => {
     expect(container.textContent).not.toContain("No tasks yet");
   });
 
+  it.each([true, false])("keeps task-managed AutoPacific cards automatic with editable=%s", async editable => {
+    const managed = { ...finalStageJob, client: { id: "apg", name: "Autopacific Group" }, linked_tasks: [{ id: "task", title: "Clip", due_date: null, status_key: "final_draft_notes" }] };
+    await act(async () => root.render(<TabletJobPipeline editable={editable} initialJobs={[managed, job]} statuses={statuses} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />));
+    expect(container.querySelector<HTMLButtonElement>(`[aria-label="Move ${managed.title}"]`)?.disabled).toBe(true);
+    expect(container.querySelector(`[aria-label="Mark ${managed.title} as delivered"]`)).toBeNull();
+    expect(container.textContent).toContain("Status follows linked tasks");
+    expect(container.querySelector<HTMLButtonElement>(`[aria-label="Move ${job.title}"]`)?.disabled).toBe(false);
+  });
+
   it("shows jobs grouped by status with edit and drag controls", async () => {
     const onEditJob = vi.fn();
     const onDuplicateJob = vi.fn();

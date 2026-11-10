@@ -199,6 +199,24 @@ describe("tablet workspace editors", () => {
     expect(onSaved).toHaveBeenCalledOnce();
   });
 
+  it("shows automatic status without losing it from the submitted job form", async () => {
+    const status = { ...jobStatuses[0], key: "production", label: "In Production" };
+    const record: TabletJobRecord = {
+      id: "job", title: "Production brief", job_number: null, client_id: "apg", status_id: status.id,
+      shoot_date: "2026-10-14", shoot_time: null, due_date: null, due_time: null,
+      photos_delivered: 0, location: null, delivery_url: null, description: null, notes: null,
+      delivered_at: null, updated_at: "2026-10-14T00:00:00Z", open_tasks: 1, total_tasks: 1,
+      client: { id: "apg", name: "Autopacific Group" }, status,
+      linked_tasks: [{ id: "task", title: "Film", due_date: null, status_key: "in_progress" }],
+    };
+    await act(async () => root.render(<TabletRecordEditEditor clientOptions={[]} jobOptions={[]} jobStatuses={[status]} onClose={vi.fn()} onSaved={vi.fn()} record={record} taskStatuses={taskStatuses} type="job" />));
+    expect(container.querySelector('select[name="status_id"]')).toBeNull();
+    expect(container.querySelector<HTMLInputElement>('[aria-label="Automatic job status"]')?.readOnly).toBe(true);
+    const form = container.querySelector<HTMLFormElement>("form")!;
+    expect(new FormData(form).get("status_id")).toBe(status.id);
+    expect(container.textContent).toContain("Automatically follows the least-advanced linked task.");
+  });
+
   it("edits and safely removes a job from the tablet workspace", async () => {
     const record: TabletJobRecord = {
       id: "44444444-4444-4444-8444-444444444444",

@@ -8,7 +8,7 @@ export type CampaignPlanJob = {
   id: string; title: string; status_id: string; shoot_date: string | null; due_date: string | null;
   description: string | null; location: string | null; deliverables: JobDeliverable[];
   updated_at: string | null;
-  tasks: { id: string; title: string; source_deliverable_id: string | null; completed_at: string | null }[];
+  tasks: { id: string; title: string; source_deliverable_id: string | null; completed_at: string | null; status_key?: string }[];
 };
 export type CampaignPlanWeek = { id: string; title: string; jobs: CampaignPlanJob[] };
 export type CampaignPlan = {

@@ -57,6 +57,7 @@ import {
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
 import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
+import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
@@ -147,6 +148,7 @@ function JobBriefPanel({
       }
     >
       <DelayHistoryBanner delayInfo={job.delay_info} />
+      {jobFollowsLinkedTasks(job) ? <p className="apg-notice">Status follows linked tasks. The least-advanced task determines this job’s stage.</p> : null}
       <dl className="desktop-brief-facts">
         <div>
           <dt>Shoot</dt>

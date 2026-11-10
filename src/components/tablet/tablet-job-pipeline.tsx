@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/format";
 import type { JobStatus, TabletJobRecord } from "@/lib/types";
 import { TeamAvatars, useProductionTeam } from "@/components/autopacific/team-context";
 import { jobProgress } from "@/lib/production-team";
+import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
 
 function sortJobs(jobs: TabletJobRecord[]) {
   return [...jobs].sort((left, right) => {
@@ -44,6 +45,7 @@ function DelayedJobMarker({ job }: { job: TabletJobRecord }) {
 function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, dragDisabled, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; job: TabletJobRecord; statuses: JobStatus[]; isSaving: boolean; dragDisabled: boolean; onComplete: () => void; onSchedule: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const team = useProductionTeam();
   const progress = jobProgress(job, statuses);
+  const automaticStatus = jobFollowsLinkedTasks(job);
   const progressLabel = progress.total ? `${progress.completed} of ${progress.total} tasks complete`
     : `Status: ${job.status?.label ?? statuses.find(status => status.id === job.status_id)?.label ?? "Not set"}`;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: job.id, disabled: dragDisabled });
@@ -55,12 +57,13 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
       style={{ "--pipeline-control-count": (editable ? 3 : 1) + (canComplete ? 1 : 0) } as CSSProperties}
     >
       <div className="pipeline-task-controls">
-        <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} disabled={dragDisabled}><GripVertical size={15} /></button>
+        <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} title={automaticStatus ? "This job follows its linked tasks. Move the tasks to change its stage." : "Move job"} disabled={dragDisabled}><GripVertical size={15} /></button>
         {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}
       </div>
       <div className="pipeline-card-content">
+      {automaticStatus ? <small className="task-client" title="The least-advanced active task sets this job’s stage.">Status follows linked tasks</small> : null}
       <button type="button" className="tablet-job-card-primary" aria-label={`View details for ${job.title}`} onClick={() => onView(job)}>
           <span className="task-client">{job.client?.name ?? "No client"}</span>
           <DelayedJobMarker job={job} />
@@ -91,7 +94,7 @@ function JobColumn({ canComplete, canSchedule, editable, status, statuses, jobs,
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b>{isOver ? <em className="pipeline-drop-hint">Drop here</em> : null}</header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete} canSchedule={canSchedule} editable={editable} job={job} statuses={statuses} isSaving={savingId === job.id} dragDisabled={Boolean(savingId)} onComplete={() => onComplete(job)} onSchedule={() => onSchedule(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete && !jobFollowsLinkedTasks(job)} canSchedule={canSchedule} editable={editable} job={job} statuses={statuses} isSaving={savingId === job.id} dragDisabled={Boolean(savingId) || jobFollowsLinkedTasks(job)} onComplete={() => onComplete(job)} onSchedule={() => onSchedule(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
         {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
@@ -141,6 +144,10 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
     const current = jobs.find((job) => job.id === jobId);
     const destination = statuses.find((status) => status.id === statusId);
     if (!current || !destination || current.status_id === statusId) return;
+    if (jobFollowsLinkedTasks(current)) {
+      setMessage("This job follows its linked tasks. Update the tasks to change its stage.");
+      return;
+    }
     const previousJobs = jobs;
     const movedAt = new Date().toISOString();
     const nextJobs = jobs.map((job) => job.id === jobId ? {
@@ -159,8 +166,15 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
         setMessage(`${current.title} will sync when reception returns.`);
         return;
       }
-      await bulkUpdateJobStatus([jobId], statusId);
-      setMessage(`${current.title} moved to ${destination.label}.`);
+      const result = await bulkUpdateJobStatus([jobId], statusId);
+      const actualId = result.statuses?.find(item => item.id === jobId)?.status_id ?? statusId;
+      if (actualId !== statusId) {
+        const actual = statuses.find(item => item.id === actualId);
+        const corrected = nextJobs.map(job => job.id === jobId ? { ...job, status_id: actualId, status: actual ?? null } : job);
+        setJobs(corrected);
+        onJobsChange?.(corrected);
+        setMessage(`${current.title} follows its linked tasks${actual ? ` · ${actual.label}` : ""}.`);
+      } else setMessage(`${current.title} moved to ${destination.label}.`);
       onMoveSaved?.();
     } catch {
       setJobs(previousJobs);
