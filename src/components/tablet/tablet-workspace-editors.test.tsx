@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarJob, JobStatus, PipelineTask, TabletJobRecord, TaskStatus } from "@/lib/types";
-import { TabletRecordCreateEditor, TabletRecordEditEditor, TabletScheduleEditor } from "./tablet-workspace-editors";
+import { JobBriefReadout, TabletRecordCreateEditor, TabletRecordEditEditor, TabletScheduleEditor } from "./tablet-workspace-editors";
 
 const actionMocks = vi.hoisted(() => ({
   archiveJob: vi.fn(async (formData: FormData) => { void formData; return { ok: true }; }),
@@ -43,6 +43,13 @@ describe("tablet workspace editors", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+  });
+
+  it("makes objectives, audience and optional brief-section URLs usable in a new tab", async () => {
+    const job = { brief_details: { objective: "See https://example.com/objective", audience: "See www.example.org/audience", sections: [{ key: "output_specs", body: "Reference https://example.com/specs" }] } } as TabletJobRecord;
+    await act(async () => root.render(<JobBriefReadout job={job} />));
+    expect([...container.querySelectorAll("a")].map(link => link.href)).toEqual(["https://example.com/objective", "https://www.example.org/audience", "https://example.com/specs"]);
+    expect([...container.querySelectorAll("a")].every(link => link.target === "_blank")).toBe(true);
   });
 
   it("creates a job through the existing authenticated CRM action", async () => {

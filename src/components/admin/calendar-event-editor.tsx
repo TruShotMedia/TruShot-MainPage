@@ -1,5 +1,7 @@
 "use client";
 
+import { LinkAwareTextarea } from "@/components/shared/linked-text";
+
 import { TeamAssignmentField } from "@/components/autopacific/team-context";
 
 import { useState, type CSSProperties, type FormEvent } from "react";
@@ -115,7 +117,7 @@ function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, eve
           <label className="calendar-event-title-field">Event title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Campaign planning session" /></label>
           <label><span><MapPin size={13} /> Location</span><input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
           {!defaultClientId && clientOptions.length ? <label>Client / workspace<select name="client_id" defaultValue={event?.client_id ?? ""}><option value="">General calendar event</option>{clientOptions.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><small>AutoPacific events are mirrored into ClickUp automatically.</small></label> : null}
-          <label className="calendar-event-notes-field">Notes<textarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder="People, preparation, links or anything useful…" /></label>
+          <label className="calendar-event-notes-field">Notes<LinkAwareTextarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder="People, preparation, links or anything useful…" /></label>
         </div>
 
         <section className="calendar-event-time-panel">

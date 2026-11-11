@@ -1,5 +1,7 @@
 "use client";
 
+import { LinkedText, LinkAwareTextarea } from "@/components/shared/linked-text";
+
 import { useMemo, useRef, useState, useTransition, type ChangeEvent, type CSSProperties, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
@@ -133,8 +135,8 @@ function CampaignFields({ campaign, clients }: { campaign?: Campaign; clients: C
       <label>Status<select name="status" defaultValue={campaign?.status ?? "planning"}><option value="planning">Planning</option><option value="active">Active</option><option value="paused">Paused</option><option value="complete">Complete</option></select></label>
       <label>Start date<input type="date" name="start_date" defaultValue={campaign?.start_date ?? ""} /></label>
       <label>Campaign deadline<input type="date" name="due_date" defaultValue={campaign?.due_date ?? ""} /></label>
-      <label className="form-span">Objective<textarea name="objective" rows={3} defaultValue={campaign?.objective ?? ""} placeholder="What should this campaign achieve?" /></label>
-      <label className="form-span">Internal notes<textarea name="notes" rows={3} defaultValue={campaign?.notes ?? ""} placeholder="Strategy, approvals, dependencies or context." /></label>
+      <label className="form-span">Objective<LinkAwareTextarea name="objective" rows={3} defaultValue={campaign?.objective ?? ""} placeholder="What should this campaign achieve?" /></label>
+      <label className="form-span">Internal notes<LinkAwareTextarea name="notes" rows={3} defaultValue={campaign?.notes ?? ""} placeholder="Strategy, approvals, dependencies or context." /></label>
     </>
   );
 }
@@ -171,12 +173,12 @@ function AssetFields({
       <label>Start time<input type="time" name="start_time" defaultValue={asset?.start_time?.slice(0, 5) ?? ""} /></label>
       <label>Deadline<input type="date" name="due_date" defaultValue={asset?.due_date ?? ""} /></label>
       <label>Deadline time<input type="time" name="due_time" defaultValue={asset?.due_time?.slice(0, 5) ?? ""} /></label>
-      <label className="form-span">Description<textarea name="description" rows={3} defaultValue={asset?.description ?? ""} placeholder="What needs to be created and why it matters." /></label>
+      <label className="form-span">Description<LinkAwareTextarea name="description" rows={3} defaultValue={asset?.description ?? ""} placeholder="What needs to be created and why it matters." /></label>
       <label className="form-span">Location<input name="location" defaultValue={asset?.location ?? ""} placeholder="Studio, venue, suburb or call link" /></label>
       <label>Best contact<input name="contact_name" list={`campaign-contacts-${campaign.id}`} defaultValue={asset?.contact_name ?? ""} placeholder="Contact name" /><datalist id={`campaign-contacts-${campaign.id}`}>{campaignContacts.map((contact) => <option value={contact.name} key={contact.id}>{[contact.email, contact.phone].filter(Boolean).join(" · ")}</option>)}</datalist></label>
       <label>Contact email<input type="email" name="contact_email" defaultValue={asset?.contact_email ?? ""} placeholder="name@business.com" /></label>
       <label>Contact phone<input type="tel" name="contact_phone" defaultValue={asset?.contact_phone ?? ""} placeholder="0400 000 000" /></label>
-      <label className="form-span">Production notes<textarea name="notes" rows={4} defaultValue={asset?.notes ?? ""} placeholder="Shot list, approvals, delivery notes or dependencies." /></label>
+      <label className="form-span">Production notes<LinkAwareTextarea name="notes" rows={4} defaultValue={asset?.notes ?? ""} placeholder="Shot list, approvals, delivery notes or dependencies." /></label>
     </>
   );
 }
@@ -338,7 +340,7 @@ function CampaignAssetCard({
           <div className="campaign-asset-title">
             <div><span className={`campaign-priority priority-${asset.priority}`}>{asset.priority}</span>{asset.asset_type ? <span>{asset.asset_type}</span> : null}</div>
             <h3>{asset.title}</h3>
-            {asset.description ? <p>{asset.description}</p> : null}
+            {asset.description ? <p><LinkedText>{asset.description}</LinkedText></p> : null}
           </div>
           <div className="campaign-asset-actions">
             {completedStatus && !isComplete ? <button type="button" className="campaign-complete-button" onClick={() => changeStatus(completedStatus.id)} disabled={isPending} title="Mark complete"><Check size={16} /></button> : null}
@@ -362,7 +364,7 @@ function CampaignAssetCard({
           {asset.contact_phone ? <a href={`tel:${asset.contact_phone}`}><Phone size={14} /> {asset.contact_phone}</a> : null}
           {asset.invoice ? <span><CircleDollarSign size={14} /> {asset.invoice.invoice_number} · {formatMoney(asset.invoice.total_cents)}</span> : null}
         </div>
-        {asset.notes ? <p className="campaign-asset-notes">{asset.notes}</p> : null}
+        {asset.notes ? <p className="campaign-asset-notes"><LinkedText>{asset.notes}</LinkedText></p> : null}
         <AttachmentPanel asset={asset} workspaceId={workspaceId} />
         {message ? <p className="campaign-action-message" role="alert">{message}</p> : null}
       </div>
@@ -427,7 +429,7 @@ export function CampaignManager({ campaigns, clients, contacts, statuses, invoic
           <div className="campaign-hero-copy">
             <div className="campaign-hero-eyebrow"><span className={`campaign-status campaign-status-${selectedCampaign.status}`}>{campaignStatusMeta[selectedCampaign.status].label}</span><span>{selectedCampaign.client?.name ?? "Independent campaign"}</span></div>
             <h1>{selectedCampaign.title}</h1>
-            <p>{selectedCampaign.objective ?? "Add a clear campaign objective so every asset stays connected to the result."}</p>
+            <p><LinkedText>{selectedCampaign.objective ?? "Add a clear campaign objective so every asset stays connected to the result."}</LinkedText></p>
             <div className="campaign-hero-meta"><span><CalendarDays size={15} /> {dateWindow(selectedCampaign.start_date, selectedCampaign.due_date)}</span><span><Clock3 size={15} /> Updated {formatDate(selectedCampaign.updated_at.slice(0, 10))}</span></div>
           </div>
           <div className="campaign-hero-actions">
@@ -451,7 +453,7 @@ export function CampaignManager({ campaigns, clients, contacts, statuses, invoic
         {selectedCampaign.assets.length ? <section className="campaign-flow" aria-label={`Asset plan for ${selectedCampaign.title}`}>
           {[...selectedCampaign.assets].sort(assetSort).map((asset, index) => <CampaignAssetCard asset={asset} campaign={selectedCampaign} index={index} statuses={statuses} invoices={invoices} contacts={contacts} workspaceId={workspaceId} key={asset.id} />)}
         </section> : <section className="admin-card campaign-assets-empty"><div><Sparkles size={21} /></div><span>Blank canvas</span><h2>Map the campaign flow</h2><p>Add the first deliverable. Dates automatically determine the order, and every deadline will appear in the shared calendar.</p></section>}
-        {selectedCampaign.notes ? <section className="admin-card campaign-notes"><span>Campaign notes</span><p>{selectedCampaign.notes}</p></section> : null}
+        {selectedCampaign.notes ? <section className="admin-card campaign-notes"><span>Campaign notes</span><p><LinkedText>{selectedCampaign.notes}</LinkedText></p></section> : null}
         {message ? <p className="campaign-action-message" role="alert">{message}</p> : null}
       </main> : null}
     </div>

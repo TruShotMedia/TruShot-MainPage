@@ -5,7 +5,7 @@ import {afterEach,beforeEach,expect,it,vi} from "vitest";
 const mocks=vi.hoisted(()=>({load:vi.fn(),mark:vi.fn()}));
 vi.mock("@/app/autopacific/team-actions",()=>({loadTeamComments:mocks.load,markTeamCommentsRead:mocks.mark,loadTeamDirectory:vi.fn(),saveTeamMember:vi.fn()}));
 vi.mock("./team-context",()=>({useProductionTeam:()=>({userId:"me",members:[]}),TeamAvatar:()=>null}));
-vi.mock("./comment-mentions",()=>({MentionText:({children}:{children:ReactNode})=><>{children}</>}));
+vi.mock("./comment-mentions",async()=>({MentionText:(await import("@/components/shared/linked-text")).LinkedText}));
 vi.mock("@/components/shared/workspace-dialog",()=>({WorkspaceDialog:({children,header,footer}:{children:ReactNode;header:ReactNode;footer:ReactNode})=><section role="dialog">{header}{children}{footer}</section>}));
 vi.mock("@/components/tablet/tablet-notification-control",()=>({TabletNotificationControl:()=>null}));
 import {TeamNotifications} from "./team-workspace";
@@ -27,4 +27,14 @@ it("keeps unavailable updates unread and displays a retryable error",async()=>{
   expect(mocks.mark).not.toHaveBeenCalled();expect(host.querySelector('[role="dialog"]')).not.toBeNull();
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("no longer available");
   expect(host.querySelector('[aria-label="Unread"]')).not.toBeNull();
+});
+it("opens a comment URL independently without acknowledging or opening its job",async()=>{
+  mocks.load.mockResolvedValue([{...note,body:"Reference https://example.com/brief"}]);
+  const opened=vi.fn(async()=>{});await open(opened);
+  const link=host.querySelector<HTMLAnchorElement>(".team-comment-preview a")!;
+  expect(link.target).toBe("_blank");expect(link.closest("button")).toBeNull();
+  link.addEventListener("click",event=>event.preventDefault());
+  await act(async()=>link.click());
+  expect(opened).not.toHaveBeenCalled();expect(mocks.mark).not.toHaveBeenCalled();
+  expect(host.querySelector('[role="dialog"]')).not.toBeNull();
 });

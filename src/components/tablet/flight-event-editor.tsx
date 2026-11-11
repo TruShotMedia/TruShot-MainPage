@@ -1,5 +1,7 @@
 "use client";
 
+import { LinkAwareTextarea } from "@/components/shared/linked-text";
+
 import { TeamAssignmentField } from "@/components/autopacific/team-context";
 
 import { useMemo, useState, type FormEvent } from "react";
@@ -194,7 +196,7 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
                 <button type="button" className={hasReturn ? "is-active" : ""} onClick={enableReturn} aria-pressed={hasReturn}><RotateCcw size={14} /> Return</button>
               </div>
             </div>
-            <label className="flight-trip-notes"><span>Trip notes <small>Optional</small></span><textarea name="notes" maxLength={4000} defaultValue={outboundLeg?.notes ?? event?.notes ?? ""} placeholder="Booking notes, baggage, contacts or production details…" /></label>
+            <label className="flight-trip-notes"><span>Trip notes <small>Optional</small></span><LinkAwareTextarea name="notes" maxLength={4000} defaultValue={outboundLeg?.notes ?? event?.notes ?? ""} placeholder="Booking notes, baggage, contacts or production details…" /></label>
           </section>
 
           <section className="flight-plan-legs" aria-label="Flight plan legs">
@@ -213,13 +215,13 @@ export function FlightEventEditor({ defaultClientId = null, defaultDate, event, 
                 <legend><BedDouble size={14} /> Accommodation</legend>
                 <label>Title<input name="accommodation_title" maxLength={180} defaultValue={outboundLeg?.accommodation_title ?? event?.accommodation_title ?? ""} placeholder="Hotel or apartment" /></label>
                 <label>Location<input name="accommodation_location" maxLength={300} defaultValue={outboundLeg?.accommodation_location ?? event?.accommodation_location ?? ""} placeholder="Address or suburb" /></label>
-                <label>Notes<textarea name="accommodation_notes" maxLength={2000} defaultValue={outboundLeg?.accommodation_notes ?? event?.accommodation_notes ?? ""} placeholder="Check-in, confirmation or contact…" /></label>
+                <label>Notes<LinkAwareTextarea name="accommodation_notes" maxLength={2000} defaultValue={outboundLeg?.accommodation_notes ?? event?.accommodation_notes ?? ""} placeholder="Check-in, confirmation or contact…" /></label>
               </fieldset>
               <fieldset>
                 <legend><CarFront size={14} /> Vehicle</legend>
                 <label>Title<input name="vehicle_title" maxLength={180} defaultValue={outboundLeg?.vehicle_title ?? event?.vehicle_title ?? ""} placeholder="Hire car, transfer or parking" /></label>
                 <label>Location<input name="vehicle_location" maxLength={300} defaultValue={outboundLeg?.vehicle_location ?? event?.vehicle_location ?? ""} placeholder="Pickup point or depot" /></label>
-                <label>Notes<textarea name="vehicle_notes" maxLength={2000} defaultValue={outboundLeg?.vehicle_notes ?? event?.vehicle_notes ?? ""} placeholder="Pickup time, reference or contact…" /></label>
+                <label>Notes<LinkAwareTextarea name="vehicle_notes" maxLength={2000} defaultValue={outboundLeg?.vehicle_notes ?? event?.vehicle_notes ?? ""} placeholder="Pickup time, reference or contact…" /></label>
               </fieldset>
             </div>
           </details>

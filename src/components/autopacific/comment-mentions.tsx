@@ -5,6 +5,8 @@ import { AtSign } from "lucide-react";
 import { activeMention, findTeamMentions, insertMention, mentionSuggestions } from "@/lib/production-mentions";
 import type { TeamMember } from "@/lib/production-team";
 import { TeamAvatar, useProductionTeam } from "./team-context";
+import { LinkedText, TextLinksPreview } from "@/components/shared/linked-text";
+import { findTextLinks } from "@/lib/text-links";
 import "./comment-mentions.css";
 
 type MentionTextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & { value: string; onChange: (text: string) => void };
@@ -66,15 +68,17 @@ export function MentionTextarea({ value, onChange, maxLength = 4000, ...props }:
       }} />
     {team ? <small id={`${id}-help`} className="comment-mention-hint">Type @ to mention someone{open && results.length ? " · ↑↓ to choose · Enter to insert · Esc to dismiss" : ""}</small> : null}
     {notice ? <small role="status" className="comment-mention-hint">{notice}</small> : null}
+    <TextLinksPreview text={value} />
   </div>;
 }
 
 export function MentionText({ children }: { children: string }) {
   const team = useProductionTeam();
-  const mentions = findTeamMentions(children, team?.members ?? []);
-  if (!mentions.length) return children;
+  const links = findTextLinks(children);
+  const mentions = findTeamMentions(children, team?.members ?? []).filter(mention => !links.some(link => mention.start < link.end && mention.end > link.start));
+  if (!mentions.length) return <LinkedText>{children}</LinkedText>;
   return <>{mentions.map((mention, index) => {
     const before = children.slice(index ? mentions[index - 1].end : 0, mention.start);
-    return <Fragment key={mention.start}>{before}<span className={`comment-inline-mention${mention.member.user_id === team?.userId ? " is-you" : ""}`} title={`@${mention.member.username}`}>@{mention.member.display_name}</span></Fragment>;
-  })}{children.slice(mentions[mentions.length - 1].end)}</>;
+    return <Fragment key={mention.start}><LinkedText>{before}</LinkedText><span className={`comment-inline-mention${mention.member.user_id === team?.userId ? " is-you" : ""}`} title={`@${mention.member.username}`}>@{mention.member.display_name}</span></Fragment>;
+  })}<LinkedText>{children.slice(mentions[mentions.length - 1].end)}</LinkedText></>;
 }

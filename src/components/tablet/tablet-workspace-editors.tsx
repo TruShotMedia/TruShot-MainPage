@@ -7,6 +7,7 @@ import { DelayRecordAction } from "@/components/admin/delay-record-action";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { JobSearchField } from "@/components/admin/job-search-field";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
+import { LinkedText, LinkAwareTextarea } from "@/components/shared/linked-text";
 import { JobDeliverablesField } from "@/components/shared/job-deliverables-field";
 import { JobScheduleFields } from "@/components/shared/job-schedule-fields";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
@@ -123,7 +124,7 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
         {team?<RecordFollowControl key={`${recordKind}:${recordId}`} recordId={recordId} recordKind={recordKind}/>:<b>{items.length}</b>}
       </header>
       <div className="tablet-record-notes-thread" aria-live="polite">
-        {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p>{legacyNote}</p></article> : null}
+        {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p><MentionText>{legacyNote!}</MentionText></p></article> : null}
         {items.length ? items.map((note) => (
           <article className="tablet-record-note" key={note.id}>
             <header><small>{team ? `${team.members.find(member => member.user_id === note.created_by)?.display_name ?? "Team"} · ` : ""}{note.rescheduled_date ? `Rescheduled to ${formatDate(note.rescheduled_date)} · ` : ""}{formatNoteTimestamp(note.created_at)}{note.updated_at !== note.created_at ? " · Edited" : ""}</small>{!team || team.canManage || note.created_by === team.userId ? <button type="button" onClick={() => { setEditingId(note.id); setEditingBody(note.body); setErrorMessage(""); }} aria-label="Edit this note"><PencilLine size={13} /></button> : null}</header>
@@ -148,9 +149,9 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
 export function JobBriefReadout({job}:{job:TabletJobRecord}) {
   const brief=job.brief_details;
   if(!brief) return null;
-  return <div className="job-brief-readout">{brief.objective?<section><h3>Objective</h3><p>{brief.objective}</p></section>:null}{brief.audience?<section><h3>Audience</h3><p>{brief.audience}</p></section>:null}
-    {[brief.contact_name,brief.contact_email,brief.contact_phone].some(Boolean)?<section><h3>Production contact</h3><p>{[brief.contact_name,brief.contact_email,brief.contact_phone].filter(Boolean).join(" · ")}</p></section>:null}
-    {brief.sections?.filter(section=>section.body).map(section=><section key={section.key}><h3>{briefSectionLabels[section.key]}</h3><p>{section.body}</p></section>)}
+  return <div className="job-brief-readout">{brief.objective?<section><h3>Objective</h3><p><LinkedText>{brief.objective}</LinkedText></p></section>:null}{brief.audience?<section><h3>Audience</h3><p><LinkedText>{brief.audience}</LinkedText></p></section>:null}
+    {[brief.contact_name,brief.contact_email,brief.contact_phone].some(Boolean)?<section><h3>Production contact</h3><p><LinkedText>{[brief.contact_name,brief.contact_email,brief.contact_phone].filter(Boolean).join(" · ")}</LinkedText></p></section>:null}
+    {brief.sections?.filter(section=>section.body).map(section=><section key={section.key}><h3>{briefSectionLabels[section.key]}</h3><p><LinkedText>{section.body}</LinkedText></p></section>)}
   </div>;
 }
 
@@ -198,10 +199,10 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
 
         <dl className="tablet-job-detail-list">
           {!isAutopacific ? <div><dt>Job number</dt><dd>{job.job_number || "Not assigned"}</dd></div> : null}
-          <div><dt><MapPin size={14} /> Location</dt><dd>{job.location || "Not specified"}</dd></div>
-          {job.description ? <div className="is-wide"><dt>Description</dt><dd>{job.description}</dd></div> : null}
+          <div><dt><MapPin size={14} /> Location</dt><dd><LinkedText>{job.location || "Not specified"}</LinkedText></dd></div>
+          {job.description ? <div className="is-wide"><dt>Description</dt><dd><LinkedText>{job.description}</LinkedText></dd></div> : null}
           {deliverables.length ? <div className="is-wide"><dt>Key deliverables</dt><dd><ul className="job-deliverables-list">{deliverables.map((item) => <li key={item.id}><span>{item.name}</span>{item.date ? <time dateTime={item.date}>{formatDate(item.date)}</time> : null}</li>)}</ul></dd></div> : null}
-          {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd>{job.notes}</dd></div> : null}
+          {job.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd><MentionText>{job.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</MentionText></dd></div> : job.notes ? <div className="is-wide"><dt>Internal notes</dt><dd><MentionText>{job.notes}</MentionText></dd></div> : null}
         </dl>
         {isAutopacific ? <><JobBriefReadout job={job} /><JobFiles jobId={job.id} editable={false} /></> : null}
         {allowDeliverableTasks && getJobDeliverables(job).length && !job.status?.is_closed ? <CreateDeliverableTasksButton jobId={job.id} deliverables={getJobDeliverables(job)} /> : null}
@@ -249,8 +250,8 @@ export function TabletTaskDetailSheet({ task, onClose, onEdit }: { task: Pipelin
         <dl className="tablet-job-detail-list">
           <div><dt>Attached job</dt><dd>{task.job?.title ?? "Unlinked job"}</dd></div>
           <div><dt>Task status</dt><dd>{task.completed_at ? "Completed" : "Active"}</dd></div>
-          {task.description ? <div className="is-wide"><dt>Description</dt><dd>{task.description}</dd></div> : null}
-          {task.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd>{task.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</dd></div> : null}
+          {task.description ? <div className="is-wide"><dt>Description</dt><dd><LinkedText>{task.description}</LinkedText></dd></div> : null}
+          {task.record_notes?.length ? <div className="is-wide"><dt>Internal notes</dt><dd><MentionText>{task.record_notes.map((note) => `${formatNoteTimestamp(note.created_at)} — ${note.body}`).join("\n\n")}</MentionText></dd></div> : null}
         </dl>
         <RecordNotesPanel notes={task.record_notes} recordId={task.id} recordKind="task" />
 
@@ -317,11 +318,11 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
             {fixedClientId ? <input type="hidden" name="photos_delivered" value="0" /> : <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue="0" /></label>}
             {fixedClientId ? <JobLocationField initialText={sourceJob?.location} initialLocation={sourceJob?.location_details} /> : <label className="form-span">Location<input name="location" maxLength={300} defaultValue={sourceJob?.location ?? ""} /></label>}
             <label className="form-span">Client delivery link<input name="delivery_url" type="url" inputMode="url" maxLength={2048} autoCapitalize="none" autoCorrect="off" placeholder="https://drive.google.com/…" defaultValue={sourceJob?.delivery_url ?? ""} /></label>
-            <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={sourceJob?.description ?? ""} /></label>
+            <label className="form-span">Description<LinkAwareTextarea name="description" rows={3} maxLength={2000} defaultValue={sourceJob?.description ?? ""} /></label>
             <JobDeliverablesField initialItems={sourceJob?.deliverables} legacyItems={sourceJob?.key_deliverables} />
             <JobBriefFields initial={sourceJob?.brief_details} />
             <p className="form-span brief-help">Create the job first, then attach files in its brief.</p>
-            <label className="form-span">Internal notes<textarea name="notes" rows={3} maxLength={4000} defaultValue={sourceJob?.notes ?? ""} /></label>
+            <label className="form-span">Internal notes<LinkAwareTextarea name="notes" rows={3} maxLength={4000} defaultValue={sourceJob?.notes ?? ""} /></label>
           </div>
         ) : (
           <div className="tablet-record-editor-fields">
@@ -335,7 +336,7 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
             <label>Hours<input name="hours" type="number" min="0" step="0.25" inputMode="decimal" defaultValue={sourceTask?.hours ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={sourceTask?.due_time?.slice(0, 5) ?? ""} /></label>
             <label>Priority<select name="priority" defaultValue={taskPriority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
-            <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={sourceTask?.description ?? ""} /></label>
+            <label className="form-span">Description<LinkAwareTextarea name="description" rows={3} maxLength={2000} defaultValue={sourceTask?.description ?? ""} /></label>
           </div>
         )}
 
@@ -433,7 +434,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             {fixedClientId ? <input type="hidden" name="client_id" value={fixedClientId} /> : <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client yet</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>}
             <label>Status{automaticStatus ? <><input type="hidden" name="status_id" value={job.status_id} /><input readOnly aria-label="Automatic job status" value={job.status?.label ?? "Follows linked tasks"} /><small>Automatically follows the least-advanced linked task.</small></> : <select name="status_id" required value={selectedJobStatusId} onChange={(event) => setSelectedJobStatusId(event.target.value)}>{jobStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select>}</label>
             {!fixedClientId ? <label>Photos delivered<input name="photos_delivered" type="number" min="0" defaultValue={job.photos_delivered} /></label> : null}
-            <label className="form-span">Brief / overview<textarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
+            <label className="form-span">Brief / overview<LinkAwareTextarea name="description" rows={3} maxLength={2000} defaultValue={job.description ?? ""} /></label>
             <JobBriefFields initial={job.brief_details} />
             <JobDeliverablesField initialItems={job.deliverables} legacyItems={job.key_deliverables} linkedTasks={job.linked_tasks} />
             <details className="brief-module form-span" open={!job.shoot_date && job.status?.key !== "planning"}><summary>Schedule & logistics · {job.shoot_date ? formatDate(job.shoot_date) : job.status?.key === "planning" ? "Dates optional while planning" : "Choose a shoot date"}</summary><div className="brief-module-fields tablet-record-editor-fields">
@@ -459,7 +460,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
             <label>Hours<input name="hours" type="number" min="0" step="0.25" inputMode="decimal" defaultValue={task.hours ?? ""} /></label>
             <label>Due time<input name="due_time" type="time" defaultValue={task.due_time?.slice(0, 5) ?? ""} /></label>
             <label>Priority<select name="priority" defaultValue={task.priority}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
-            <label className="form-span">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={task.description ?? ""} /></label>
+            <label className="form-span">Description<LinkAwareTextarea name="description" rows={3} maxLength={2000} defaultValue={task.description ?? ""} /></label>
               </div>
             ) : null}
           </section>

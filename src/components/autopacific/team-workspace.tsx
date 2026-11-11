@@ -93,10 +93,13 @@ export function TeamNotifications({ onOpenRecord, publicKey = "" }: { onOpenReco
       footer={<>{publicKey ? <div className="team-inbox-device"><TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey={publicKey} /><small>Device reminders</small></div> : null}<button type="button" onClick={() => void refresh()} disabled={loading}>Refresh</button><button type="button" className="admin-primary-button" disabled={!unread} onClick={() => void mark(items.filter(item => item.unread))}><CheckCheck size={16} /> Mark all as read</button></>}>
       <div className="apg-view-pills" aria-label="Update filters">{["all", "unread", "mentions"].map(value => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
       {error ? <p role="alert">{error}</p> : null}{loading && !items.length ? <p role="status">Loading updates…</p> : null}
-      <div className="team-comment-feed">{visible.map(item => { const author = team?.members.find(member => member.user_id === item.created_by); return <button type="button" key={item.id} className={item.unread ? "is-unread" : ""} disabled={Boolean(opening)} aria-busy={opening===item.id} onClick={()=>void openItem(item)}>
-        <TeamAvatar member={author} name={author?.display_name ?? "Team"} />
-        <span><strong>{author?.display_name ?? "Team member"} commented</strong><small>{item.record_title} · {new Date(item.updated_at).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</small><span className="team-comment-preview"><MentionText>{item.body}</MentionText></span></span>{opening===item.id?<LoaderCircle className="spin" size={16} aria-label="Opening item"/>:item.unread ? <i aria-label="Unread" /> : null}
-      </button>; })}{!loading && !visible.length ? <div className="apg-empty"><Users size={24} /><p>{filter === "unread" ? "You’re all caught up." : "No updates in this view yet."}</p></div> : null}</div>
+      <div className="team-comment-feed">{visible.map(item => { const author = team?.members.find(member => member.user_id === item.created_by); return <article key={item.id} className={item.unread ? "is-unread" : ""}>
+        <button type="button" className="team-comment-open" disabled={Boolean(opening)} aria-busy={opening===item.id} onClick={()=>void openItem(item)}>
+          <TeamAvatar member={author} name={author?.display_name ?? "Team"} />
+          <span><strong>{author?.display_name ?? "Team member"} commented</strong><small>{item.record_title} · {new Date(item.updated_at).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</small></span>{opening===item.id?<LoaderCircle className="spin" size={16} aria-label="Opening item"/>:item.unread ? <i aria-label="Unread" /> : null}
+        </button>
+        <p className="team-comment-preview"><MentionText>{item.body}</MentionText></p>
+      </article>; })}{!loading && !visible.length ? <div className="apg-empty"><Users size={24} /><p>{filter === "unread" ? "You’re all caught up." : "No updates in this view yet."}</p></div> : null}</div>
     </WorkspaceDialog> : null}
   </>;
 }

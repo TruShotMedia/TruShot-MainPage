@@ -91,4 +91,16 @@ describe("inline comment mentions", () => {
     expect(container.querySelector(".comment-inline-mention")?.textContent).toBe("@John Herholdt");
     expect(container.querySelector("script")).toBeNull(); expect(container.textContent).toContain("<script>");
   });
+  it("keeps mentions and URLs clickable without turning URL usernames into mentions", async () => {
+    await act(async () => root.render(<ProductionTeamProvider value={team}><MentionText>{"@john please check https://example.com/?owner=@john then www.example.org."}</MentionText></ProductionTeamProvider>));
+    expect(container.querySelectorAll(".comment-inline-mention")).toHaveLength(1);
+    expect(container.querySelectorAll("a")).toHaveLength(2);
+    expect(container.querySelector("a")?.href).toBe("https://example.com/?owner=@john");
+    expect(container.querySelector("a")?.target).toBe("_blank");
+  });
+  it("shows link previews while composing without affecting mention selection", async () => {
+    const input = await render("https://example.com @jo"); await key(input, "Enter");
+    expect(input.value).toBe("https://example.com @john ");
+    expect(container.querySelector(".text-links-preview a")?.getAttribute("href")).toBe("https://example.com/");
+  });
 });

@@ -1,4 +1,6 @@
 "use client";
+
+import { LinkAwareTextarea } from "@/components/shared/linked-text";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import {
@@ -34,7 +36,7 @@ export function JobBriefFields({ initial = {} }: { initial?: JobBrief }) {
         <div className="brief-module-fields">
           <label>
             Objective
-            <textarea
+            <LinkAwareTextarea
               rows={3}
               maxLength={2000}
               value={brief.objective ?? ""}
@@ -90,7 +92,7 @@ export function JobBriefFields({ initial = {} }: { initial?: JobBrief }) {
           <div className="brief-module-fields">
             <label>
               {briefSectionLabels[section.key]}
-              <textarea
+              <LinkAwareTextarea
                 rows={4}
                 maxLength={4000}
                 value={section.body}

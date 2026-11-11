@@ -62,6 +62,7 @@ import { CreateDeliverableTasksButton } from "@/components/autopacific/create-de
 import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
 import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
+import { LinkedText } from "@/components/shared/linked-text";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-session-controls";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
@@ -199,7 +200,7 @@ function JobBriefPanel({
             <section className="desktop-brief-description">
               <h3>Brief</h3>
               <p>
-                {job.description || "The team is still developing this brief."}
+                <LinkedText>{job.description || "The team is still developing this brief."}</LinkedText>
               </p>
             </section>
             <JobBriefReadout job={job} />
