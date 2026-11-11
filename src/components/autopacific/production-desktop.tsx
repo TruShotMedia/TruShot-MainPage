@@ -80,6 +80,7 @@ import "./production-team.css";
 import { useProductionTeam, TeamAvatars, TeamAvatar } from "./team-context";
 import { normalizeProductionSpace, scopeProductionSpace, type ProductionSpace } from "@/lib/production-team";
 import { TeamManagement, TeamNotifications } from "./team-workspace";
+import { loadNotificationRecord } from "@/lib/load-notification-record";
 
 const CalendarEventEditor = dynamic(() =>
   import("@/components/admin/calendar-event-editor").then(
@@ -728,7 +729,13 @@ export function ProductionDesktop({
             <h1>{label}</h1>
           </div>
           <div className="apg-desktop-controls">
-            {team ? <TeamNotifications publicKey={notificationPublicKey} onOpenRecord={(kind, id) => { void refresh(kind === "job" ? "jobs" : "pipeline"); const record = kind === "job" ? allLive.pipelineJobs.find(item => item.id === id) : allLive.pipelineTasks.find(item => item.id === id); if (record) { if (kind === "job") setViewing({ kind, record: record as TabletJobRecord }); else setViewing({ kind, record: record as PipelineTask }); } }} /> : null}
+            {team ? <TeamNotifications publicKey={notificationPublicKey} onOpenRecord={async(kind,id)=>{
+              if(!navigator.onLine)throw new Error("Reconnect before opening this update.");
+              if(!await syncFieldChanges())throw new Error("Your queued changes must finish syncing first. Please try again.");
+              const result=await loadNotificationRecord(kind,id,mode);
+              setSnapshot(current=>({source:data,data:{...(current.source===data?current.data:data),...result.payload}}));
+              setViewing(result.selected);
+            }} /> : null}
             <button
               type="button"
               disabled={refreshing}

@@ -1,0 +1,14 @@
+import {beforeEach,expect,it,vi} from "vitest";
+const mocks=vi.hoisted(()=>({context:vi.fn(),rpc:vi.fn()}));
+vi.mock("@/lib/data/admin",()=>({getProductionContext:mocks.context}));
+import {loadWorkRecordFollowing,setWorkRecordFollowing} from "./follow-actions";
+const id="11111111-1111-4111-8111-111111111111";
+let calls:unknown[][],result:unknown;
+const from=()=>{const q:Record<string,unknown>={};for(const method of ["select","eq"])q[method]=(...args:unknown[])=>{calls.push([method,...args]);return q;};q.maybeSingle=async()=>result;return q;};
+beforeEach(()=>{vi.clearAllMocks();calls=[];result={data:{is_following:true},error:null};mocks.context.mockResolvedValue({claims:{sub:"verified-owner"},supabase:{from,rpc:mocks.rpc}});mocks.rpc.mockResolvedValue({data:true,error:null});});
+it("requires authentication for every read and mutation",async()=>{mocks.context.mockResolvedValue(null);await expect(loadWorkRecordFollowing({recordId:id,recordKind:"job"})).rejects.toThrow("Sign in");await expect(setWorkRecordFollowing({recordId:id,recordKind:"job",following:true})).rejects.toThrow("Sign in");expect(mocks.rpc).not.toHaveBeenCalled();});
+it("only reads the signed-in user's preference",async()=>{expect(await loadWorkRecordFollowing({recordId:id,recordKind:"job",userId:"victim"})).toEqual({following:true});expect(calls).toContainEqual(["eq","user_id","verified-owner"]);});
+it("derives the mutation identity on the server, never accepts a target user",async()=>{expect(await setWorkRecordFollowing({recordId:id,recordKind:"task",following:true,userId:"victim"})).toEqual({following:true});expect(mocks.rpc).toHaveBeenCalledWith("website-set-work-record-following",{p_workspace:id,p_record:id,p_kind:"task",p_following:true});});
+it("supports unfollow and preserves a false result",async()=>{mocks.rpc.mockResolvedValue({data:false,error:null});expect(await setWorkRecordFollowing({recordId:id,recordKind:"job",following:false})).toEqual({following:false});});
+it("validates the record type and ID before touching data",async()=>{await expect(setWorkRecordFollowing({recordId:"bad",recordKind:"flight",following:true})).rejects.toThrow();expect(mocks.rpc).not.toHaveBeenCalled();});
+it("redacts database errors and never reports a failed mutation as saved",async()=>{mocks.rpc.mockResolvedValue({data:null,error:{message:"SECRET"}});await expect(setWorkRecordFollowing({recordId:id,recordKind:"job",following:true})).rejects.toThrow("could not be saved");});

@@ -10,6 +10,7 @@ import {
 } from "@/lib/calendar-reminder-logic";
 import { sendPushNotifications, type StoredPushSubscription } from "@/lib/push-notifications";
 import { createServiceClient } from "@/lib/supabase/service";
+import { receivesProductionReminder, reminderFollowKey } from "@/lib/production-notification-scope";
 
 type JobReminderRow = {
   id: string;
@@ -325,10 +326,22 @@ async function processWorkspace(
   if (!subscriptions.length) return { candidates: reminders.length, delivered: 0, failed: 0, skippedDuplicates: 0 };
   const assignments = new Map<string, string[]>([...(jobsResult.data ?? []), ...(tasksResult.data ?? []), ...(calendarEventsResult.data ?? []), ...(flightEventsResult.data ?? [])].map(row => [row.id, row.assignee_ids ?? []]));
   for (const asset of campaignAssetsResult.data ?? []) assignments.set(asset.id, campaigns.get(asset.campaign_id)?.assignee_ids ?? []);
-  const { data: activeMembers, error: memberError } = await supabase.from("website-production-team").select("user_id")
-    .eq("workspace_id", settings.workspace_id).eq("is_active", true);
-  if (memberError) throw memberError;
-  const activeIds = new Set((activeMembers ?? []).map(member => member.user_id));
+  const activeIds=new Set<string>();
+  const followers=new Map<string,string[]>();
+  if(reminders.some(reminder=>reminder.experience==="autopacific")) {
+    const recordIds=[...new Set(reminders.filter(reminder=>reminder.experience==="autopacific"&&reminderFollowKey(reminder.kind,reminder.entityId)).map(reminder=>reminder.entityId))];
+    const [members,admins,follows]=await Promise.all([
+      supabase.from("website-production-team").select("user_id").eq("workspace_id",settings.workspace_id).eq("is_active",true),
+      supabase.from("website-admin-users").select("user_id").eq("workspace_id",settings.workspace_id).eq("is_active",true),
+      recordIds.length?supabase.from("website-work-record-followers").select("record_kind,record_id,user_id").eq("workspace_id",settings.workspace_id).eq("is_following",true).in("record_id",recordIds):Promise.resolve({data:[],error:null}),
+    ]);
+    if(members.error||admins.error||follows.error)throw members.error??admins.error??follows.error;
+    for(const member of [...(members.data??[]),...(admins.data??[])])activeIds.add(member.user_id);
+    for(const follow of follows.data??[]) {
+      const key=`${follow.record_kind}:${follow.record_id}`;
+      followers.set(key,[...(followers.get(key)??[]),follow.user_id]);
+    }
+  }
 
   let delivered = 0;
   let failed = 0;
@@ -336,15 +349,18 @@ async function processWorkspace(
   const expiredIds = new Set<string>();
 
   for (const reminder of reminders) {
+    const followKey=reminderFollowKey(reminder.kind,reminder.entityId);
+    const recipients=subscriptions.filter(subscription=>receivesProductionReminder({subscription,experience:reminder.experience,
+      clientIsAutopacific:notificationExperience(clients.get(subscription.client_scope_id??""))==="autopacific",
+      allowedUsers:activeIds,assignees:assignments.get(reminder.entityId)??[],followers:followKey?followers.get(followKey)??[]:[],
+    }));
+    if(!recipients.length)continue;
     const reservation = await reserveDelivery(reminder, supabase);
     if (reservation.duplicate) {
       skippedDuplicates += 1;
       continue;
     }
 
-    const recipients = subscriptions.filter((subscription) => !subscription.client_scope_id
-      || (reminder.experience === "autopacific" && notificationExperience(clients.get(subscription.client_scope_id)) === "autopacific"
-        && Boolean(subscription.user_id && activeIds.has(subscription.user_id) && assignments.get(reminder.entityId)?.includes(subscription.user_id))));
     const result = await sendPushNotifications(recipients, buildCalendarReminderPushMessage(reminder));
     result.expiredIds.forEach((id) => expiredIds.add(id));
     delivered += result.delivered;

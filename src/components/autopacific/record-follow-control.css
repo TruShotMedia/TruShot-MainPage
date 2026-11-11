@@ -1,0 +1,8 @@
+.record-follow-control { display:flex; flex-direction:column; align-items:flex-end; gap:5px; min-width:0; max-width:160px; }
+.record-follow-control button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; padding:7px 10px; border:1px solid var(--apg-border,var(--workspace-line,#344139)); border-radius:9px; background:var(--apg-surface,var(--workspace-surface,#13221d)); color:var(--apg-text,var(--workspace-text,#dce8e1)); font:inherit; font-size:11px; line-height:1.3; font-weight:600; cursor:pointer; white-space:nowrap; }
+.record-follow-control button[aria-pressed=true] { background:var(--apg-accent-soft,#173b47); color:var(--apg-accent,#78afd0); }
+.record-follow-control button:disabled { opacity:.55; cursor:default; }
+.record-follow-control button:focus-visible { outline:2px solid var(--apg-accent,#78afd0); outline-offset:3px; }
+.record-follow-control small { color:var(--apg-danger,#d97e73); font-size:10px; line-height:1.4; text-align:right; overflow-wrap:anywhere; }
+@media(prefers-reduced-motion:no-preference) { .record-follow-control button { transition:background .15s ease,color .15s ease; } }
+@media(max-width:760px) { .record-follow-control button { min-height:44px; } }

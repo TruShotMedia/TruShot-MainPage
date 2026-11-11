@@ -21,6 +21,7 @@ import { formatDate } from "@/lib/format";
 import { TeamAssignmentField, useProductionTeam } from "@/components/autopacific/team-context";
 import { markTeamCommentsRead } from "@/app/autopacific/team-actions";
 import { MentionTextarea, MentionText } from "@/components/autopacific/comment-mentions";
+import { RecordFollowControl } from "@/components/autopacific/record-follow-control";
 import type { CalendarItem, JobSearchOption, JobStatus, PipelineTask, SelectOption, TabletJobRecord, TaskStatus, WorkRecordNote } from "@/lib/types";
 
 export type TabletCreateKind = "event" | "flight" | "job" | "task";
@@ -119,7 +120,7 @@ export function RecordNotesPanel({ legacyNote, notes = [], recordId, recordKind 
     <aside className="tablet-record-notes" aria-label="Internal notes">
       <header>
         <div><span><MessageSquareText size={14} /> Internal notes</span><p>Private working context for this {recordKind}.</p></div>
-        <b>{items.length}</b>
+        {team?<RecordFollowControl key={`${recordKind}:${recordId}`} recordId={recordId} recordKind={recordKind}/>:<b>{items.length}</b>}
       </header>
       <div className="tablet-record-notes-thread" aria-live="polite">
         {hasLegacyFallback ? <article className="tablet-record-note is-legacy"><small>Imported note</small><p>{legacyNote}</p></article> : null}
