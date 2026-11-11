@@ -125,6 +125,7 @@ export function buildCalendarReminderPushMessage(reminder: DueCalendarReminder):
   const labels = reminderLabels[reminder.kind];
   const eventTime = brisbaneTimeFormatter.format(reminder.occurrenceAt);
   const timing = reminder.offsetMinutes === 0 ? labels.atTime : `in ${leadLabel(reminder.offsetMinutes)}`;
+  const isAutopacific = reminder.experience === "autopacific";
   if ((reminder.kind === "flight_departure" || reminder.kind === "flight_arrival") && reminder.flightDetails) {
     const details = reminder.flightDetails;
     const flightIdentity = [details.airline, details.flightNumber].filter(Boolean).join(" ");
@@ -143,15 +144,14 @@ export function buildCalendarReminderPushMessage(reminder: DueCalendarReminder):
         travelDetails || null,
         reminder.kind === "flight_arrival" ? details.onwardDetails : reminder.title,
       ].filter(Boolean).join("\n"),
-      url: `/autopacific?view=calendar&flight=${encodeURIComponent(reminder.entityId)}`,
+      url: `${isAutopacific ? "/autopacific" : "/tablet"}?view=calendar&flight=${encodeURIComponent(reminder.entityId)}`,
       tag: `calendar-${reminder.kind}-${reminder.entityId}-${reminder.occurrenceAt.toISOString()}`,
       badgeCount: 1,
-      kind: "flight",
+      kind: isAutopacific ? "flight" : undefined,
       timestamp: reminder.occurrenceAt.getTime(),
     };
   }
   const context = reminder.context ? ` · ${reminder.context}` : "";
-  const isAutopacific = reminder.experience === "autopacific";
   return {
     title: `${isAutopacific ? "AutoPacific · " : ""}${labels.subject} ${timing}`,
     body: `${reminder.title}${context} · ${eventTime}`,

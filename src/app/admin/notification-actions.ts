@@ -17,19 +17,30 @@ const subscriptionSchema = z.object({
   }),
 });
 
-export async function getPushSubscriptionState(endpoint: string) {
+async function notificationClientScope(context: NonNullable<Awaited<ReturnType<typeof getProductionContext>>>, experience?: "autopacific" | "trushot") {
+  const app = z.enum(["autopacific", "trushot"]).parse(experience ?? (context.access === "autopacific" ? "autopacific" : "trushot"));
+  if (context.access === "autopacific" && app !== "autopacific") throw new Error("This account can only enable AutoPacific notifications.");
+  if (app === "trushot") return null;
+  const { data, error } = await context.supabase.from("website-clients").select("id")
+    .eq("workspace_id", context.membership.workspace_id).ilike("name", "autopacific group").single();
+  if (error || !data) throw new Error("AutoPacific notification access could not be verified.");
+  return data.id as string;
+}
+
+export async function getPushSubscriptionState(endpoint: string, experience?: "autopacific" | "trushot") {
   const context = await getProductionContext();
   if (!context) throw new Error("Your session has expired. Sign in again.");
   const parsedEndpoint = z.url().startsWith("https://").max(2048).parse(endpoint);
-  const { count, error } = await context.supabase.from("website-push-subscriptions")
-    .select("id", { count: "exact", head: true })
+  const scope = await notificationClientScope(context, experience);
+  const { data, error } = await context.supabase.from("website-push-subscriptions")
+    .select("client_scope_id")
     .eq("workspace_id", context.membership.workspace_id)
-    .eq("user_id", context.claims.sub).eq("endpoint", parsedEndpoint);
+    .eq("user_id", context.claims.sub).eq("endpoint", parsedEndpoint).maybeSingle();
   if (error) throw new Error("This device’s notification registration could not be verified.");
-  return { registered: Boolean(count) };
+  return { registered: Boolean(data), experienceMatches: Boolean(data && (data.client_scope_id ?? null) === scope) };
 }
 
-export async function savePushSubscription(input: unknown) {
+export async function savePushSubscription(input: unknown, experience?: "autopacific" | "trushot") {
   const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const subscription = subscriptionSchema.parse(input);
@@ -38,16 +49,15 @@ export async function savePushSubscription(input: unknown) {
   const userId = context.claims.sub;
   if (!userId) throw new Error("Your admin session could not be verified.");
 
-  const { data: scopedClient, error: scopeError } = context.access === "autopacific"
-    ? await context.supabase.from("website-clients").select("id").eq("workspace_id", context.membership.workspace_id).single()
-    : { data: null, error: null };
-  if (scopeError || (context.access === "autopacific" && !scopedClient)) throw new Error("AutoPacific notification access could not be verified.");
+  // Register the app the person enabled, not merely their account's access tier.
+  // A full CRM administrator can also use the separate AutoPacific installation.
+  const clientScopeId = await notificationClientScope(context, experience);
 
   const { error } = await context.supabase.from("website-push-subscriptions").upsert(
     {
       workspace_id: context.membership.workspace_id,
       user_id: userId,
-      client_scope_id: scopedClient?.id ?? null,
+      client_scope_id: clientScopeId,
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth_key: subscription.keys.auth,
@@ -86,12 +96,12 @@ export async function sendTestPushNotification(endpoint: string, experience: "au
   const isAutopacific = notificationExperience === "autopacific";
   return sendTestNotification(endpoint, {
     title: `${isAutopacific ? "AutoPacific" : "TruShot"} notifications are ready`,
-    body: "Calendar, flight and client-request alerts are enabled on this device.",
+    body: isAutopacific ? "AutoPacific work reminders are enabled on this device." : "TruShot calendar and client-request alerts are enabled on this device. AutoPacific work stays in AutoPacific.",
     url: isAutopacific ? "/autopacific?view=calendar" : "/admin/settings",
     tag: `notification-test-${Date.now()}`,
     badgeCount: 1,
     ...(isAutopacific ? { kind: "autopacific" as const } : {}),
-  });
+  }, notificationExperience);
 }
 
 export async function sendTestFlightPushNotification(endpoint: string) {
@@ -133,19 +143,22 @@ export async function sendTestFlightPushNotification(endpoint: string) {
   });
 }
 
-async function sendTestNotification(endpoint: string, message: PushMessage) {
+async function sendTestNotification(endpoint: string, message: PushMessage, experience?: "autopacific" | "trushot") {
   const context = await getProductionContext();
   if (!context) throw new Error("Your admin session has expired. Sign in again and retry.");
   const userId = context.claims.sub;
   if (!userId) throw new Error("Your admin session could not be verified.");
   const parsedEndpoint = z.url().startsWith("https://").max(2048).parse(endpoint);
 
-  const { data, error } = await context.supabase
+  const scope = await notificationClientScope(context, experience);
+  let query = context.supabase
     .from("website-push-subscriptions")
     .select("id,endpoint,p256dh,auth_key")
     .eq("user_id", userId)
     .eq("workspace_id", context.membership.workspace_id)
     .eq("endpoint", parsedEndpoint);
+  query = scope ? query.eq("client_scope_id", scope) : query.is("client_scope_id", null);
+  const { data, error } = await query;
   if (error) throw new Error("Registered devices could not be loaded.");
   if (!data?.length) throw new Error("Enable notifications on this device first.");
 

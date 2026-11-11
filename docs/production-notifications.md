@@ -10,14 +10,21 @@ retained. Own comment writes/edits do not become unread updates for the writer.
 
 Calendar device reminders use assignment/following for AutoPacific jobs/tasks;
 events, flights and campaign assets retain their explicit assignment checks.
-Even unscoped full-CRM devices must have personal interest in AutoPacific work.
-Unrelated TruShot workspace reminders keep their existing policy. Disabled
+AutoPacific reminders require an AutoPacific-scoped device registration, even
+for a full-CRM administrator assigned to or following the work. Unscoped TruShot
+registrations never receive AutoPacific work. Registration records the selected
+app independently of the person's access tier. Opening another app does not
+silently unsubscribe or move a same-browser registration; enabling alerts there
+explicitly selects that experience. Separate installed apps should each enable
+their own alerts. Unrelated TruShot workspace reminders keep their existing policy. Disabled
 accounts are excluded; a separate active full-CRM membership remains authorised.
 One endpoint match is sent once regardless of overlapping interest reasons.
 Empty audiences do not create failed-delivery reservations or pointless retries.
 
 This change does not add native comment push: discussion updates remain in the
 in-app bell, with the existing device reminders for scheduled work.
+Imported Outlook events remain read-only calendar content and do not currently
+create push reminders. Their ClickUp bridge does not enable reminder delivery.
 
 ## Following
 

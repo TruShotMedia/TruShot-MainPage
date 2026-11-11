@@ -52,12 +52,20 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         let subscription = await registration.pushManager.getSubscription();
         if (subscription) {
-          const state = await getPushSubscriptionState(subscription.endpoint);
+          const state = await getPushSubscriptionState(subscription.endpoint, experience);
           if (!state.registered) {
             // A browser subscription can outlive the previous user's session.
             // Never display it as enabled for a different account.
             await subscription.unsubscribe();
             subscription = null;
+          } else if (!state.experienceMatches) {
+            // Another app on the same browser owns this registration. Do not
+            // unsubscribe it or silently move its alerts just by opening a tab.
+            if (active) {
+              setDeviceState("ready");
+              setMessage("This browser has alerts enabled for the other app. Enabling here switches its alerts; use separate installed apps to keep both.");
+            }
+            return;
           }
         }
         if (active) setDeviceState(subscription ? "enabled" : "ready");
@@ -67,7 +75,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
     };
     void inspect();
     return () => { active = false; };
-  }, [publicKey]);
+  }, [publicKey, experience]);
 
   useEffect(() => {
     const badgeNavigator = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
@@ -109,14 +117,14 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
             endpoint: serialised.endpoint,
             expirationTime: serialised.expirationTime ?? null,
             keys: serialised.keys,
-          });
+          }, experience);
         } catch (error) {
           if (createdSubscription) await subscription.unsubscribe();
           throw error;
         }
         setDeviceState("enabled");
         setMessageKind("success");
-        setMessage(experience === "autopacific" ? "AutoPacific calendar and flight alerts are enabled on this device." : "Calendar, flight and client-request alerts are enabled on this device.");
+        setMessage(experience === "autopacific" ? "AutoPacific work reminders are enabled on this device." : "TruShot calendar and client-request alerts are enabled on this device. AutoPacific work stays in AutoPacific.");
       } catch (error) {
         setMessageKind("error");
         setMessage(errorMessage(error, "Notifications could not be enabled on this device."));
@@ -184,7 +192,7 @@ export function TabletNotificationControl({ experience = "trushot", experienceNa
             {deviceState === "checking" ? <LoaderCircle className="spin" size={17} /> : enabled ? <CheckCircle2 size={17} /> : <Bell size={17} />}
             <div>
               <strong>{deviceState === "checking" ? "Checking this device" : enabled ? "Alerts are active" : installRequired ? `Install ${experienceName} first` : deviceState === "denied" ? "Permission is blocked" : deviceState === "unsupported" ? "Notifications are unavailable" : "Ready to enable"}</strong>
-              <p>{experience === "autopacific" ? "Receive AutoPacific calendar reminders and flight briefings without keeping this page open." : "Receive client requests, scheduled calendar reminders and flight briefings without keeping this page open."}</p>
+              <p>{experience === "autopacific" ? "Receive reminders for AutoPacific work you’re assigned to or following. Imported Outlook events do not send reminders yet." : "Receive TruShot client requests and calendar reminders. AutoPacific work is notified only in AutoPacific."}</p>
             </div>
           </div>
           {installRequired ? <p className="tablet-notification-guidance">In Safari, tap Share → <strong>Add to Home Screen</strong>, open {experienceName}, then enable alerts here.</p> : null}

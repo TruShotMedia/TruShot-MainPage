@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BellOff, BellRing, CheckCircle2, LoaderCircle, PlaneTakeoff, Send, Smartphone, TriangleAlert } from "lucide-react";
-import { removePushSubscription, savePushSubscription, sendTestFlightPushNotification, sendTestPushNotification } from "@/app/admin/notification-actions";
+import { getPushSubscriptionState, removePushSubscription, savePushSubscription, sendTestFlightPushNotification, sendTestPushNotification } from "@/app/admin/notification-actions";
 
 type DeviceState = "checking" | "unsupported" | "ready" | "enabled" | "denied";
 
@@ -54,7 +54,20 @@ export function PushNotificationSettings({
 
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        const subscription = await registration.pushManager.getSubscription();
+        let subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          const state = await getPushSubscriptionState(subscription.endpoint, "trushot");
+          if (!state.registered) {
+            await subscription.unsubscribe();
+            subscription = null;
+          } else if (!state.experienceMatches) {
+            if (active) {
+              setDeviceState("ready");
+              setMessage("This browser has AutoPacific alerts enabled. Enabling TruShot here switches its alerts; use separate installed apps to keep both.");
+            }
+            return;
+          }
+        }
         if (active) setDeviceState(subscription ? "enabled" : "ready");
       } catch {
         if (active) setDeviceState("unsupported");
@@ -108,7 +121,7 @@ export function PushNotificationSettings({
             endpoint: serialised.endpoint,
             expirationTime: serialised.expirationTime ?? null,
             keys: serialised.keys,
-          });
+          }, "trushot");
         } catch (error) {
           if (createdSubscription) await subscription.unsubscribe();
           throw error;
@@ -186,7 +199,7 @@ export function PushNotificationSettings({
       <div>
         <p className="card-label">Notifications</p>
         <h2>Native business alerts</h2>
-        <p>Receive native alerts for client requests and production reminders. Each phone, tablet or computer is enabled separately.</p>
+        <p>Receive native alerts for TruShot client requests and production reminders. AutoPacific work is notified only in AutoPacific. Each phone, tablet or computer is enabled separately.</p>
       </div>
       <div className="push-settings-panel">
         <header>

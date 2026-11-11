@@ -19,16 +19,29 @@ afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(navigator, "serv
 
 describe("device notifications after switching accounts", () => {
   for (const registered of [false, true]) it(registered ? "retains this account’s registered device" : "disconnects the previous account’s browser subscription", async () => {
-    mocks.state.mockResolvedValue({ registered });
+    mocks.state.mockResolvedValue({ registered, experienceMatches: registered });
     const container = document.createElement("div"); document.body.append(container);
     const root = createRoot(container);
     try {
       await act(async () => root.render(<TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey="example-public-key" />));
-      expect(mocks.state).toHaveBeenCalledWith("https://push.example.test/device");
+      expect(mocks.state).toHaveBeenCalledWith("https://push.example.test/device", "autopacific");
       expect(mocks.unsubscribe).toHaveBeenCalledTimes(registered ? 0 : 1);
       expect(Boolean(container.querySelector(".is-enabled"))).toBe(registered);
     } finally {
       await act(async () => root.unmount()); container.remove();
     }
+  });
+  it("does not silently unsubscribe or enable another app's registration", async () => {
+    mocks.state.mockResolvedValue({ registered: true, experienceMatches: false });
+    const container = document.createElement("div"); document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<TabletNotificationControl experience="autopacific" experienceName="AutoPacific" publicKey="example-public-key" />));
+      expect(mocks.unsubscribe).not.toHaveBeenCalled();
+      expect(container.querySelector(".is-enabled")).toBeNull();
+      container.querySelector<HTMLButtonElement>(".tablet-alert-toggle")!.click();
+      await act(async () => {});
+      expect(document.body.textContent).toContain("use separate installed apps to keep both");
+    } finally { await act(async () => root.unmount()); container.remove(); }
   });
 });

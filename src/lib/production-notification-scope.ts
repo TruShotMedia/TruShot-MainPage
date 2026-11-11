@@ -1,6 +1,6 @@
 type Subscription = { user_id?: string; client_scope_id?: string | null };
-/** AutoPacific access alone is never a notification subscription. Keep the
- * unrelated TruShot admin reminder policy unchanged. */
+/** App registration and personal interest are independent requirements.
+ * TruShot devices never receive AutoPacific work, even for an assigned admin. */
 export function receivesProductionReminder({ subscription, experience, clientIsAutopacific, allowedUsers, assignees, followers }: {
   subscription: Subscription; experience?: "autopacific" | "trushot"; clientIsAutopacific: boolean;
   allowedUsers: ReadonlySet<string>; assignees: readonly string[]; followers: readonly string[];
@@ -8,7 +8,7 @@ export function receivesProductionReminder({ subscription, experience, clientIsA
   if(experience!=="autopacific")return !subscription.client_scope_id;
   const user=subscription.user_id;
   return Boolean(user && allowedUsers.has(user)
-    && (!subscription.client_scope_id || clientIsAutopacific)
+    && Boolean(subscription.client_scope_id) && clientIsAutopacific
     && (assignees.includes(user)||followers.includes(user)));
 }
 export function reminderFollowKey(kind:string,id:string) {

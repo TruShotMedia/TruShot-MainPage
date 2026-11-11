@@ -8,9 +8,9 @@ describe("personal AutoPacific reminder audience",()=>{
   it("deduplicates the overlapping reasons as one subscription match",()=>expect(receivesProductionReminder({...base,assignees:["john"],followers:["john"]})).toBe(true));
   it("does not inherit a colleague's assignment or follow",()=>expect(receivesProductionReminder({...base,assignees:["nathan"],followers:["nathan"]})).toBe(false));
   it("rejects disabled/removed people even if an old assignment or follow remains",()=>expect(receivesProductionReminder({...base,allowedUsers:new Set(),assignees:["john"],followers:["john"]})).toBe(false));
-  it("also requires personal interest for unscoped full CRM subscriptions",()=>{
+  it("never sends AutoPacific work to TruShot registrations, even for assigned or following admins",()=>{
     expect(receivesProductionReminder({...base,subscription:{user_id:"john",client_scope_id:null}})).toBe(false);
-    expect(receivesProductionReminder({...base,subscription:{user_id:"john",client_scope_id:null},followers:["john"]})).toBe(true);
+    expect(receivesProductionReminder({...base,subscription:{user_id:"john",client_scope_id:null},assignees:["john"],followers:["john"]})).toBe(false);
   });
   it("never sends AutoPacific work to an unrelated client subscription",()=>expect(receivesProductionReminder({...base,clientIsAutopacific:false,assignees:["john"]})).toBe(false));
   it("fails closed without a recipient account",()=>expect(receivesProductionReminder({...base,subscription:{client_scope_id:"apg"},assignees:["john"]})).toBe(false));

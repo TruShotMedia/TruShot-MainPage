@@ -113,6 +113,7 @@ describe("calendar reminder timing", () => {
       workspaceId: settings.workspace_id,
       entityId: "33333333-3333-4333-8333-333333333333",
       kind: "flight_departure",
+      experience: "autopacific",
       title: "Sydney production trip",
       date: "2026-09-14",
       time: "09:00:00",
@@ -137,6 +138,9 @@ describe("calendar reminder timing", () => {
     expect(message.body).toContain("Terminal Domestic 3 · Economy · Seat 14A");
     expect(message.kind).toBe("flight");
     expect(message.url).toContain("/autopacific?view=calendar&flight=");
+    const trushotMessage = buildCalendarReminderPushMessage({ ...reminder, experience: "trushot" });
+    expect(trushotMessage.url).toContain("/tablet?view=calendar&flight=");
+    expect(trushotMessage.kind).toBeUndefined();
   });
 
   it("includes onward details in the arrival briefing", () => {
