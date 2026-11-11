@@ -1,0 +1,15 @@
+import {beforeEach,expect,it,vi} from "vitest";
+import {createHmac} from "node:crypto";
+const mocks=vi.hoisted(()=>({service:vi.fn(),rpc:vi.fn(),decrypt:vi.fn()}));
+vi.mock("@/lib/supabase/service",()=>({createServiceClient:mocks.service}));
+vi.mock("./crypto",()=>({decryptClickUpWebhookSecret:mocks.decrypt,encryptClickUpWebhookSecret:vi.fn()}));
+import {personalSignatureValid,recordPersonalWebhook,PERSONAL_WEBHOOK_ENDPOINT} from "./personal-webhook";
+const body=JSON.stringify({webhook_id:"hook",event:"taskUpdated",task_id:"task",history_items:[{id:"revision"}]});
+const signature=createHmac("sha256","secret").update(body).digest("hex");
+beforeEach(()=>{vi.clearAllMocks();mocks.decrypt.mockReturnValue("secret");const q:Record<string,unknown>={};for(const key of ["select","eq"])q[key]=()=>q;q.maybeSingle=async()=>({data:{connection_id:"only-this-connection",ciphertext:"encrypted",iv:"iv",tag:"tag"},error:null});mocks.rpc.mockResolvedValue({error:null});mocks.service.mockReturnValue({from:()=>q,rpc:mocks.rpc});});
+it("uses an endpoint distinct from the reserved legacy webhook",()=>expect(PERSONAL_WEBHOOK_ENDPOINT).toMatch(/\/personal-webhook$/));
+it("checks exact HMAC bytes and rejects malformed or wrong signatures",()=>{expect(personalSignatureValid(body,signature,"secret")).toBe(true);expect(personalSignatureValid(`${body} `,signature,"secret")).toBe(false);expect(personalSignatureValid(body,"zz","secret")).toBe(false);expect(personalSignatureValid(body,"a".repeat(64),"secret")).toBe(false);});
+it("does not access data for unsigned/invalid payloads",async()=>{expect((await recordPersonalWebhook(body,null)).status).toBe(401);expect((await recordPersonalWebhook("not-json",signature)).status).toBe(400);expect(mocks.service).not.toHaveBeenCalled();});
+it("does not queue a forged event",async()=>{expect((await recordPersonalWebhook(body,"a".repeat(64))).status).toBe(401);expect(mocks.rpc).not.toHaveBeenCalled();});
+it("queues only the verified connection with a provider revision dedupe key",async()=>{expect(await recordPersonalWebhook(body,signature)).toEqual({status:204,connectionId:"only-this-connection"});expect(mocks.rpc).toHaveBeenCalledWith("website-queue-personal-inbound",{p_connection:"only-this-connection",p_remote:"task",p_dedupe:"hook:revision"});});
+it("fails closed when encrypted verification material is unavailable",async()=>{mocks.decrypt.mockImplementation(()=>{throw new Error("secret");});expect((await recordPersonalWebhook(body,signature)).status).toBe(503);expect(mocks.rpc).not.toHaveBeenCalled();});

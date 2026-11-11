@@ -24,6 +24,8 @@ export type ClickUpUser = {
 export type ClickUpList = {
   id: string;
   name: string;
+  space?: { id: string };
+  archived?: boolean;
   statuses?: Array<{ status: string; type?: string }>;
 };
 
@@ -34,6 +36,7 @@ export type ClickUpTask = {
   markdown_description?: string;
   description?: string;
   status?: { status?: string };
+  priority?: { id?: string | number } | null;
   start_date?: string | null;
   start_date_time?: boolean;
   due_date?: string | null;
@@ -86,6 +89,15 @@ export function getClickUpAuthorizedUser() {
 
 export function getClickUpList(listId: string) {
   return clickUpRequest<ClickUpList>(`/list/${encodeURIComponent(listId)}`);
+}
+
+/** Used only by manager-initiated personal connection validation. */
+export function getClickUpWorkspaces() {
+  return clickUpRequest<{ teams: Array<{ id: string; members: Array<{ user: ClickUpUser }> }> }>("/team");
+}
+
+export function getClickUpSpaces(teamId: string) {
+  return clickUpRequest<{ spaces: Array<{ id: string }> }>(`/team/${encodeURIComponent(teamId)}/space?archived=false`);
 }
 
 export function getClickUpTask(taskId: string, { includeSubtasks = false }: { includeSubtasks?: boolean } = {}) {

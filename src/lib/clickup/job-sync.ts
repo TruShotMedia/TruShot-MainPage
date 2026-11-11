@@ -11,6 +11,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assignedToClickUpOwner } from "@/lib/clickup/assignment-scope";
 import { clickUpJobProgress, clickUpJobTitle } from "@/lib/clickup/job-progress";
 import { archiveClickUpJobSubtasks, ClickUpSubtaskDeferredError, syncClickUpJobSubtasks } from "./task-sync";
+import { dispatchPersonalClickUpSync } from "./personal-sync";
 
 type Integration = {
   workspace_id: string;
@@ -394,11 +395,10 @@ export async function dispatchClickUpJobSync({ limit = 20 } = {}): Promise<Click
 
 export function scheduleClickUpJobSync() {
   after(async () => {
-    try {
-      await dispatchClickUpJobSync({ limit: 20 });
-    } catch (error) {
-      console.error("ClickUp job sync failed after the CRM response.", error);
-    }
+    await Promise.all([
+      dispatchClickUpJobSync({ limit: 20 }).catch(error => console.error("ClickUp job sync failed after the CRM response.", error)),
+      dispatchPersonalClickUpSync().catch(() => console.error("Personal ClickUp sync deferred after the CRM response.")),
+    ]);
   });
 }
 

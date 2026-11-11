@@ -9,14 +9,20 @@ import { TeamAvatar, useProductionTeam } from "./team-context";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { MentionText } from "./comment-mentions";
+import { loadPersonalClickUpConnections } from "@/app/autopacific/personal-clickup-actions";
+import type { PersonalConnectionView } from "@/lib/clickup/personal-model";
+import { PersonalClickUpConnection } from "./personal-clickup-connection";
 
 export function TeamManagement({ onClose }: { onClose: () => void }) {
   const team = useProductionTeam();
   const [members, setMembers] = useState<TeamDirectoryMember[]>([]);
+  const [connections,setConnections]=useState<PersonalConnectionView[]>([]);
+  const refreshConnections=useCallback(async()=>{setConnections(await loadPersonalClickUpConnections());},[]);
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const router = useRouter();
   useEffect(() => { let active = true; loadTeamDirectory().then(rows => { if (active) setMembers(rows); }).catch(reason => { if (active) setError(reason.message); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
+  useEffect(()=>{let active=true;loadPersonalClickUpConnections().then(rows=>{if(active)setConnections(rows);}).catch(()=>{if(active)setError("ClickUp connection status could not be loaded. Reopen team settings to retry.");});return()=>{active=false;};},[]);
   function change(id: string, updates: Partial<TeamDirectoryMember>) { setMembers(current => current.map(member => member.user_id === id ? { ...member, ...updates } : member)); setNotice(""); }
   async function save(member: TeamDirectoryMember) {
     setSaving(member.user_id); setError(""); setNotice("");
@@ -37,6 +43,8 @@ export function TeamManagement({ onClose }: { onClose: () => void }) {
         <label className="team-enabled"><input type="checkbox" checked={member.is_active} onChange={event => change(member.user_id, { is_active: event.target.checked })} /> Enable in team</label>
         <button type="button" className="admin-primary-button" disabled={Boolean(saving) || !member.username?.trim() || !member.display_name.trim()} onClick={() => void save(member)}>{saving === member.user_id ? "Saving…" : "Save member"}</button>
       </div>
+      <PersonalClickUpConnection key={`${member.user_id}:${(connections.find(item=>item.user_id===member.user_id&&item.enabled)??connections.find(item=>item.user_id===member.user_id))?.id??"none"}`} member={member}
+        protectedOwner={member.user_id===team?.videographerId} connection={connections.find(item=>item.user_id===member.user_id&&item.enabled)??connections.find(item=>item.user_id===member.user_id)} onRefresh={refreshConnections}/>
     </article>)}</div>
     <p className="team-role-guide">Marketing: shared briefs, review approvals and their own work. Videographer: production tools. Team manager: production tools plus membership management. None grants access to TruShot finances or other clients.</p>
   </WorkspaceDialog>;

@@ -58,7 +58,11 @@ To roll back presentation code, leave the new preference table in place; do not
 drop user preferences. Restoring the previous feed deliberately restores its
 broader audience and should be an explicit product decision.
 
-## Separate next stage: per-person ClickUp lists (not enabled in this release)
+## Per-person ClickUp lists
+
+The separate two-way personal-connection implementation is documented in
+`docs/personal-clickup.md`. The original design constraints below explain the
+separation from the primary integration; following is still not ClickUp routing.
 
 The current job integration is workspace-wide and tied to the primary
 videographer. Its links and inbound webhook are not multi-person routing.

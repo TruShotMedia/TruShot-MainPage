@@ -8,6 +8,7 @@ import { dispatchIngreignReminders } from "@/lib/ingreign-reminders";
 import { dispatchLifestyleReminders } from "@/lib/lifestyle-reminders";
 import { dispatchOutlookCalendarSync } from "@/lib/outlook-calendar/service";
 import { dispatchOutlookClickUpSync } from "@/lib/clickup/outlook-sync";
+import { dispatchPersonalClickUpSync } from "@/lib/clickup/personal-sync";
 
 export const runtime = "nodejs";
 // A status migration can queue existing mirrors together. Let the bounded batch
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
         message: "ClickUp could not be reached during this reminder run.",
       };
     });
-    const [calendar, ingreign, lifestyle, clickup, outlook] = await Promise.all([
+    const [calendar, ingreign, lifestyle, clickup, outlook, personalClickup] = await Promise.all([
       dispatchCalendarReminders(),
       dispatchIngreignReminders(),
       dispatchLifestyleReminders(),
@@ -52,8 +53,9 @@ export async function POST(request: Request) {
       dispatchOutlookCalendarSync().catch(() => ({ status: "unavailable" })).then(async imported => ({
         ...imported, clickup: await dispatchOutlookClickUpSync().catch(() => ({ status: "unavailable" })),
       })),
+      dispatchPersonalClickUpSync().catch(() => { console.error("Personal ClickUp sync deferred without interrupting reminders."); return { status:"unavailable" }; }),
     ]);
-    return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup, outlook });
+    return Response.json({ ok: true, calendar, ingreign, lifestyle, clickup, outlook, personalClickup });
   } catch (error) {
     console.error("Calendar reminder dispatch failed.", error);
     return Response.json({ error: "Calendar reminders could not be processed." }, { status: 500 });

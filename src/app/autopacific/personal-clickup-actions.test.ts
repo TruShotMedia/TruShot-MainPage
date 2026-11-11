@@ -1,0 +1,34 @@
+import {beforeEach,expect,it,vi} from "vitest";
+const mocks=vi.hoisted(()=>({context:vi.fn(),team:vi.fn(),service:vi.fn(),list:vi.fn(),spaces:vi.fn(),workspaces:vi.fn(),configure:vi.fn(),hook:vi.fn(),after:vi.fn()}));
+vi.mock("next/server",()=>({after:mocks.after}));
+vi.mock("@/lib/data/admin",()=>({getProductionContext:mocks.context}));
+vi.mock("@/lib/data/production-team",()=>({getProductionTeam:mocks.team}));
+vi.mock("@/lib/supabase/service",()=>({createServiceClient:mocks.service}));
+vi.mock("@/lib/clickup/client",()=>({getClickUpList:mocks.list,getClickUpSpaces:mocks.spaces,getClickUpWorkspaces:mocks.workspaces,getClickUpTask:vi.fn(),ClickUpApiError:class extends Error{status=403;}}));
+vi.mock("@/lib/clickup/personal-webhook",()=>({ensurePersonalWebhook:mocks.hook}));
+vi.mock("@/lib/clickup/personal-sync",()=>({dispatchPersonalClickUpSync:vi.fn(),PERSONAL_CONNECTIONS:"connections",PERSONAL_LINKS:"links",PERSONAL_QUEUE:"queue"}));
+vi.mock("@/lib/clickup/config",()=>({getClickUpWebhookEncryptionKey:()=>"test-key"}));
+import {connectPersonalClickUpList,inspectPersonalClickUpList,loadPersonalClickUpConnections,pausePersonalClickUpList} from "./personal-clickup-actions";
+const userId="9b863f31-8191-47e4-ae56-edbe6d0a4b74",url="https://app.clickup.com/9003084068/v/l/li/123456";
+const mapping={planning:"PLANNING",scheduled:"SCHEDULED",production:"EDITING",review:"APPROVAL",delayed:"DELAYED",delivered:"COMPLETE"};
+let primary:boolean;
+beforeEach(()=>{
+  vi.clearAllMocks();primary=false;mocks.context.mockResolvedValue({claims:{sub:"verified-manager"},access:"production",supabase:{rpc:async()=>({data:[{user_id:userId,email:"nathan@example.test"}],error:null})}});mocks.team.mockResolvedValue({canManage:true});
+  mocks.configure.mockResolvedValue({data:"connection",error:null});mocks.hook.mockResolvedValue(undefined);
+  mocks.service.mockReturnValue({rpc:mocks.configure,from:(table:string)=>{
+    const q:Record<string,unknown>={};for(const method of ["select","eq","update"])q[method]=()=>q;
+    const result=()=>({error:null,data:table==="website-production-team"?{is_active:true,is_primary_videographer:primary}:table==="website-clickup-integrations"?{list_id:"1300350000002054"}:table==="connections"?{id:"connection",list_id:"123456"}:[]});
+    q.maybeSingle=async()=>result();q.single=async()=>result();q.then=(resolve:(v:unknown)=>unknown)=>Promise.resolve(result()).then(resolve);return q;
+  }});
+  mocks.list.mockResolvedValue({id:"123456",name:"Nathan list",space:{id:"space"},statuses:Object.values(mapping).map(status=>({status,type:status==="COMPLETE"?"closed":"custom"}))});
+  mocks.spaces.mockResolvedValue({spaces:[{id:"space"}]});mocks.workspaces.mockResolvedValue({teams:[{id:"9003084068",members:[{user:{id:42,username:"Nathan",email:"nathan@example.test"}}]}]});
+});
+it("requires an authenticated manager for reads and mutations",async()=>{mocks.context.mockResolvedValue(null);await expect(loadPersonalClickUpConnections()).rejects.toThrow("Sign in");await expect(pausePersonalClickUpList(userId)).rejects.toThrow("Sign in");await expect(inspectPersonalClickUpList({userId,listUrl:url})).rejects.toThrow("Sign in");expect(mocks.service).not.toHaveBeenCalled();expect(mocks.list).not.toHaveBeenCalled();});
+it("does not let a Marketing member access provider APIs or service data",async()=>{mocks.team.mockResolvedValue({canManage:false});await expect(inspectPersonalClickUpList({userId,listUrl:url})).rejects.toThrow("manager");expect(mocks.service).not.toHaveBeenCalled();expect(mocks.list).not.toHaveBeenCalled();});
+it("does not elevate a read-only full CRM membership into a connection manager",async()=>{mocks.context.mockResolvedValue({access:"admin",membership:{role:"viewer"},claims:{sub:"viewer"},supabase:{}});mocks.team.mockResolvedValue({canManage:true,members:[]});await expect(loadPersonalClickUpConnections()).rejects.toThrow("manager");expect(mocks.service).not.toHaveBeenCalled();});
+it("rejects primary user and reserved lists before calling ClickUp",async()=>{primary=true;await expect(inspectPersonalClickUpList({userId,listUrl:url})).rejects.toThrow("existing Jobs");primary=false;await expect(inspectPersonalClickUpList({userId,listUrl:url.replace("123456","1300350000002054")})).rejects.toThrow("reserved");expect(mocks.list).not.toHaveBeenCalled();});
+it("verifies workspace/list access and exact business-email identity",async()=>{const result=await inspectPersonalClickUpList({userId,listUrl:url});expect(result.suggestedAssignee).toBe(42);expect(result.mapping).toEqual(mapping);expect(mocks.configure).not.toHaveBeenCalled();});
+it("rejects a forged assignee and ambiguous inbound status mapping",async()=>{await expect(connectPersonalClickUpList({userId,listUrl:url,assignedUserId:999,mapping})).rejects.toThrow("verified");await expect(connectPersonalClickUpList({userId,listUrl:url,assignedUserId:42,mapping:{...mapping,planning:"SCHEDULED"}})).rejects.toThrow("unambiguous");expect(mocks.configure).not.toHaveBeenCalled();});
+it("does not trust the URL workspace segment alone",async()=>{mocks.spaces.mockResolvedValue({spaces:[{id:"another-space"}]});await expect(inspectPersonalClickUpList({userId,listUrl:url})).rejects.toThrow("active list");expect(mocks.configure).not.toHaveBeenCalled();});
+it("rechecks destination on Save and registers only its separate signed webhook",async()=>{await connectPersonalClickUpList({userId,listUrl:url,assignedUserId:42,mapping});expect(mocks.configure).toHaveBeenCalledWith("website-configure-personal-clickup",expect.objectContaining({p_user:userId,p_list:"123456",p_assignee:42,p_mapping:mapping}));expect(mocks.hook).toHaveBeenCalledOnce();expect(mocks.after).toHaveBeenCalledOnce();});
+it("pauses a new connection if signed inbound registration fails",async()=>{mocks.hook.mockRejectedValue(new Error("private provider detail"));await expect(connectPersonalClickUpList({userId,listUrl:url,assignedUserId:42,mapping})).rejects.toThrow("saved but paused");expect(mocks.configure).toHaveBeenLastCalledWith("website-configure-personal-clickup",expect.objectContaining({p_user:userId,p_enabled:false}));expect(mocks.after).not.toHaveBeenCalled();});
