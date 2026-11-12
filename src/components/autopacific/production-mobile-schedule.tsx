@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plane, Plus } from "lucide-react";
 import type { AgendaSource } from "@/lib/production-agenda";
@@ -23,7 +23,7 @@ function tone(item: AgendaSource, today: string) {
   return "is-autopacific";
 }
 
-export function ProductionMobileSchedule({ data, today, todayOnly, marketing, memoryKey, onOpen: onOpenRecord, onCreate }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void }) {
+export function ProductionMobileSchedule({ data, today, todayOnly, marketing, memoryKey, onOpen: onOpenRecord, onCreate, renderCreateButton }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode }) {
   const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "week");
   const { mode: period, anchor, date: selected } = view;
   function setSelected(date: string) { rememberView({ date }); }
@@ -51,7 +51,7 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, me
       <div><span>{selected === today ? "Your day, in focus" : "Daily schedule"}</span><h2>{format(parseISO(selected), "EEEE, d MMM")}</h2></div>
       <CalendarWeatherBadge day={weather.days.find(day => day.date === selected)} onOpen={setWeatherDay} />
       {!marketing && !todayOnly ? <OutlookCalendarConnection compact /> : null}
-      {onCreate ? <button type="button" aria-label={`Add event on ${selected}`} onClick={() => onCreate(selected)}><Plus size={19} /></button> : null}
+      {renderCreateButton ? renderCreateButton(selected) : onCreate ? <button type="button" aria-label={`Add event on ${selected}`} onClick={() => onCreate(selected)}><Plus size={19} /></button> : null}
     </header>
     {agenda.allDay.length ? <section className="apg-mobile-all-day" aria-label="All-day items"><h3><CalendarDays size={14} /> All day & deadlines</h3>{agenda.allDay.map(item => <button key={item.id} type="button" className={tone(item.source, today)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}><strong>{item.title}</strong><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button>)}</section> : null}
     <section className="apg-mobile-timeline" aria-label="Timed bookings"><h3><Clock3 size={14} /> Booked times</h3>{agenda.timed.map(item => <article key={item.id}><time>{item.time}</time><button type="button" className={tone(item.source, today)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}>{item.source.entity_type === "flight-event" ? <Plane size={17} /> : <CalendarDays size={17} />}<span><strong>{item.title}</strong><small>{item.detail}</small></span>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button></article>)}{!agenda.timed.length ? <p className="apg-mobile-free-time">{agenda.allDay.length ? "No timed bookings. Your all-day items are above." : "A little breathing room. Nothing booked for this day."}</p> : null}</section>

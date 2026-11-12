@@ -31,7 +31,11 @@ it.each([false, true])("offers the four views in production/marketing and select
   expect([...container.querySelectorAll(".tablet-calendar-day-select time")].map(node => node.getAttribute("datetime"))).toEqual(datesBefore);
   expect(container.querySelector('.is-selected-day time')?.getAttribute("datetime")).toBe("2026-11-12");
   expect(callbacks.onOpenEvent).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
-  await click('[aria-label="Add event on selected day 2026-11-12"]'); expect(callbacks.onCreate).toHaveBeenCalledWith("event", "2026-11-12");
+  expect(container.querySelector('[aria-label="Selected day schedule"] [aria-haspopup="menu"]')).toBeNull();
+  await click('.production-calendar-views [aria-haspopup="menu"]');
+  expect(callbacks.onCreate).not.toHaveBeenCalled();
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(button => button.textContent === "Calendar event")!.click());
+  expect(callbacks.onCreate).toHaveBeenCalledWith("event", "2026-11-12");
 });
 it("follows fortnight navigation, keeps the day selection in view, and returns to today", async () => {
   await render(); await hybrid();
@@ -61,10 +65,28 @@ it("lists overlapping bookings in time order without hiding any, and routes clic
 });
 it("hides create controls in read-only mode but allows selection and inspecting details", async () => {
   await render(true, true); await hybrid();
-  expect(container.querySelector('[aria-label^="Add event on selected day"]')).toBeNull(); expect(container.querySelector(".tablet-calendar-day-add")).toBeNull();
+  expect(container.querySelector('[aria-haspopup="menu"]')).toBeNull(); expect(container.querySelector(".tablet-calendar-day-add")).toBeNull();
   await click('[aria-label="Show schedule for Thursday 12 November 2026"]');
   await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Selected day timed bookings"] button')!.click());
   expect(callbacks.onOpenEvent).toHaveBeenCalledWith(data.calendarEvents[2]);
+});
+it.each([false, true])("day plus opens choices rather than creating an event immediately (%s)", async marketing => {
+  await render(marketing); await hybrid();
+  await click('[aria-label="Add to calendar on 12 November 2026"]');
+  expect(callbacks.onCreate).not.toHaveBeenCalled();
+  const choices = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+  expect(choices.map(button => button.textContent)).toEqual(marketing ? ["Job brief", "Calendar event"] : ["Job brief", "Calendar event", "Task / asset", "Flight plan"]);
+  await act(async () => choices[0].click());
+  expect(callbacks.onCreate).toHaveBeenCalledWith("job", "2026-11-12");
+});
+it("retains personal production tools for Marketing My Space and uses its selected mobile day", async () => {
+  await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing mobile personalTools {...callbacks} />));
+  await click('[aria-label="Thursday 12 November"]');
+  await click('[aria-label="Add to calendar on 12 November 2026"]');
+  const choices = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+  expect(choices.map(button => button.textContent)).toEqual(["Job brief", "Calendar event", "Task / asset", "Flight plan"]);
+  await act(async () => choices[3].click());
+  expect(callbacks.onCreate).toHaveBeenCalledWith("flight", "2026-11-12");
 });
 it("shows ongoing weekday work and native/Outlook themes without hiding completed work", async () => {
   const job: CalendarJob = { id: "ongoing", entity_type: "job", title: "Ongoing capture", client_name: "Autopacific Group", shoot_date: "2026-11-09", shoot_time: null, due_date: "2026-11-13", due_time: null, status_label: "Production", status_color: "#579", is_complete: false };

@@ -1,0 +1,17 @@
+.trigger { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; min-width:36px; padding:7px 10px; border:1px solid var(--workspace-line,#dce5ea); border-radius:8px; background:var(--workspace-surface,#fff); color:var(--workspace-text,#182e3a); font:inherit; font-size:12px; cursor:pointer; }
+.trigger:hover,.trigger[aria-expanded="true"] { background:var(--workspace-accent-soft,#eaf3f8); border-color:var(--workspace-accent,#397fa6); }
+.trigger:global(.tablet-calendar-day-add) { width:22px; height:22px; min-width:22px; min-height:22px; padding:0; border-radius:50%; }
+.icon { display:inline-flex; }
+.menu { position:fixed; z-index:140; display:grid; gap:2px; max-height:calc(100dvh - 24px); overflow:auto; padding:6px; border:1px solid var(--workspace-line,#dce5ea); border-radius:12px; background:var(--workspace-surface,#fff); color:var(--workspace-text,#182e3a); box-shadow:0 14px 42px #0003; font-family:var(--font-sans,Arial,sans-serif); }
+.date { padding:8px 10px 10px; color:var(--workspace-muted,#586d79); font-size:10px; font-weight:600; }
+.menu > button { display:flex; align-items:center; gap:10px; min-height:44px; padding:10px; border:0; border-radius:7px; color:inherit; background:transparent; text-align:left; font:inherit; font-size:12px; cursor:pointer; }
+.menu > button > svg { color:var(--workspace-accent,#397fa6); flex:none; }
+.menu > button:hover,.menu > button:focus-visible { background:var(--workspace-accent-soft,#eaf3f8); outline:2px solid var(--workspace-accent,#397fa6); outline-offset:-2px; }
+@media(prefers-reduced-motion:no-preference) {
+  .icon { transition:transform 180ms cubic-bezier(.2,.8,.2,1); }
+  .trigger[aria-expanded="true"] .icon { transform:rotate(45deg); }
+  .menu { transform-origin:top right; animation:menu-enter 180ms cubic-bezier(.2,.8,.2,1) both; }
+  .menu > button { animation:item-enter 180ms ease-out var(--create-delay,0ms) both; }
+  @keyframes menu-enter { from { opacity:0; transform:translateY(-8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes item-enter { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+}

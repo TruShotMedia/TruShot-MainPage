@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
+import { CalendarCreateMenu } from "./calendar-create-menu";
 import styles from "./production-hybrid.module.css";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
@@ -259,7 +260,9 @@ export function ProductionCalendar({
     (job) => job.status_label.toLowerCase() !== "planning",
   );
   const schedule = { ...data, calendarJobs: range };
-  if (mobile) return <ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onCreate={readOnly ? undefined : date => onCreate("event", date)} />;
+  const productionTools = !marketing || personalTools;
+  if (mobile) return <ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open}
+    renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} />;
   return (
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">
@@ -321,9 +324,7 @@ export function ProductionCalendar({
             </button>
           </div>
         ) : null}
-        {!readOnly ? <button type="button" onClick={() => onCreate("event", date)}>
-          <Plus size={14} /> Event
-        </button> : null}
+        {!readOnly ? <CalendarCreateMenu key={date} date={date} label="Add" productionTools={productionTools} onCreate={onCreate} /> : null}
       </div>
       {mode === "fortnight" || mode === "hybrid" ? (
         <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
@@ -347,12 +348,13 @@ export function ProductionCalendar({
           flightEvents={data.flightEvents}
           editable={!readOnly}
           onCreateEvent={(date) => onCreate("event", date)}
+          renderCreateButton={value => <CalendarCreateMenu date={value} productionTools={productionTools} className="tablet-calendar-day-add" onCreate={onCreate} />}
           onEditItem={onOpenItem}
           onEditEvent={onOpenEvent}
           onEditFlight={onOpenFlight}
           today={today}
         />
-        {mode === "hybrid" ? <ProductionDayPane data={schedule} date={date} today={today} currentTime={currentTime} onSelectDate={selectDate} onOpen={open} onCreate={readOnly ? undefined : value => onCreate("event", value)} /> : null}
+        {mode === "hybrid" ? <ProductionDayPane data={schedule} date={date} today={today} currentTime={currentTime} onSelectDate={selectDate} onOpen={open} /> : null}
         </div>
       ) : (
         <TimedSchedule

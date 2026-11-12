@@ -1,7 +1,7 @@
 "use client";
 
 import { addDays, format, parseISO } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import type { AgendaSource } from "@/lib/production-agenda";
@@ -15,9 +15,9 @@ function tone(source: AgendaSource, today: string, currentTime: string) {
   if ("due_date" in source && source.due_date && source.due_date < today) return "overdue";
   return "autopacific";
 }
-export function ProductionDayPane({ data, date, today, currentTime = "00:00", onSelectDate, onOpen, onCreate }: {
+export function ProductionDayPane({ data, date, today, currentTime = "00:00", onSelectDate, onOpen }: {
   data: ProductionScheduleData; date: string; today: string; currentTime?: string; onSelectDate: (date: string) => void;
-  onOpen: (source: AgendaSource) => void; onCreate?: (date: string) => void;
+  onOpen: (source: AgendaSource) => void;
 }) {
   const agenda = productionSelectedDay(date, data);
   const count = agenda.allDay.length + agenda.timed.length;
@@ -33,7 +33,6 @@ export function ProductionDayPane({ data, date, today, currentTime = "00:00", on
         <button type="button" aria-label="Previous selected day" onClick={() => onSelectDate(format(addDays(parseISO(date), -1), "yyyy-MM-dd"))}><ChevronLeft size={16} /></button>
         <button type="button" onClick={() => onSelectDate(today)}>Today</button>
         <button type="button" aria-label="Next selected day" onClick={() => onSelectDate(format(addDays(parseISO(date), 1), "yyyy-MM-dd"))}><ChevronRight size={16} /></button>
-        {onCreate ? <button type="button" className={styles.add} aria-label={`Add event on selected day ${date}`} onClick={() => onCreate(date)}><Plus size={16} />Event</button> : null}
       </div>
     </header>
     <div className={styles.agenda} key={date}>
