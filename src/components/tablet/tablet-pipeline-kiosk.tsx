@@ -16,6 +16,7 @@ import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { TabletJobPipeline } from "@/components/tablet/tablet-job-pipeline";
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { TabletToday } from "@/components/tablet/tablet-today";
+import { useCalendarToday } from "@/components/shared/use-calendar-today";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import {
   queueAutopacificOfflineMutation,
@@ -225,7 +226,7 @@ export function TabletPipelineKiosk({
   notionSyncIntervalMinutes,
   refreshIntervalMinutes,
   showTodayView = false,
-  today,
+  today: initialToday,
 }: {
   workspaceMode?: WorkspaceMode;
   initialJobId?: string;
@@ -256,6 +257,7 @@ export function TabletPipelineKiosk({
   showTodayView?: boolean;
   today: string;
 }) {
+  const today = useCalendarToday(initialToday);
   const router = useRouter();
   const isMarketing = workspaceMode === "marketing";
   const [showPlanning,setShowPlanning]=useState(initialView === "planning");

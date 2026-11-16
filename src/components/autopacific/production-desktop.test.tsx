@@ -3,7 +3,7 @@ import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync, writeFileSync } from "node:fs";
-import { describe,expect,it,vi } from "vitest";
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ProductionDesktop } from "./production-desktop";
 import { TabletRecordEditEditor } from "@/components/tablet/tablet-workspace-editors";
 import type { CalendarCustomEvent, TabletKioskData,TabletJobRecord } from "@/lib/types";
@@ -25,7 +25,18 @@ vi.mock("@/app/autopacific/brief-actions",()=>({loadJobSupportingData:vi.fn(asyn
 const statuses=[{id:"plan",key:"planning",label:"Planning",color:"#7c8790",position:1,is_closed:false},{id:"scheduled",key:"scheduled",label:"Scheduled",color:"#5d91b0",position:2,is_closed:false},{id:"production",key:"production",label:"Production",color:"#5d91b0",position:3,is_closed:false},{id:"review",key:"review",label:"Review",color:"#795e93",position:4,is_closed:false},{id:"done",key:"delivered",label:"Delivered",color:"#397253",position:5,is_closed:true}];
 const job:TabletJobRecord={id:"11111111-2222-4333-8444-555555555555",title:"Rola launch content",job_number:null,client_id:"apg",status_id:"scheduled",shoot_date:"2026-11-10",shoot_time:"09:00",shoot_end_time:"11:00",due_date:"2026-11-13",due_time:"17:00",photos_delivered:0,description:"Capture the product range in a real workshop.",notes:null,location:"Geebung workshop",delivery_url:null,delivered_at:null,updated_at:"2026-10-27T00:00:00.000Z",open_tasks:1,total_tasks:2,status:statuses[1],client:{id:"apg",name:"Autopacific Group"},brief_details:{objective:"Show practical use of the new range",audience:"Trade customers",sections:[{key:"output_specs",body:"9:16 social reel, 30 seconds · MP4"}]},deliverables:[{id:"22222222-3333-4444-8555-666666666666",name:"Product launch reel",date:"2026-11-13"},{id:"33333333-4444-4555-8666-777777777777",name:"Workshop photographs",date:null}]};
 const data:TabletKioskData={statuses:[{id:"todo",key:"not_started",label:"Not started",color:"#777",position:1,is_open:true},{id:"progress",key:"in_progress",label:"In progress",color:"#579",position:2,is_open:true},{id:"review",key:"final_draft_notes",label:"Final Draft/Notes",color:"#795",position:3,is_open:true},{id:"posted",key:"posted_done",label:"Posted / Done",color:"#375",position:4,is_open:false}],jobStatuses:statuses,clientOptions:[{id:"apg",name:"Autopacific Group"}],jobOptions:[],pipelineJobs:[job,{...job,id:"draft",title:"Undated planning brief",status_id:"plan",status:statuses[0],shoot_date:null,due_date:null}],pipelineTasks:[{id:"task",job_id:job.id,title:"Launch reel",status_id:"review",asset_type:"Asset",hours:2,due_date:"2026-11-13",due_time:null,priority:"normal",description:null,position:10,completed_at:null,updated_at:job.updated_at,job:{title:job.title,client:{name:"Autopacific Group"}}}],calendarJobs:[{...job,entity_type:"job",client_name:"Autopacific Group",status_label:"Scheduled",status_color:"#579",is_complete:false}],calendarTasks:[],calendarCampaignAssets:[],calendarEvents:[],flightEvents:[],pendingRequestCount:0};
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-10T10:00:00+10:00")); });
+afterEach(() => { vi.useRealTimers(); });
 describe("shared desktop workspace",()=>{
+ it.each(["production", "marketing"] as const)("uses the real date rather than a week-old server date in %s", async mode => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn(async () => ({ status: 304 }))); localStorage.clear();
+  vi.setSystemTime(new Date("2026-11-17T08:00:00+10:00"));
+  const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
+  try {
+   await act(async () => root.render(<ProductionDesktop experience="mobile" data={data} mode={mode} initialView="today" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey="" />));
+   expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Tuesday, 17 Nov");
+  } finally { await act(async () => root.unmount()); container.remove(); localStorage.clear(); vi.unstubAllGlobals(); }
+ });
  it.each(["production","marketing"] as const)("collapses and restores the desktop sidebar in %s without resetting the current tab", async mode => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT",true); vi.stubGlobal("fetch",vi.fn(async()=>({status:304}))); localStorage.clear();
   const container=document.createElement("div");document.body.append(container);const root=createRoot(container);

@@ -362,14 +362,18 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
 
 export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, renderCreateButton, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city", anchorDate, onAnchorDateChange, selectedDate, onSelectDate }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey; anchorDate?: string; onAnchorDateChange?: (date: string) => void; selectedDate?: string; onSelectDate?: (date: string) => void }) {
   const todayDate = useMemo(() => parseISO(today), [today]);
-  const [internalMonth, setInternalMonth] = useState(() => density === "capacity" ? todayDate : startOfMonth(todayDate));
+  const [internalView, setInternalView] = useState(() => ({ viewedOn: today, month: density === "capacity" ? todayDate : startOfMonth(todayDate) }));
+  const internalMonth = internalView.viewedOn === today ? internalView.month : density === "capacity" ? todayDate : startOfMonth(todayDate);
+  function setInternalMonth(month: Date) { setInternalView({ viewedOn: today, month }); }
   const currentMonth = useMemo(() => anchorDate ? parseISO(anchorDate) : internalMonth, [anchorDate, internalMonth]);
   function setCurrentMonth(value: Date) {
     if (onAnchorDateChange) onAnchorDateChange(format(value, "yyyy-MM-dd"));
     else setInternalMonth(value);
   }
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [selectedMobileDate, setSelectedMobileDate] = useState(today);
+  const [mobileSelection, setMobileSelection] = useState({ viewedOn: today, date: today });
+  const selectedMobileDate = mobileSelection.viewedOn === today ? mobileSelection.date : today;
+  function setSelectedMobileDate(date: string) { setMobileSelection({ viewedOn: today, date }); }
   const isCapacityCalendar = density === "capacity";
   const capacityWindowDays = isCapacityCalendar
     ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
@@ -486,7 +490,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
     if (isCapacityCalendar) {
       const days = capacityWindowDays ?? capacityDesktopWindowDays;
       setCurrentMonth(addDays(currentMonth, direction * days));
-      if (isCompactViewport) setSelectedMobileDate((date) => format(addDays(parseISO(date), direction * days), "yyyy-MM-dd"));
+      if (isCompactViewport) setSelectedMobileDate(format(addDays(parseISO(selectedMobileDate), direction * days), "yyyy-MM-dd"));
       return;
     }
     setCurrentMonth(direction < 0 ? subMonths(currentMonth, 1) : addMonths(currentMonth, 1));

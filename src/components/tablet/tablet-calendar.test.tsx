@@ -541,4 +541,21 @@ describe("TabletCalendar", () => {
     expect(mobileTiming(event.title)).toBe("12 Aug · 6pm – 13 Aug · 10am");
     expect(mobileTiming(flightEvents[0].title)).toBe("Departs 12 Aug · 7:30am · Arrives 13 Aug · 9:05am");
   });
+
+  it("recentres an unattended kiosk calendar after the day changes", async () => {
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} today="2026-08-25" />));
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next calendar period"]')!.click());
+    expect(container.querySelector('.is-today')).toBeNull();
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} today="2026-09-01" />));
+    expect(container.querySelector('.is-today time')?.getAttribute("datetime")).toBe("2026-09-01");
+  });
+
+  it("also advances a compact kiosk's selected day instead of leaving the old agenda selected", async () => {
+    usePhoneViewport();
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} today="2026-08-25" />));
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Choose a day"] button:last-child')!.click());
+    await act(async () => root.render(<TabletCalendar density="capacity" jobs={[]} tasks={[]} today="2026-09-01" />));
+    expect(container.querySelector('.tablet-calendar-mobile-week .is-today')?.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector('.tablet-calendar-mobile-agenda')?.getAttribute("aria-label")).toBe("Schedule for 1 September 2026");
+  });
 });

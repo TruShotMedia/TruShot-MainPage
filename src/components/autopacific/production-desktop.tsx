@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ProductionWordmark } from "./production-wordmark";
 import { useDesktopSidebar } from "./use-desktop-sidebar";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
+import { useCalendarToday } from "@/components/shared/use-calendar-today";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -324,7 +325,7 @@ export function ProductionDesktop({
   mode,
   initialView,
   requestedJobId,
-  today,
+  today: initialToday,
   refreshIntervalMinutes,
   notificationPublicKey,
   notionSyncEnabled = false,
@@ -342,6 +343,7 @@ export function ProductionDesktop({
   notionSyncIntervalMinutes?: number;
   experience?: "desktop" | "mobile";
 }) {
+  const today = useCalendarToday(initialToday);
   const marketing = mode === "marketing",
     router = useRouter();
   const team = useProductionTeam();

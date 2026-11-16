@@ -21,6 +21,10 @@ export function parseCalendarViewMemory(raw: string | null, today: string, defau
     const saved = JSON.parse(raw);
     if (!saved || saved.version !== 1 || !["fortnight", "week", "day", "hybrid"].includes(saved.mode)
       || !validDate(saved.date) || !validDate(saved.anchor)) return fallback;
-    return { mode: saved.mode, date: saved.date, anchor: saved.anchor };
+    // Remember the view across days, not a stale schedule. Undated legacy
+    // preferences keep their mode but start at today on their first new visit.
+    return saved.viewedOn === today
+      ? { mode: saved.mode, date: saved.date, anchor: saved.anchor }
+      : { mode: saved.mode, date: today, anchor: today };
   } catch { return fallback; }
 }

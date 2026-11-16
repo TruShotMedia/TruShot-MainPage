@@ -134,7 +134,7 @@ it("remembers Week and Day navigation and tolerates unavailable local storage", 
 
 it("does not overwrite saved preferences during hydration/mount", async () => {
   const key = calendarViewStorageKey("autopacific", "local", "videographer", false);
-  const stored = JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01" });
+  const stored = JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01", viewedOn: "2026-11-10" });
   localStorage.setItem(key, stored);
   await render();
   expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-12-01");
@@ -143,7 +143,7 @@ it("does not overwrite saved preferences during hydration/mount", async () => {
 
 it("hydrates server markup safely before restoring the device's saved view", async () => {
   const key = calendarViewStorageKey("autopacific", "local", "videographer", false);
-  localStorage.setItem(key, JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01" }));
+  localStorage.setItem(key, JSON.stringify({ version: 1, mode: "day", date: "2026-12-01", anchor: "2026-12-01", viewedOn: "2026-11-10" }));
   const calendar = <ProductionCalendar data={data} today="2026-11-10" marketing={false} {...callbacks} />;
   const html = renderToString(calendar);
   expect(html).not.toContain('aria-label="Day schedule"');
@@ -154,4 +154,37 @@ it("hydrates server markup safely before restoring the device's saved view", asy
   expect(errors).toEqual([]);
   expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
   expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-12-01");
+});
+
+it.each([false, true])("keeps Hybrid but resets the selected day and fortnight on a later day (%s)", async marketing => {
+  await render(marketing); await hybrid();
+  await click('[aria-label="Next calendar period"]');
+  await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-17" marketing={marketing} {...callbacks} />));
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+  expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-17");
+  expect(container.querySelector('.is-today time')?.getAttribute("datetime")).toBe("2026-11-17");
+  expect(container.querySelector('.is-selected-day time')?.getAttribute("datetime")).toBe("2026-11-17");
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each(["fortnight", "week", "day", "hybrid"] as const)("reopens at today while remembering the saved %s view", async mode => {
+  const key = calendarViewStorageKey("autopacific", "local", "videographer", false);
+  localStorage.setItem(key, JSON.stringify({ version: 1, mode, date: "2026-12-01", anchor: "2026-12-01", viewedOn: "2026-11-10" }));
+  await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-17" marketing={false} {...callbacks} />));
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent?.toLowerCase()).toBe(mode);
+  if (mode === "week" || mode === "day") expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-11-17");
+  else expect(container.querySelector('.is-today time')?.getAttribute("datetime")).toBe("2026-11-17");
+  if (mode === "hybrid") expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-17");
+  // Deriving the current day never overwrites preferences or writes record data.
+  expect(JSON.parse(localStorage.getItem(key)!).viewedOn).toBe("2026-11-10");
+});
+
+it("also rolls over the in-memory calendar when browser storage is unavailable", async () => {
+  const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Storage blocked"); });
+  try {
+    await render(); await hybrid(); await click('[aria-label="Next calendar period"]');
+    await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-11" marketing={false} {...callbacks} />));
+    expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-11");
+    expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+  } finally { storage.mockRestore(); }
 });

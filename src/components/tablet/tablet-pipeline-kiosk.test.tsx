@@ -78,7 +78,7 @@ describe("TabletPipelineKiosk", () => {
   });
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ now: new Date("2026-08-25T00:00:00.000Z") });
     routerMocks.refresh.mockClear();
     componentMocks.calendar.mockClear();
     componentMocks.jobPipeline.mockClear();
@@ -94,6 +94,21 @@ describe("TabletPipelineKiosk", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
+  });
+
+  it.each(["production", "marketing"] as const)("advances the %s kiosk date at midnight and after sleep", async workspaceMode => {
+    vi.setSystemTime(new Date("2026-08-25T23:59:59+10:00"));
+    const fetchMock = vi.fn(async () => ({ status: 304 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await act(async () => root.render(<TabletPipelineKiosk workspaceMode={workspaceMode} calendarJobs={[]} calendarTasks={[]} initialNow="2026-08-25T23:59:59+10:00" initialStatuses={[]} initialTasks={[]} initialView="calendar" pendingRequestCount={0} pipelineVersion="empty" notionSyncEnabled={false} notionSyncIntervalMinutes={15} refreshIntervalMinutes={15} today="2026-08-25" />));
+      expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ today: "2026-08-25" });
+      await act(async () => vi.advanceTimersByTime(1_000));
+      expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ today: "2026-08-26" });
+      vi.setSystemTime(new Date("2026-09-01T08:00:00+10:00"));
+      await act(async () => window.dispatchEvent(new Event("pageshow")));
+      expect(componentMocks.calendar.mock.lastCall?.[0]).toMatchObject({ today: "2026-09-01" });
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it("shows the selected page for 60 seconds, the lockscreen for 15 seconds, and supports a persistent pause override", async () => {
@@ -307,6 +322,7 @@ describe("TabletPipelineKiosk", () => {
   });
 
   it("adds the Today view after Calendar only when it is enabled", async () => {
+    vi.setSystemTime(new Date("2026-10-16T00:00:00.000Z"));
     await act(async () => root.render(
       <TabletPipelineKiosk
         calendarJobs={[]}

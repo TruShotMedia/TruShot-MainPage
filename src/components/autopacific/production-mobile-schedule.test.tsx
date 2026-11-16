@@ -13,6 +13,38 @@ let root: ReturnType<typeof createRoot>;
 beforeEach(() => { localStorage.clear(); (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 describe("mobile calendar and itinerary", () => {
+  it.each([false, true])("keeps its view but follows today after a week away (%s)", async marketing => {
+    const render = async (today: string) => { await act(async () => root.render(<ProductionMobileSchedule data={data} memoryKey={`rollover:${marketing}`} today={today} todayOnly={false} marketing={marketing} onOpen={() => {}} />)); };
+    await render("2026-10-28");
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next schedule period"]')!.click());
+    await render("2026-11-04");
+    expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+    expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Wednesday, 4 Nov");
+    expect(container.querySelector('.apg-mobile-date-strip .is-today')?.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => root.render(null));
+    await render("2026-11-11");
+    expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Wednesday, 11 Nov");
+    expect(container.querySelectorAll('.apg-mobile-date-strip button')).toHaveLength(14);
+  });
+  it.each([false, true])("returns to today's agenda on a new day while keeping the mobile view (%s)", async marketing => {
+    const renderCalendar = async (today: string) => act(async () => root.render(<ProductionMobileSchedule memoryKey={`mobile:${marketing}`} data={data} today={today} todayOnly={false} marketing={marketing} onOpen={() => {}} />));
+    await renderCalendar("2026-10-28");
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Thursday 29 October"]')!.click());
+    await renderCalendar("2026-11-04");
+    expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Hybrid");
+    expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Wednesday, 4 Nov");
+    expect(container.querySelector('.is-today')?.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => root.render(null));
+    await renderCalendar("2026-11-11");
+    expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Wednesday, 11 Nov");
+  });
+  it("keeps the Today tab current after its date was manually changed on the previous day", async () => {
+    await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly marketing={false} onOpen={() => {}} />));
+    await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-29" todayOnly marketing={false} onOpen={() => {}} />));
+    expect(container.querySelector('.apg-mobile-agenda-heading h2')?.textContent).toBe("Thursday, 29 Oct");
+  });
   it("restores its period and selected day after switching away, without changing Today", async () => {
     const renderCalendar = async (todayOnly = false) => { await act(async () => root.render(<ProductionMobileSchedule data={data} memoryKey="calendar-view:v1:mobile-test" today="2026-10-28" todayOnly={todayOnly} marketing onOpen={() => {}} />)); };
     await renderCalendar();

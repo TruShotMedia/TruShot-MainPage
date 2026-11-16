@@ -9,7 +9,7 @@ const serverSnapshot = () => null;
 /** Restore after hydration without writing a default over the saved view.
  * Save only on interaction, and never turn storage failures into UI failures. */
 export function useCalendarViewMemory(key: string | null, today: string, defaultMode: CalendarViewMode) {
-  const [fallback, setFallback] = useState<{ key: string | null; value: CalendarViewMemory } | null>(null);
+  const [fallback, setFallback] = useState<{ key: string | null; viewedOn: string; value: CalendarViewMemory } | null>(null);
   const snapshot = useCallback(() => {
     if (!key) return null;
     try { return window.localStorage.getItem(key); } catch { return null; }
@@ -26,19 +26,21 @@ export function useCalendarViewMemory(key: string | null, today: string, default
     };
   }, [key]);
   const raw = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
-  const value = fallback?.key === key ? fallback.value : parseCalendarViewMemory(raw, today, defaultMode);
+  const value = fallback?.key === key
+    ? fallback.viewedOn === today ? fallback.value : { mode: fallback.value.mode, date: today, anchor: today }
+    : parseCalendarViewMemory(raw, today, defaultMode);
 
   function update(patch: Partial<CalendarViewMemory>) {
     const next = { ...value, ...patch };
     if (key) {
       try {
-        window.localStorage.setItem(key, JSON.stringify({ version: 1, ...next }));
+        window.localStorage.setItem(key, JSON.stringify({ version: 1, ...next, viewedOn: today }));
         setFallback(null);
         window.dispatchEvent(new CustomEvent(preferenceEvent, { detail: key }));
         return;
       } catch { /* Private browsing/quota: the current calendar still works. */ }
     }
-    setFallback({ key, value: next });
+    setFallback({ key, viewedOn: today, value: next });
   }
   return [value, update] as const;
 }
