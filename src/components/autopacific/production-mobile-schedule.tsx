@@ -11,6 +11,9 @@ import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import styles from "./production-hybrid.module.css";
+import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
+
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 
 type Data = ProductionScheduleData;
@@ -24,6 +27,7 @@ function tone(item: AgendaSource, today: string) {
 }
 
 export function ProductionMobileSchedule({ data, today, todayOnly, marketing, memoryKey, onOpen: onOpenRecord, onCreate, renderCreateButton }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode }) {
+  const calendarMembers = useCalendarTeamColors();
   const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "week");
   const { mode: period, anchor, date: selected } = view;
   function setSelected(date: string) { rememberView({ date }); }
@@ -53,9 +57,9 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, me
       {!marketing && !todayOnly ? <OutlookCalendarConnection compact /> : null}
       {renderCreateButton ? renderCreateButton(selected) : onCreate ? <button type="button" aria-label={`Add event on ${selected}`} onClick={() => onCreate(selected)}><Plus size={19} /></button> : null}
     </header>
-    {agenda.allDay.length ? <section className="apg-mobile-all-day" aria-label="All-day items"><h3><CalendarDays size={14} /> All day & deadlines</h3>{agenda.allDay.map(item => <button key={item.id} type="button" className={tone(item.source, today)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}><strong>{item.title}</strong><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button>)}</section> : null}
-    <section className="apg-mobile-timeline" aria-label="Timed bookings"><h3><Clock3 size={14} /> Booked times</h3>{agenda.timed.map(item => <article key={item.id}><time>{item.time}</time><button type="button" className={tone(item.source, today)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}>{item.source.entity_type === "flight-event" ? <Plane size={17} /> : <CalendarDays size={17} />}<span><strong>{item.title}</strong><small>{item.detail}</small></span>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button></article>)}{!agenda.timed.length ? <p className="apg-mobile-free-time">{agenda.allDay.length ? "No timed bookings. Your all-day items are above." : "A little breathing room. Nothing booked for this day."}</p> : null}</section>
-    {todayOnly && overdue.length ? <section className="apg-mobile-all-day" aria-label="Overdue work"><h3>Still needs attention</h3>{overdue.map(item => <button key={`${item.entity_type}:${item.id}`} type="button" className="is-overdue" onClick={() => onOpen(item)}><strong>{item.title}</strong><small>Due {format(parseISO(item.due_date!), "d MMM")}</small><ChevronRight size={16} /></button>)}</section> : null}
+    {agenda.allDay.length ? <section className="apg-mobile-all-day" aria-label="All-day items"><h3><CalendarDays size={14} /> All day & deadlines</h3>{agenda.allDay.map(item => <button key={item.id} type="button" className={tone(item.source, today)} {...calendarTeamAttributes(item.source, calendarMembers)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button>)}</section> : null}
+    <section className="apg-mobile-timeline" aria-label="Timed bookings"><h3><Clock3 size={14} /> Booked times</h3>{agenda.timed.map(item => <article key={item.id}><time>{item.time}</time><button type="button" className={tone(item.source, today)} {...calendarTeamAttributes(item.source, calendarMembers)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => onOpen(item.source)}>{item.source.entity_type === "flight-event" ? <Plane size={17} /> : <CalendarDays size={17} />}<span><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small></span>{isOutlookEvent(item.source) ? <OutlookEventMark /> : <ChevronRight size={16} />}</button></article>)}{!agenda.timed.length ? <p className="apg-mobile-free-time">{agenda.allDay.length ? "No timed bookings. Your all-day items are above." : "A little breathing room. Nothing booked for this day."}</p> : null}</section>
+    {todayOnly && overdue.length ? <section className="apg-mobile-all-day" aria-label="Overdue work"><h3>Still needs attention</h3>{overdue.map(item => <button key={`${item.entity_type}:${item.id}`} type="button" className="is-overdue" {...calendarTeamAttributes(item, calendarMembers)} onClick={() => onOpen(item)}><strong>{item.title}</strong><CalendarTeamMarker record={item} /><small>Due {format(parseISO(item.due_date!), "d MMM")}</small><ChevronRight size={16} /></button>)}</section> : null}
     <CalendarWeatherCredit unavailable={weather.unavailable} locationKey={location} />
     {weatherDay ? <CalendarWeatherDetails day={weatherDay} onClose={() => setWeatherDay(null)} /> : null}
   </div>;

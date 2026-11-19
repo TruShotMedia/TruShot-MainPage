@@ -25,6 +25,9 @@ import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges
 import { buildFlightCalendarItineraries } from "@/lib/flight-itineraries";
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob, CalendarTask } from "@/lib/types";
 
+import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
+
 type TabletCalendarEvent = {
   id: string;
   date: string;
@@ -199,6 +202,7 @@ function dateFallsInRange(date: string, range: { end: string; start: string; wee
 }
 
 function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, today }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; range: ReturnType<typeof getCalendarScheduleRanges>[number]; today: string }) {
+  const calendarMembers = useCalendarTeamColors();
   const item = range.item;
   const outlook = isOutlookEvent(item);
   const isFlight = item.entity_type === "flight-event";
@@ -229,7 +233,8 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
     <article
       className={`tablet-calendar-mobile-entry ${isFlight ? "is-flight" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isOverdue ? "is-overdue" : ""} ${isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
       data-calendar-source={outlook ? "outlook" : undefined}
-      style={{ "--tablet-calendar-color": color } as CSSProperties}
+      {...calendarTeamAttributes(item, calendarMembers)}
+      style={{ "--tablet-calendar-color": color, ...calendarTeamAttributes(item, calendarMembers).style } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
       onClick={editable ? () => onOpen(item) : undefined}
@@ -243,18 +248,21 @@ function MobileRangeAgendaCard({ currentTime, editable, onOpen, palette, range, 
       {outlook ? <OutlookEventMark /> : null}
       <span className="tablet-calendar-mobile-entry-icon"><Icon size={17} /></span>
       <span className="tablet-calendar-mobile-entry-copy"><small>{kicker}</small><strong>{item.title}</strong><MobileBookingTime label={mobileRangeTimeLabel(item)} />{detail ? <em>{detail}</em> : null}</span>
+      <CalendarTeamMarker record={item} />
       <span className="tablet-calendar-mobile-entry-side">{isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
     </article>
   );
 }
 
 function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boolean; event: TabletCalendarEvent; onOpen?: (item: CalendarItem) => void }) {
+  const calendarMembers = useCalendarTeamColors();
   const Icon = event.kind === "task" ? ListTodo : event.kind === "campaign" ? Megaphone : BriefcaseBusiness;
   const bookedTime = event.item.entity_type === "job" && event.id.endsWith("-shoot") ? event.item.shoot_time : event.item.due_time;
   return (
     <article
       className={`tablet-calendar-mobile-entry is-deadline ${event.isOverdue ? "is-overdue" : ""} ${event.isDelayedSource ? "is-delayed-source" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${event.isComplete ? "is-complete" : ""} ${editable ? "is-editable" : ""}`}
-      style={{ "--tablet-calendar-color": event.color } as CSSProperties}
+      {...calendarTeamAttributes(event.item, calendarMembers)}
+      style={{ "--tablet-calendar-color": event.color, ...calendarTeamAttributes(event.item, calendarMembers).style } as CSSProperties}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
       onClick={editable ? () => onOpen?.(event.item) : undefined}
@@ -267,6 +275,7 @@ function MobileDeadlineAgendaCard({ editable, event, onOpen }: { editable: boole
     >
       <span className="tablet-calendar-mobile-entry-icon">{event.isRescheduled ? <RotateCcw size={17} /> : <Icon size={17} />}</span>
       <span className="tablet-calendar-mobile-entry-copy"><small>{event.isRescheduled ? "Rescheduled" : event.label}</small><strong>{event.title}</strong><MobileBookingTime label={bookedTime ? compactTime(bookedTime) : "Time not set"} /><em>{event.detail}</em></span>
+      <CalendarTeamMarker record={event.item} />
       <span className="tablet-calendar-mobile-entry-side">{event.isComplete ? <CheckCircle2 size={16} /> : editable ? <ChevronRight size={16} /> : null}</span>
     </article>
   );
@@ -318,6 +327,7 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
 }
 
 function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string }) {
+  const calendarMembers = useCalendarTeamColors();
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const outlook = isOutlookEvent(segment.item);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
@@ -334,6 +344,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   return (
     <article
       data-calendar-source={outlook ? "outlook" : undefined}
+      {...calendarTeamAttributes(segment.item, calendarMembers)}
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
       className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       role={editable ? "button" : undefined}
@@ -348,10 +359,12 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
       title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}${delay.reason ? ` · Delayed: ${delay.reason}` : ""}`}
       style={{
         "--tablet-calendar-color": rangeColor,
+        ...calendarTeamAttributes(segment.item, calendarMembers).style,
         gridColumn: `${segment.startColumn + 1} / span ${segment.span}`,
         gridRow: `${segment.lane + 1} / span ${segment.laneSpan}`,
       } as CSSProperties}
     >
+      <CalendarTeamMarker record={segment.item} />
       <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
       {outlook ? <OutlookEventMark /> : null}
       {!isCalendarEvent ? <em>{context}</em> : null}
@@ -361,6 +374,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
 }
 
 export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, renderCreateButton, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city", anchorDate, onAnchorDateChange, selectedDate, onSelectDate }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey; anchorDate?: string; onAnchorDateChange?: (date: string) => void; selectedDate?: string; onSelectDate?: (date: string) => void }) {
+  const calendarMembers = useCalendarTeamColors();
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [internalView, setInternalView] = useState(() => ({ viewedOn: today, month: density === "capacity" ? todayDate : startOfMonth(todayDate) }));
   const internalMonth = internalView.viewedOn === today ? internalView.month : density === "capacity" ? todayDate : startOfMonth(todayDate);
@@ -591,7 +605,8 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                           {dayEvents.slice(0, displayedEventLimit).map((event) => (
                             <article
                               className={`tablet-calendar-event is-${event.kind} ${event.isOverdue ? "is-overdue" : ""} ${event.isDelayedSource ? "is-delayed-source" : ""} ${event.isRescheduled ? "is-rescheduled" : ""} ${editable ? "is-editable" : ""} ${event.isComplete ? "is-complete" : ""}`}
-                              style={{ "--tablet-calendar-color": event.color } as CSSProperties}
+                              {...calendarTeamAttributes(event.item, calendarMembers)}
+                              style={{ "--tablet-calendar-color": event.color, ...calendarTeamAttributes(event.item, calendarMembers).style } as CSSProperties}
                               title={`${event.label}: ${event.title} · ${event.detail}`}
                               role={editable ? "button" : undefined}
                               tabIndex={editable ? 0 : undefined}
@@ -604,6 +619,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                               } : undefined}
                               key={event.id}
                             >
+                              <CalendarTeamMarker record={event.item} />
                               <i />
                               <div><strong>{event.title}</strong><span>{event.label}</span></div>
                             </article>

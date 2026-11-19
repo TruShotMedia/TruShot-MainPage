@@ -28,6 +28,42 @@ const data:TabletKioskData={statuses:[{id:"todo",key:"not_started",label:"Not st
 beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-10T10:00:00+10:00")); });
 afterEach(() => { vi.useRealTimers(); });
 describe("shared desktop workspace",()=>{
+ it.each(["desktop", "mobile"] as const)("lands Marketing on the colour-keyed Team calendar in %s despite an old personal preference", async experience => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn(async () => ({ status: 304 }))); localStorage.clear();
+  localStorage.setItem("apg-space:marketing:colleague", "videographer");
+  const team: TeamContextData = { userId: "colleague", role: "marketing", canManage: false, videographerId: "john", members: [
+   { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579", is_primary_videographer: true },
+   { user_id: "colleague", display_name: "Colleague", username: "colleague", role: "marketing", is_active: true, avatar_color: "#579" },
+  ] };
+  const fixture = { ...data, calendarJobs: [
+   { ...data.calendarJobs[0], id: "john-shoot", title: "John shoot", assignee_ids: ["john"] },
+   { ...data.calendarJobs[0], id: "team-shoot", title: "Colleague shoot", assignee_ids: ["colleague"] },
+  ] };
+  const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
+  const workspace = <ProductionTeamProvider value={team}><ProductionDesktop experience={experience} data={fixture} mode="marketing" initialView="calendar" initialSpace="team" today="2026-11-10" refreshIntervalMinutes={15} notificationPublicKey="" /></ProductionTeamProvider>;
+  try {
+   await act(async () => root.render(workspace));
+   await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+   const picker = container.querySelector<HTMLSelectElement>('[aria-label="Choose workspace"]')!;
+   expect(picker.value).toBe("team");
+   expect(container.querySelector("h1")?.textContent).toBe("Team calendar");
+   expect(container.textContent).toContain("John shoot"); expect(container.textContent).toContain("Colleague shoot");
+   const key = container.querySelector('[aria-label="Team calendar colour key"]')!;
+   const swatches = [...key.querySelectorAll<HTMLElement>("i[data-member-id]")];
+   expect(new Set(swatches.map(swatch => swatch.style.background)).size).toBe(2);
+   const colleagueColor = swatches.find(swatch => swatch.dataset.memberId === "colleague")!.style.background;
+   expect(container.querySelector('.calendar-team-marker [data-member-id="john"]')).not.toBeNull();
+   const johnFilter = key.querySelector<HTMLInputElement>('label input')!;
+   await act(async () => johnFilter.click());
+   expect(container.textContent).not.toContain("John shoot"); expect(container.textContent).toContain("Colleague shoot");
+   expect(key.querySelector<HTMLElement>('i[data-member-id="colleague"]')!.style.background).toBe(colleagueColor);
+   await act(async () => { picker.value = "mine"; picker.dispatchEvent(new Event("change", { bubbles: true })); });
+   expect(picker.value).toBe("mine");
+   expect(container.querySelector(".calendar-team-marker")).toBeNull();
+   await act(async () => root.render(null)); await act(async () => root.render(workspace));
+   expect(container.querySelector<HTMLSelectElement>('[aria-label="Choose workspace"]')!.value).toBe("team");
+  } finally { await act(async () => root.unmount()); container.remove(); localStorage.clear(); vi.unstubAllGlobals(); }
+ });
  it.each(["production", "marketing"] as const)("uses the real date rather than a week-old server date in %s", async mode => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn(async () => ({ status: 304 }))); localStorage.clear();
   vi.setSystemTime(new Date("2026-11-17T08:00:00+10:00"));

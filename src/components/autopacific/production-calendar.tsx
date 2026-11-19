@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
@@ -13,6 +13,8 @@ import styles from "./production-hybrid.module.css";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
+import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { assignTeamCalendarColors, calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import {
   productionDayAgenda,
   type AgendaSource,
@@ -58,6 +60,7 @@ export function TimedSchedule({
   today: string;
   onOpen: (source: AgendaSource) => void;
 }) {
+  const calendarMembers = useCalendarTeamColors();
   const agendas = dates.map((date) =>
     productionDayAgenda(date, {
       jobs: data.calendarJobs,
@@ -114,6 +117,7 @@ export function TimedSchedule({
               <button
                 type="button"
                 key={item.id}
+                {...calendarTeamAttributes(item.source, calendarMembers)}
                 className={agendaTone(item.source, today)}
                 data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined}
                 onClick={() => onOpen(item.source)}
@@ -121,6 +125,7 @@ export function TimedSchedule({
                 <strong>{item.title}</strong>
                 <small>{item.detail}</small>
                 {isOutlookEvent(item.source) ? <OutlookEventMark /> : null}
+                <CalendarTeamMarker record={item.source} />
               </button>
             ))}
             {!agenda.allDay.length ? (
@@ -154,10 +159,12 @@ export function TimedSchedule({
               <button
                 key={block.id}
                 type="button"
+                {...calendarTeamAttributes(block.source, calendarMembers)}
                 className={`timetable-booking ${block.end-block.start<45?"is-short":""} ${agendaTone(block.source, today)}`}
                 data-calendar-source={isOutlookEvent(block.source) ? "outlook" : undefined}
                 style={
                   {
+                    ...calendarTeamAttributes(block.source, calendarMembers).style,
                     top: ((block.start - firstHour * 60) * 64) / 60,
                     height: Math.max(
                       14,
@@ -174,6 +181,7 @@ export function TimedSchedule({
                 <small>{block.time}</small>
                 <strong>{block.title}</strong>
                 {isOutlookEvent(block.source) ? <OutlookEventMark /> : null}
+                <CalendarTeamMarker record={block.source} />
                 {block.end - block.start >= 60 ? (
                   <span>{block.detail}</span>
                 ) : null}
@@ -211,6 +219,7 @@ export function ProductionCalendar({
   onCreate: (kind: TabletCreateKind, date?: string) => void;
 }) {
   const team = useProductionTeam();
+  const calendarMembers = useMemo(() => marketing && readOnly ? assignTeamCalendarColors(team?.members ?? []) : [], [marketing, readOnly, team?.members]);
   const memoryKey = calendarViewStorageKey(marketing ? "marketing" : "autopacific", team?.userId ?? "local",
     readOnly ? "team" : personalTools ? "mine" : "videographer", mobile);
   const [view, rememberView] = useCalendarViewMemory(todayOnly || mobile ? null : memoryKey, today, todayOnly ? "day" : "fortnight");
@@ -261,9 +270,10 @@ export function ProductionCalendar({
   );
   const schedule = { ...data, calendarJobs: range };
   const productionTools = !marketing || personalTools;
-  if (mobile) return <ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open}
-    renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} />;
+  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open}
+    renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} /></CalendarTeamColorsProvider>;
   return (
+    <CalendarTeamColorsProvider value={calendarMembers}>
     <div className="production-calendar-workspace">
       <div className="production-calendar-views">
         {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
@@ -376,10 +386,12 @@ export function ProductionCalendar({
               <button
                 type="button"
                 key={`${item.entity_type}:${item.id}`}
+                {...calendarTeamAttributes(item, calendarMembers)}
                 className={agendaTone(item, today)}
                 onClick={() => onOpenItem(item)}
               >
                 <strong>{item.title}</strong>
+                <CalendarTeamMarker record={item} />
                 <span>
                   {item.due_date === today
                     ? "Due today"
@@ -396,5 +408,6 @@ export function ProductionCalendar({
         </p>
       ) : null}
     </div>
+    </CalendarTeamColorsProvider>
   );
 }

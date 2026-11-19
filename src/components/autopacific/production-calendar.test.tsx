@@ -9,6 +9,9 @@ import { ProductionCalendar } from "./production-calendar";
 import { ProductionDayPane } from "./production-day-pane";
 import type { CalendarCustomEvent, CalendarJob } from "@/lib/types";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
+import { ProductionTeamProvider } from "./team-context";
+import type { TeamContextData } from "@/lib/production-team";
+import type { CalendarTask } from "@/lib/types";
 const event = (id: string, start: string, end: string, date = "2026-11-10"): CalendarCustomEvent => ({ id, entity_type: "calendar-event", title: id, client_id: "apg", client_name: "Autopacific Group", start_date: date, end_date: date, start_time: start, end_time: end, is_all_day: false, location: null, description: null, color: "#579", reminder_offsets_minutes: [], created_at: "", updated_at: "" });
 const data = { calendarJobs: [], calendarTasks: [], flightEvents: [], calendarEvents: [event("Late meeting", "15:00", "16:00"), event("Early shoot", "09:00", "11:00"), event("Other day", "12:00", "13:00", "2026-11-12")] };
 let container: HTMLDivElement, root: Root;
@@ -18,6 +21,22 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function render(marketing = false, readOnly = false) { await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing={marketing} readOnly={readOnly} {...callbacks} />)); }
 const click = async (selector: string) => { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()); };
 const hybrid = async () => { await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click()); };
+it.each(["Fortnight", "Week", "Day", "Hybrid", "Mobile"])("keeps shared assignee colours and completed status in the Marketing Team %s view", async mode => {
+  const team: TeamContextData = { userId: "nathan", role: "marketing", canManage: false, videographerId: "john", members: [
+    { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579" },
+    { user_id: "nathan", display_name: "Nathan", username: "nathan", role: "marketing", is_active: true, avatar_color: "#579" },
+  ] };
+  const shared: CalendarJob = { id: "shared", entity_type: "job", title: "Shared shoot", client_name: "Autopacific Group", shoot_date: "2026-11-10", shoot_time: "09:00", shoot_end_time: "11:00", due_date: "2026-11-13", due_time: null, status_label: "Scheduled", status_color: "#579", is_complete: false, assignee_ids: ["john", "nathan"] };
+  const complete: CalendarTask = { id: "done", entity_type: "task", title: "Completed asset", job_title: shared.title, client_name: shared.client_name, due_date: "2026-11-10", due_time: null, status_label: "Complete", status_color: "#397253", is_complete: true, assignee_ids: ["nathan"], priority: "normal" };
+  await act(async () => root.render(<ProductionTeamProvider value={team}><ProductionCalendar data={{ ...data, calendarJobs: [shared], calendarTasks: [complete] }} today="2026-11-10" marketing readOnly mobile={mode === "Mobile"} {...callbacks} /></ProductionTeamProvider>));
+  if (mode !== "Mobile") await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === mode)!.click());
+  const markers = [...container.querySelectorAll('.calendar-team-marker[aria-label="Assigned to John, Nathan"]')];
+  expect(markers.length).toBeGreaterThan(0);
+  expect(markers.every(marker => marker.querySelectorAll("i").length === 2)).toBe(true);
+  expect(new Set([...markers[0].querySelectorAll<HTMLElement>("i")].map(node => node.style.getPropertyValue("--calendar-person-color"))).size).toBe(2);
+  expect(container.querySelector('[data-team-calendar="true"].is-complete, [data-team-calendar="true"][data-tone="complete"]')).not.toBeNull();
+  expect(container.querySelector('[aria-haspopup="menu"]')).toBeNull();
+});
 it.each([false, true])("offers the four views in production/marketing and selects a day without editing (%s)", async marketing => {
   await render(marketing);
   expect([...container.querySelectorAll('[aria-label="Schedule view"] button')].map(button => button.textContent)).toEqual(["Fortnight", "Week", "Day", "Hybrid"]);

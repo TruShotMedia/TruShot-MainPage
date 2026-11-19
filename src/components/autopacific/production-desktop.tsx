@@ -83,6 +83,7 @@ import { useProductionTeam, TeamAvatars, TeamAvatar } from "./team-context";
 import { normalizeProductionSpace, scopeProductionSpace, type ProductionSpace } from "@/lib/production-team";
 import { TeamManagement, TeamNotifications } from "./team-workspace";
 import { loadNotificationRecord } from "@/lib/load-notification-record";
+import { assignTeamCalendarColors } from "@/lib/team-calendar-colors";
 
 const CalendarEventEditor = dynamic(() =>
   import("@/components/admin/calendar-event-editor").then(
@@ -324,6 +325,7 @@ export function ProductionDesktop({
   data,
   mode,
   initialView,
+  initialSpace,
   requestedJobId,
   today: initialToday,
   refreshIntervalMinutes,
@@ -335,6 +337,7 @@ export function ProductionDesktop({
   data: Data;
   mode: WorkspaceMode;
   initialView: string;
+  initialSpace?: ProductionSpace;
   requestedJobId?: string;
   today: string;
   refreshIntervalMinutes: number;
@@ -347,8 +350,9 @@ export function ProductionDesktop({
   const marketing = mode === "marketing",
     router = useRouter();
   const team = useProductionTeam();
+  const calendarMembers = useMemo(() => assignTeamCalendarColors(team?.members ?? []), [team?.members]);
   const userId = team?.userId;
-  const [space, setSpace] = useState<ProductionSpace>(() => normalizeProductionSpace(null, marketing));
+  const [space, setSpace] = useState<ProductionSpace>(() => initialSpace ?? normalizeProductionSpace(null, marketing));
   const [teamSelection, setTeamSelection] = useState<string[] | null>(null);
   const [manageTeam, setManageTeam] = useState(false);
   const [myAccount, setMyAccount] = useState(false);
@@ -408,13 +412,14 @@ export function ProductionDesktop({
   const initialFieldSync = useRef(false);
   const spacePreferenceTouched = useRef(false);
   useEffect(() => {
-    if (!userId) return;
+    // An explicit landing space must not be replaced by an older device preference.
+    if (!userId || initialSpace) return;
     const saved = localStorage.getItem(`apg-space:${mode}:${userId}`) ?? localStorage.getItem(`apg-space:${userId}`);
     if (!saved) return;
     const stored = normalizeProductionSpace(saved, marketing);
     const timer = setTimeout(() => { if (spacePreferenceTouched.current) return; setSpace(stored); if (stored === "team") setView("calendar"); }, 0);
     return () => clearTimeout(timer);
-  }, [userId, marketing, mode]);
+  }, [userId, marketing, mode, initialSpace]);
   useEffect(() => {
     document.documentElement.classList.add("apg-desktop-active");
     const saved = localStorage.getItem("apg-desktop-theme");
@@ -783,7 +788,7 @@ export function ProductionDesktop({
           </div>
         </header>
         <div className="apg-mobile-space-picker"><label>Workspace<select aria-label="Choose workspace" value={space} onChange={event => { const next = event.target.value as ProductionSpace; chooseSpace(next); if (next === "team") select("calendar"); }}>{marketing ? <option value="videographer">Videographer</option> : null}<option value="mine">My Space</option><option value="team">Team calendar</option></select></label></div>
-        {space === "team" && team ? <div className="team-calendar-people"><strong><Users size={16} /> Team</strong><button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>{team.members.map(member => <label key={member.user_id}><input type="checkbox" checked={(teamSelection ?? team.members.map(item => item.user_id)).includes(member.user_id)} onChange={event => setTeamSelection(current => { const ids = current ?? team.members.map(item => item.user_id); return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id); })} /><i style={{ background: member.avatar_color }} />{member.display_name}</label>)}</div> : null}
+        {space === "team" && team ? <div className="team-calendar-people" aria-label="Team calendar colour key"><strong><Users size={16} /> Team</strong><button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>{team.members.map(member => <label key={member.user_id}><input type="checkbox" checked={(teamSelection ?? team.members.map(item => item.user_id)).includes(member.user_id)} onChange={event => setTeamSelection(current => { const ids = current ?? team.members.map(item => item.user_id); return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id); })} /><i aria-hidden="true" data-member-id={member.user_id} style={{ background: marketing ? calendarMembers.find(item => item.user_id === member.user_id)?.color ?? member.avatar_color : member.avatar_color }} />{member.display_name}</label>)}</div> : null}
         {notice ? (
           <p className="apg-notice" role="status">
             {notice}
