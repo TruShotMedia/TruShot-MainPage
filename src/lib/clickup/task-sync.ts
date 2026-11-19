@@ -78,9 +78,19 @@ async function syncAssets({ supabase, integration, jobId, job, parentTaskId }: I
       .select(linkColumns).eq("workspace_id", integration.workspace_id).eq("job_id", jobId).is("archived_at", null);
     if (previousError) throw previousError;
     const activeIds = new Set(tasks.map(task => task.id));
+    const removedLinks = ((previous ?? []) as Link[]).filter(link => !activeIds.has(link.task_id));
+    const { data: currentRows, error: currentError } = removedLinks.length
+      ? await supabase.from("website-job-tasks").select("id,job_id,archived_at")
+        .eq("workspace_id", integration.workspace_id).in("id", removedLinks.map(link => link.task_id))
+      : { data: [], error: null };
+    if (currentError) throw currentError;
+    const movedIds = new Set((currentRows ?? []).filter(task => !task.archived_at && task.job_id !== jobId).map(task => task.id));
     // Keep mappings after CRM deletion so we can archive the owned remote copy.
     for (const link of (previous ?? []) as Link[]) {
       if (activeIds.has(link.task_id)) continue;
+      // A reschedule is not a deletion. Leave the same remote ID intact until
+      // the destination job's queue reparents it, whichever queue runs first.
+      if (movedIds.has(link.task_id)) continue;
       if (!link.clickup_task_id && link.create_attempted_at) {
         const recovered = await recover(link.task_id, link.parent_clickup_task_id, true);
         if (!recovered) throw new Error("ClickUp has not confirmed the removed asset's earlier creation. Cleanup will retry safely.");
@@ -134,7 +144,12 @@ async function syncAssets({ supabase, integration, jobId, job, parentTaskId }: I
           requireOwnedChild(remote, integration);
           if (remote.id === parentTaskId) throw new Error("A ClickUp job cannot also be its own asset.");
           await beforeRequest();
-          await updateClickUpTask(remote.id, clickUpAssetUpdatePayload(payload));
+          const updated = await updateClickUpTask(remote.id, clickUpAssetUpdatePayload(payload));
+          if (String(updated.parent ?? "") !== parentTaskId) {
+            await beforeRequest();
+            const confirmed = await getClickUpTask(remote.id);
+            if (String(confirmed.parent ?? "") !== parentTaskId) throw new Error("ClickUp has not confirmed the asset's new parent. The same asset will retry safely.");
+          }
           changes += 1; counts.updated += 1;
         } else {
           // Persist the reservation BEFORE POST. After a timeout/crash, recover

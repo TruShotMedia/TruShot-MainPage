@@ -1,7 +1,7 @@
 -- Fixtures, generated tasks and ClickUp queue entries are always rolled back.
 begin;
 set local role authenticated;
-select set_config('request.jwt.claims', jsonb_build_object('sub','d61eb1c9-8a31-4c49-81fd-93dd478493ce','role','authenticated')::text, true);
+select set_config('request.jwt.claims', jsonb_build_object('sub','d61eb1c9-8a31-4c49-81fd-93dd478493ce','role','authenticated','aal','aal2')::text, true);
 do $$
 declare
   workspace uuid := '11111111-1111-4111-8111-111111111111'; client uuid;

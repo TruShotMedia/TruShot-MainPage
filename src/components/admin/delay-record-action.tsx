@@ -74,6 +74,7 @@ export function DelayRecordAction({ kind, recordId, recordTitle, scheduledDate, 
               </button>
             </>}>
             <p>The current record will be retained as <strong>Delayed</strong>. A linked, ready-to-action successor will be scheduled on the new date.</p>
+            {kind === "job" ? <p>Existing tasks move to the new job with their progress, hours and notes intact. Pending deadlines follow the reschedule; completed work keeps its original dates.</p> : null}
             <input type="hidden" name="id" value={recordId} />
             <div className="delay-record-fields">
               <label>

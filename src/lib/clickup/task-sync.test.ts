@@ -82,6 +82,29 @@ describe("one-way ClickUp child sync", () => {
     expect(api.update).toHaveBeenCalledWith("child-1",expect.objectContaining({ parent: "other-parent" }));
     expect(remotes.get("child-1")?.archived).toBe(false);
   });
+  it("does not archive a transferred asset when the old parent syncs first", async () => {
+    await sync();
+    Object.assign(tasks[0], { job_id: "rescheduled", hours: 4.5, description: "Existing task notes", status: { key: "posted_done" } });
+    vi.clearAllMocks();
+    await sync();
+    expect(api.update).not.toHaveBeenCalled();
+    expect(remotes.get("child-1")?.archived).toBe(false);
+    expect(links[0].archived_at).toBeNull();
+    await sync({ jobId: "rescheduled", parentTaskId: "new-parent", job: { ...job, id: "rescheduled" } });
+    expect(api.create).not.toHaveBeenCalled();
+    expect(api.update).toHaveBeenCalledExactlyOnceWith("child-1", expect.objectContaining({ parent: "new-parent", status: "COMPLETE", markdown_content: expect.stringContaining("4.5h") }));
+    expect(links[0]).toMatchObject({ task_id: "asset", job_id: "rescheduled", clickup_task_id: "child-1", parent_clickup_task_id: "new-parent", archived_at: null });
+  });
+  it("does not mark a reparent as synced until ClickUp confirms it", async () => {
+    await sync(); tasks[0].job_id = "rescheduled";
+    api.update.mockResolvedValueOnce({ ...remotes.get("child-1")!, parent: "parent" });
+    await expect(sync({ jobId: "rescheduled", parentTaskId: "new-parent", job: { ...job, id: "rescheduled" } })).rejects.toThrow("not confirmed");
+    expect(links[0]).toMatchObject({ job_id: "job", parent_clickup_task_id: "parent" });
+    expect(api.create).toHaveBeenCalledTimes(1);
+    await sync({ jobId: "rescheduled", parentTaskId: "new-parent", job: { ...job, id: "rescheduled" } });
+    expect(links[0]).toMatchObject({ job_id: "rescheduled", clickup_task_id: "child-1" });
+    expect(api.create).toHaveBeenCalledTimes(1);
+  });
   it("archives removed assets but leaves manually created ClickUp children alone", async () => {
     await sync(); remotes.set("manual", { id: "manual",parent: "parent",list: { id: "list" } }); tasks = [];
     await sync();
