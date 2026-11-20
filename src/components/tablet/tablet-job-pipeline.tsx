@@ -54,10 +54,10 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
       ref={setNodeRef}
       className={`tablet-job-card pipeline-task pipeline-task-tablet ${editable ? "is-editable" : "is-read-only"} ${isSaving ? "is-saving" : ""} ${isDragging ? "is-dragging" : ""}`}
       aria-busy={isSaving}
-      style={{ "--pipeline-control-count": (editable ? 3 : 1) + (canComplete ? 1 : 0) } as CSSProperties}
+      style={{ "--pipeline-control-count": (editable ? 2 : 0) + (automaticStatus ? 0 : 1) + (canComplete ? 1 : 0) } as CSSProperties}
     >
       <div className="pipeline-task-controls">
-        <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} title={automaticStatus ? "This job follows its linked tasks. Move the tasks to change its stage." : "Move job"} disabled={dragDisabled}><GripVertical size={15} /></button>
+        {!automaticStatus ? <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${job.title}`} title="Move job" disabled={dragDisabled}><GripVertical size={15} /></button> : null}
         {editable ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${job.title}`} title="Edit job" onClick={() => onEdit(job)} disabled={isSaving}><Pencil size={13} /></button> : null}
         {editable ? <button type="button" className="tablet-card-duplicate-button" aria-label={`Duplicate ${job.title}`} title="Duplicate job" onClick={() => onDuplicate(job)} disabled={isSaving}><Copy size={13} /></button> : null}
         {canComplete ? <button type="button" className="pipeline-complete-button" aria-label={`Mark ${job.title} as delivered`} title="Mark Delivered" onClick={onComplete} disabled={isSaving}><Check size={14} /></button> : null}

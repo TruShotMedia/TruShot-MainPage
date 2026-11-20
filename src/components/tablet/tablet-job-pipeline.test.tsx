@@ -88,10 +88,25 @@ describe("TabletJobPipeline", () => {
   it.each([true, false])("keeps task-managed AutoPacific cards automatic with editable=%s", async editable => {
     const managed = { ...finalStageJob, client: { id: "apg", name: "Autopacific Group" }, linked_tasks: [{ id: "task", title: "Clip", due_date: null, status_key: "final_draft_notes" }] };
     await act(async () => root.render(<TabletJobPipeline editable={editable} initialJobs={[managed, job]} statuses={statuses} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />));
-    expect(container.querySelector<HTMLButtonElement>(`[aria-label="Move ${managed.title}"]`)?.disabled).toBe(true);
+    expect(container.querySelector(`[aria-label="Move ${managed.title}"]`)).toBeNull();
+    const managedCard = container.querySelector(`[aria-label="View details for ${managed.title}"]`)!.closest<HTMLElement>(".tablet-job-card")!;
+    expect(managedCard.querySelector(".drag-handle")).toBeNull();
+    expect(managedCard.style.getPropertyValue("--pipeline-control-count")).toBe(editable ? "2" : "0");
+    expect(Boolean(managedCard.querySelector(`[aria-label="Edit ${managed.title}"]`))).toBe(editable);
+    expect(Boolean(managedCard.querySelector(`[aria-label="Duplicate ${managed.title}"]`))).toBe(editable);
     expect(container.querySelector(`[aria-label="Mark ${managed.title} as delivered"]`)).toBeNull();
     expect(container.textContent).toContain("Status follows linked tasks");
     expect(container.querySelector<HTMLButtonElement>(`[aria-label="Move ${job.title}"]`)?.disabled).toBe(false);
+  });
+
+  it.each(["planning", "scheduled"])("keeps the drag handle for manually managed AutoPacific %s jobs", async key => {
+    const stage = { ...statuses[0], key, label: key };
+    const manual = { ...job, client: { id: "apg", name: "Autopacific Group" }, status: stage,
+      linked_tasks: key === "planning" ? [{ id: "task", title: "Clip", due_date: null, status_key: "not_started" }] : [] };
+    await act(async () => root.render(<TabletJobPipeline initialJobs={[manual]} statuses={[stage]} onDuplicateJob={vi.fn()} onEditJob={vi.fn()} onViewJob={vi.fn()} />));
+    expect(container.querySelector<HTMLButtonElement>(`[aria-label="Move ${manual.title}"]`)?.disabled).toBe(false);
+    expect(container.querySelector<HTMLElement>(".tablet-job-card")!.style.getPropertyValue("--pipeline-control-count")).toBe("4");
+    expect(container.textContent).not.toContain("Status follows linked tasks");
   });
 
   it("shows jobs grouped by status with edit and drag controls", async () => {
