@@ -15,16 +15,10 @@ import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/c
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
+import { MobileFortnightCalendar } from "./mobile-fortnight-calendar";
+import { mobileScheduleTone as tone } from "@/lib/mobile-fortnight-calendar";
 
 type Data = ProductionScheduleData;
-function tone(item: AgendaSource, today: string) {
-  if ((item.client_name ?? "").toLowerCase() !== "autopacific group") return "is-unrelated";
-  if ("delay_info" in item && (item.delay_info?.delayed_from || item.delay_info?.delayed_to)) return "is-delayed";
-  if ("is_complete" in item && item.is_complete) return "is-complete";
-  if (item.entity_type === "calendar-event" && item.end_date < today || item.entity_type === "flight-event" && item.arrival_date < today) return "is-complete";
-  if ("due_date" in item && item.due_date && item.due_date < today) return "is-overdue";
-  return "is-autopacific";
-}
 
 export function ProductionMobileSchedule({ data, today, todayOnly, marketing, memoryKey, onOpen: onOpenRecord, onCreate, renderCreateButton }: { data: Data; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode }) {
   const calendarMembers = useCalendarTeamColors();
@@ -49,7 +43,7 @@ export function ProductionMobileSchedule({ data, today, todayOnly, marketing, me
     {!todayOnly ? <>
       <div className={`apg-view-pills ${styles.viewPills}`} aria-label="Schedule view">{(["fortnight", "week", "day", "hybrid"] as const).map(value => <button key={value} type="button" aria-pressed={period === value} onClick={() => changePeriod(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div>
       <div className="apg-mobile-period"><button type="button" aria-label="Previous schedule period" onClick={() => move(-length)}><ChevronLeft size={19} /></button><strong>{format(first, "d MMM")}{length > 1 ? ` – ${format(addDays(first, length - 1), "d MMM")}` : ""}</strong><button type="button" aria-label="Next schedule period" onClick={() => move(length)}><ChevronRight size={19} /></button><button type="button" onClick={() => rememberView({ anchor: today, date: today })}>Today</button></div>
-      {length > 1 ? <div className="apg-mobile-date-strip" aria-label="Select a calendar day">{dates.map(date => <button type="button" key={date} aria-pressed={selected === date} aria-label={format(parseISO(date), "EEEE d MMMM")} className={date === today ? "is-today" : ""} onClick={() => setSelected(date)}><small>{format(parseISO(date), "EEE")}</small><strong>{format(parseISO(date), "d")}</strong>{date === today ? <i aria-hidden="true" /> : null}</button>)}</div> : null}
+      {period === "fortnight" ? <MobileFortnightCalendar data={data} anchor={dates[0]} selected={selected} today={today} weather={weather.days} onSelectDate={setSelected} /> : length > 1 ? <div className="apg-mobile-date-strip" aria-label="Select a calendar day">{dates.map(date => <button type="button" key={date} aria-pressed={selected === date} aria-label={format(parseISO(date), "EEEE d MMMM")} className={date === today ? "is-today" : ""} onClick={() => setSelected(date)}><small>{format(parseISO(date), "EEE")}</small><strong>{format(parseISO(date), "d")}</strong>{date === today ? <i aria-hidden="true" /> : null}</button>)}</div> : null}
     </> : null}
     <header className="apg-mobile-agenda-heading">
       <div><span>{selected === today ? "Your day, in focus" : "Daily schedule"}</span><h2>{format(parseISO(selected), "EEEE, d MMM")}</h2></div>

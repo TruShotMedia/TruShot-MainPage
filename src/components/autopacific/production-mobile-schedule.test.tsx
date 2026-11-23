@@ -3,16 +3,48 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
-import type { CalendarCustomEvent, CalendarJob } from "@/lib/types";
-const weather = vi.hoisted(() => vi.fn(() => ({ days: [], unavailable: false })));
-vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: weather, CalendarWeatherBadge: () => null, CalendarWeatherCredit: () => null, CalendarWeatherDetails: () => null }));
+import type { CalendarCustomEvent, CalendarJob, CalendarTask } from "@/lib/types";
+import type { SavedCalendarWeather } from "@/lib/calendar-weather";
+const weather = vi.hoisted(() => vi.fn(() => ({ days: [] as SavedCalendarWeather[], unavailable: false })));
+vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: weather, CalendarWeatherBadge: () => null, CalendarWeatherCredit: () => null, CalendarWeatherDetails: () => null, WeatherIcon: ({ condition }: { condition: string }) => <svg data-weather-condition={condition} /> }));
 const event = (id: string, start_time: string, end_time: string): CalendarCustomEvent => ({ id, entity_type: "calendar-event", title: id, client_id: "apg", client_name: "Autopacific Group", start_date: "2026-10-28", end_date: "2026-10-28", start_time, end_time, is_all_day: false, location: null, description: null, color: "#579", reminder_offsets_minutes: [], created_at: "2026-10-28T00:00:00Z", updated_at: "2026-10-28T00:00:00Z" });
 const data = { calendarJobs: [], calendarTasks: [], flightEvents: [], calendarEvents: [event("Workshop capture", "09:00", "11:00"), event("Review call", "09:30", "10:00")] };
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
-beforeEach(() => { localStorage.clear(); (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+beforeEach(() => { localStorage.clear(); weather.mockClear(); weather.mockReturnValue({ days: [], unavailable: false }); (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true; container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 describe("mobile calendar and itinerary", () => {
+  it.each([false, true])("keeps every item accessible below a busy fortnight preview in marketing=%s", async marketing => {
+    const jobs = Array.from({ length: 5 }, (_, index): CalendarJob => ({ id: `job-${index}`, title: `Project ${index}`, entity_type: "job", client_name: "Autopacific Group", shoot_date: "2026-10-26", shoot_time: null, due_date: "2026-11-06", due_time: null, status_label: "Production", status_color: "#579", is_complete: false }));
+    const tasks = Array.from({ length: 6 }, (_, index): CalendarTask => ({ id: `asset-${index}`, title: `Deliverable ${index}`, entity_type: "task", job_title: jobs[0].title, client_name: "Autopacific Group", due_date: "2026-10-28", due_time: "12:00", priority: "normal", status_label: "Not started", status_color: "#579", is_complete: false }));
+    const open = vi.fn();
+    await act(async () => root.render(<ProductionMobileSchedule data={{ ...data, calendarEvents: [], calendarJobs: jobs, calendarTasks: tasks }} today="2026-10-28" todayOnly={false} marketing={marketing} onOpen={open} />));
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Fortnight")!.click());
+    expect(container.querySelector('[data-date="2026-10-28"]')?.textContent).toContain("+7 more");
+    expect(container.querySelector('[aria-label="Fortnight calendar"] button button')).toBeNull();
+    expect(container.querySelectorAll('.apg-fortnight-range')).toHaveLength(4);
+    expect(container.querySelector(".apg-mobile-all-day")?.textContent).toContain("Project 4");
+    expect(container.querySelector(".apg-mobile-all-day")?.textContent).toContain("Deliverable 5");
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>(".apg-mobile-all-day button")].find(button => button.textContent?.includes("Deliverable 5"))!.click());
+    expect(open).toHaveBeenCalledWith(tasks[5]);
+    const first = container.querySelector('.apg-fortnight-day')?.getAttribute("data-date");
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-date="2026-11-04"]')!.click());
+    expect(container.querySelector(".apg-mobile-agenda-heading h2")?.textContent).toBe("Wednesday, 4 Nov");
+    expect(container.querySelector('.apg-fortnight-day')?.getAttribute("data-date")).toBe(first);
+    expect(container.querySelectorAll(".apg-mobile-all-day button")).toHaveLength(5);
+    expect(weather).toHaveBeenLastCalledWith("2026-10-26", "2026-11-08", marketing ? "melbourne-city" : "brisbane-city");
+  });
+  it("reuses saved forecasts in the fortnight cells and restores Fortnight after switching away", async () => {
+    weather.mockReturnValue({ days: [{ date: "2026-10-28", condition: "sun", summary: "Clear skies", temperatureMin: 18, temperatureMax: 27, windMaxKmh: 15, location_key: "brisbane-city", captured_at: "", forecast_issued_at: "", capture_kind: "weekly", week_start: "2026-10-26" }], unavailable: false });
+    const render = () => act(async () => root.render(<ProductionMobileSchedule data={data} memoryKey="fortnight-test" today="2026-10-28" todayOnly={false} marketing={false} onOpen={() => {}} />));
+    await render();
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Fortnight")!.click());
+    expect(container.querySelector('[data-date="2026-10-28"] [data-weather-condition="sun"]')).not.toBeNull();
+    await act(async () => root.render(null)); await render();
+    expect(container.querySelector('[aria-label="Fortnight calendar"]')).not.toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next schedule period"]')!.click());
+    expect(container.querySelector('.apg-fortnight-day')?.getAttribute("data-date")).toBe("2026-11-09");
+  });
   it.each([false, true])("keeps its view but follows today after a week away (%s)", async marketing => {
     const render = async (today: string) => { await act(async () => root.render(<ProductionMobileSchedule data={data} memoryKey={`rollover:${marketing}`} today={today} todayOnly={false} marketing={marketing} onOpen={() => {}} />)); };
     await render("2026-10-28");
@@ -75,14 +107,19 @@ describe("mobile calendar and itinerary", () => {
     await act(async () => [...container.querySelectorAll<HTMLButtonElement>(".apg-mobile-timeline button")].find(button => button.textContent?.includes("Review call"))!.click());
     expect(open).toHaveBeenCalledWith(data.calendarEvents[1]);
   });
-  it("switches to a fortnight and selects another day without shifting the whole date strip", async () => {
+  it("shows a real two-week calendar and selects another day without shifting the fortnight", async () => {
     await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly={false} marketing onOpen={() => {}} onCreate={() => {}} />));
     await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Fortnight")!.click());
-    expect(container.querySelectorAll(".apg-mobile-date-strip button")).toHaveLength(14);
-    const last = container.querySelector(".apg-mobile-date-strip button:last-child") as HTMLButtonElement;
+    expect(container.querySelector('[aria-label="Fortnight calendar"]')).not.toBeNull();
+    expect(container.querySelector(".apg-mobile-date-strip")).toBeNull();
+    expect(container.querySelectorAll(".apg-fortnight-week")).toHaveLength(2);
+    expect(container.querySelectorAll(".apg-fortnight-day")).toHaveLength(14);
+    expect(container.querySelector(".apg-fortnight-ranges")?.textContent).toContain("Workshop capture");
+    expect([...container.querySelectorAll(".apg-fortnight-range-time")].map(node => node.textContent)).toEqual(["09:00", "09:30"]);
+    const last = [...container.querySelectorAll<HTMLButtonElement>(".apg-fortnight-day")].at(-1)!;
     const label = last.getAttribute("aria-label");
     await act(async () => last.click());
-    expect(container.querySelector(".apg-mobile-date-strip button:last-child")?.getAttribute("aria-label")).toBe(label);
+    expect([...container.querySelectorAll(".apg-fortnight-day")].at(-1)?.getAttribute("aria-label")).toBe(label);
     expect(weather).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), "melbourne-city");
   });
   it("Today shows an agenda, not a squeezed multi-column timetable", async () => {

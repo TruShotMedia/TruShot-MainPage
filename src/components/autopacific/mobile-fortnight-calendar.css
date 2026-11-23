@@ -1,0 +1,35 @@
+.apg-mobile-schedule .apg-mobile-fortnight { min-width:0; overflow:hidden; border:1px solid var(--workspace-line); border-radius:13px; background:var(--workspace-surface); }
+.apg-fortnight-weekdays,.apg-fortnight-days,.apg-fortnight-ranges { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.apg-fortnight-weekdays { background:var(--workspace-panel); border-bottom:1px solid var(--workspace-line); }
+.apg-fortnight-weekdays > span { padding:9px 0; text-align:center; color:var(--workspace-muted); font-size:9px; font-weight:650; }
+.apg-fortnight-week { position:relative; }
+.apg-fortnight-day-description { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.apg-mobile-schedule .apg-fortnight-day {
+  position:relative; display:flex; flex-direction:column; align-items:stretch; min-width:0;
+  min-height:calc(100px + var(--fortnight-range-rows,0) * 29px); margin:0; padding:0 0 5px;
+  border:0; border-right:1px solid var(--workspace-line); border-bottom:1px solid var(--workspace-line);
+  border-radius:0; text-align:left; background:var(--workspace-surface); color:var(--workspace-text);
+}
+.apg-mobile-schedule .apg-fortnight-day:last-child { border-right:0; }
+.apg-mobile-schedule .apg-fortnight-day.is-weekend { background:var(--workspace-panel); }
+.apg-mobile-schedule .apg-fortnight-day[aria-pressed="true"] { background:var(--workspace-accent-soft); box-shadow:inset 0 0 0 2px var(--workspace-accent); }
+.apg-mobile-schedule .apg-fortnight-day:focus-visible { outline:3px solid var(--workspace-accent); outline-offset:-3px; z-index:2; }
+.apg-fortnight-date { display:flex; align-items:center; justify-content:space-between; gap:1px; height:30px; padding:3px; }
+.apg-fortnight-date time { display:grid; place-items:center; width:20px; height:20px; flex:none; border-radius:7px; font-size:11px; font-weight:650; }
+.is-today > .apg-fortnight-date time { background:var(--workspace-accent); color:white; }
+.apg-fortnight-weather { display:flex; flex:none; color:var(--workspace-muted); }
+.apg-fortnight-weather svg { width:10px; height:10px; }
+.apg-fortnight-entries { display:grid; align-content:start; gap:3px; margin:calc(var(--fortnight-range-rows,0) * 29px) 2px 0; min-width:0; }
+.apg-fortnight-entry { position:relative; display:grid; gap:0; min-width:0; overflow:hidden; padding:2px 3px 2px 5px; border-left:2px solid currentColor; border-radius:4px; }
+.apg-mobile-schedule .apg-fortnight-entry strong,.apg-mobile-schedule .apg-fortnight-range strong { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:9px; line-height:12px; font-weight:650; }
+.apg-fortnight-entry-time,.apg-fortnight-range-time { display:flex; align-items:center; gap:3px; overflow:hidden; white-space:nowrap; font-size:8px; line-height:11px; font-weight:600; opacity:.9; }
+.apg-fortnight-more { font-size:8px; line-height:13px; font-weight:650; color:var(--workspace-accent); padding:1px; white-space:nowrap; }
+.apg-fortnight-free { padding:3px; font-size:11px; color:var(--workspace-muted); opacity:.55; }
+.apg-fortnight-ranges { position:absolute; inset:30px 0 auto; grid-auto-rows:27px; row-gap:2px; pointer-events:none; }
+.apg-fortnight-range { position:relative; min-width:0; display:grid; align-content:center; padding:1px 4px 1px 6px; margin:0 1px; overflow:hidden; border-left:3px solid currentColor; border-radius:4px; }
+.apg-fortnight-range.continues-before { border-top-left-radius:0; border-bottom-left-radius:0; }
+.apg-fortnight-range.continues-after { border-top-right-radius:0; border-bottom-right-radius:0; }
+.apg-fortnight-range[data-calendar-source="outlook"] { padding-right:15px; background:var(--outlook-event-bg)!important; color:var(--outlook-event-text)!important; border-left-color:var(--outlook-event-accent); }
+.apg-fortnight-range .outlook-event-mark { position:absolute; inset:5px 2px auto auto; width:11px; height:11px; padding:0; }
+.apg-fortnight-range .outlook-event-mark img { width:11px; height:11px; }
+.apg-fortnight-help { margin:0; padding:9px 10px; font-size:10px; line-height:1.5; color:var(--workspace-muted); background:var(--workspace-panel); }
