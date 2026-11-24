@@ -6,6 +6,8 @@ export const WEATHER_LOCATIONS = {
 } as const;
 export type WeatherLocationKey = keyof typeof WEATHER_LOCATIONS;
 export const WEATHER_LOCATION = WEATHER_LOCATIONS["brisbane-city"];
+export const WEATHER_LOOKAHEAD_DAYS = 2;
+const WEEK_LAST_DAY = 6;
 
 export type WeatherCondition = "sun" | "partly-cloudy" | "cloud" | "fog" | "drizzle" | "rain" | "storm" | "snow";
 export type CalendarWeatherDay = {
@@ -16,15 +18,18 @@ export type CalendarWeatherDay = {
   temperatureMax: number;
   windMaxKmh: number;
 };
-export type CalendarWeatherSnapshot = {
-  location_key?: WeatherLocationKey;
-  week_start: string;
+type WeatherForecastCapture = {
   captured_at: string;
   forecast_issued_at: string;
-  capture_kind: "weekly" | "initial";
   days: CalendarWeatherDay[];
 };
-export type SavedCalendarWeather = CalendarWeatherDay & Pick<CalendarWeatherSnapshot, "captured_at" | "forecast_issued_at" | "capture_kind" | "week_start"> & { location_key: WeatherLocationKey };
+export type CalendarWeatherSnapshot = WeatherForecastCapture & {
+  location_key?: WeatherLocationKey;
+  week_start: string;
+  capture_kind: "weekly" | "initial";
+  lookahead?: WeatherForecastCapture | null;
+};
+export type SavedCalendarWeather = CalendarWeatherDay & Pick<CalendarWeatherSnapshot, "captured_at" | "forecast_issued_at" | "capture_kind" | "week_start"> & { location_key: WeatherLocationKey; extended?: boolean };
 
 const dateFormatters = Object.fromEntries(Object.values(WEATHER_LOCATIONS).map(location => [location.key, new Intl.DateTimeFormat("en-CA", { timeZone: location.timezone, year: "numeric", month: "2-digit", day: "2-digit" })])) as Record<WeatherLocationKey, Intl.DateTimeFormat>;
 
@@ -39,7 +44,17 @@ export function weatherCaptureWindow(now: Date, locationKey: WeatherLocationKey 
   const date = parseISO(today);
   const sunday = date.getDay() === 0;
   const start = sunday ? addDays(date, 1) : startOfWeek(date, { weekStartsOn: 1 });
-  return { weekStart: format(start, "yyyy-MM-dd"), end: format(addDays(start, 6), "yyyy-MM-dd"), today, kind: sunday ? "weekly" as const : "initial" as const };
+  return {
+    weekStart: format(start, "yyyy-MM-dd"),
+    end: format(addDays(start, WEEK_LAST_DAY), "yyyy-MM-dd"),
+    lookaheadEnd: format(addDays(start, WEEK_LAST_DAY + WEATHER_LOOKAHEAD_DAYS), "yyyy-MM-dd"),
+    today,
+    kind: sunday ? "weekly" as const : "initial" as const,
+  };
+}
+
+export function firstOverlappingWeatherWeek(start: string) {
+  return format(addDays(parseISO(start), -(WEEK_LAST_DAY + WEATHER_LOOKAHEAD_DAYS)), "yyyy-MM-dd");
 }
 
 export function weatherCondition(symbol: string): { condition: WeatherCondition; summary: string } {
@@ -55,5 +70,19 @@ export function weatherCondition(symbol: string): { condition: WeatherCondition;
 
 
 export function flattenWeatherSnapshots(snapshots: CalendarWeatherSnapshot[], locationKey: WeatherLocationKey = WEATHER_LOCATION.key) {
-  return snapshots.filter(snapshot => (snapshot.location_key ?? WEATHER_LOCATION.key) === locationKey).flatMap((snapshot) => snapshot.days.map((day): SavedCalendarWeather => ({ ...day, location_key: locationKey, week_start: snapshot.week_start, captured_at: snapshot.captured_at, forecast_issued_at: snapshot.forecast_issued_at, capture_kind: snapshot.capture_kind })));
+  const days = new Map<string, SavedCalendarWeather>();
+  for (const snapshot of snapshots) {
+    if ((snapshot.location_key ?? WEATHER_LOCATION.key) !== locationKey) continue;
+    const common = { location_key: locationKey, week_start: snapshot.week_start, capture_kind: snapshot.capture_kind };
+    if (snapshot.lookahead) {
+      const { days: extension, captured_at, forecast_issued_at } = snapshot.lookahead;
+      for (const day of extension) {
+        if (!days.has(day.date)) days.set(day.date, { ...day, ...common, captured_at, forecast_issued_at, extended: true });
+      }
+    }
+    for (const day of snapshot.days) {
+      days.set(day.date, { ...day, ...common, captured_at: snapshot.captured_at, forecast_issued_at: snapshot.forecast_issued_at });
+    }
+  }
+  return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }

@@ -95,11 +95,11 @@ export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(i
     .sort((left, right) => left.start.localeCompare(right.start) || right.end.localeCompare(left.end) || calendarBookingTime(left.item).localeCompare(calendarBookingTime(right.item)) || left.item.title.localeCompare(right.item.title) || left.id.localeCompare(right.id));
 }
 
-export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(dayKeys: string[], ranges: CalendarJobRange<T>[]): CalendarRangeWeek<T>[] {
+export function buildCalendarRangeWeeks<T extends CalendarScheduleRangeItem>(dayKeys: string[], ranges: CalendarJobRange<T>[], columns: 5 | 7 = 7): CalendarRangeWeek<T>[] {
   const weeks: CalendarRangeWeek<T>[] = [];
 
-  for (let index = 0; index < dayKeys.length; index += 7) {
-    const weekDays = dayKeys.slice(index, index + 7);
+  for (let index = 0; index < dayKeys.length; index += columns) {
+    const weekDays = dayKeys.slice(index, index + columns);
     if (!weekDays.length) continue;
     const weekStart = weekDays[0];
     const weekEnd = weekDays[weekDays.length - 1];

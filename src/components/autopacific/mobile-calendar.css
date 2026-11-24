@@ -29,7 +29,7 @@
 }
 .mobile-calendar-modes {
   display: grid;
-  grid-template-columns: repeat(3,minmax(40px,1fr)) minmax(69px,1.35fr) repeat(2,minmax(42px,1fr));
+  grid-template-columns: repeat(3,minmax(0,1fr)) minmax(64px,1.35fr) minmax(0,1fr);
   align-items: stretch;
   min-width: 0;
   padding: 2px;
@@ -149,18 +149,6 @@
 .apg-desktop .mobile-calendar-card > .calendar-team-marker { width: 3px !important; }
 .apg-desktop .mobile-calendar-card[data-team-calendar="true"] { padding-inline-start: 9px; }
 
-.apg-mobile-date-strip {
-  display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 2px;
-  padding: 2px; border: 1px solid var(--cal-line); border-radius: 12px; background: var(--cal-surface);
-}
-.apg-mobile-date-strip button {
-  display: grid; justify-items: center; align-content: center; min-width: 0; min-height: 49px;
-  padding: 3px 1px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--cal-muted);
-}
-.apg-mobile-date-strip button[aria-pressed="true"] { border-color: var(--cal-focus); background: var(--cal-focus-soft); color: var(--cal-focus); }
-.apg-mobile-date-strip .is-today strong { color: var(--cal-focus); text-decoration: underline; text-underline-offset: 2px; }
-.apg-mobile-date-strip :is(small,span) { font-size: 9px; line-height: 12px; }
-.apg-mobile-date-strip strong { color: var(--cal-text); font-size: 14px; line-height: 17px; }
 .apg-mobile-agenda-heading {
   display: flex; align-items: center; justify-content: space-between; gap: 6px;
   min-height: 48px; padding: 3px 5px; scroll-margin-top: 104px;

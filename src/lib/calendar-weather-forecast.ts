@@ -30,7 +30,7 @@ export function buildWeatherSnapshot(payload: unknown, now: Date, locationKey: W
     const time = new Date(point.time);
     const date = weatherDate(time, locationKey);
     // Never invent a retrospective forecast for a day before the first capture.
-    if (date < window.weekStart || date > window.end || date < window.today) continue;
+    if (date < window.weekStart || date > window.lookaheadEnd || date < window.today) continue;
     const day = days.get(date) ?? { temperatures: [], winds: [], symbols: new Map<string, number>() };
     day.temperatures.push(point.data.instant.details.air_temperature);
     day.winds.push(point.data.instant.details.wind_speed * 3.6);
@@ -51,7 +51,12 @@ export function buildWeatherSnapshot(payload: unknown, now: Date, locationKey: W
     const dominant = [...day.symbols].sort((left, right) => right[1] - left[1])[0][0];
     result.push({ date, ...weatherCondition(dominant), temperatureMin: Math.round(Math.min(...day.temperatures)), temperatureMax: Math.round(Math.max(...day.temperatures)), windMaxKmh: Math.round(Math.max(...day.winds)) });
   }
-  if (!result.length) throw new Error(`The weather provider returned no usable ${WEATHER_LOCATIONS[locationKey].label} forecast days.`);
-  if (window.kind === "weekly" && result.length !== 7) throw new Error("The provider did not return the complete coming week; the Sunday snapshot was not saved.");
-  return { location_key: locationKey, week_start: window.weekStart, captured_at: now.toISOString(), forecast_issued_at: forecast.properties.meta.updated_at, capture_kind: window.kind, days: result.sort((left, right) => left.date.localeCompare(right.date)) };
+  result.sort((left, right) => left.date.localeCompare(right.date));
+  const week = result.filter(day => day.date <= window.end);
+  const extension = result.filter(day => day.date > window.end);
+  if (!week.length) throw new Error(`The weather provider returned no usable ${WEATHER_LOCATIONS[locationKey].label} forecast days.`);
+  if (window.kind === "weekly" && week.length !== 7) throw new Error("The provider did not return the complete coming week; the Sunday snapshot was not saved.");
+  const metadata = { captured_at: now.toISOString(), forecast_issued_at: forecast.properties.meta.updated_at };
+  return { location_key: locationKey, week_start: window.weekStart, ...metadata, capture_kind: window.kind, days: week,
+    lookahead: extension.length ? { ...metadata, days: extension } : null };
 }

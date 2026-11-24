@@ -1,29 +1,41 @@
-import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
-import type { CalendarViewMode } from "./calendar-view-memory";
+import { addBusinessDays, addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isWeekend, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import type { MobileCalendarViewMode } from "./calendar-view-memory";
 import { layoutTimedBlocks, type TimedBlock } from "./production-agenda";
 
 const monday = { weekStartsOn: 1 } as const;
 const dayKey = (day: Date) => format(day, "yyyy-MM-dd");
-const dayCount = (mode: CalendarViewMode) => mode === "day" ? 1 : mode === "week" ? 7 : 14;
+export const MOBILE_CALENDAR_COLUMNS = 5;
 
-export function mobileCalendarDates(anchor: string, mode: CalendarViewMode) {
+export function mobileWeekdayOnOrAfter(anchor: string) {
   const date = parseISO(anchor);
-  if (mode === "month") return eachDayOfInterval({
-    start: startOfWeek(startOfMonth(date), monday), end: endOfWeek(endOfMonth(date), monday),
-  }).map(dayKey);
+  return isWeekend(date) ? dayKey(addBusinessDays(date, 1)) : anchor;
+}
+
+export function mobileCalendarDates(anchor: string, mode: MobileCalendarViewMode) {
+  const date = parseISO(mode === "month" ? anchor : mobileWeekdayOnOrAfter(anchor));
+  if (mode === "month") {
+    const start = startOfMonth(date), end = endOfMonth(date);
+    return eachDayOfInterval({
+      start: startOfWeek(isWeekend(start) ? addBusinessDays(start, 1) : start, monday),
+      end: endOfWeek(isWeekend(end) ? addBusinessDays(end, -1) : end, monday),
+    }).filter(day => !isWeekend(day)).map(dayKey);
+  }
   const first = mode === "day" || mode === "list" ? date : startOfWeek(date, monday);
-  return Array.from({ length: dayCount(mode) }, (_, i) => dayKey(addDays(first, i)));
+  const count = mode === "day" ? 1 : mode === "week" ? MOBILE_CALENDAR_COLUMNS : 2 * MOBILE_CALENDAR_COLUMNS;
+  return Array.from({ length: count }, (_, i) => dayKey(addBusinessDays(first, i)));
 }
 
-export function adjacentMobileCalendarAnchor(anchor: string, mode: CalendarViewMode, direction: -1 | 1) {
-  const date = parseISO(anchor);
-  return dayKey(mode === "month" ? addMonths(date, direction) : addDays(date, direction * dayCount(mode)));
+export function adjacentMobileCalendarAnchor(anchor: string, mode: MobileCalendarViewMode, direction: -1 | 1) {
+  if (mode === "month") return mobileWeekdayOnOrAfter(dayKey(startOfMonth(addMonths(parseISO(anchor), direction))));
+  const date = parseISO(mobileWeekdayOnOrAfter(anchor));
+  if (mode === "day" || mode === "list") return dayKey(addBusinessDays(date, direction * (mode === "day" ? 1 : 2 * MOBILE_CALENDAR_COLUMNS)));
+  return dayKey(addDays(date, direction * (mode === "week" ? 7 : 14)));
 }
 
-export function mobileCalendarPeriodTitle(dates: readonly string[], anchor: string, mode: CalendarViewMode) {
+export function mobileCalendarPeriodTitle(dates: readonly string[], anchor: string, mode: MobileCalendarViewMode) {
   const date = parseISO(anchor);
   if (mode === "month") return format(date, "MMMM yyyy");
-  if (mode === "day") return format(date, "EEE d MMM");
+  if (mode === "day") return format(parseISO(dates[0]), "EEE d MMM");
   const first = parseISO(dates[0]), last = parseISO(dates[dates.length - 1]);
   return `${format(first, first.getMonth() === last.getMonth() ? "d" : "d MMM")}–${format(last, "d MMM")}`;
 }

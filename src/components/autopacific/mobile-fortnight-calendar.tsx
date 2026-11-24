@@ -14,7 +14,7 @@ import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import type { ProductionScheduleData } from "@/lib/production-selected-day";
 import "./mobile-fortnight-calendar.css";
 
-const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export function MobileFortnightCalendar({ data, anchor, selected, today, weather, onSelectDate, mode = "fortnight" }: {
   data: ProductionScheduleData; anchor: string; selected: string; today: string;
@@ -29,10 +29,10 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
     <div className="apg-fortnight-weekdays" aria-hidden="true">{weekdays.map(day => <span key={day}>{day}</span>)}</div>
     {weeks.map(week => <div className="apg-fortnight-week" role="group" aria-label={`Week of ${format(parseISO(week.dayKeys[0]), "d MMMM")}`} style={{ "--fortnight-range-rows": week.visibleLanes } as CSSProperties} key={week.dayKeys[0]}>
       <div className="apg-fortnight-days">
-        {week.days.map((day, column) => {
+        {week.days.map(day => {
           const forecast = forecasts.get(day.date);
           return <CalendarDropDay as="button" date={day.date} type="button" key={day.date} data-date={day.date}
-            className={`apg-fortnight-day ${column > 4 ? "is-weekend" : ""} ${day.date === today ? "is-today" : ""} ${mode === "month" && day.date.slice(0, 7) !== anchor.slice(0, 7) ? "is-outside-month" : ""}`}
+            className={`apg-fortnight-day ${day.date === today ? "is-today" : ""} ${mode === "month" && day.date.slice(0, 7) !== anchor.slice(0, 7) ? "is-outside-month" : ""}`}
             aria-label={format(parseISO(day.date), "EEEE d MMMM")}
             aria-describedby={`${descriptionId}-${day.date}`}
             aria-pressed={selected === day.date}

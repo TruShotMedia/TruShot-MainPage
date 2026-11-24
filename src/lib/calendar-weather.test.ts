@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flattenWeatherSnapshots, weatherCaptureWindow, weatherCondition, weatherDate } from "./calendar-weather";
+import { firstOverlappingWeatherWeek, flattenWeatherSnapshots, weatherCaptureWindow, weatherCondition, weatherDate } from "./calendar-weather";
 import { buildWeatherSnapshot } from "./calendar-weather-forecast";
 
 function forecast(start = "2026-10-25T00:00:00Z", count = 36) {
@@ -26,7 +26,7 @@ describe("saved calendar weather", () => {
     const now = new Date("2026-10-24T20:17:00Z");
     const brisbane = buildWeatherSnapshot(forecast(), now);
     const melbourne = buildWeatherSnapshot(forecast(), now, "melbourne-city");
-    expect(flattenWeatherSnapshots([brisbane, melbourne], "melbourne-city")).toHaveLength(7);
+    expect(flattenWeatherSnapshots([brisbane, melbourne], "melbourne-city")).toHaveLength(8);
     expect(flattenWeatherSnapshots([brisbane, melbourne], "melbourne-city")[0].location_key).toBe("melbourne-city");
     expect(flattenWeatherSnapshots([{ ...brisbane, location_key: undefined }])[0].location_key).toBe("brisbane-city");
     expect(flattenWeatherSnapshots([{ ...brisbane, location_key: undefined }], "melbourne-city")).toEqual([]);
@@ -35,10 +35,32 @@ describe("saved calendar weather", () => {
   it("captures next Monday–Sunday on Brisbane Sunday, not UTC Sunday", () => {
     const now = new Date("2026-10-24T20:17:00Z");
     expect(weatherDate(now)).toBe("2026-10-25");
-    expect(weatherCaptureWindow(now)).toEqual({ weekStart: "2026-10-26", end: "2026-11-01", today: "2026-10-25", kind: "weekly" });
+    expect(weatherCaptureWindow(now)).toEqual({ weekStart: "2026-10-26", end: "2026-11-01", lookaheadEnd: "2026-11-03", today: "2026-10-25", kind: "weekly" });
     const snapshot = buildWeatherSnapshot(forecast(), now);
     expect(snapshot.days.map((day) => day.date)).toEqual(["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"]);
     expect(snapshot.days[0]).toMatchObject({ condition: "partly-cloudy", temperatureMin: 20, temperatureMax: 23, windMaxKmh: 18 });
+  });
+
+  it.each(["brisbane-city", "melbourne-city"] as const)("saves Monday and Tuesday separately for %s and gives the next weekly capture priority", location => {
+    const weekly = buildWeatherSnapshot(forecast(undefined, 44), new Date("2026-10-24T20:17:00Z"), location);
+    expect(weekly.days).toHaveLength(7);
+    expect(weekly.lookahead?.days.map(day => day.date)).toEqual(["2026-11-02", "2026-11-03"]);
+    expect(firstOverlappingWeatherWeek("2026-11-03")).toBe("2026-10-26");
+    const overlap = buildWeatherSnapshot(forecast("2026-11-02T00:00:00Z", 4), new Date("2026-11-02T00:00:00Z"), location);
+    const onlyPreview = flattenWeatherSnapshots([weekly], location);
+    expect(onlyPreview.at(-2)).toMatchObject({ date: "2026-11-02", extended: true });
+    for (const snapshots of [[weekly, overlap], [overlap, weekly]]) {
+      const merged = flattenWeatherSnapshots(snapshots, location);
+      expect(merged).toHaveLength(9);
+      expect(merged.at(-2)).toMatchObject({ date: "2026-11-02", week_start: "2026-11-02", captured_at: overlap.captured_at });
+      expect(merged.at(-2)?.extended).toBeUndefined();
+      expect(merged.at(-1)).toMatchObject({ date: "2026-11-03", extended: true });
+    }
+  });
+  it("still saves a complete week when neither extra day is available", () => {
+    const weekly = buildWeatherSnapshot(forecast(undefined, 31), new Date("2026-10-24T20:17:00Z"));
+    expect(weekly.days).toHaveLength(7);
+    expect(weekly.lookahead).toBeNull();
   });
 
   it("bootstraps only remaining days and never backfills invented historic forecasts", () => {

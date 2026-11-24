@@ -1,5 +1,5 @@
 .apg-mobile-schedule .apg-mobile-fortnight { min-width:0; overflow:hidden; border:1px solid var(--workspace-line); border-radius:13px; background:var(--workspace-surface); }
-.apg-fortnight-weekdays,.apg-fortnight-days,.apg-fortnight-ranges { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.apg-fortnight-weekdays,.apg-fortnight-days,.apg-fortnight-ranges { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
 .apg-fortnight-weekdays { background:var(--workspace-panel); border-bottom:1px solid var(--workspace-line); }
 .apg-fortnight-weekdays > span { padding:9px 0; text-align:center; color:var(--workspace-muted); font-size:9px; font-weight:650; }
 .apg-fortnight-week { position:relative; }
@@ -11,7 +11,6 @@
   border-radius:0; text-align:left; background:var(--workspace-surface); color:var(--workspace-text);
 }
 .apg-mobile-schedule .apg-fortnight-day:last-child { border-right:0; }
-.apg-mobile-schedule .apg-fortnight-day.is-weekend { background:var(--workspace-panel); }
 .apg-mobile-schedule .apg-fortnight-day[aria-pressed="true"] { background:var(--workspace-accent-soft); box-shadow:inset 0 0 0 2px var(--workspace-accent); }
 .apg-mobile-schedule .apg-fortnight-day:focus-visible { outline:3px solid var(--workspace-accent); outline-offset:-3px; z-index:2; }
 .apg-fortnight-date { display:flex; align-items:center; justify-content:space-between; gap:1px; height:30px; padding:3px; }

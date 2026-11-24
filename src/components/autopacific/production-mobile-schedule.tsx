@@ -5,20 +5,20 @@ import { format, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { AgendaSource } from "@/lib/production-agenda";
 import { createProductionDayProjection, type ProductionScheduleData } from "@/lib/production-selected-day";
-import { mobileCalendarModes, type CalendarViewMode } from "@/lib/calendar-view-memory";
-import { adjacentMobileCalendarAnchor, mobileCalendarDates, mobileCalendarPeriodTitle } from "@/lib/mobile-calendar-period";
+import { mobileCalendarModes, type MobileCalendarViewMode } from "@/lib/calendar-view-memory";
+import { adjacentMobileCalendarAnchor, mobileCalendarDates, mobileCalendarPeriodTitle, mobileWeekdayOnOrAfter } from "@/lib/mobile-calendar-period";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import { CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
-import { CalendarDropDay, CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
+import { CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { MobileFortnightCalendar } from "./mobile-fortnight-calendar";
 import { MobileCalendarOverview, MobileForecast, MobileSelectedAgenda } from "./mobile-calendar-views";
 import "./mobile-calendar.css";
 
-const titles = { list: "List", day: "Day", week: "Week", fortnight: "Fortnight", month: "Month", hybrid: "Hybrid" };
+const titles = { list: "List", day: "Day", week: "Week", fortnight: "Fortnight", month: "Month" };
 
 export function ProductionMobileSchedule({
   data, today, todayOnly, marketing, memoryKey, currentTime, onOpen: onOpenRecord, onCreate, renderCreateButton, onMoveEvent,
@@ -28,12 +28,17 @@ export function ProductionMobileSchedule({
   renderCreateButton?: (date: string) => ReactNode; onMoveEvent?: MoveCalendarEvent;
 }) {
   const calendarMembers = useCalendarTeamColors();
-  const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "week", mobileCalendarModes);
-  const { mode, anchor, date: selected } = view;
+  const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "fortnight", mobileCalendarModes);
+  const mode = todayOnly ? "day" : mobileCalendarModes.find(value => value === view.mode) ?? "fortnight";
+  const anchor = mode === "month" ? view.anchor : mobileWeekdayOnOrAfter(view.anchor);
+  const nextWeekday = mobileWeekdayOnOrAfter(today);
   const [weatherDay, setWeatherDay] = useState<SavedCalendarWeather | null>(null);
   const agendaHeading = useRef<HTMLElement>(null);
   const calendar = useRef<HTMLDivElement>(null);
-  const dates = useMemo(() => mobileCalendarDates(anchor, mode), [anchor, mode]);
+  const dates = useMemo(() => todayOnly ? [today] : mobileCalendarDates(anchor, mode), [anchor, mode, today, todayOnly]);
+  const preferred = todayOnly ? today : mobileWeekdayOnOrAfter(view.date);
+  const selected = mode === "day" ? dates[0] : dates.includes(preferred) ? preferred
+    : preferred > dates[dates.length - 1] ? dates[dates.length - 1] : dates[0];
   const location = marketing ? "melbourne-city" : "brisbane-city";
   const weather = useCalendarWeather(dates[0], dates[dates.length - 1], location);
   const forecasts = useMemo(() => new Map(weather.days.map(item => [item.date, item])), [weather.days]);
@@ -53,9 +58,9 @@ export function ProductionMobileSchedule({
     rememberView({ anchor: next, date: next });
     scrollToTop();
   }
-  function changeMode(next: CalendarViewMode) {
+  function changeMode(next: MobileCalendarViewMode) {
     if (next === mode) return;
-    rememberView({ mode: next, anchor: selected });
+    rememberView({ mode: next, anchor: selected, date: selected });
     scrollToTop();
   }
   function selectDay(date: string) {
@@ -84,7 +89,7 @@ export function ProductionMobileSchedule({
         <div className="apg-mobile-period">
           <strong>{mobileCalendarPeriodTitle(dates, anchor, mode)}</strong>
           <div className="mobile-calendar-period-actions">
-            <button type="button" onClick={() => { rememberView({ anchor: today, date: today }); scrollToTop(); }}>Today</button>
+            <button type="button" aria-label={nextWeekday === today ? undefined : "Go to next weekday"} onClick={() => { rememberView({ anchor: nextWeekday, date: nextWeekday }); scrollToTop(); }}>{nextWeekday === today ? "Today" : "Next weekday"}</button>
             <button type="button" aria-label="Previous schedule period" onClick={() => navigate(-1)}><ChevronLeft size={18} aria-hidden="true" /></button>
             <button type="button" aria-label="Next schedule period" onClick={() => navigate(1)}><ChevronRight size={18} aria-hidden="true" /></button>
             {create}
@@ -92,17 +97,6 @@ export function ProductionMobileSchedule({
         </div>
       </div> : null}
       {mode === "month" || mode === "fortnight" ? <MobileFortnightCalendar mode={mode} data={data} anchor={anchor} selected={selected} today={today} weather={weather.days} onSelectDate={selectDay} /> : null}
-      {mode === "hybrid" ? <div className="apg-mobile-date-strip" aria-label="Select a calendar day">
-        {dates.map(date => {
-          const day = parseISO(date);
-          const forecast = forecasts.get(date);
-          return <CalendarDropDay as="button" date={date} type="button" key={date} aria-pressed={selected === date}
-            aria-label={format(day, "EEEE d MMMM")} aria-current={date === today ? "date" : undefined} className={date === today ? "is-today" : ""}
-            onClick={() => selectDay(date)}>
-            <small>{format(day, "EEE")}</small><strong>{format(day, "d")}</strong><span aria-hidden="true">{forecast ? `${forecast.temperatureMax}°` : " "}</span>
-          </CalendarDropDay>;
-        })}
-      </div> : null}
       {mode === "week" || mode === "list" ? <MobileCalendarOverview mode={mode} dates={dates} agendas={agendas} forecasts={forecasts} today={today} selected={selected}
         onSelect={openDay} onOpen={openRecord} onWeather={setWeatherDay} /> : <>
         <header className="apg-mobile-agenda-heading" ref={agendaHeading}>

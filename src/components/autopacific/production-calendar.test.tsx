@@ -75,6 +75,7 @@ it.each([true, false])("highlights the hovered Week date and only moves if relea
 it("moves on a touch hold and drop onto a mobile Week row", async () => {
   const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Week")!.click());
   const booking = container.querySelector<HTMLElement>(".mobile-calendar-overview [data-calendar-movable]")!;
   const days = [...container.querySelectorAll<HTMLElement>(".mobile-calendar-overview-day")];
   const rect = (left: number, top: number, width: number, height: number) => ({

@@ -75,7 +75,7 @@ export function CalendarWeatherDetails({ day, onClose }: { day: SavedCalendarWea
   return createPortal(<WorkspaceDialog className="calendar-weather-dialog" titleId="calendar-weather-title" onClose={onClose} header={<><div><span><MapPin size={13} /> {location.name}</span><h2 id="calendar-weather-title">{format(parseISO(day.date), "EEEE, d MMMM")}</h2><p>The forecast for this day.</p></div><button type="button" onClick={onClose} aria-label="Close weather details"><X size={18} /></button></>} footer={<button className="admin-primary-button" type="button" onClick={onClose}>Done</button>}>
     <div className={`calendar-weather-hero weather-${day.condition}`}><WeatherIcon condition={day.condition} size={56} /><div><strong>{day.temperatureMax}°<small> / {day.temperatureMin}°</small></strong><span>{day.summary}</span></div></div>
     <div className="calendar-weather-wind"><Wind size={17} /><span>Forecast wind up to <strong>{day.windMaxKmh} km/h</strong></span></div>
-    <aside className="calendar-weather-explanation"><strong>Forecast saved {captured}</strong><p>Kept with your calendar so you can look back at what was forecast. Actual conditions may vary.</p></aside>
+    <aside className="calendar-weather-explanation"><strong>{day.extended ? "Extended forecast" : "Forecast"} saved {captured}</strong><p>Kept with your calendar so you can look back at what was forecast. Actual conditions may vary.</p></aside>
     <CalendarWeatherCredit unavailable={false} locationKey={day.location_key} />
   </WorkspaceDialog>, host);
 }

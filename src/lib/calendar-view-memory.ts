@@ -1,8 +1,9 @@
 import { format, isValid, parseISO } from "date-fns";
 
 export const desktopCalendarModes = ["fortnight", "week", "day", "hybrid"] as const;
-export const mobileCalendarModes = ["list", "day", "week", "fortnight", "month", "hybrid"] as const;
-export type CalendarViewMode = typeof mobileCalendarModes[number];
+export const mobileCalendarModes = ["list", "day", "week", "fortnight", "month"] as const;
+export type MobileCalendarViewMode = typeof mobileCalendarModes[number];
+export type CalendarViewMode = typeof desktopCalendarModes[number] | MobileCalendarViewMode;
 export type CalendarViewMemory = { mode: CalendarViewMode; date: string; anchor: string };
 
 export function calendarViewStorageKey(workspace: "autopacific" | "marketing", userId: string, space: string, mobile: boolean) {

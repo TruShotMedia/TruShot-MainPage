@@ -25,18 +25,18 @@ const leg = (id: string, date: string, kind: "outbound" | "return"): CalendarFli
   color: "#579", created_at: "", updated_at: "",
 });
 describe("mobile fortnight projection", () => {
-  it("always shows two Monday–Sunday weeks, including month boundaries", () => {
-    const result = buildMobileFortnight("2026-11-29", empty);
+  it("shows two Monday–Friday weeks, including month boundaries", () => {
+    const result = buildMobileFortnight("2026-11-27", empty);
     expect(result).toHaveLength(2);
-    expect(result.map(week => week.days.length)).toEqual([7, 7]);
+    expect(result.map(week => week.days.length)).toEqual([5, 5]);
     expect(result[0].days[0].date).toBe("2026-11-23");
-    expect(result[1].days[6].date).toBe("2026-12-06");
+    expect(result[1].days[4].date).toBe("2026-12-04");
   });
   it("splits long job windows at week boundaries while keeping AutoPacific weekends clear", () => {
     const result = buildMobileFortnight("2026-11-23", { ...empty, calendarJobs: [job("Long shoot", { shoot_date: "2026-11-20", due_date: "2026-12-01" })] });
     expect(result[0].visibleSegments[0]).toMatchObject({ startColumn: 0, span: 5 });
     expect(result[1].visibleSegments[0]).toMatchObject({ startColumn: 0, span: 2 });
-    expect(result[0].days.slice(5).map(day => day.count)).toEqual([0, 0]);
+    expect(result[0].days[4]).toMatchObject({ date: "2026-11-27", count: 1 });
     expect(mobileRangeTime(result[0].visibleSegments[0], "2026-11-23")).toBe("");
   });
   it("bounds the visual density without dropping records or miscounting overflow", () => {
@@ -66,12 +66,20 @@ describe("mobile fortnight projection", () => {
     expect(result[0].days[4].entries[0]).toMatchObject({ title: "Due only", time: "17:00" });
     expect(JSON.stringify(result)).not.toContain('"title":"Planning"');
   });
-  it("keeps inbound/return itineraries as one continuous travel bar, including weekends", () => {
+  it("keeps inbound/return itineraries continuous across hidden weekends", () => {
     const result = buildMobileFortnight("2026-11-23", { ...empty, flightEvents: [leg("outbound", "2026-11-24", "outbound"), leg("return", "2026-11-30", "return")] });
     expect(result[0].visibleSegments).toHaveLength(1);
-    expect(result[0].visibleSegments[0]).toMatchObject({ startColumn: 1, span: 6, laneSpan: 1, endsAfterWeek: true });
-    expect(result[0].days[5].count).toBe(1);
+    expect(result[0].visibleSegments[0]).toMatchObject({ startColumn: 1, span: 4, laneSpan: 1, endsAfterWeek: true });
+    expect(result[0].days[4].count).toBe(1);
     expect(result[1].visibleSegments[0]).toMatchObject({ startColumn: 0, span: 1, startsBeforeWeek: true });
+  });
+  it("hides weekend-only events and clips events spanning the weekend to each workweek", () => {
+    const result = buildMobileFortnight("2026-11-23", { ...empty, calendarEvents: [
+      { ...event, id: "weekend-only", start_date: "2026-11-28", end_date: "2026-11-29" },
+      { ...event, id: "weekend-spanning", start_date: "2026-11-27", end_date: "2026-11-30" },
+    ] });
+    expect(result[0].visibleSegments).toMatchObject([{ startColumn: 4, span: 1, endsAfterWeek: true, item: { id: "weekend-spanning" } }]);
+    expect(result[1].visibleSegments).toMatchObject([{ startColumn: 0, span: 1, startsBeforeWeek: true, item: { id: "weekend-spanning" } }]);
   });
   it("preserves the existing completed, overdue and unrelated status language", () => {
     expect(mobileScheduleTone(job("done", { is_complete: true }), "2026-11-30")).toBe("is-complete");

@@ -1,6 +1,6 @@
 import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges } from "./calendar-layout";
 import { buildFlightCalendarItineraries } from "./flight-itineraries";
-import { mobileCalendarDates } from "./mobile-calendar-period";
+import { MOBILE_CALENDAR_COLUMNS, mobileCalendarDates } from "./mobile-calendar-period";
 import type { AgendaSource } from "./production-agenda";
 import type { ProductionScheduleData } from "./production-selected-day";
 
@@ -53,7 +53,7 @@ export function buildMobileCalendarGrid(anchor: string, data: ProductionSchedule
     if (asset.due_date !== asset.start_date) add(`campaign-due:${asset.id}`, asset.due_date, asset, "Due", asset.due_time);
   }
   for (const entries of byDate.values()) entries.sort((a, b) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
-  return buildCalendarRangeWeeks(dates, ranges).map(week => {
+  return buildCalendarRangeWeeks(dates, ranges, MOBILE_CALENDAR_COLUMNS).map(week => {
     const visibleSegments = week.segments.filter(segment => segment.lane < rangeLimit);
     return {
       ...week,

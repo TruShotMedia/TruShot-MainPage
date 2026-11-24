@@ -1,7 +1,7 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { z } from "zod";
 import { getProductionContext } from "@/lib/data/admin";
-import { WEATHER_LOCATION, WEATHER_LOCATIONS } from "@/lib/calendar-weather";
+import { firstOverlappingWeatherWeek, WEATHER_LOCATION, WEATHER_LOCATIONS } from "@/lib/calendar-weather";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
@@ -16,10 +16,10 @@ export async function GET(request: Request) {
   if (!location.success) return Response.json({ error: "Choose a supported weather location." }, { status: 400, headers });
   if (!start.success || !end.success || end.data < start.data || differenceInCalendarDays(parseISO(end.data), parseISO(start.data)) > 62) return Response.json({ error: "Choose a calendar period of up to 63 days." }, { status: 400, headers });
   const { data, error } = await context.supabase.from("website-weather-snapshots")
-    .select("location_key,week_start,captured_at,forecast_issued_at,capture_kind,days")
+    .select("location_key,week_start,captured_at,forecast_issued_at,capture_kind,days,lookahead")
     .eq("workspace_id", context.membership.workspace_id)
     .eq("location_key", location.data)
-    .gte("week_start", format(addDays(parseISO(start.data), -6), "yyyy-MM-dd"))
+    .gte("week_start", firstOverlappingWeatherWeek(start.data))
     .lte("week_start", end.data)
     .order("week_start");
   if (error) {

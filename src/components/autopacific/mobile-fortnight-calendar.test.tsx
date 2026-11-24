@@ -19,7 +19,7 @@ it("keeps Team colours on shared bars and completed deadlines while day targets 
   const selected = vi.fn(); const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
   try {
     await act(async () => root.render(<CalendarTeamColorsProvider value={members}><MobileFortnightCalendar data={{ calendarJobs: [job], calendarTasks: [task], calendarEvents: [], flightEvents: [] }} anchor="2026-11-23" selected="2026-11-23" today="2026-11-23" weather={[]} onSelectDate={selected} /></CalendarTeamColorsProvider>));
-    expect(container.querySelectorAll(".apg-fortnight-day")).toHaveLength(14);
+    expect(container.querySelectorAll(".apg-fortnight-day")).toHaveLength(10);
     expect(container.querySelector('.apg-fortnight-range .calendar-team-marker')?.getAttribute("aria-label")).toBe("Assigned to John, Nathan");
     expect(container.querySelectorAll(".apg-fortnight-range .calendar-team-marker i")).toHaveLength(2);
     expect(container.querySelector(".apg-fortnight-entry.is-complete")?.getAttribute("data-team-calendar")).toBe("true");

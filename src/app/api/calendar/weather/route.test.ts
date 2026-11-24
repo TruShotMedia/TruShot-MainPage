@@ -25,7 +25,7 @@ describe("saved weather endpoint", () => {
     expect(query.eq).toHaveBeenCalledWith("workspace_id", "workspace");
     expect(query.eq).toHaveBeenCalledWith("location_key", locationKey);
     expect(result.headers.get("Cache-Control")).toContain("private");
-    expect(query.gte).toHaveBeenCalledWith("week_start", "2026-10-20");
+    expect(query.gte).toHaveBeenCalledWith("week_start", "2026-10-18");
     expect(await result.json()).toEqual({ snapshots: [], location: locationName });
   });
 });
