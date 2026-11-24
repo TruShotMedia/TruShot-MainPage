@@ -18,7 +18,7 @@
 .jp-gate button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;border:0;border-radius:11px;background:#204fd5;color:white;font-weight:750}
 .jp-gate button:disabled{opacity:.65}.jp-gate small{color:var(--jp-muted);font-size:.81rem}
 .jp-gate .jp-error{color:#a02035;font-size:.88rem}
-.jp-page :is(input,button):focus-visible{outline:3px solid #436bdf;outline-offset:3px}
+.jp-page :is(input,button,a):focus-visible{outline:3px solid #436bdf;outline-offset:3px}
 .jp-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:32px;padding:clamp(23px,5vw,50px)}
 .jp-stage-badge{background:#eaf0ff;color:#234795;border-radius:999px;font-size:.9rem;font-weight:750;padding:6px 12px}
 .jp-hero p{margin-top:16px}
@@ -38,6 +38,19 @@
 .jp-task-groups section{min-width:0;border:1px solid var(--jp-line);background:#f7f9ff;border-radius:12px;padding:12px}
 .jp-task-groups h3{display:flex;align-items:center;gap:6px;font-size:.85rem}.jp-task-groups h3 span{width:8px;height:8px;flex:none;border-radius:100%}.jp-task-groups h3 b{margin-left:auto;color:#334773}
 .jp-task-groups ul{padding:0;margin:8px 0 0;list-style:none}.jp-task-groups li{border-top:1px solid var(--jp-line);padding:8px 0;font-size:.88rem;overflow-wrap:anywhere}.jp-task-groups p{font-size:.8rem}
+.jp-resources-heading,.jp-file,.jp-file-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.jp-resources-heading{justify-content:space-between}
+.jp-files{display:grid;gap:8px;list-style:none;margin:16px 0 0;padding:0}
+.jp-file{border:1px solid var(--jp-line);background:#f7f9ff;border-radius:12px;padding:10px 12px;color:var(--jp-muted)}
+.jp-file-name{display:grid;flex:1;min-width:min(100%,140px);overflow-wrap:anywhere}
+.jp-file-name strong{font-size:.9rem;color:var(--jp-ink)}
+.jp-file-name small{font-size:.77rem}
+.jp-resource-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 12px;border:1px solid #a1b3da;border-radius:9px;color:#163eab;background:#fff;font-size:.84rem;font-weight:700;text-decoration:none}
+.jp-resource-action:hover{background:#eaf0ff}
+.jp-resource-action:disabled{opacity:.65;cursor:wait}
+.jp-delivery{color:white;background:#204fd5;border-color:#204fd5}
+.jp-delivery:hover{background:#173da9}
+.jp-panel .jp-file-error{color:#a02035}
 .jp-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:17px}
 .jp-footer button{border:1px solid #a1b3da;border-radius:9px;color:var(--jp-ink);background:#fff;min-height:42px;padding:0 12px}
 @media(max-width:560px){.jp-page{padding-inline:14px}.jp-top{min-height:65px}.jp-hero{grid-template-columns:1fr;gap:12px}.jp-ring{justify-self:center}.jp-stepper{grid-template-columns:1fr;text-align:left;gap:2px}.jp-stepper li{min-height:48px;justify-items:start;align-content:center;align-items:center;grid-template-columns:31px minmax(0,1fr) auto;gap:9px}.jp-stepper li>span{margin:0}.jp-stepper li+li::before{height:100%;width:2px;top:auto;bottom:50%;left:14px;right:auto}.jp-stepper small{font-size:.75rem}}

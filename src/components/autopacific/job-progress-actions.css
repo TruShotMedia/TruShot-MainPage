@@ -15,7 +15,8 @@
 .job-progress-revoke{font-size:.8rem}.job-progress-revoke button{color:var(--workspace-text,#273958);text-decoration:underline;background:none;border:0;padding:5px 0}
 .job-progress-notice{position:fixed;z-index:10000;top:max(15px,env(safe-area-inset-top));right:max(15px,env(safe-area-inset-right));width:min(365px,calc(100vw - 30px));display:flex;align-items:flex-start;justify-content:space-between;gap:8px;border:1px solid #ccd9ee;border-radius:16px;padding:13px;color:#18284b;background:#f8fbff;box-shadow:0 12px 40px #0d255638;animation:job-progress-notice-in .19s ease-out}
 .job-progress-notice-body{display:flex;gap:10px;min-width:0}.job-progress-notice-body>svg{color:#2856cf;flex:none;margin-top:1px}.job-progress-notice-body>div{min-width:0}
-.job-progress-notice p{margin:4px 0 0;font-size:.82rem;color:#44567a}.job-progress-notice strong{font-size:.91rem}.job-progress-notice code{margin-left:4px;color:#214dbb}.job-progress-notice input{max-width:100%;min-height:36px;margin-top:8px}
+.job-progress-notice p{margin:4px 0 0;font-size:.82rem;color:#44567a}.job-progress-notice strong{font-size:.91rem}.job-progress-notice code{margin-left:4px;color:#214dbb}
+.job-progress-notice textarea{width:100%;margin-top:8px;padding:6px;border:1px solid #a1b3da;border-radius:8px;background:#fff;color:#18284b;font:inherit;font-size:.82rem;resize:vertical}
 .job-progress-notice>button{border:0;background:none;color:#32456a;padding:3px;flex:none}
 @keyframes job-progress-notice-in{from{opacity:0;transform:translate(10px,-3px)}}
 @media(prefers-reduced-motion:reduce){.job-progress-notice{animation:none}}

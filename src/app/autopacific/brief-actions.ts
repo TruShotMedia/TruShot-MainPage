@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getProductionContext } from "@/lib/data/admin";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
+import { canManageJobProgress, jobProgressService } from "@/lib/job-progress-share-server";
 import {
   JOB_ATTACHMENT_BUCKET,
   JOB_ATTACHMENT_MAX_BYTES,
@@ -30,7 +31,7 @@ export async function loadJobSupportingData(jobId: string) {
   const [files, tasks] = await Promise.all([
     context.supabase
       .from("website-job-attachments")
-      .select("id,file_name,mime_type,size_bytes,storage_path,created_at")
+      .select("id,file_name,mime_type,size_bytes,storage_path,created_at,shared_on_progress")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .eq("job_id", id)
       .is("archived_at", null)
@@ -66,7 +67,22 @@ export async function loadJobSupportingData(jobId: string) {
       url: urls.get(storage_path) ?? "",
     })) as JobAttachment[],
     linkedTasks: tasks.data ?? [],
+    canShareFiles: canManageJobProgress(context),
   };
+}
+export async function setJobAttachmentSharing(jobId: string, attachmentId: string, shared: boolean) {
+  const { context, id } = await authorisedJob(jobId);
+  if (!canManageJobProgress(context)) throw new Error("You don’t have permission to share this file.");
+  const { data, error } = await jobProgressService()
+    .from("website-job-attachments")
+    .update({ shared_on_progress: z.boolean().parse(shared) })
+    .eq("id", z.uuid().parse(attachmentId))
+    .eq("job_id", id)
+    .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
+    .is("archived_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) throw new Error("File sharing couldn’t be updated. Please try again.");
 }
 export async function registerJobAttachment(input: {
   jobId: string;

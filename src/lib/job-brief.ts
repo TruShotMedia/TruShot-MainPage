@@ -91,5 +91,6 @@ export type JobAttachment = {
   mime_type: string;
   size_bytes: number;
   created_at: string;
+  shared_on_progress: boolean;
   url: string;
 };

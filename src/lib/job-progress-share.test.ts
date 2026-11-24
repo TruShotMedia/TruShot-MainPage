@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildSharedJobProgress } from "./job-progress-share";
+import { buildSharedJobProgress, clientDeliveryUrl } from "./job-progress-share";
 import { createJobProgressPng } from "./job-progress-image";
 
 describe("shared job progress", () => {
@@ -24,6 +24,15 @@ describe("shared job progress", () => {
 
   it("uses status-based progress for a standalone job", () => {
     expect(buildSharedJobProgress({ ...job, deliverables: [] }, []).progress).toEqual({ total: 0, completed: 0, percent: 50 });
+  });
+
+  it.each([null, " ", "javascript:void(0)", "data:text/html,example", "/relative", "https://user:secret@example.com"])(
+    "does not expose invalid delivery URL %s",
+    (value) => expect(clientDeliveryUrl(value)).toBeNull(),
+  );
+
+  it("preserves valid client delivery URLs including signed query parameters", () => {
+    expect(clientDeliveryUrl(" https://example.com/delivery?key=abc%2B123 ")).toBe("https://example.com/delivery?key=abc%2B123");
   });
 
   it("draws the image in the browser, with the same progress and no private details", async () => {

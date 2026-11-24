@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { JobProgressSharing } from "./job-progress-actions";
 
-it.each([true, false])("copies only the link and preserves the PIN (branded host enabled: %s)", async branded => {
+it.each([true, false])("copies the complete message with the existing PIN (branded host enabled: %s)", async branded => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const container = document.createElement("div");
   document.body.append(container);
@@ -24,9 +24,9 @@ it.each([true, false])("copies only the link and preserves the PIN (branded host
     expect(container.textContent).toContain("036001");
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0][1].method).toBeUndefined();
-    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Copy progress link for Product launch"]')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Copy progress message for Product launch"]')!.click());
     const outboundOrigin = branded ? "https://autopac-progress.vercel.app" : window.location.origin;
-    expect(writeText).toHaveBeenCalledWith(`${outboundOrigin}/job-progress#share-token`);
+    expect(writeText).toHaveBeenCalledWith(`Want to keep track of this job’s progress? The details for this project are available below. Your secure access PIN is 036001:\n${outboundOrigin}/job-progress#share-token`);
     expect(document.querySelector(".job-progress-notice")?.textContent).toContain("036001");
     expect(container.textContent).toContain("Link active");
     await act(async () => vi.advanceTimersByTime(6500));

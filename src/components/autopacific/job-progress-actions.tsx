@@ -8,7 +8,7 @@ import { jobProgressShareUrl } from "@/lib/job-progress-host";
 import "./job-progress-actions.css";
 
 type ActiveShare = JobProgressAccess & { token: string };
-type Notice = { title: string; description: string; pin?: string; url?: string; error?: boolean };
+type Notice = { title: string; description: string; pin?: string; message?: string; error?: boolean };
 type Props = { jobId: string; title: string; compact?: boolean; disabled?: boolean; onAccess?: (access: JobProgressAccess) => void };
 
 function progressEndpoint(jobId: string) {
@@ -32,35 +32,38 @@ export function JobProgressActions({ jobId, title, compact = false, disabled = f
   function announce(next: Notice) {
     if (timer.current) clearTimeout(timer.current);
     setNotice(next);
-    if (!next.url) timer.current = setTimeout(() => setNotice(null), 6500);
+    if (!next.message) timer.current = setTimeout(() => setNotice(null), 6500);
   }
 
   async function copyLink() {
     setBusy("link");
     const share = sharingRequest<ActiveShare>(jobId, "share");
-    const link = share.then(result => jobProgressShareUrl(result.token, window.location.origin));
+    const message = share.then(result => {
+      const url = jobProgressShareUrl(result.token, window.location.origin);
+      return `Want to keep track of this job’s progress? The details for this project are available below. Your secure access PIN is ${result.pin}:\n${url}`;
+    });
     // Safari needs clipboard access inside the click gesture. Supply a
     // promised blob so the PIN and URL still come from the authenticated API.
     let clipboard: Promise<boolean>;
     try {
       if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-        const blob = link.then(url => new Blob([url], { type: "text/plain" }));
+        const blob = message.then(text => new Blob([text], { type: "text/plain" }));
         void blob.catch(() => undefined); // Safari can reject the write before consuming the blob.
         clipboard = navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]).then(() => true, () => false);
       } else clipboard = Promise.resolve(false);
     } catch { clipboard = Promise.resolve(false); }
     try {
-      const [access, url, wrote] = await Promise.all([share, link, clipboard]);
+      const [access, text, wrote] = await Promise.all([share, message, clipboard]);
       onAccess?.({ pin: access.pin, enabled: access.enabled });
       let copied = wrote;
       if (!copied) {
-        try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(url); copied = true; } } catch { /* manual fallback */ }
+        try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); copied = true; } } catch { /* manual fallback */ }
       }
       announce(copied ? {
-        title: "Progress link copied", description: "Send this PIN separately from the link.", pin: access.pin,
-      } : { title: "Progress link ready", description: "Clipboard access is unavailable. Select and copy the link below.", pin: access.pin, url });
+        title: "Progress message copied", description: "Paste into an email or chat. Only send it to approved recipients.", pin: access.pin,
+      } : { title: "Progress message ready", description: "Clipboard access is unavailable. Select and copy the message below.", pin: access.pin, message: text });
     } catch {
-      announce({ title: "Couldn’t copy the link", description: "Check your connection and try again.", error: true });
+      announce({ title: "Couldn’t copy the progress message", description: "Check your connection and try again.", error: true });
     } finally { setBusy(null); }
   }
 
@@ -89,9 +92,9 @@ export function JobProgressActions({ jobId, title, compact = false, disabled = f
 
   return <>
     <div className={`job-progress-actions ${compact ? "is-compact" : ""}`}>
-      <button type="button" className="job-progress-action" aria-label={`Copy progress link for ${title}`}
-        title="Copy PIN-protected progress link" disabled={disabled || busy !== null} onClick={() => void copyLink()}>
-        <Mail size={15} aria-hidden="true" />{compact ? null : <span>{busy === "link" ? "Copying…" : "Copy progress link"}</span>}
+      <button type="button" className="job-progress-action" aria-label={`Copy progress message for ${title}`}
+        title="Copy the progress link and PIN" disabled={disabled || busy !== null} onClick={() => void copyLink()}>
+        <Mail size={15} aria-hidden="true" />{compact ? null : <span>{busy === "link" ? "Copying…" : "Copy progress message"}</span>}
       </button>
       <button type="button" className="job-progress-action" aria-label={`Download progress image for ${title}`}
         title="Download email-ready progress image" disabled={disabled || busy !== null} onClick={() => void download()}>
@@ -103,7 +106,7 @@ export function JobProgressActions({ jobId, title, compact = false, disabled = f
         {notice.error ? <Mail size={18} /> : <Check size={18} />}
         <div><strong>{notice.title}</strong><p>{notice.description}</p>
           {notice.pin ? <p>Access PIN <code>{notice.pin}</code></p> : null}
-          {notice.url ? <input aria-label="Progress link to copy" value={notice.url} readOnly onFocus={event => event.currentTarget.select()} /> : null}
+          {notice.message ? <textarea aria-label="Progress message to copy" rows={5} value={notice.message} readOnly onFocus={event => event.currentTarget.select()} /> : null}
         </div>
       </div>
       <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss progress notification"><X size={16} /></button>
@@ -153,7 +156,7 @@ export function JobProgressSharing({ jobId, title, disabled = false }: Props) {
       <small>{access?.enabled ? "Link active" : access ? "Sharing off until you copy the link" : "Read-only progress dashboard"}</small></div>
       {!disabled && access ? <div className="job-progress-pin"><span>Access PIN</span><code>{access.pin}</code></div> : null}
     </div>
-    <p>Shares the job title, progress and task names and stages. Notes, files and the rest of the CRM stay private.</p>
+    <p>Shares the job’s progress and task stages, plus the client delivery link and any files you mark “Share with client.” Notes and other files stay private.</p>
     <JobProgressActions jobId={jobId} title={title} disabled={disabled || revoking || confirm} onAccess={update} />
     {!disabled && access?.enabled ? <div className="job-progress-revoke">
       {confirm ? <>

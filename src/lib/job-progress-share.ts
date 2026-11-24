@@ -45,5 +45,24 @@ export function buildSharedJobProgress(job: ProgressJob, tasks: readonly Progres
 }
 
 export type SharedJobProgress = ReturnType<typeof buildSharedJobProgress>;
+export type ClientProgressAttachment = { id: string; name: string; size: number; viewable: boolean };
+export type ClientJobProgress = SharedJobProgress & { deliveryUrl: string | null; attachments: ClientProgressAttachment[] };
+export type ProgressFileAction = "view" | "download";
+
+export function clientDeliveryUrl(value: string | null) {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+const browserPreviewTypes = new Set([
+  "image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4", "video/webm", "text/plain",
+]);
+export const canPreviewProgressFile = (mimeType: string) => browserPreviewTypes.has(mimeType);
+
 export type JobProgressAccess = { pin: string; enabled: boolean };
 export const shareIdPattern = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;

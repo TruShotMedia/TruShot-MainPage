@@ -13,6 +13,7 @@ import {
   loadJobSupportingData,
   registerJobAttachment,
   removeJobAttachment,
+  setJobAttachmentSharing,
 } from "@/app/autopacific/brief-actions";
 import {
   JOB_ATTACHMENT_BUCKET,
@@ -78,10 +79,24 @@ export function JobFiles({
   const { data, error, loading, reload } = useJobSupportingData(jobId);
   const [uploading, setUploading] = useState(false),
     [message, setMessage] = useState("");
+  const [sharingFile, setSharingFile] = useState<string | null>(null);
   const [failed, setFailed] = useState<
     Array<{ file: File; path: string; uploaded: boolean }>
   >([]);
   const input = useRef<HTMLInputElement>(null);
+  async function changeSharing(fileId: string, shared: boolean) {
+    setSharingFile(fileId);
+    setMessage("");
+    try {
+      await setJobAttachmentSharing(jobId, fileId, shared);
+      await reload();
+      setMessage(shared ? "File added to the PIN-protected progress page." : "File removed from the progress page.");
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "File sharing couldn’t be updated.");
+    } finally {
+      setSharingFile(null);
+    }
+  }
   async function upload(
     entries: Array<{ file: File; path?: string; uploaded?: boolean }>,
   ) {
@@ -202,6 +217,7 @@ export function JobFiles({
           Files stay private to this workspace.
         </p>
       ) : null}
+      {data?.canShareFiles && data.attachments.length > 0 ? <p>Files stay private unless marked “Share with client.” Shared files are available to anyone with the job’s progress link and PIN.</p> : null}
       <div className="job-file-grid">
         {data?.attachments.map((file) => (
           <article className="job-file" key={file.id}>
@@ -231,10 +247,18 @@ export function JobFiles({
                 </small>
               </span>
             </a>
+            {data.canShareFiles ? (
+              <label className="job-file-sharing">
+                <input type="checkbox" checked={file.shared_on_progress} disabled={Boolean(sharingFile) || uploading}
+                  aria-label={`Share ${file.file_name} with client`}
+                  onChange={event => void changeSharing(file.id, event.currentTarget.checked)} />
+                <span>{sharingFile === file.id ? "Saving…" : "Share with client"}</span>
+              </label>
+            ) : null}
             {editable ? (
               <button
                 type="button"
-                disabled={uploading}
+                disabled={uploading || Boolean(sharingFile)}
                 aria-label={`Remove ${file.file_name}`}
                 onClick={async () => {
                   if (
