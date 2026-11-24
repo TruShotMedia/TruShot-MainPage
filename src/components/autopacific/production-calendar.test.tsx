@@ -21,6 +21,86 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function render(marketing = false, readOnly = false) { await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing={marketing} readOnly={readOnly} {...callbacks} />)); }
 const click = async (selector: string) => { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()); };
 const hybrid = async () => { await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click()); };
+
+const moveFixture = { ...data, calendarEvents: [
+  { ...data.calendarEvents[1], updated_at: "2026-11-09T00:42:00Z" },
+  { ...data.calendarEvents[0], updated_at: "2026-11-09T00:42:00Z", external_source: "outlook" as const },
+] };
+
+it.each([["Fortnight", false], ["Week", false], ["Hybrid", false], ["Week", true], ["Fortnight", true]])(
+  "makes CRM events draggable, without making Outlook events movable (%s, mobile %s)",
+  async (mode, mobile) => {
+    const onMoveEvent = vi.fn();
+    await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing={false} mobile={mobile} onMoveEvent={onMoveEvent} {...callbacks} />));
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === mode)!.click());
+    const movable = [...container.querySelectorAll("[data-calendar-movable]")];
+    expect(movable.length).toBeGreaterThan(0);
+    expect(movable.every(card => card.textContent?.includes("Early shoot"))).toBe(true);
+    await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing={false} mobile={mobile} readOnly onMoveEvent={onMoveEvent} {...callbacks} />));
+    expect(container.querySelector("[data-calendar-movable]")).toBeNull();
+  },
+);
+
+it.each([true, false])("highlights the hovered Week date and only moves if released on a date (%s)", async inside => {
+  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing={false} onMoveEvent={onMoveEvent} {...callbacks} />));
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Week")!.click());
+  const booking = container.querySelector<HTMLElement>(".timetable-booking[data-calendar-movable]")!;
+  const columns = [...container.querySelectorAll<HTMLElement>(".timetable-day-column")];
+  const rect = (x: number, y: number, width: number, height: number) => ({
+    x, y, left: x, right: x + width, top: y, bottom: y + height, width, height, toJSON: () => ({}),
+  });
+  for (const [index, column] of columns.entries()) column.getBoundingClientRect = () => rect(index * 100 + 50, 100, 100, 500);
+  booking.getBoundingClientRect = () => rect(155, 150, 90, 80);
+  const mouse = async (target: EventTarget, kind: string, clientX: number, clientY: number) => {
+    await act(async () => target.dispatchEvent(new MouseEvent(kind, { bubbles: true, cancelable: true, clientX, clientY, button: 0 })));
+  };
+  await mouse(booking, "mousedown", 175, 170);
+  await mouse(document, "mousemove", 192, 171);
+  await mouse(document, "mousemove", 485, 171);
+  expect(columns[4].dataset.calendarDropOver).toBe("true");
+  if (!inside) await mouse(document, "mousemove", 875, 171);
+  await mouse(document, "mouseup", inside ? 485 : 875, 171);
+  if (inside) {
+    expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({
+      id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from: "2026-11-10", to: "2026-11-13",
+    });
+    expect(container.querySelector('[role="status"].calendar-move-status')?.textContent).toContain("Fri 13 Nov");
+  } else expect(onMoveEvent).not.toHaveBeenCalled();
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+  // The sensor leaves a short-lived click guard installed after mouseup.
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+});
+
+it("moves on a touch hold and drop onto the mobile date strip", async () => {
+  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));
+  const booking = container.querySelector<HTMLElement>(".apg-mobile-timeline [data-calendar-movable]")!;
+  const days = [...container.querySelectorAll<HTMLElement>(".apg-mobile-date-strip button")];
+  const rect = (left: number, top: number, width: number, height: number) => ({
+    x: left, y: top, left, right: left + width, top, bottom: top + height, width, height, toJSON: () => ({}),
+  });
+  for (const [index, day] of days.entries()) day.getBoundingClientRect = () => rect(index * 48, 100, 46, 55);
+  booking.getBoundingClientRect = () => rect(60, 230, 290, 50);
+  const touch = async (target: EventTarget, kind: string, x: number, y: number) => {
+    const point = { clientX: x, clientY: y } as Touch;
+    await act(async () => target.dispatchEvent(new TouchEvent(kind, {
+      bubbles: true, cancelable: true, touches: kind === "touchend" ? [] : [point], changedTouches: [point],
+    })));
+  };
+  await touch(booking, "touchstart", 175, 240);
+  try {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
+    await touch(booking, "touchmove", 205, 123);
+    expect(days[4].dataset.calendarDropOver).toBe("true");
+  } finally {
+    await touch(booking, "touchend", 205, 123);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+  }
+  expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({ id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from: "2026-11-10", to: "2026-11-13" });
+  expect(days[4].getAttribute("aria-pressed")).toBe("true");
+});
+
 it.each(["Fortnight", "Week", "Day", "Hybrid", "Mobile"])("keeps shared assignee colours and completed status in the Marketing Team %s view", async mode => {
   const team: TeamContextData = { userId: "nathan", role: "marketing", canManage: false, videographerId: "john", members: [
     { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579" },

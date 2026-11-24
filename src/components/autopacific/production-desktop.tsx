@@ -76,6 +76,8 @@ import { jobsForProductionView, mergeProductionRecords, tasksForProductionView, 
 import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
+import { moveProductionCalendarEvent } from "@/app/autopacific/calendar-move-actions";
+import type { CalendarEventMove } from "@/lib/calendar-event";
 import "./production-desktop.css";
 import "./production-mobile.css";
 import "./production-team.css";
@@ -603,6 +605,19 @@ export function ProductionDesktop({
     void refresh(view);
     router.refresh();
   }
+  async function moveEvent(change: CalendarEventMove) {
+    if (!navigator.onLine) return { ok: false, error: "Reconnect to move this event." } as const;
+    const result = await moveProductionCalendarEvent(change);
+    if (result.ok) {
+      setSnapshot(current => {
+        const previous = current.source === data ? current.data : data;
+        return { source: data, data: { ...previous, calendarEvents: previous.calendarEvents.map(record =>
+          record.id === change.id && record.updated_at === change.expectedUpdatedAt ? { ...record, ...result.dates } : record,
+        ) } };
+      });
+    }
+    return result;
+  }
   async function schedulePlanningJob(job: TabletJobRecord) {
     const scheduled = live.jobStatuses.find(status => status.key === "scheduled");
     if (!scheduled || scheduling) return;
@@ -1004,6 +1019,7 @@ export function ProductionDesktop({
                 }
               }}
               onCreate={start}
+              onMoveEvent={field.online ? moveEvent : undefined}
             />
           )}
         </section>

@@ -7,6 +7,7 @@ import { WeatherIcon } from "@/components/shared/calendar-weather";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { CalendarDropDay } from "@/components/shared/calendar-event-drag";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import { buildMobileFortnight, mobileRangeTime, mobileScheduleTone } from "@/lib/mobile-fortnight-calendar";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
@@ -29,7 +30,7 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
       <div className="apg-fortnight-days">
         {week.days.map((day, column) => {
           const forecast = forecasts.get(day.date);
-          return <button type="button" key={day.date} data-date={day.date}
+          return <CalendarDropDay as="button" date={day.date} type="button" key={day.date} data-date={day.date}
             className={`apg-fortnight-day ${column > 4 ? "is-weekend" : ""} ${day.date === today ? "is-today" : ""}`}
             aria-label={format(parseISO(day.date), "EEEE d MMMM")}
             aria-describedby={`${descriptionId}-${day.date}`}
@@ -45,7 +46,7 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
               {day.hiddenCount ? <span className="apg-fortnight-more">+{day.hiddenCount} more</span> : null}
               {!day.count ? <span className="apg-fortnight-free">—</span> : null}
             </span>
-          </button>;
+          </CalendarDropDay>;
         })}
       </div>
       <div className="apg-fortnight-ranges" aria-hidden="true">

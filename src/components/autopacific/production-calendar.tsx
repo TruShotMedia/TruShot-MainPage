@@ -14,6 +14,7 @@ import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
 import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { CalendarDragButton, CalendarDropDay, CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
 import { assignTeamCalendarColors, calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import {
   productionDayAgenda,
@@ -112,11 +113,14 @@ export function TimedSchedule({
           <br />& due
         </small>
         {agendas.map((agenda, index) => (
-          <div key={dates[index]}>
+          <CalendarDropDay key={dates[index]} date={dates[index]} targetId={`all-day:${dates[index]}`}>
             {agenda.allDay.map((item) => (
-              <button
+              <CalendarDragButton
                 type="button"
                 key={item.id}
+                source={item.source}
+                dragDay={dates[index]}
+                dragId={`all-day:${dates[index]}:${item.id}`}
                 {...calendarTeamAttributes(item.source, calendarMembers)}
                 className={agendaTone(item.source, today)}
                 data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined}
@@ -126,12 +130,12 @@ export function TimedSchedule({
                 <small>{item.detail}</small>
                 {isOutlookEvent(item.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={item.source} />
-              </button>
+              </CalendarDragButton>
             ))}
             {!agenda.allDay.length ? (
               <span className="timetable-empty">—</span>
             ) : null}
-          </div>
+          </CalendarDropDay>
         ))}
       </div>
       <div
@@ -150,14 +154,19 @@ export function TimedSchedule({
           ))}
         </div>
         {agendas.map((agenda, index) => (
-          <div
+          <CalendarDropDay
             key={dates[index]}
+            date={dates[index]}
+            targetId={`timed:${dates[index]}`}
             className="timetable-day-column"
             style={{ backgroundSize: "100% 64px" }}
           >
             {agenda.timed.map((block) => (
-              <button
+              <CalendarDragButton
                 key={block.id}
+                source={block.source}
+                dragDay={dates[index]}
+                dragId={`timed:${dates[index]}:${block.id}`}
                 type="button"
                 {...calendarTeamAttributes(block.source, calendarMembers)}
                 className={`timetable-booking ${block.end-block.start<45?"is-short":""} ${agendaTone(block.source, today)}`}
@@ -185,9 +194,9 @@ export function TimedSchedule({
                 {block.end - block.start >= 60 ? (
                   <span>{block.detail}</span>
                 ) : null}
-              </button>
+              </CalendarDragButton>
             ))}
-          </div>
+          </CalendarDropDay>
         ))}
       </div>
     </section>
@@ -205,6 +214,7 @@ export function ProductionCalendar({
   onOpenEvent,
   onOpenFlight,
   onCreate,
+  onMoveEvent,
 }: {
   data: ScheduleData;
   today: string;
@@ -217,6 +227,7 @@ export function ProductionCalendar({
   onOpenEvent: (event: CalendarCustomEvent) => void;
   onOpenFlight: (flight: CalendarFlightEvent) => void;
   onCreate: (kind: TabletCreateKind, date?: string) => void;
+  onMoveEvent?: MoveCalendarEvent;
 }) {
   const team = useProductionTeam();
   const calendarMembers = useMemo(() => marketing && readOnly ? assignTeamCalendarColors(team?.members ?? []) : [], [marketing, readOnly, team?.members]);
@@ -270,11 +281,13 @@ export function ProductionCalendar({
   );
   const schedule = { ...data, calendarJobs: range };
   const productionTools = !marketing || personalTools;
-  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open}
+  const moveEvent = !todayOnly && !readOnly ? onMoveEvent : undefined;
+  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent}
     renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} /></CalendarTeamColorsProvider>;
   return (
     <CalendarTeamColorsProvider value={calendarMembers}>
     <div className="production-calendar-workspace">
+      <CalendarEventDrag onMove={mode === "day" ? undefined : moveEvent}>
       <div className="production-calendar-views">
         {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
         <div className="apg-view-pills" aria-label="Schedule view">
@@ -336,6 +349,7 @@ export function ProductionCalendar({
         ) : null}
         {!readOnly ? <CalendarCreateMenu key={date} date={date} label="Add" productionTools={productionTools} onCreate={onCreate} /> : null}
       </div>
+      {moveEvent && mode !== "day" ? <p className="calendar-move-help">Drag a calendar event onto another day to move it. Its booked time stays the same.</p> : null}
       {mode === "fortnight" || mode === "hybrid" ? (
         <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
         <TabletCalendar
@@ -401,6 +415,7 @@ export function ProductionCalendar({
             ))}
         </section>
       ) : null}
+      </CalendarEventDrag>
       {marketing && !personalTools ? (
         <p className="brief-help">
           Tasks and flights are visible for planning. Task editing and flight

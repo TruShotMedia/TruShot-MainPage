@@ -27,6 +27,7 @@ import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, C
 
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
+import { CalendarDropDay, useCalendarEventDrag } from "@/components/shared/calendar-event-drag";
 
 type TabletCalendarEvent = {
   id: string;
@@ -326,8 +327,9 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
   );
 }
 
-function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string }) {
+function JobRange({ currentTime, editable, onOpen, palette, segment, today, weekDays }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string; weekDays: readonly string[] }) {
   const calendarMembers = useCalendarTeamColors();
+  const drag = useCalendarEventDrag(segment.item, weekDays.slice(segment.startColumn, segment.startColumn + segment.span), `range:${segment.id}:${weekDays[0]}`);
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const outlook = isOutlookEvent(segment.item);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
@@ -344,6 +346,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today }: { 
   return (
     <article
       data-calendar-source={outlook ? "outlook" : undefined}
+      {...drag.props}
       {...calendarTeamAttributes(segment.item, calendarMembers)}
       aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
       className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
@@ -597,7 +600,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                     const hiddenDayEvents = dayEvents.slice(displayedEventLimit);
                     const hiddenItems = [...hiddenRangeSegments.map((segment) => segment.item.title), ...hiddenDayEvents.map((event) => event.title)];
                     return (
-                      <div className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""} ${onSelectDate && selectedDate === dateKey ? "is-selected-day" : ""}`} key={dateKey}>
+                      <CalendarDropDay date={dateKey} className={`tablet-calendar-day ${!isCapacityCalendar && !isSameMonth(day, currentMonth) ? "is-outside" : ""} ${dateKey === today ? "is-today" : ""} ${onSelectDate && selectedDate === dateKey ? "is-selected-day" : ""}`} key={dateKey}>
                         {onSelectDate ? <button type="button" className="tablet-calendar-day-select" aria-label={`Show schedule for ${format(day, "EEEE d MMMM yyyy")}`} aria-pressed={selectedDate === dateKey} onClick={() => onSelectDate(dateKey)}><time dateTime={dateKey}>{format(day, "d")}</time></button> : <time dateTime={dateKey}>{format(day, "d")}</time>}
                         <CalendarWeatherBadge day={weatherByDay.get(dateKey)} onOpen={setSelectedWeather} />
                         {editable ? renderCreateButton ? renderCreateButton(dateKey) : <button type="button" className="tablet-calendar-day-add" onClick={() => onCreateEvent?.(dateKey)} aria-label={`Add event on ${format(day, "d MMMM yyyy")}`} title="Add event"><Plus size={11} /></button> : null}
@@ -626,13 +629,13 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                           ))}
                         </div>
                         {hiddenItems.length ? <small className="tablet-calendar-overflow" title={hiddenItems.join(" · ")}>+{hiddenItems.length} more</small> : null}
-                      </div>
+                      </CalendarDropDay>
                     );
                   })}
                 </div>
                 {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange currentTime={currentTime} editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} weekDays={week.dayKeys} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
               </section>
             );
           })}

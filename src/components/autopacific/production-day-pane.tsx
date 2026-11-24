@@ -8,6 +8,7 @@ import type { AgendaSource } from "@/lib/production-agenda";
 import { productionSelectedDay, type ProductionScheduleData } from "@/lib/production-selected-day";
 import styles from "./production-hybrid.module.css";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
+import { CalendarDragButton } from "@/components/shared/calendar-event-drag";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 
 
@@ -40,8 +41,8 @@ export function ProductionDayPane({ data, date, today, currentTime = "00:00", on
       </div>
     </header>
     <div className={styles.agenda} key={date}>
-      {agenda.allDay.length ? <section aria-label="Selected day all-day items"><h3><CalendarDays size={13} />All day & deadlines</h3>{agenda.allDay.map(item => <button type="button" key={item.id} className={styles.card} {...calendarTeamAttributes(item.source, calendarMembers)} data-tone={tone(item.source, today, currentTime)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => open(item.source)}><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : null}</button>)}</section> : null}
-      <section aria-label="Selected day timed bookings"><h3><Clock3 size={13} />Booked times <span>Brisbane</span></h3>{agenda.timed.map(item => <button type="button" key={item.id} className={styles.card} {...calendarTeamAttributes(item.source, calendarMembers)} data-tone={tone(item.source, today, currentTime)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => open(item.source)}><time>{item.time}</time><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : null}</button>)}{!agenda.timed.length ? <p className={styles.empty}>{agenda.allDay.length ? "No timed bookings for this day." : "A clear day. Select another date to see its schedule."}</p> : null}</section>
+      {agenda.allDay.length ? <section aria-label="Selected day all-day items"><h3><CalendarDays size={13} />All day & deadlines</h3>{agenda.allDay.map(item => <CalendarDragButton type="button" key={item.id} source={item.source} dragDay={date} dragId={`hybrid-all-day:${item.id}`} className={styles.card} {...calendarTeamAttributes(item.source, calendarMembers)} data-tone={tone(item.source, today, currentTime)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => open(item.source)}><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : null}</CalendarDragButton>)}</section> : null}
+      <section aria-label="Selected day timed bookings"><h3><Clock3 size={13} />Booked times <span>Brisbane</span></h3>{agenda.timed.map(item => <CalendarDragButton type="button" key={item.id} source={item.source} dragDay={date} dragId={`hybrid-timed:${item.id}`} className={styles.card} {...calendarTeamAttributes(item.source, calendarMembers)} data-tone={tone(item.source, today, currentTime)} data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined} onClick={() => open(item.source)}><time>{item.time}</time><strong>{item.title}</strong><CalendarTeamMarker record={item.source} /><small>{item.detail}</small>{isOutlookEvent(item.source) ? <OutlookEventMark /> : null}</CalendarDragButton>)}{!agenda.timed.length ? <p className={styles.empty}>{agenda.allDay.length ? "No timed bookings for this day." : "A clear day. Select another date to see its schedule."}</p> : null}</section>
     </div>
   </aside>;
 }
