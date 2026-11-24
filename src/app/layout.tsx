@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description:
     "A Brisbane creative growth partner combining strategy, video, photography and campaigns to build attention, trust and momentum.",
   alternates: { canonical: "/" },
+  // Opt into the legacy icon on pages that inherit the site branding. Keeping
+  // it outside app/ lets independently branded pages replace it completely.
+  icons: { icon: [{ url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" }, { url: "/icon.svg", type: "image/svg+xml" }] },
   keywords: [
     "Brisbane videographer",
     "Brisbane content creation",
