@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { JobProgressSharing } from "./job-progress-actions";
 
-it("shows the PIN only from the private endpoint, copies only the link, and dismisses the PIN toast", async () => {
+it.each([true, false])("copies only the link and preserves the PIN (branded host enabled: %s)", async branded => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const container = document.createElement("div");
   document.body.append(container);
@@ -17,6 +17,7 @@ it("shows the PIN only from the private endpoint, copies only the link, and dism
     .mockResolvedValueOnce(Response.json({ pin: "036001", enabled: false }))
     .mockResolvedValueOnce(Response.json({ pin: "036001", enabled: true, token: "share-token" }));
   vi.stubGlobal("fetch", fetcher);
+  vi.stubEnv("NEXT_PUBLIC_JOB_PROGRESS_VERCEL_LINKS", branded ? "1" : "");
   vi.useFakeTimers();
   try {
     await act(async () => root.render(<JobProgressSharing jobId="job-one" title="Product launch" />));
@@ -24,7 +25,8 @@ it("shows the PIN only from the private endpoint, copies only the link, and dism
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0][1].method).toBeUndefined();
     await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Copy progress link for Product launch"]')!.click());
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/job-progress#share-token`);
+    const outboundOrigin = branded ? "https://autopac-progress.vercel.app" : window.location.origin;
+    expect(writeText).toHaveBeenCalledWith(`${outboundOrigin}/job-progress#share-token`);
     expect(document.querySelector(".job-progress-notice")?.textContent).toContain("036001");
     expect(container.textContent).toContain("Link active");
     await act(async () => vi.advanceTimersByTime(6500));
@@ -36,5 +38,6 @@ it("shows the PIN only from the private endpoint, copies only the link, and dism
     else Reflect.deleteProperty(navigator, "clipboard");
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   }
 });

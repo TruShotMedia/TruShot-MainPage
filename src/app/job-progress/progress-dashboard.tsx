@@ -101,7 +101,7 @@ export function JobProgressDashboard() {
   }
   return <main className="jp-page">
     <div className="jp-shell">
-      <header className="jp-top"><Image className="jp-brand" src={jobProgressBrand.logo} width={192} height={33} alt={jobProgressBrand.name} /><span><LockKeyhole size={14} /> Private progress</span></header>
+      <header className="jp-top"><Image className="jp-brand" src={jobProgressBrand.logo} width={192} height={33} alt={jobProgressBrand.name} unoptimized /><span><LockKeyhole size={14} /> Private progress</span></header>
       {snapshot ? <ProgressReport snapshot={snapshot} onLock={lock} /> :
         <section className="jp-gate">
           <div className="jp-gate-icon"><LockKeyhole size={26} /></div>

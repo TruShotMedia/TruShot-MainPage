@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Download, LockKeyhole, Mail, X } from "lucide-react";
 import type { JobProgressAccess, SharedJobProgress } from "@/lib/job-progress-share";
+import { jobProgressShareUrl } from "@/lib/job-progress-host";
 import "./job-progress-actions.css";
 
 type ActiveShare = JobProgressAccess & { token: string };
@@ -37,7 +38,7 @@ export function JobProgressActions({ jobId, title, compact = false, disabled = f
   async function copyLink() {
     setBusy("link");
     const share = sharingRequest<ActiveShare>(jobId, "share");
-    const link = share.then(result => `${window.location.origin}/job-progress#${result.token}`);
+    const link = share.then(result => jobProgressShareUrl(result.token, window.location.origin));
     // Safari needs clipboard access inside the click gesture. Supply a
     // promised blob so the PIN and URL still come from the authenticated API.
     let clipboard: Promise<boolean>;
