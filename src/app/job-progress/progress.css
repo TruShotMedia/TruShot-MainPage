@@ -2,7 +2,7 @@
 .jp-shell{max-width:1090px;margin:auto}
 .jp-top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:80px}
 .jp-top span,.jp-stage-badge,.jp-gate small,.jp-footer span,.jp-footer button{display:inline-flex;gap:8px;align-items:center}
-.jp-top span:first-child{font-weight:800;letter-spacing:-.025em}.jp-top span:first-child svg{color:var(--jp-blue)}
+.jp-brand{width:clamp(134px,40vw,192px);height:auto;min-width:0;object-fit:contain}
 .jp-top span:last-child,.jp-footer{font-size:.85rem;color:var(--jp-muted)}
 .jp-kicker{text-transform:uppercase;font-weight:800;letter-spacing:.13em;font-size:.78rem;color:#204bc4}
 .jp-gate,.jp-hero,.jp-panel{background:#fff;border:1px solid var(--jp-line);border-radius:24px;box-shadow:0 9px 33px #143b9010}

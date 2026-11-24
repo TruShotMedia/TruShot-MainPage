@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Activity, ArrowRight, Check, Circle, LockKeyhole, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { jobProgressBrand } from "@/lib/job-progress-brand";
 import { jobWorkflow, type SharedJobProgress } from "@/lib/job-progress-share";
 
 export function ProgressReport({ snapshot, onLock }: { snapshot: SharedJobProgress; onLock: () => void }) {
@@ -99,7 +101,7 @@ export function JobProgressDashboard() {
   }
   return <main className="jp-page">
     <div className="jp-shell">
-      <header className="jp-top"><span><Activity size={21} /> TruShot Media</span><span><LockKeyhole size={14} /> Private progress</span></header>
+      <header className="jp-top"><Image className="jp-brand" src={jobProgressBrand.logo} width={192} height={33} alt={jobProgressBrand.name} /><span><LockKeyhole size={14} /> Private progress</span></header>
       {snapshot ? <ProgressReport snapshot={snapshot} onLock={lock} /> :
         <section className="jp-gate">
           <div className="jp-gate-icon"><LockKeyhole size={26} /></div>

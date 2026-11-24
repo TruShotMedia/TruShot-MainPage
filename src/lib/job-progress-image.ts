@@ -1,4 +1,5 @@
 import { jobWorkflow, type SharedJobProgress } from "./job-progress-share";
+import { jobProgressBrand } from "./job-progress-brand";
 
 const ink = "#172956", muted = "#495b83", blue = "#2459ed", border = "#dce6ff";
 const width = 1200;
@@ -58,7 +59,12 @@ export async function createJobProgressPng(data: SharedJobProgress): Promise<Blo
   const paper = ctx.createLinearGradient(0, 0, width, height);
   paper.addColorStop(0, "#e7f0ff"); paper.addColorStop(1, "#f8faff");
   box(0, 0, width, height, 0, paper);
-  text("TRUSHOT  /  PROJECT PROGRESS", 48, 58, 18, blue, 750);
+  try {
+    const logo = new Image();
+    logo.src = jobProgressBrand.logo;
+    await logo.decode();
+    ctx.drawImage(logo, 48, 27, 246, 42.64);
+  } catch { text(jobProgressBrand.name, 48, 58, 20, blue, 800); }
   text("EMAIL SNAPSHOT", 1152, 58, 16, muted, 700, "right");
   box(48, 88, 1104, 303, 26, "#fff", border);
   text("JOB PROGRESS", 79, 148, 17, blue, 750);
