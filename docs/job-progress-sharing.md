@@ -1,0 +1,9 @@
+# Job progress sharing
+
+The mail button on a job copies a link and briefly displays its six-digit PIN. Send the PIN separately if practical. Copying the link enables access; opening a job or downloading the PNG does not. The viewer/editor can revoke a share, which replaces both the PIN and the link. An unlocked dashboard is a read-only view; reload and enter the PIN to see the latest data. A downloaded PNG stays as it was when downloaded and cannot be revoked.
+
+The public snapshot includes the job title and stage, overall workflow score, and linked task/deliverable names and stages. Do not share jobs whose titles or task names are confidential. The view excludes internal notes, briefs, attachments, contacts, schedules, costs and CRM links. The image contains the same summary and all stage totals, with a capped list of names for email-friendly size.
+
+Production team members and CRM admins can manage links for jobs they can access under their own RLS-bound session. Marketing-only accounts cannot issue external links or download share snapshots. PINs are service-only, not returned in job records, offline caches or ClickUp payloads. The link token travels in the browser URL fragment and is sent with the PIN only in a same-origin POST body; the dashboard has no telemetry, referrer or indexing. No session cookie is required and no unlocked data is cached by the app. Rate limiting is serialized in Postgres per link (five failed attempts in a fifteen-minute window). The generic link prompt exposes no job information.
+
+The additive migration assigns a unique PIN to existing and newly inserted jobs without changing the jobs or enabling links. Archive retires an active token and unarchive does not restore it. Rollback the application deployment if needed; leave the isolated table in place unless credential removal is explicitly requested. The SQL verification fixture is for isolated Postgres, not for inserting test jobs in production.

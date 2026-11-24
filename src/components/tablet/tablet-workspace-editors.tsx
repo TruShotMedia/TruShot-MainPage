@@ -15,6 +15,7 @@ import { JobBriefFields } from "@/components/autopacific/job-brief-fields";
 import { JobLocationField } from "@/components/autopacific/job-location-field";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { JobBriefHistory } from "@/components/autopacific/job-brief-history";
+import { JobProgressSharing } from "@/components/autopacific/job-progress-actions";
 import { getJobDeliverables, getJobDeliverableRows } from "@/lib/job-deliverable-model";
 import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
 import { briefSectionLabels } from "@/lib/job-brief";
@@ -155,7 +156,7 @@ export function JobBriefReadout({job}:{job:TabletJobRecord}) {
   </div>;
 }
 
-export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allowDeliverableTasks = false, onEdit }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean; allowDeliverableTasks?: boolean; onEdit?: () => void }) {
+export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allowDeliverableTasks = false, sharing = false, isOffline = false, onEdit }: { job: TabletJobRecord; onClose: () => void; isAutopacific?: boolean; allowDeliverableTasks?: boolean; sharing?: boolean; isOffline?: boolean; onEdit?: () => void }) {
   const deliverables = getJobDeliverableRows(job);
   return (
       <WorkspaceDialog className="tablet-job-detail-sheet" titleId="tablet-job-detail-title" onClose={onClose} header={<>
@@ -171,6 +172,7 @@ export function TabletJobDetailSheet({ job, onClose, isAutopacific = false, allo
         </>}>
 
         <DelayHistoryBanner delayInfo={job.delay_info} />
+        {sharing ? <JobProgressSharing jobId={job.id} title={job.title} disabled={isOffline} /> : null}
 
         {jobFollowsLinkedTasks(job) ? <p>Status follows linked tasks. Update the tasks to move this job forward.</p> : null}
 
@@ -348,6 +350,8 @@ export function TabletRecordCreateEditor({ clientOptions, defaultDate, fixedClie
 type EditEditorProps = {
   fixedClientId?: string;
   allowDeliverableTasks?: boolean;
+  sharing?: boolean;
+  isOffline?: boolean;
   clientOptions: SelectOption[];
   jobOptions: JobSearchOption[];
   jobStatuses: JobStatus[];
@@ -358,7 +362,7 @@ type EditEditorProps = {
   type: "job" | "task";
 };
 
-export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOptions, fixedClientId, jobOptions, jobStatuses, onClose, onSaved, record, taskStatuses, type }: EditEditorProps) {
+export function TabletRecordEditEditor({ allowDeliverableTasks = false, sharing = false, isOffline = false, clientOptions, fixedClientId, jobOptions, jobStatuses, onClose, onSaved, record, taskStatuses, type }: EditEditorProps) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const isJob = type === "job";
@@ -423,6 +427,7 @@ export function TabletRecordEditEditor({ allowDeliverableTasks = false, clientOp
         <div className="tablet-record-editor-layout">
           <section className="tablet-record-editor-details">
             <DelayHistoryBanner delayInfo={record.delay_info} />
+            {job && sharing ? <JobProgressSharing jobId={job.id} title={job.title} disabled={isOffline} /> : null}
 
             {job ? (
               <div className="tablet-record-editor-fields">

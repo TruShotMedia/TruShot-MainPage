@@ -70,11 +70,13 @@
   .apg-desktop .tablet-job-card-schedule { gap: 5px; font-size: 11px; }
   .apg-desktop .tablet-job-card-operational summary { min-height: 32px; align-items: center; font-size: 12px; }
   .apg-desktop .task-meta { font-size: 11px; }
-  .apg-job-list > button { grid-template-columns: minmax(0,1fr) 18px; padding: 16px; gap: 12px; border-radius: 14px; }
-  .apg-job-list > button > div { grid-column: 1; }
-  .apg-job-list > button > .apg-stage-label { grid-column: 1; grid-row: 2; justify-self: start; }
-  .apg-job-list > button > span:not(.apg-stage-label) { grid-column: 1; font-size: 12px; color: var(--workspace-muted); }
-  .apg-job-list > button > svg { grid-column: 2; grid-row: 1/4; }
+  .apg-job-list-row { grid-template-columns: minmax(0,1fr); gap: 0; border-radius: 14px; }
+  .apg-job-list-row > .job-progress-actions { margin: 0 16px 10px; }
+  .apg-job-list-row > button { grid-template-columns: minmax(0,1fr) 18px; padding: 16px; gap: 12px; border-radius: 14px; }
+  .apg-job-list-row > button > div { grid-column: 1; overflow-wrap: anywhere; }
+  .apg-job-list-row > button > .apg-stage-label { grid-column: 1; grid-row: 2; justify-self: start; }
+  .apg-job-list-row > button > span:not(.apg-stage-label) { grid-column: 1; font-size: 12px; color: var(--workspace-muted); }
+  .apg-job-list-row > button > svg { grid-column: 2; grid-row: 1/4; }
   .apg-task-list-primary { padding: 16px; flex-wrap: wrap; gap: 12px; }
   .apg-task-list-copy { flex-basis: calc(100% - 84px); }
   .apg-task-list-primary > .apg-stage-label { margin-left: 54px; }

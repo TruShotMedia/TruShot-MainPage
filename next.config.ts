@@ -51,6 +51,14 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/job-progress",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
     ];
   },
 };

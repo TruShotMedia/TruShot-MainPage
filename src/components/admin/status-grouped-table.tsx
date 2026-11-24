@@ -12,6 +12,7 @@ import { InvoiceSearchPicker, JobInvoiceRelationsField } from "@/components/admi
 import { JobExportDialog } from "@/components/admin/job-export-dialog";
 import { JobSearchField } from "@/components/admin/job-search-field";
 import { SubmitButton } from "@/components/admin/submit-button";
+import { JobProgressActions, JobProgressSharing } from "@/components/autopacific/job-progress-actions";
 import { defaultCompletedDateRange, isDateInCompletedRange } from "@/lib/completed-date-filter";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { changeWorkflowStatus, getGroupSelectionState, sortWorkflowStatuses } from "@/lib/status-workflow";
@@ -127,6 +128,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
         >
           <input type="hidden" name="id" value={job.id} />
           <DelayHistoryBanner delayInfo={job.delay_info} />
+          <JobProgressSharing jobId={job.id} title={job.title} />
           <label>Job title<input name="title" required defaultValue={job.title} /></label>
           <label>Job number<input name="job_number" defaultValue={job.job_number ?? ""} /></label>
           <label>Client<select name="client_id" defaultValue={job.client_id ?? ""}><option value="">No client</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
@@ -145,6 +147,7 @@ function JobCells({ job, clients, statuses, invoices }: { job: JobRecord; client
         </ActionPopover>
         {job.status?.is_closed ? null : <DelayRecordAction kind="job" recordId={job.id} recordTitle={job.title} scheduledDate={job.shoot_date ?? job.due_date} />}
         <DuplicateRowAction id={job.id} kind="jobs" />
+        <JobProgressActions jobId={job.id} title={job.title} compact />
         </div>
       </td>
     </>

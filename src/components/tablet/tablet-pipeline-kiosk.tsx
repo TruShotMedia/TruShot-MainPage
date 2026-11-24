@@ -850,6 +850,7 @@ export function TabletPipelineKiosk({
               visibleStatusKeys={isMarketing ? showPlanning ? ["planning"] : liveJobStatuses.filter((status) => status.key !== "planning").map((status) => status.key) : undefined}
               enableCompletion={!showPlanning}
               editable={isEditing}
+              sharing={!isMarketing}
               key={jobPipelineVersion}
               initialJobs={liveJobs}
               isOffline={!isOnline}
@@ -1035,9 +1036,9 @@ export function TabletPipelineKiosk({
         ) : null}
 
         {createRequest ? <TabletRecordCreateEditor initialStatusId={isMarketing ? liveJobStatuses.find((status) => status.key === (showPlanning || !createRequest.date ? "planning" : "scheduled"))?.id : undefined} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} defaultDate={createRequest.date} jobOptions={jobOptions} jobStatuses={liveJobStatuses} kind={createRequest.kind} onClose={() => setCreateRequest(null)} onCreated={handleMutationSaved} sourceRecord={createRequest.sourceRecord} taskStatuses={liveTaskStatuses} /> : null}
-        {viewingJob ? <TabletJobDetailSheet allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} isAutopacific={branding.theme === "autopacific"} job={liveJobs.find((job) => job.id === viewingJob.id) ?? viewingJob} onClose={() => setViewingJob(null)} /> : null}
+        {viewingJob ? <TabletJobDetailSheet allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} isAutopacific={branding.theme === "autopacific"} sharing={!isMarketing} isOffline={!isOnline} job={liveJobs.find((job) => job.id === viewingJob.id) ?? viewingJob} onClose={() => setViewingJob(null)} /> : null}
         {viewingTask ? <TabletTaskDetailSheet task={viewingTask} onClose={() => setViewingTask(null)} /> : null}
-        {selectedJob ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
+        {selectedJob ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} sharing={!isMarketing} isOffline={!isOnline} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedJob(null)} onSaved={handleMutationSaved} record={selectedJob} taskStatuses={liveTaskStatuses} type="job" /> : null}
         {selectedTask ? <TabletRecordEditEditor allowDeliverableTasks={branding.theme === "autopacific" && !isMarketing} fixedClientId={branding.theme === "autopacific" ? calendarEventClientId ?? undefined : undefined} clientOptions={clientOptions} jobOptions={jobOptions} jobStatuses={liveJobStatuses} onClose={() => setSelectedTask(null)} onSaved={handleMutationSaved} record={selectedTask} taskStatuses={liveTaskStatuses} type="task" /> : null}
         {selectedScheduleItem ? <TabletScheduleEditor item={selectedScheduleItem} onClose={() => setSelectedScheduleItem(null)} onSaved={handleMutationSaved} /> : null}
         {eventEditorDate ? <CalendarEventEditor defaultClientId={calendarEventClientId} key={selectedCalendarEvent?.id ?? `tablet-new-${eventEditorDate}`} event={selectedCalendarEvent} defaultDate={eventEditorDate} onClose={closeEventEditor} onDeleted={handleMutationSaved} onSaved={handleMutationSaved} /> : null}

@@ -1,0 +1,22 @@
+.job-progress-actions,.job-progress-revoke{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.job-progress-actions.is-compact{flex-wrap:nowrap}
+.job-progress-actions .job-progress-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:4px 10px;border:1px solid var(--workspace-line,#d9e4f0);border-radius:9px;background:var(--workspace-surface,#fff);color:var(--workspace-text,#172c49);font-size:.81rem;font-weight:650;white-space:nowrap}
+.job-progress-actions.is-compact .job-progress-action{width:34px;min-width:34px;min-height:34px;padding:0;color:var(--workspace-accent,#2459d3)}
+.job-progress-actions .job-progress-action:hover:not(:disabled){background:var(--workspace-accent-soft,#e9f1ff);border-color:var(--workspace-accent,#2459d3)}
+.job-progress-actions .job-progress-action:disabled{opacity:.55}
+.job-progress-download-icon{position:relative;display:inline-flex}.job-progress-download-icon svg+svg{position:absolute;right:-4px;bottom:-3px;background:var(--workspace-surface,#fff);box-shadow:0 0 0 1px var(--workspace-surface,#fff);border-radius:2px}
+.job-progress-sharing{display:grid;gap:9px;margin-block:8px 12px;padding:13px 14px;border:1px solid var(--workspace-line,#d9e4f0);border-radius:12px;color:var(--workspace-text,#172c49);background:var(--workspace-panel,#f4f8ff)}
+.job-progress-sharing-heading{display:flex;align-items:center;gap:9px}.job-progress-sharing-heading>svg{flex:none;color:var(--workspace-accent,#2459d3)}
+.job-progress-sharing-heading>div:first-of-type{display:grid;gap:3px}
+.job-progress-sharing p,.job-progress-sharing small{color:var(--workspace-muted,#4b6078);font-size:.8rem;margin:0}
+.job-progress-pin{display:grid;text-align:right;margin-left:auto;gap:2px}
+.job-progress-pin span{font-size:.69rem;font-weight:750;text-transform:uppercase;color:var(--workspace-muted,#4b6078);letter-spacing:.06em;white-space:nowrap}
+.job-progress-pin code,.job-progress-notice code{font-size:1.1rem;font-weight:800;letter-spacing:.16em;font-variant-numeric:tabular-nums}
+.job-progress-revoke{font-size:.8rem}.job-progress-revoke button{color:var(--workspace-text,#273958);text-decoration:underline;background:none;border:0;padding:5px 0}
+.job-progress-notice{position:fixed;z-index:10000;top:max(15px,env(safe-area-inset-top));right:max(15px,env(safe-area-inset-right));width:min(365px,calc(100vw - 30px));display:flex;align-items:flex-start;justify-content:space-between;gap:8px;border:1px solid #ccd9ee;border-radius:16px;padding:13px;color:#18284b;background:#f8fbff;box-shadow:0 12px 40px #0d255638;animation:job-progress-notice-in .19s ease-out}
+.job-progress-notice-body{display:flex;gap:10px;min-width:0}.job-progress-notice-body>svg{color:#2856cf;flex:none;margin-top:1px}.job-progress-notice-body>div{min-width:0}
+.job-progress-notice p{margin:4px 0 0;font-size:.82rem;color:#44567a}.job-progress-notice strong{font-size:.91rem}.job-progress-notice code{margin-left:4px;color:#214dbb}.job-progress-notice input{max-width:100%;min-height:36px;margin-top:8px}
+.job-progress-notice>button{border:0;background:none;color:#32456a;padding:3px;flex:none}
+@keyframes job-progress-notice-in{from{opacity:0;transform:translate(10px,-3px)}}
+@media(prefers-reduced-motion:reduce){.job-progress-notice{animation:none}}
+@media(max-width:720px){.job-progress-actions.is-compact .job-progress-action{width:44px;min-width:44px;min-height:44px}}

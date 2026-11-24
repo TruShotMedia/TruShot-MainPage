@@ -84,6 +84,7 @@ import { normalizeProductionSpace, scopeProductionSpace, type ProductionSpace } 
 import { TeamManagement, TeamNotifications } from "./team-workspace";
 import { loadNotificationRecord } from "@/lib/load-notification-record";
 import { assignTeamCalendarColors } from "@/lib/team-calendar-colors";
+import { JobProgressActions, JobProgressSharing } from "./job-progress-actions";
 
 const CalendarEventEditor = dynamic(() =>
   import("@/components/admin/calendar-event-editor").then(
@@ -107,6 +108,8 @@ const emptyAliases = { ready_to_post: "final_draft_notes" };
 function JobBriefPanel({
   job,
   marketing,
+  sharing,
+  online,
   onClose,
   onEdit,
   onSchedule,
@@ -114,6 +117,8 @@ function JobBriefPanel({
 }: {
   job: TabletJobRecord;
   marketing: boolean;
+  sharing: boolean;
+  online: boolean;
   onClose: () => void;
   onEdit: () => void;
   onSchedule: () => void;
@@ -155,6 +160,7 @@ function JobBriefPanel({
       }
     >
       <DelayHistoryBanner delayInfo={job.delay_info} />
+      {sharing ? <JobProgressSharing jobId={job.id} title={job.title} disabled={!online} /> : null}
       {jobFollowsLinkedTasks(job) ? <p className="apg-notice">Status follows linked tasks. The least-advanced task determines this job’s stage.</p> : null}
       <dl className="desktop-brief-facts">
         <div>
@@ -350,6 +356,7 @@ export function ProductionDesktop({
   const marketing = mode === "marketing",
     router = useRouter();
   const team = useProductionTeam();
+  const canShareProgress = Boolean(team && team.role !== "marketing");
   const calendarMembers = useMemo(() => assignTeamCalendarColors(team?.members ?? []), [team?.members]);
   const userId = team?.userId;
   const [space, setSpace] = useState<ProductionSpace>(() => initialSpace ?? normalizeProductionSpace(null, marketing));
@@ -858,9 +865,9 @@ export function ProductionDesktop({
               <div className="apg-job-list">
                 {jobs.length ? (
                   jobs.map((job) => (
+                    <article key={job.id} className="apg-job-list-row">
                     <button
                       type="button"
-                      key={job.id}
                       onClick={() => setViewing({ kind: "job", record: job })}
                     >
                       <div>
@@ -882,6 +889,8 @@ export function ProductionDesktop({
                       </span>
                       <ChevronRight size={16} />
                     </button>
+                    {canShareProgress ? <JobProgressActions jobId={job.id} title={job.title} compact disabled={!field.online} /> : null}
+                    </article>
                   ))
                 ) : (
                   <p className="apg-empty">No jobs in this view.</p>
@@ -904,6 +913,7 @@ export function ProductionDesktop({
                 enableCompletion={jobView === "active"}
                 editable
                 isOffline={!field.online}
+                sharing={canShareProgress}
                 onQueueMove={mutation => field.queueMove("job", mutation)}
                 onJobsChange={changed => { if (!field.online) setSnapshot(current => ({ source: data, data: { ...(current.source === data ? current.data : data), pipelineJobs: mergeProductionRecords((current.source === data ? current.data : data).pipelineJobs, changed) } })); }}
                 onViewJob={(job) => setViewing({ kind: "job", record: job })}
@@ -1016,6 +1026,8 @@ export function ProductionDesktop({
           key={openedJob.id}
           job={openedJob}
           marketing={reviewOnly}
+          sharing={canShareProgress}
+          online={field.online}
           onClose={() => setViewing(null)}
           onEdit={() => {
             setEditing({ kind: "job", record: openedJob });
@@ -1044,6 +1056,8 @@ export function ProductionDesktop({
           record={editing.record}
           type={editing.kind}
           allowDeliverableTasks={!reviewOnly}
+          sharing={canShareProgress}
+          isOffline={!field.online}
           fixedClientId={live.clientOptions[0]?.id}
           clientOptions={live.clientOptions}
           jobOptions={live.jobOptions}

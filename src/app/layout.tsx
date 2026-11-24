@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { SiteTelemetry } from "@/components/shared/site-telemetry";
 import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 import "./workspace.css";
@@ -58,8 +57,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en-AU">
       <body>
         {children}
-        <Analytics />
-        <SpeedInsights />
+        <SiteTelemetry />
       </body>
     </html>
   );

@@ -11,6 +11,7 @@ import type { JobStatus, TabletJobRecord } from "@/lib/types";
 import { TeamAvatars, useProductionTeam } from "@/components/autopacific/team-context";
 import { jobProgress } from "@/lib/production-team";
 import { jobFollowsLinkedTasks } from "@/lib/job-status-rollup";
+import { JobProgressActions } from "@/components/autopacific/job-progress-actions";
 
 function sortJobs(jobs: TabletJobRecord[]) {
   return [...jobs].sort((left, right) => {
@@ -42,7 +43,7 @@ function DelayedJobMarker({ job }: { job: TabletJobRecord }) {
   return <span className="tablet-delay-indicator" title={`Rescheduled because: ${job.delay_info.delayed_from.reason}`}><RotateCcw size={11} /> Rescheduled</span>;
 }
 
-function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, dragDisabled, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; job: TabletJobRecord; statuses: JobStatus[]; isSaving: boolean; dragDisabled: boolean; onComplete: () => void; onSchedule: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
+function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, dragDisabled, sharing, isOffline, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; job: TabletJobRecord; statuses: JobStatus[]; isSaving: boolean; dragDisabled: boolean; sharing: boolean; isOffline: boolean; onComplete: () => void; onSchedule: () => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const team = useProductionTeam();
   const progress = jobProgress(job, statuses);
   const automaticStatus = jobFollowsLinkedTasks(job);
@@ -72,6 +73,7 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
       {automaticStatus ? <small className="tablet-job-status-follow" title="The least-advanced active task sets this job’s stage.">Status follows linked tasks</small> : null}
       {team ? <div className="team-job-meta"><span className={`team-priority is-${job.priority ?? "normal"}`}><i />{job.priority ?? "normal"} priority</span><TeamAvatars ids={job.assignee_ids} /></div> : null}
       {team ? <div className="team-job-progress"><span>{progressLabel}<b>{progress.percent}%</b></span><progress max="100" value={progress.percent} aria-label={`Job progress for ${job.title}`} aria-valuetext={`${progress.percent}% · ${progressLabel}`} title={progress.total ? "Workflow progress averages each task’s stage. Only finished tasks count as complete." : "Workflow progress based on the job’s current status."} /></div> : null}
+      {sharing ? <JobProgressActions jobId={job.id} title={job.title} compact disabled={isOffline || isSaving} /> : null}
       <details className="tablet-job-card-operational">
         <summary><span>Operational detail</span><ChevronDown size={14} /></summary>
         <div>
@@ -88,26 +90,27 @@ function JobCard({ canComplete, canSchedule, editable, job, statuses, isSaving, 
   );
 }
 
-function JobColumn({ canComplete, canSchedule, editable, status, statuses, jobs, savingId, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; status: JobStatus; statuses: JobStatus[]; jobs: TabletJobRecord[]; savingId: string | null; onComplete: (job: TabletJobRecord) => void; onSchedule: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
+function JobColumn({ canComplete, canSchedule, editable, status, statuses, jobs, savingId, sharing, isOffline, onComplete, onSchedule, onDuplicate, onEdit, onView }: { canComplete: boolean; canSchedule: boolean; editable: boolean; status: JobStatus; statuses: JobStatus[]; jobs: TabletJobRecord[]; savingId: string | null; sharing: boolean; isOffline: boolean; onComplete: (job: TabletJobRecord) => void; onSchedule: (job: TabletJobRecord) => void; onDuplicate: (job: TabletJobRecord) => void; onEdit: (job: TabletJobRecord) => void; onView: (job: TabletJobRecord) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `job-status-${status.id}` });
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-tablet tablet-job-column ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{jobs.length}</b>{isOver ? <em className="pipeline-drop-hint">Drop here</em> : null}</header>
       <div className="pipeline-stack">
-        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete && !jobFollowsLinkedTasks(job)} canSchedule={canSchedule} editable={editable} job={job} statuses={statuses} isSaving={savingId === job.id} dragDisabled={Boolean(savingId) || jobFollowsLinkedTasks(job)} onComplete={() => onComplete(job)} onSchedule={() => onSchedule(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
+        {jobs.map((job) => <JobCard key={job.id} canComplete={canComplete && !jobFollowsLinkedTasks(job)} canSchedule={canSchedule} editable={editable} job={job} statuses={statuses} isSaving={savingId === job.id} dragDisabled={Boolean(savingId) || jobFollowsLinkedTasks(job)} sharing={sharing} isOffline={isOffline} onComplete={() => onComplete(job)} onSchedule={() => onSchedule(job)} onDuplicate={onDuplicate} onEdit={onEdit} onView={onView} />)}
         {!jobs.length ? <div className="pipeline-empty">Drop a job here</div> : null}
       </div>
     </section>
   );
 }
 
-export function TabletJobPipeline({ editable = true, initialJobs, statuses, visibleStatusKeys, enableCompletion = true, isOffline = false, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onQueueMove, onViewJob }: {
+export function TabletJobPipeline({ editable = true, initialJobs, statuses, visibleStatusKeys, enableCompletion = true, isOffline = false, sharing = false, onDuplicateJob, onEditJob, onJobsChange, onMoveSaved, onQueueMove, onViewJob }: {
   editable?: boolean;
   initialJobs: TabletJobRecord[];
   statuses: JobStatus[];
   visibleStatusKeys?: string[];
   enableCompletion?: boolean;
   isOffline?: boolean;
+  sharing?: boolean;
   onDuplicateJob: (job: TabletJobRecord) => void;
   onEditJob: (job: TabletJobRecord) => void;
   onJobsChange?: (jobs: TabletJobRecord[]) => void;
@@ -216,7 +219,7 @@ export function TabletJobPipeline({ editable = true, initialJobs, statuses, visi
       {message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={sensors} collisionDetection={pipelineColumnCollision} onDragStart={({active}) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
         <div className="pipeline-board pipeline-board-tablet tablet-job-board" style={{ gridTemplateColumns: `repeat(${Math.max(1, orderedStatuses.length)}, minmax(0, 1fr))` }}>
-          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} canSchedule={editable && status.key === "planning" && Boolean(scheduledStatus)} editable={editable} status={status} statuses={statuses} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} onComplete={completeJob} onSchedule={scheduleJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} onView={onViewJob} />)}
+          {orderedStatuses.map((status) => <JobColumn key={status.id} canComplete={status.id === finalVisibleStatusId} canSchedule={editable && status.key === "planning" && Boolean(scheduledStatus)} editable={editable} status={status} statuses={statuses} jobs={jobsByStatus.get(status.id) ?? []} savingId={savingId} sharing={sharing} isOffline={isOffline} onComplete={completeJob} onSchedule={scheduleJob} onDuplicate={onDuplicateJob} onEdit={onEditJob} onView={onViewJob} />)}
         </div>
         <PipelineDragPreview title={jobs.find(job => job.id === activeId)?.title} />
       </DndContext>
