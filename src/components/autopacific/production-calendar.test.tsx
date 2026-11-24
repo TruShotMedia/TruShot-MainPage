@@ -72,11 +72,11 @@ it.each([true, false])("highlights the hovered Week date and only moves if relea
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
 });
 
-it("moves on a touch hold and drop onto the mobile date strip", async () => {
+it("moves on a touch hold and drop onto a mobile Week row", async () => {
   const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));
-  const booking = container.querySelector<HTMLElement>(".apg-mobile-timeline [data-calendar-movable]")!;
-  const days = [...container.querySelectorAll<HTMLElement>(".apg-mobile-date-strip button")];
+  const booking = container.querySelector<HTMLElement>(".mobile-calendar-overview [data-calendar-movable]")!;
+  const days = [...container.querySelectorAll<HTMLElement>(".mobile-calendar-overview-day")];
   const rect = (left: number, top: number, width: number, height: number) => ({
     x: left, y: top, left, right: left + width, top, bottom: top + height, width, height, toJSON: () => ({}),
   });
@@ -98,7 +98,7 @@ it("moves on a touch hold and drop onto the mobile date strip", async () => {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
   }
   expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({ id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from: "2026-11-10", to: "2026-11-13" });
-  expect(days[4].getAttribute("aria-pressed")).toBe("true");
+  expect(days[4].classList.contains("is-selected")).toBe(true);
 });
 
 it.each(["Fortnight", "Week", "Day", "Hybrid", "Mobile"])("keeps shared assignee colours and completed status in the Marketing Team %s view", async mode => {

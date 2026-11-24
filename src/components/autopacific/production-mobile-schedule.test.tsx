@@ -93,18 +93,19 @@ describe("mobile calendar and itinerary", () => {
   it("retains multi-day production windows but leaves AutoPacific weekends clear", async () => {
     const job: CalendarJob = { id: "shoot", entity_type: "job", title: "Multi-day project", client_name: "Autopacific Group", shoot_date: "2026-10-27", shoot_time: null, due_date: "2026-11-03", due_time: null, status_label: "Production", status_color: "#579", is_complete: false };
     await act(async () => root.render(<ProductionMobileSchedule data={{...data,calendarJobs:[job]}} today="2026-10-28" todayOnly={false} marketing={false} onOpen={() => {}} onCreate={() => {}} />));
-    expect(container.querySelector(".apg-mobile-all-day")?.textContent).toContain("Multi-day project");
+    expect(container.querySelector('[data-date="2026-10-28"]')?.textContent).toContain("Multi-day project");
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Saturday 31 October"]')!.click());
     expect(container.textContent).not.toContain("Multi-day project");
   });
-  it("starts with seven days and lists overlapping bookings without hiding either", async () => {
+  it("shows all seven days at once and lists overlapping bookings without hiding either", async () => {
     const open = vi.fn();
     await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly={false} marketing={false} onOpen={open} onCreate={() => {}} />));
-    expect(container.querySelectorAll(".apg-mobile-date-strip button")).toHaveLength(7);
-    expect(container.querySelector(".apg-mobile-timeline")?.textContent).toContain("Workshop capture");
-    expect(container.querySelector(".apg-mobile-timeline")?.textContent).toContain("Review call");
-    expect(container.querySelector(".apg-mobile-timeline")?.textContent).toContain("09:30");
-    await act(async () => [...container.querySelectorAll<HTMLButtonElement>(".apg-mobile-timeline button")].find(button => button.textContent?.includes("Review call"))!.click());
+    expect(container.querySelectorAll('[aria-label="Weekly calendar"] .mobile-calendar-overview-day')).toHaveLength(7);
+    const wednesday = container.querySelector('[data-date="2026-10-28"]')!;
+    expect(wednesday.textContent).toContain("Workshop capture");
+    expect(wednesday.textContent).toContain("Review call");
+    expect(wednesday.textContent).toContain("09:30");
+    await act(async () => [...wednesday.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.includes("Review call"))!.click());
     expect(open).toHaveBeenCalledWith(data.calendarEvents[1]);
   });
   it("shows a real two-week calendar and selects another day without shifting the fortnight", async () => {
@@ -137,4 +138,39 @@ describe("mobile calendar and itinerary", () => {
     expect(container.querySelector(".apg-mobile-date-strip button:last-child")?.getAttribute("aria-label")).toBe("Sunday 8 November");
     expect(container.querySelector('[aria-label^="Add event"]')).toBeNull();
   });
+});
+
+it("groups List bookings by day, includes weather and opens the selected Day view", async () => {
+  weather.mockReturnValue({ days: [{ date: "2026-10-28", condition: "sun", summary: "Clear skies", temperatureMin: 18, temperatureMax: 27, windMaxKmh: 15, location_key: "brisbane-city", captured_at: "", forecast_issued_at: "", capture_kind: "weekly", week_start: "2026-10-26" }], unavailable: false });
+  await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly={false} marketing={false} currentTime="09:45" onOpen={() => {}} />));
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "List")!.click());
+  const list = container.querySelector('[aria-label="Calendar list"]')!;
+  expect(list.querySelectorAll("[data-date]")).toHaveLength(14);
+  expect(list.querySelector('[data-date="2026-10-28"] header')?.textContent).toContain("27° 18°");
+  expect(list.querySelector('[data-date="2026-10-29"] header')?.textContent).toContain("Tomorrow");
+  await act(async () => list.querySelector<HTMLButtonElement>('button[aria-label="Wednesday 28 October"]')!.click());
+  const grid = container.querySelector('[aria-label="Hourly schedule"]')!;
+  expect(grid.querySelector(".mobile-calendar-current-time time")?.textContent).toBe("09:45");
+  const [first, second] = [...grid.querySelectorAll<HTMLElement>(".mobile-calendar-hour-block")];
+  expect(first.style.top).toBe("120px");
+  expect(second.style.top).toBe("150px");
+  expect(first.style.left).not.toBe(second.style.left);
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next schedule period"]')!.click());
+  expect(container.querySelector(".mobile-calendar-current-time")).toBeNull();
+});
+
+it("opens a full month, selects its day agenda and pages by calendar month", async () => {
+  await act(async () => root.render(<ProductionMobileSchedule data={data} today="2026-10-28" todayOnly={false} marketing onOpen={() => {}} />));
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Month")!.click());
+  const grid = container.querySelector('[aria-label="Month calendar"]')!;
+  expect(grid.querySelectorAll(".apg-fortnight-day")).toHaveLength(35);
+  expect(grid.querySelector('[data-date="2026-09-28"]')?.classList.contains("is-outside-month")).toBe(true);
+  expect(grid.querySelector('[data-date="2026-10-28"]')?.textContent).toContain("+1 more");
+  expect(container.querySelector(".apg-mobile-timeline")?.textContent).toContain("Review call");
+  await act(async () => grid.querySelector<HTMLButtonElement>('[data-date="2026-11-01"]')!.click());
+  expect(container.querySelector(".apg-mobile-agenda-heading h2")?.textContent).toBe("Sunday, 1 Nov");
+  expect(container.querySelector(".apg-mobile-period > strong")?.textContent).toBe("October 2026");
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Next schedule period"]')!.click());
+  expect(container.querySelector(".apg-mobile-period > strong")?.textContent).toBe("November 2026");
+  expect(grid.querySelectorAll(".apg-fortnight-day")).toHaveLength(42);
 });

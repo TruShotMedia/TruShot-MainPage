@@ -282,7 +282,7 @@ export function ProductionCalendar({
   const schedule = { ...data, calendarJobs: range };
   const productionTools = !marketing || personalTools;
   const moveEvent = !todayOnly && !readOnly ? onMoveEvent : undefined;
-  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent}
+  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent} currentTime={currentTime}
     renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} /></CalendarTeamColorsProvider>;
   return (
     <CalendarTeamColorsProvider value={calendarMembers}>

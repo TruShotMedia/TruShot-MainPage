@@ -1,5 +1,5 @@
 /* Identity is a separate key from status: overdue, completed and delayed tones survive. */
-.apg-desktop [data-team-calendar="true"]:not(.timetable-booking) { position:relative; }
+.apg-desktop [data-team-calendar="true"]:not(.timetable-booking,.mobile-calendar-hour-block) { position:relative; }
 .apg-desktop [data-team-calendar="true"]:not(:is(.is-complete,.is-overdue,.is-delayed,.is-delayed-source,.is-rescheduled,[data-tone="complete"],[data-tone="overdue"],[data-tone="delayed"])) {
   background:var(--team-calendar-fill)!important;
   border-left-color:var(--team-calendar-color)!important;

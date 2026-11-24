@@ -1,6 +1,8 @@
 import { format, isValid, parseISO } from "date-fns";
 
-export type CalendarViewMode = "fortnight" | "week" | "day" | "hybrid";
+export const desktopCalendarModes = ["fortnight", "week", "day", "hybrid"] as const;
+export const mobileCalendarModes = ["list", "day", "week", "fortnight", "month", "hybrid"] as const;
+export type CalendarViewMode = typeof mobileCalendarModes[number];
 export type CalendarViewMemory = { mode: CalendarViewMode; date: string; anchor: string };
 
 export function calendarViewStorageKey(workspace: "autopacific" | "marketing", userId: string, space: string, mobile: boolean) {
@@ -14,12 +16,12 @@ function validDate(value: unknown): value is string {
 }
 
 /** Store preferences only: never calendar records, Outlook details or tokens. */
-export function parseCalendarViewMemory(raw: string | null, today: string, defaultMode: CalendarViewMode): CalendarViewMemory {
+export function parseCalendarViewMemory(raw: string | null, today: string, defaultMode: CalendarViewMode, allowedModes: readonly CalendarViewMode[] = desktopCalendarModes): CalendarViewMemory {
   const fallback = { mode: defaultMode, date: today, anchor: today };
   if (!raw || raw.length > 512) return fallback;
   try {
     const saved = JSON.parse(raw);
-    if (!saved || saved.version !== 1 || !["fortnight", "week", "day", "hybrid"].includes(saved.mode)
+    if (!saved || saved.version !== 1 || !allowedModes.includes(saved.mode)
       || !validDate(saved.date) || !validDate(saved.anchor)) return fallback;
     // Remember the view across days, not a stale schedule. Undated legacy
     // preferences keep their mode but start at today on their first new visit.

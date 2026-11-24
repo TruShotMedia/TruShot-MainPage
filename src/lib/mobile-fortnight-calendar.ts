@@ -1,6 +1,6 @@
-import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges } from "./calendar-layout";
 import { buildFlightCalendarItineraries } from "./flight-itineraries";
+import { mobileCalendarDates } from "./mobile-calendar-period";
 import type { AgendaSource } from "./production-agenda";
 import type { ProductionScheduleData } from "./production-selected-day";
 
@@ -19,8 +19,13 @@ export function mobileScheduleTone(item: AgendaSource, today: string) {
 
 /** A bounded display projection of already-authorised records; no reads or writes. */
 export function buildMobileFortnight(anchor: string, data: ProductionScheduleData) {
-  const first = startOfWeek(parseISO(anchor), { weekStartsOn: 1 });
-  const dates = Array.from({ length: 14 }, (_, index) => format(addDays(first, index), "yyyy-MM-dd"));
+  return buildMobileCalendarGrid(anchor, data, "fortnight");
+}
+
+export function buildMobileCalendarGrid(anchor: string, data: ProductionScheduleData, mode: "fortnight" | "month") {
+  const dates = mobileCalendarDates(anchor, mode);
+  const rangeLimit = mode === "month" ? 1 : MOBILE_FORTNIGHT_RANGE_LIMIT;
+  const dayLimit = mode === "month" ? 1 : MOBILE_FORTNIGHT_DAY_LIMIT;
   const jobs = data.calendarJobs.filter(job => job.status_label.toLowerCase() !== "planning");
   const assets = data.calendarCampaignAssets ?? [];
   const candidates = [
@@ -28,7 +33,7 @@ export function buildMobileFortnight(anchor: string, data: ProductionScheduleDat
   ].filter(item => {
     const start = item.entity_type === "job" ? item.shoot_date : item.entity_type === "flight-event" ? item.departure_date : item.start_date;
     const end = item.entity_type === "calendar-event" ? item.end_date : item.entity_type === "flight-event" ? item.arrival_date : item.due_date;
-    return start && end && start <= dates[13] && end >= dates[0];
+    return start && end && start <= dates[dates.length - 1] && end >= dates[0];
   });
   const ranges = getCalendarScheduleRanges(candidates).map(range => ({ ...range, laneSpan: 1 }));
   const ranged = new Set(ranges.map(range => `${range.item.entity_type}:${range.item.id}`));
@@ -49,18 +54,18 @@ export function buildMobileFortnight(anchor: string, data: ProductionScheduleDat
   }
   for (const entries of byDate.values()) entries.sort((a, b) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   return buildCalendarRangeWeeks(dates, ranges).map(week => {
-    const visibleSegments = week.segments.filter(segment => segment.lane < MOBILE_FORTNIGHT_RANGE_LIMIT);
+    const visibleSegments = week.segments.filter(segment => segment.lane < rangeLimit);
     return {
       ...week,
       visibleSegments,
-      visibleLanes: Math.min(week.laneCount, MOBILE_FORTNIGHT_RANGE_LIMIT),
+      visibleLanes: Math.min(week.laneCount, rangeLimit),
       days: week.dayKeys.map((date, column) => {
         const spans = week.segments.filter(segment => segment.startColumn <= column && segment.startColumn + segment.span > column);
         const entries = byDate.get(date) ?? [];
-        const hiddenRanges = spans.filter(segment => segment.lane >= MOBILE_FORTNIGHT_RANGE_LIMIT).length;
-        return { date, entries: entries.slice(0, MOBILE_FORTNIGHT_DAY_LIMIT),
+        const hiddenRanges = spans.filter(segment => segment.lane >= rangeLimit).length;
+        return { date, entries: entries.slice(0, dayLimit),
           count: spans.length + entries.length,
-          hiddenCount: hiddenRanges + Math.max(0, entries.length - MOBILE_FORTNIGHT_DAY_LIMIT),
+          hiddenCount: hiddenRanges + Math.max(0, entries.length - dayLimit),
           summary: [...spans.map(segment => segment.item.title), ...entries.map(entry => `${entry.time || entry.label} ${entry.title}`)].join("; "),
         };
       }),

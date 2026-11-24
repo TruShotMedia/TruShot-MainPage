@@ -8,7 +8,7 @@ const serverSnapshot = () => null;
 
 /** Restore after hydration without writing a default over the saved view.
  * Save only on interaction, and never turn storage failures into UI failures. */
-export function useCalendarViewMemory(key: string | null, today: string, defaultMode: CalendarViewMode) {
+export function useCalendarViewMemory(key: string | null, today: string, defaultMode: CalendarViewMode, allowedModes?: readonly CalendarViewMode[]) {
   const [fallback, setFallback] = useState<{ key: string | null; viewedOn: string; value: CalendarViewMemory } | null>(null);
   const snapshot = useCallback(() => {
     if (!key) return null;
@@ -28,7 +28,7 @@ export function useCalendarViewMemory(key: string | null, today: string, default
   const raw = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const value = fallback?.key === key
     ? fallback.viewedOn === today ? fallback.value : { mode: fallback.value.mode, date: today, anchor: today }
-    : parseCalendarViewMemory(raw, today, defaultMode);
+    : parseCalendarViewMemory(raw, today, defaultMode, allowedModes);
 
   function update(patch: Partial<CalendarViewMemory>) {
     const next = { ...value, ...patch };

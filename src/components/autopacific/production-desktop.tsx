@@ -680,8 +680,23 @@ export function ProductionDesktop({
       ? (allLive.pipelineJobs.find((job) => job.id === viewing.record.id) ??
         viewing.record)
       : null;
+  const phoneCalendar = isMobileLayout && view === "calendar";
+  const visiblePeople = teamSelection?.length ?? team?.members.length ?? 0;
+  const teamPeople = space === "team" && team ? <div className="team-calendar-people" aria-label="Team calendar colour key">
+    <strong><Users size={16} /> Team</strong>
+    <button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>
+    {team.members.map(member => <label key={member.user_id}>
+      <input type="checkbox" checked={teamSelection === null || teamSelection.includes(member.user_id)}
+        onChange={event => setTeamSelection(current => {
+          const ids = current ?? team.members.map(item => item.user_id);
+          return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id);
+        })} />
+      <i aria-hidden="true" data-member-id={member.user_id} style={{ background: marketing ? calendarMembers.find(item => item.user_id === member.user_id)?.color ?? member.avatar_color : member.avatar_color }} />
+      {member.display_name}
+    </label>)}
+  </div> : null;
   return (
-    <main className={`apg-desktop theme-autopacific is-${theme} ${experience === "mobile" ? "is-mobile-app" : ""} ${hideSidebar ? "is-sidebar-collapsed" : ""}`}>
+    <main className={`apg-desktop theme-autopacific is-${theme} ${experience === "mobile" ? "is-mobile-app" : ""} ${hideSidebar ? "is-sidebar-collapsed" : ""} ${phoneCalendar ? "is-calendar-phone" : ""} ${space === "team" ? "is-team-calendar-phone" : ""}`}>
       <NotionAutoSync
         enabled={notionSyncEnabled}
         intervalMinutes={notionSyncIntervalMinutes}
@@ -810,7 +825,10 @@ export function ProductionDesktop({
           </div>
         </header>
         <div className="apg-mobile-space-picker"><label>Workspace<select aria-label="Choose workspace" value={space} onChange={event => { const next = event.target.value as ProductionSpace; chooseSpace(next); if (next === "team") select("calendar"); }}>{marketing ? <option value="videographer">Videographer</option> : null}<option value="mine">My Space</option><option value="team">Team calendar</option></select></label></div>
-        {space === "team" && team ? <div className="team-calendar-people" aria-label="Team calendar colour key"><strong><Users size={16} /> Team</strong><button type="button" className="team-text-button" onClick={() => setTeamSelection(null)}>Show everyone</button>{team.members.map(member => <label key={member.user_id}><input type="checkbox" checked={(teamSelection ?? team.members.map(item => item.user_id)).includes(member.user_id)} onChange={event => setTeamSelection(current => { const ids = current ?? team.members.map(item => item.user_id); return event.target.checked ? [...ids, member.user_id] : ids.filter(id => id !== member.user_id); })} /><i aria-hidden="true" data-member-id={member.user_id} style={{ background: marketing ? calendarMembers.find(item => item.user_id === member.user_id)?.color ?? member.avatar_color : member.avatar_color }} />{member.display_name}</label>)}</div> : null}
+        {teamPeople && phoneCalendar ? <details className="apg-mobile-team-details">
+          <summary><Users size={15} aria-hidden="true" /> People · {visiblePeople === team?.members.length ? "Everyone" : `${visiblePeople} shown`}<ChevronRight size={14} aria-hidden="true" /></summary>
+          {teamPeople}
+        </details> : teamPeople}
         {notice ? (
           <p className="apg-notice" role="status">
             {notice}
@@ -872,7 +890,7 @@ export function ProductionDesktop({
         ) : null}
         <section
           key={view}
-          className={`apg-desktop-main ${view === "jobs" && jobView === "planning" ? "is-planning" : ""}`}
+          className={`apg-desktop-main ${view === "jobs" && jobView === "planning" ? "is-planning" : ""} ${phoneCalendar ? "apg-mobile-calendar-main" : ""}`}
           aria-label={`${label} workspace`}
         >
           {view === "map" ? <JobMapWorkspace jobs={live.pipelineJobs} statuses={live.jobStatuses} dark={theme === "dark"} onOpen={job=>setViewing({kind:"job",record:job})}/> : view === "campaigns" ? <CampaignWorkspace statuses={live.jobStatuses} marketing={marketing} refreshKey={campaignRefresh} assigneeIds={space === "mine" && team ? [team.userId] : team ? [team.videographerId] : undefined} /> : view === "jobs" ? (

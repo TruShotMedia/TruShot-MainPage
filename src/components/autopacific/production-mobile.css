@@ -116,41 +116,6 @@
   .apg-desktop .campaign-column { scroll-snap-align: start; }
 }
 
-/* Phone-first calendar: all-day work stays separate from timed bookings. */
-.apg-mobile-schedule { display: grid; gap: 18px; }
-.apg-mobile-period { display: flex; align-items: center; gap: 8px; }
-.apg-mobile-period button, .apg-mobile-agenda-heading > button { display: grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; border: 1px solid var(--workspace-line); background: var(--workspace-surface); color: var(--workspace-accent); border-radius: 10px; font-size: 12px; }
-.apg-mobile-period strong { margin-right: auto; font-size: 14px; }
-.apg-mobile-date-strip { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
-.apg-mobile-date-strip button { position: relative; display: grid; gap: 6px; justify-items: center; align-content: center; min-height: 69px; border: 1px solid transparent; border-radius: 12px; background: var(--workspace-surface); color: var(--workspace-muted); padding: 7px 2px; }
-.apg-mobile-date-strip small { font-size: 10px; }
-.apg-mobile-date-strip strong { font-size: 17px; font-weight: 650; }
-.apg-mobile-date-strip button[aria-pressed=true] { border-color: var(--workspace-accent); color: var(--workspace-accent); background: var(--workspace-accent-soft); }
-.apg-mobile-date-strip i { position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--workspace-accent); }
-.apg-mobile-agenda-heading { display: flex; gap: 8px; align-items: center; }
-.apg-mobile-agenda-heading > div { flex: 1; }
-.apg-mobile-agenda-heading span { font-size: 11px; color: var(--workspace-muted); }
-.apg-mobile-agenda-heading h2 { font-size: 19px; margin: 4px 0 0; letter-spacing: -.5px; }
-.apg-mobile-agenda-heading .calendar-weather-badge { font-size: 12px; border: 0; }
-.apg-mobile-all-day, .apg-mobile-timeline { display: grid; gap: 10px; }
-.apg-mobile-schedule h3 { display: flex; gap: 7px; align-items: center; font-size: 11px; font-weight: 650; color: var(--workspace-muted); margin: 0 0 4px; }
-.apg-mobile-all-day > button { display: grid; grid-template-columns: minmax(0,1fr) 16px; gap: 6px 10px; padding: 15px; border: 1px solid var(--workspace-line); border-left: 3px solid currentColor; border-radius: 12px; text-align: left; }
-.apg-mobile-all-day > button > svg { grid-column: 2; grid-row: 1/3; align-self: center; }
-.apg-mobile-schedule button strong { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
-.apg-mobile-schedule button small { font-size: 11px; line-height: 1.5; }
-.apg-mobile-timeline article { display: grid; grid-template-columns: 62px minmax(0,1fr); gap: 10px; align-items: start; }
-.apg-mobile-timeline time { padding-top: 16px; font-size: 11px; font-weight: 600; color: var(--workspace-muted); overflow-wrap: anywhere; }
-.apg-mobile-timeline article > button { display: flex; gap: 9px; align-items: center; min-height: 76px; width: 100%; border: 1px solid var(--workspace-line); border-radius: 13px; padding: 14px 11px; text-align: left; }
-.apg-mobile-timeline article > button > svg { flex: none; width: 16px; }
-.apg-mobile-timeline article > button > span { flex: 1; }
-.apg-mobile-timeline :is(strong,small) { display: block; }
-.apg-mobile-timeline small { margin-top: 5px; }
-.apg-mobile-free-time { padding: 24px 18px; margin: 0; border: 1px dashed var(--workspace-line); border-radius: 13px; color: var(--workspace-muted); font-size: 12px; line-height: 1.6; }
-.apg-mobile-schedule .is-autopacific { background: var(--workspace-accent-soft); color: var(--workspace-accent); }
-.apg-mobile-schedule .is-unrelated { background: var(--workspace-surface); color: var(--workspace-muted); }
-.apg-mobile-schedule .is-overdue { background: color-mix(in srgb,var(--apg-negative) 8%,var(--workspace-surface)); color: var(--apg-negative); }
-.apg-mobile-schedule .is-complete { background: color-mix(in srgb,var(--apg-positive) 8%,var(--workspace-surface)); color: var(--apg-positive); }
-.apg-mobile-schedule .is-delayed { background: var(--workspace-delay-bg); color: var(--workspace-delay-text); }
 @media (prefers-reduced-motion: no-preference) {
   .apg-desktop-main > :not(.pipeline-status-toast) { animation: apg-page-in 160ms ease-out; }
   @keyframes apg-page-in { from { opacity: .6; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
