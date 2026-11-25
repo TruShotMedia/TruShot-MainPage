@@ -1,33 +1,24 @@
-import { addBusinessDays, addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isWeekend, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import { addBusinessDays, addDays, addMonths, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
 import type { MobileCalendarViewMode } from "./calendar-view-memory";
+import { calendarWeekdayMonth, calendarWeekdayOnOrAfter, WORKWEEK_DAYS } from "./calendar-weekdays";
 import { layoutTimedBlocks, type TimedBlock } from "./production-agenda";
 
 const monday = { weekStartsOn: 1 } as const;
 const dayKey = (day: Date) => format(day, "yyyy-MM-dd");
-export const MOBILE_CALENDAR_COLUMNS = 5;
-
-export function mobileWeekdayOnOrAfter(anchor: string) {
-  const date = parseISO(anchor);
-  return isWeekend(date) ? dayKey(addBusinessDays(date, 1)) : anchor;
-}
+export { calendarWeekdayOnOrAfter as mobileWeekdayOnOrAfter };
+export const MOBILE_CALENDAR_COLUMNS = WORKWEEK_DAYS;
 
 export function mobileCalendarDates(anchor: string, mode: MobileCalendarViewMode) {
-  const date = parseISO(mode === "month" ? anchor : mobileWeekdayOnOrAfter(anchor));
-  if (mode === "month") {
-    const start = startOfMonth(date), end = endOfMonth(date);
-    return eachDayOfInterval({
-      start: startOfWeek(isWeekend(start) ? addBusinessDays(start, 1) : start, monday),
-      end: endOfWeek(isWeekend(end) ? addBusinessDays(end, -1) : end, monday),
-    }).filter(day => !isWeekend(day)).map(dayKey);
-  }
+  if (mode === "month") return calendarWeekdayMonth(anchor);
+  const date = parseISO(calendarWeekdayOnOrAfter(anchor));
   const first = mode === "day" || mode === "list" ? date : startOfWeek(date, monday);
   const count = mode === "day" ? 1 : mode === "week" ? MOBILE_CALENDAR_COLUMNS : 2 * MOBILE_CALENDAR_COLUMNS;
   return Array.from({ length: count }, (_, i) => dayKey(addBusinessDays(first, i)));
 }
 
 export function adjacentMobileCalendarAnchor(anchor: string, mode: MobileCalendarViewMode, direction: -1 | 1) {
-  if (mode === "month") return mobileWeekdayOnOrAfter(dayKey(startOfMonth(addMonths(parseISO(anchor), direction))));
-  const date = parseISO(mobileWeekdayOnOrAfter(anchor));
+  if (mode === "month") return calendarWeekdayOnOrAfter(dayKey(startOfMonth(addMonths(parseISO(anchor), direction))));
+  const date = parseISO(calendarWeekdayOnOrAfter(anchor));
   if (mode === "day" || mode === "list") return dayKey(addBusinessDays(date, direction * (mode === "day" ? 1 : 2 * MOBILE_CALENDAR_COLUMNS)));
   return dayKey(addDays(date, direction * (mode === "week" ? 7 : 14)));
 }

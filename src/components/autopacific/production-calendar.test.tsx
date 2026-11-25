@@ -3,7 +3,10 @@ import { act } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: () => ({ days: [], unavailable: false }), CalendarWeatherBadge: () => null, CalendarWeatherCredit: () => null, CalendarWeatherDetails: () => null, WeatherIcon: () => null }));
+import type { SavedCalendarWeather } from "@/lib/calendar-weather";
+const weather = vi.hoisted(() => vi.fn<(...args: unknown[]) => { days: SavedCalendarWeather[]; unavailable: boolean }>());
+vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: weather, CalendarWeatherBadge: () => null, CalendarWeatherCredit: () => null,
+  CalendarWeatherDetails: ({ day }: { day: SavedCalendarWeather }) => <div role="dialog">{day.summary}</div>, WeatherIcon: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { ProductionCalendar } from "./production-calendar";
 import { ProductionDayPane } from "./production-day-pane";
@@ -16,7 +19,7 @@ const event = (id: string, start: string, end: string, date = "2026-11-10"): Cal
 const data = { calendarJobs: [], calendarTasks: [], flightEvents: [], calendarEvents: [event("Late meeting", "15:00", "16:00"), event("Early shoot", "09:00", "11:00"), event("Other day", "12:00", "13:00", "2026-11-12")] };
 let container: HTMLDivElement, root: Root;
 const callbacks = { onOpenItem: vi.fn(), onOpenEvent: vi.fn(), onOpenFlight: vi.fn(), onCreate: vi.fn() };
-beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn()); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+beforeEach(() => { vi.clearAllMocks(); weather.mockReturnValue({ days: [], unavailable: false }); localStorage.clear(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.stubGlobal("fetch", vi.fn()); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); });
 async function render(marketing = false, readOnly = false) { await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing={marketing} readOnly={readOnly} {...callbacks} />)); }
 const click = async (selector: string) => { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()); };
@@ -24,6 +27,60 @@ const hybrid = async () => { await act(async () => [...container.querySelectorAl
 const chooseMode = async (mode: string) => {
   await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === mode)!.click());
 };
+
+it.each([false, true])("defaults desktop to a five-day Week with today's scoped forecast and deadlines (marketing=%s)", async marketing => {
+  const today = "2026-11-10";
+  const location = marketing ? "melbourne-city" : "brisbane-city";
+  weather.mockReturnValue({ unavailable: false, days: [{
+    date: today, week_start: "2026-11-09", capture_kind: "weekly", location_key: location, condition: "rain", summary: "Rain showers",
+    temperatureMin: 18, temperatureMax: 26, windMaxKmh: 22, captured_at: "2026-11-08T10:00:00Z", forecast_issued_at: "2026-11-08T09:00:00Z",
+  }] });
+  const job: CalendarJob = { id: "planning", title: "Campaign brief", entity_type: "job", client_name: "Autopacific Group", shoot_date: null, shoot_time: null,
+    due_date: today, due_time: null, status_label: "Planning", status_color: "#579", is_complete: false };
+  const task: CalendarTask = { id: "asset", title: "Hero edit", entity_type: "task", client_name: job.client_name, job_title: job.title,
+    due_date: today, due_time: "10:00:00", priority: "normal", status_label: "In Progress", status_color: "#579", is_complete: false };
+  const fixture = { ...data, calendarJobs: [job], calendarTasks: [task, { ...task, id: "yesterday", title: "Overdue asset", due_date: "2026-11-09" },
+    { ...task, id: "tomorrow", title: "Tomorrow asset", due_date: "2026-11-11" }, { ...task, id: "done", title: "Finished asset", is_complete: true }],
+    calendarEvents: [...data.calendarEvents, event("Weekend only", "10:00", "11:00", "2026-11-14")] };
+  await act(async () => root.render(<ProductionCalendar data={fixture} today={today} marketing={marketing} readOnly={marketing} {...callbacks} />));
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Week");
+  expect([...container.querySelectorAll(".timetable-day-labels strong")].map(label => label.textContent)).toEqual(["Mon 9 Nov", "Tue 10 Nov", "Wed 11 Nov", "Thu 12 Nov", "Fri 13 Nov"]);
+  expect(container.textContent).not.toContain("Weekend only");
+  const panel = container.querySelector('[aria-label="Today at a glance"]')!;
+  expect(panel.querySelector('time[aria-label="Current Brisbane time"]')?.textContent).toMatch(/\d{1,2}:\d{2} [AP]M/);
+  expect(weather).toHaveBeenLastCalledWith(today, today, location);
+  expect(panel.textContent).toContain("26° / 18°");
+  const deadlines = [...panel.querySelectorAll<HTMLButtonElement>('[aria-label="Today\'s deadlines"] button')];
+  expect(deadlines.map(button => button.querySelector("strong")?.textContent)).toEqual(["Hero edit", "Campaign brief", "Finished asset"]);
+  expect(deadlines[2].textContent).toContain("Done");
+  await act(async () => deadlines[0].click());
+  expect(callbacks.onOpenItem).toHaveBeenCalledWith(task);
+  await act(async () => panel.querySelector<HTMLButtonElement>('button[aria-label^="Today\'s forecast"]')!.click());
+  expect(panel.querySelector('[role="dialog"]')?.textContent).toBe("Rain showers");
+});
+
+it("uses the mini month to jump weeks without changing what counts as today", async () => {
+  await render();
+  const mini = container.querySelector('[aria-label="Mini month calendar"]')!;
+  expect(mini.querySelectorAll('[aria-current="date"]')).toHaveLength(1);
+  expect(mini.querySelector('[aria-pressed="true"]')?.getAttribute("aria-label")).toBe("Tuesday 10 November 2026");
+  expect(mini.querySelectorAll('[aria-label^="Saturday"],[aria-label^="Sunday"]')).toHaveLength(0);
+  await click('[aria-label="Next month"]');
+  expect(mini.querySelector("h3")?.textContent).toBe("December 2026");
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-11-10");
+  await click('[aria-label="Tuesday 15 December 2026"]');
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-12-15");
+  expect(container.querySelector(".timetable-day-labels strong")?.textContent).toBe("Mon 14 Dec");
+  expect(mini.querySelector('[aria-pressed="true"]')?.getAttribute("aria-label")).toBe("Tuesday 15 December 2026");
+  expect(container.querySelector('[aria-label="Today at a glance"]')?.textContent).toContain("Today · Tue 10 Nov");
+  expect(weather).toHaveBeenLastCalledWith("2026-11-10", "2026-11-10", "brisbane-city");
+});
+
+it("opens the next workweek on desktop when today is Saturday but keeps the panel date", async () => {
+  await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-14" marketing={false} {...callbacks} />));
+  expect(container.querySelector(".timetable-day-labels strong")?.textContent).toBe("Mon 16 Nov");
+  expect(container.querySelector('[aria-label="Today at a glance"]')?.textContent).toContain("Today · Sat 14 Nov");
+});
 
 it.each([[false, false], [false, true], [true, false], [true, true]])(
   "shows the videographer's working hours on Day and preserves bookings outside them (marketing=%s, mobile=%s)",
@@ -265,7 +322,7 @@ it("follows fortnight navigation, keeps the day selection in view, and returns t
   expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-10");
 });
 it("preserves the displayed fortnight when switching between Fortnight and Hybrid", async () => {
-  await render(); await click('[aria-label="Next calendar period"]'); await hybrid();
+  await render(); await chooseMode("Fortnight"); await click('[aria-label="Next calendar period"]'); await hybrid();
   expect(container.querySelector('.tablet-calendar-day-select[aria-pressed="true"] time')?.getAttribute("datetime")).toBe("2026-11-24");
   await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Day")!.click());
   expect(container.querySelector('[aria-label="Day schedule"]')).not.toBeNull();
@@ -328,7 +385,7 @@ it("keeps the Today tab and Marketing preferences separate from the production c
   expect(container.querySelector<HTMLInputElement>('[aria-label="Schedule date"]')?.value).toBe("2026-11-10");
   await act(async () => root.render(null));
   await render(true);
-  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Fortnight");
+  expect(container.querySelector('[aria-label="Schedule view"] [aria-pressed="true"]')?.textContent).toBe("Week");
   await act(async () => root.render(null));
   await render();
   expect(container.querySelector('[aria-label="Selected day schedule"] time')?.getAttribute("datetime")).toBe("2026-11-24");

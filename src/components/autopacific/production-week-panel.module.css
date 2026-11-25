@@ -1,0 +1,85 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 26%, 300px);
+  align-items: start;
+  gap: 12px;
+}
+
+.layout :global(.production-timetable.is-week) { overflow-x: auto; }
+.layout :global(.production-timetable.is-week) > div { min-width: 455px; }
+.layout :global(.timetable-day-labels) [aria-current="date"] { background: var(--workspace-accent-soft); color: var(--workspace-text); }
+
+.panel {
+  position: sticky;
+  inset-block-start: 8px;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.card {
+  min-width: 0;
+  border: 1px solid var(--workspace-line);
+  border-radius: 11px;
+  background: var(--workspace-surface);
+  color: var(--workspace-text);
+}
+
+.today { padding: 12px; }
+.todayHeader { display: grid; gap: 3px; }
+.todayHeader > span { font-size: 11px; font-weight: 700; color: var(--workspace-accent); }
+.todayHeader > strong { font-size: clamp(24px, 2.8vw, 34px); font-weight: 750; letter-spacing: -.045em; line-height: 1.08; font-variant-numeric: tabular-nums; }
+.todayHeader > small, .empty { font-size: 11px; color: var(--workspace-muted); }
+.today :global(.calendar-weather-credit) { margin: 7px 0 0; gap: 4px; font-size: 9px; }
+
+.weather, .dueItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  text-align: start;
+  gap: 7px;
+  width: 100%;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: var(--workspace-panel);
+  color: var(--workspace-text);
+  font: inherit;
+  cursor: pointer;
+}
+.weather { padding: 6px; margin-block-start: 8px; }
+.weatherIcon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 7px; background: var(--workspace-accent-soft); color: var(--workspace-accent); }
+.weather strong { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.weather small { color: var(--workspace-muted); font-size: 12px; }
+.weather > span > span { display: block; font-size: 10px; color: var(--workspace-muted); }
+.weather > svg, .dueItem > svg:last-child { color: var(--workspace-muted); }
+.empty { margin: 7px 0 0; }
+
+.deadlines { padding: 9px; }
+.deadlineHeader { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.deadlineHeader h3, .monthHeader h3 { margin: 0; font-size: 12px; font-weight: 740; }
+.deadlineHeader > span { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 5px; color: var(--workspace-accent); background: var(--workspace-accent-soft); }
+.dueList { list-style: none; display: grid; gap: 4px; max-height: min(200px, 23vh); overflow-y: auto; margin: 6px 0 0; padding: 1px; }
+.dueItem { padding: 6px 7px; }
+.dueItem > span:not(:global(.calendar-team-marker)) { min-width: 0; }
+.dueItem strong, .dueItem small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dueItem strong { font-size: 11px; }
+.dueItem small { font-size: 10px; color: var(--workspace-muted); }
+.dueItem > svg:first-child { color: var(--workspace-accent); }
+
+.monthHeader { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-bottom: 1px solid var(--workspace-line); }
+.monthHeader button, .date { border: 0; background: transparent; color: var(--workspace-text); font: inherit; cursor: pointer; }
+.monthHeader button { display: grid; place-items: center; min-width: 30px; min-height: 30px; border-radius: 7px; }
+.monthGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; padding: 4px 8px 8px; }
+.weekday { padding-block: 4px; text-align: center; font-size: 10px; font-weight: 650; color: var(--workspace-muted); }
+.date { display: grid; place-items: center; min-height: 30px; padding: 0; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.date[data-outside="true"] { color: var(--workspace-muted); }
+.date[data-in-week="true"] { background: var(--workspace-accent-soft); }
+.date time { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid transparent; border-radius: 50%; }
+.date[aria-current="date"] time { border-color: var(--workspace-accent); font-weight: 800; }
+.date[aria-pressed="true"] time { background: var(--workspace-text); color: var(--workspace-surface); font-weight: 730; }
+.panel button:hover { background: var(--workspace-accent-soft); }
+.panel button:focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: -2px; }
+
+@media (max-height: 740px) {
+  .panel { position: static; }
+}

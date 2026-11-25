@@ -8,11 +8,14 @@ import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
+import { ProductionWeekPanel } from "./production-week-panel";
 import { CalendarCreateMenu } from "./calendar-create-menu";
 import { WorkingHoursBand, WorkingHoursLegend } from "./calendar-working-hours";
 import { videographerWorkingHours } from "@/lib/calendar-working-hours";
 import styles from "./production-hybrid.module.css";
+import weekStyles from "./production-week-panel.module.css";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
+import { calendarWeekdayOnOrAfter, calendarWorkweek } from "@/lib/calendar-weekdays";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
 import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
@@ -39,6 +42,9 @@ type ScheduleData = {
   calendarCampaignAssets?: CalendarCampaignAsset[];
 };
 const DESKTOP_HOUR_HEIGHT = 64;
+const brisbaneClock = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+});
 function agendaTone(source: AgendaSource, today: string) {
   const related =
     (source.client_name ?? "").toLowerCase() === "autopacific group";
@@ -106,7 +112,7 @@ export function TimedSchedule({
       >
         <span>Brisbane</span>
         {dates.map((date) => (
-          <strong key={date}>{format(parseISO(date), "EEE d MMM")}</strong>
+          <strong key={date} aria-current={!isDay && date === today ? "date" : undefined}>{format(parseISO(date), "EEE d MMM")}</strong>
         ))}
       </div>
       {showWorkingHours && isDay ? <WorkingHoursLegend window={workWindow} /> : null}
@@ -246,8 +252,9 @@ export function ProductionCalendar({
   const calendarMembers = useMemo(() => marketing && readOnly ? assignTeamCalendarColors(team?.members ?? []) : [], [marketing, readOnly, team?.members]);
   const memoryKey = calendarViewStorageKey(marketing ? "marketing" : "autopacific", team?.userId ?? "local",
     readOnly ? "team" : personalTools ? "mine" : "videographer", mobile);
-  const [view, rememberView] = useCalendarViewMemory(todayOnly || mobile ? null : memoryKey, today, todayOnly ? "day" : "fortnight");
-  const { mode, date, anchor: calendarAnchor } = view;
+  const [view, rememberView] = useCalendarViewMemory(todayOnly || mobile ? null : memoryKey, today, todayOnly ? "day" : "week");
+  const { mode, anchor: calendarAnchor } = view;
+  const date = mode === "week" ? calendarWeekdayOnOrAfter(view.date) : view.date;
   function setDate(value: string) { rememberView({ date: value }); }
   function selectDate(value: string) {
     const first = format(startOfWeek(parseISO(calendarAnchor), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -271,24 +278,14 @@ export function ProductionCalendar({
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
-  const currentTime = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Australia/Brisbane",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(now);
+  const currentTime = brisbaneClock.format(now);
   function open(source: AgendaSource) {
     if (source.entity_type === "calendar-event") onOpenEvent(source);
     else if (source.entity_type === "flight-event") onOpenFlight(source);
     else onOpenItem(source);
   }
-  const first =
-    mode === "week"
-      ? startOfWeek(parseISO(date), { weekStartsOn: 1 })
-      : parseISO(date);
-  const dates = Array.from({ length: mode === "week" ? 7 : 1 }, (_, index) =>
-    format(addDays(first, index), "yyyy-MM-dd"),
-  );
+  const dates = useMemo(() => mode === "week" ? calendarWorkweek(date) : [date], [mode, date]);
+  const weatherLocation = marketing ? "melbourne-city" : "brisbane-city";
   const range = data.calendarJobs.filter(
     (job) => job.status_label.toLowerCase() !== "planning",
   );
@@ -371,7 +368,7 @@ export function ProductionCalendar({
           selectedDate={mode === "hybrid" ? date : undefined}
           onSelectDate={mode === "hybrid" ? selectDate : undefined}
           currentTime={currentTime}
-          weatherLocationKey={marketing ? "melbourne-city" : "brisbane-city"}
+          weatherLocationKey={weatherLocation}
           accentColor="#5d91b0"
           accentClientName="Autopacific Group"
           completedColor="#3f9b68"
@@ -393,13 +390,19 @@ export function ProductionCalendar({
         />
         {mode === "hybrid" ? <ProductionDayPane data={schedule} date={date} today={today} currentTime={currentTime} onSelectDate={selectDate} onOpen={open} /> : null}
         </div>
+      ) : mode === "week" ? (
+        <section className={weekStyles.layout} aria-label="Production calendar">
+          <TimedSchedule data={schedule} dates={dates} today={today} onOpen={open} />
+          <ProductionWeekPanel jobs={data.calendarJobs} tasks={data.calendarTasks} today={today} currentTime={currentTime}
+            selected={date} weekDates={dates} location={weatherLocation} onOpenItem={onOpenItem} onSelect={setDate} />
+        </section>
       ) : (
         <TimedSchedule
           data={schedule}
           dates={dates}
           today={today}
           showWorkingHours={showWorkingHours}
-          calendarDay={mode === "day" && !todayOnly}
+          calendarDay={!todayOnly}
           onOpen={open}
         />
       )}
