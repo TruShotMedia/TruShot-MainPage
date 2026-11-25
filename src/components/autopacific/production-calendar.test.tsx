@@ -21,6 +21,54 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function render(marketing = false, readOnly = false) { await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing={marketing} readOnly={readOnly} {...callbacks} />)); }
 const click = async (selector: string) => { await act(async () => container.querySelector<HTMLButtonElement>(selector)!.click()); };
 const hybrid = async () => { await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === "Hybrid")!.click()); };
+const chooseMode = async (mode: string) => {
+  await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === mode)!.click());
+};
+
+it.each([[false, false], [false, true], [true, false], [true, true]])(
+  "shows the videographer's working hours on Day and preserves bookings outside them (marketing=%s, mobile=%s)",
+  async (marketing, mobile) => {
+    const team: TeamContextData = { userId: "john", videographerId: "john", role: "manager", canManage: true, members: [] };
+    const fixture = { ...data, calendarEvents: [
+      event("Before work", "06:15", "06:45", "2026-11-12"),
+      event("After work", "17:30", "18:30", "2026-11-12"),
+    ] };
+    await act(async () => root.render(<ProductionTeamProvider value={team}>
+      <ProductionCalendar data={fixture} today="2026-11-11" marketing={marketing} mobile={mobile} personalTools {...callbacks} />
+    </ProductionTeamProvider>));
+    await chooseMode("Day");
+    await click('[aria-label="Next schedule period"]');
+    const band = () => container.querySelector<HTMLElement>("[data-working-hours-band]");
+    expect(container.textContent).toContain("My working hours");
+    expect(container.textContent).toContain("7:00 AM–4:15 PM · Brisbane time");
+    expect(band()?.style.top).toBe(mobile ? "60px" : "64px");
+    expect(band()?.style.height).toBe(mobile ? "555px" : "592px");
+    const after = container.querySelector<HTMLButtonElement>('button[aria-label^="After work,"]');
+    expect(container.textContent).toContain("Before work");
+    await act(async () => after?.click());
+    expect(callbacks.onOpenEvent).toHaveBeenCalledExactlyOnceWith(fixture.calendarEvents[1]);
+    await click('[aria-label="Next schedule period"]');
+    expect(container.textContent).toContain("7:00 AM–12:15 PM · Brisbane time");
+    expect(band()?.style.height).toBe(mobile ? "315px" : "336px");
+    await click('[aria-label="Next schedule period"]');
+    expect(container.textContent).toContain(mobile ? "Monday, 16 Nov" : "No working hours · Brisbane time");
+    expect(Boolean(band())).toBe(mobile);
+    await chooseMode("Week");
+    expect(band()).toBeNull();
+    expect(container.textContent).not.toContain("My working hours");
+  },
+);
+
+it.each([false, true])("does not present the videographer's hours as a teammate's own (mobile=%s)", async mobile => {
+  const team: TeamContextData = { userId: "nathan", videographerId: "john", role: "marketing", canManage: false, members: [] };
+  await act(async () => root.render(<ProductionTeamProvider value={team}>
+    <ProductionCalendar data={data} today="2026-11-10" marketing mobile={mobile} personalTools {...callbacks} />
+  </ProductionTeamProvider>));
+  await chooseMode("Day");
+  expect(container.querySelector('[aria-label="Day schedule"],[aria-label="Hourly schedule"]')).not.toBeNull();
+  expect(container.querySelector("[data-working-hours-band]")).toBeNull();
+  expect(container.textContent).not.toContain("My working hours");
+});
 
 const moveFixture = { ...data, calendarEvents: [
   { ...data.calendarEvents[1], updated_at: "2026-11-09T00:42:00Z" },

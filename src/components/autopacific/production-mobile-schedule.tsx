@@ -21,11 +21,12 @@ import "./mobile-calendar.css";
 const titles = { list: "List", day: "Day", week: "Week", fortnight: "Fortnight", month: "Month" };
 
 export function ProductionMobileSchedule({
-  data, today, todayOnly, marketing, memoryKey, currentTime, onOpen: onOpenRecord, onCreate, renderCreateButton, onMoveEvent,
+  data, today, todayOnly, marketing, memoryKey, currentTime, showWorkingHours, onOpen: onOpenRecord, onCreate, renderCreateButton, onMoveEvent,
 }: {
   data: ProductionScheduleData; today: string; todayOnly: boolean; marketing: boolean; memoryKey?: string; currentTime?: string;
   onOpen: (item: AgendaSource) => void; onCreate?: (date: string) => void;
   renderCreateButton?: (date: string) => ReactNode; onMoveEvent?: MoveCalendarEvent;
+  showWorkingHours?: boolean;
 }) {
   const calendarMembers = useCalendarTeamColors();
   const [view, rememberView] = useCalendarViewMemory(todayOnly ? null : memoryKey ?? null, today, todayOnly ? "day" : "fortnight", mobileCalendarModes);
@@ -104,7 +105,7 @@ export function ProductionMobileSchedule({
           <MobileForecast forecast={forecasts.get(selected)} onOpen={setWeatherDay} />
           {todayOnly ? create : null}
         </header>
-        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} onOpen={openRecord} />
+        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} showWorkingHours={showWorkingHours} onOpen={openRecord} />
       </>}
       {overdue.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="Overdue work">
         <h3>Still needs attention</h3>{overdue.map(item => <button key={`${item.entity_type}:${item.id}`} type="button" className="mobile-calendar-card is-row is-overdue" {...calendarTeamAttributes(item, calendarMembers)} onClick={() => openRecord(item)}>

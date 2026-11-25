@@ -9,6 +9,8 @@ import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
 import { CalendarCreateMenu } from "./calendar-create-menu";
+import { WorkingHoursBand, WorkingHoursLegend } from "./calendar-working-hours";
+import { videographerWorkingHours } from "@/lib/calendar-working-hours";
 import styles from "./production-hybrid.module.css";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
@@ -36,6 +38,7 @@ type ScheduleData = {
   flightEvents: CalendarFlightEvent[];
   calendarCampaignAssets?: CalendarCampaignAsset[];
 };
+const DESKTOP_HOUR_HEIGHT = 64;
 function agendaTone(source: AgendaSource, today: string) {
   const related =
     (source.client_name ?? "").toLowerCase() === "autopacific group";
@@ -55,13 +58,17 @@ export function TimedSchedule({
   dates,
   today,
   onOpen,
+  showWorkingHours = false,
 }: {
   data: ScheduleData;
   dates: string[];
   today: string;
   onOpen: (source: AgendaSource) => void;
+  showWorkingHours?: boolean;
 }) {
   const calendarMembers = useCalendarTeamColors();
+  const isDay = dates.length === 1;
+  const workWindow = showWorkingHours && isDay ? videographerWorkingHours(dates[0]) : null;
   const agendas = dates.map((date) =>
     productionDayAgenda(date, {
       jobs: data.calendarJobs,
@@ -71,10 +78,7 @@ export function TimedSchedule({
     }),
   );
   const blocks = agendas.flatMap((day) => day.timed);
-  const firstHour = Math.min(
-    8,
-    Math.floor(Math.min(...blocks.map((block) => block.start), 480) / 60),
-  );
+  const firstHour = Math.floor(Math.min(workWindow?.start ?? 480, ...blocks.map(block => block.start)) / 60);
   const lastHour = Math.min(
     24,
     Math.max(
@@ -88,8 +92,8 @@ export function TimedSchedule({
   );
   return (
     <section
-      className={`production-timetable ${dates.length === 1 ? "is-day" : "is-week"}`}
-      aria-label={dates.length === 1 ? "Day schedule" : "Week schedule"}
+      className={`production-timetable ${isDay ? "is-day" : "is-week"}`}
+      aria-label={isDay ? "Day schedule" : "Week schedule"}
     >
       <div
         className="timetable-day-labels"
@@ -102,6 +106,7 @@ export function TimedSchedule({
           <strong key={date}>{format(parseISO(date), "EEE d MMM")}</strong>
         ))}
       </div>
+      {showWorkingHours && isDay ? <WorkingHoursLegend window={workWindow} /> : null}
       <div
         className="timetable-all-day"
         style={{
@@ -141,7 +146,7 @@ export function TimedSchedule({
       <div
         className="timetable-hours"
         style={{
-          height: hours.length * 64,
+          height: hours.length * DESKTOP_HOUR_HEIGHT,
           gridTemplateColumns: `48px repeat(${dates.length},minmax(0,1fr))`,
         }}
       >
@@ -149,7 +154,7 @@ export function TimedSchedule({
           {hours.map((hour) => (
             <time
               key={hour}
-              style={{ top: (hour - firstHour) * 64 }}
+              style={{ top: (hour - firstHour) * DESKTOP_HOUR_HEIGHT }}
             >{`${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`}</time>
           ))}
         </div>
@@ -159,8 +164,9 @@ export function TimedSchedule({
             date={dates[index]}
             targetId={`timed:${dates[index]}`}
             className="timetable-day-column"
-            style={{ backgroundSize: "100% 64px" }}
+            style={{ backgroundSize: `100% ${DESKTOP_HOUR_HEIGHT}px` }}
           >
+            {workWindow ? <WorkingHoursBand window={workWindow} firstMinute={firstHour * 60} hourHeight={DESKTOP_HOUR_HEIGHT} /> : null}
             {agenda.timed.map((block) => (
               <CalendarDragButton
                 key={block.id}
@@ -174,10 +180,10 @@ export function TimedSchedule({
                 style={
                   {
                     ...calendarTeamAttributes(block.source, calendarMembers).style,
-                    top: ((block.start - firstHour * 60) * 64) / 60,
+                    top: ((block.start - firstHour * 60) * DESKTOP_HOUR_HEIGHT) / 60,
                     height: Math.max(
                       14,
-                      ((block.end - block.start) * 64) / 60 - 3,
+                      ((block.end - block.start) * DESKTOP_HOUR_HEIGHT) / 60 - 3,
                     ),
                     left: `calc(${(block.lane / block.lanes) * 100}% + 2px)`,
                     width: `calc(${100 / block.lanes}% - 4px)`,
@@ -230,6 +236,7 @@ export function ProductionCalendar({
   onMoveEvent?: MoveCalendarEvent;
 }) {
   const team = useProductionTeam();
+  const showWorkingHours = !todayOnly && Boolean(team?.videographerId && team.userId === team.videographerId);
   const calendarMembers = useMemo(() => marketing && readOnly ? assignTeamCalendarColors(team?.members ?? []) : [], [marketing, readOnly, team?.members]);
   const memoryKey = calendarViewStorageKey(marketing ? "marketing" : "autopacific", team?.userId ?? "local",
     readOnly ? "team" : personalTools ? "mine" : "videographer", mobile);
@@ -282,7 +289,7 @@ export function ProductionCalendar({
   const schedule = { ...data, calendarJobs: range };
   const productionTools = !marketing || personalTools;
   const moveEvent = !todayOnly && !readOnly ? onMoveEvent : undefined;
-  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent} currentTime={currentTime}
+  if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent} currentTime={currentTime} showWorkingHours={showWorkingHours}
     renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} /></CalendarTeamColorsProvider>;
   return (
     <CalendarTeamColorsProvider value={calendarMembers}>
@@ -385,6 +392,7 @@ export function ProductionCalendar({
           data={schedule}
           dates={dates}
           today={today}
+          showWorkingHours={showWorkingHours}
           onOpen={open}
         />
       )}

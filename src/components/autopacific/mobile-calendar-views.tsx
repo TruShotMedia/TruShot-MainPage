@@ -13,6 +13,8 @@ import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import { mobileScheduleTone } from "@/lib/mobile-fortnight-calendar";
 import { mobileHourLayout } from "@/lib/mobile-calendar-period";
+import { videographerWorkingHours } from "@/lib/calendar-working-hours";
+import { WorkingHoursBand, WorkingHoursLegend } from "./calendar-working-hours";
 import { WEATHER_LOCATIONS, type SavedCalendarWeather } from "@/lib/calendar-weather";
 import type { AgendaSource, TimedBlock } from "@/lib/production-agenda";
 import type { productionSelectedDay } from "@/lib/production-selected-day";
@@ -92,19 +94,23 @@ export function MobileCalendarOverview({ mode, dates, agendas, forecasts, today,
   </section>;
 }
 
-function MobileHourGrid({ agenda, date, today, currentTime, onOpen }: {
-  agenda: Agenda; date: string; today: string; currentTime?: string; onOpen: Open;
+function MobileHourGrid({ agenda, date, today, currentTime, showWorkingHours, onOpen }: {
+  agenda: Agenda; date: string; today: string; currentTime?: string; showWorkingHours?: boolean; onOpen: Open;
 }) {
   const now = date === today && currentTime ? Number(currentTime.slice(0, 2)) * 60 + Number(currentTime.slice(3, 5)) : null;
   const layout = mobileHourLayout(agenda.timed, now);
+  const workWindow = showWorkingHours ? videographerWorkingHours(date) : null;
+  const hint = [layout.lanes > 2 ? "Swipe for more" : null, !showWorkingHours ? "Brisbane time" : null].filter(Boolean).join(" · ");
   return <section className="mobile-calendar-hour-section" aria-label="Hourly schedule">
-    <div className="mobile-calendar-section-heading"><h3><Clock3 size={14} /> Hourly schedule</h3><span>{layout.lanes > 2 ? "Swipe for more · " : ""}Brisbane time</span></div>
+    <div className="mobile-calendar-section-heading"><h3><Clock3 size={14} /> Hourly schedule</h3>{hint ? <span>{hint}</span> : null}</div>
     <div className="mobile-calendar-hour-scroll">
+      {showWorkingHours ? <WorkingHoursLegend window={workWindow} /> : null}
       <div className="mobile-calendar-hour-grid" style={{ minWidth: 48 + layout.lanes * 105, height: layout.height + 12 }}>
         {layout.hours.map((hour, index) => <div key={hour} className="mobile-calendar-hour-line" style={{ top: index * 60 }} aria-hidden="true">
           <span>{hour % 12 || 12}{hour < 12 ? " AM" : " PM"}</span>
         </div>)}
         <div className="mobile-calendar-hour-events">
+          {workWindow ? <WorkingHoursBand window={workWindow} firstMinute={layout.firstMinute} hourHeight={60} /> : null}
           {layout.blocks.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} variant="hour" drag={false}
             style={{ top: item.start - layout.firstMinute, height: item.end - item.start - 3,
               left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 / item.lanes}% - 4px)` }} />)}
@@ -117,15 +123,15 @@ function MobileHourGrid({ agenda, date, today, currentTime, onOpen }: {
   </section>;
 }
 
-export function MobileSelectedAgenda({ agenda, date, today, currentTime, hourly, onOpen }: {
-  agenda: Agenda; date: string; today: string; currentTime?: string; hourly: boolean; onOpen: Open;
+export function MobileSelectedAgenda({ agenda, date, today, currentTime, hourly, showWorkingHours, onOpen }: {
+  agenda: Agenda; date: string; today: string; currentTime?: string; hourly: boolean; showWorkingHours?: boolean; onOpen: Open;
 }) {
   return <>
     {agenda.allDay.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="All-day items">
       <h3><CalendarDays size={14} /> All day & deadlines</h3>
       {agenda.allDay.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} />)}
     </section> : null}
-    {hourly ? <MobileHourGrid agenda={agenda} date={date} today={today} currentTime={currentTime} onOpen={onOpen} />
+    {hourly ? <MobileHourGrid agenda={agenda} date={date} today={today} currentTime={currentTime} showWorkingHours={showWorkingHours} onOpen={onOpen} />
       : <section className="apg-mobile-timeline mobile-calendar-group" aria-label="Timed bookings">
         <h3><Clock3 size={14} /> Booked times</h3>
         {agenda.timed.length ? agenda.timed.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} />)
