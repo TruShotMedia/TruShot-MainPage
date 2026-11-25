@@ -40,7 +40,7 @@ export function JobProgressActions({ jobId, title, compact = false, disabled = f
     const share = sharingRequest<ActiveShare>(jobId, "share");
     const message = share.then(result => {
       const url = jobProgressShareUrl(result.token, window.location.origin);
-      return `Want to keep track of this job’s progress? The details for this project are available below. Your secure access PIN is ${result.pin}:\n${url}`;
+      return `${title}\nWant to keep track of this job’s progress? The details for this project are available below. Your secure access PIN is ${result.pin}:\n${url}`;
     });
     // Safari needs clipboard access inside the click gesture. Supply a
     // promised blob so the PIN and URL still come from the authenticated API.
