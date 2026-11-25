@@ -265,6 +265,7 @@ it.each([false, true])("previews and saves the new Week time, including a diagon
     await mouse(document, "mousemove", 175, 185);
     await mouse(document, "mousemove", x, 223);
     expect(columns[crossDay ? 4 : 1].querySelector("[data-calendar-time-preview]")?.textContent).toBe("09:45–11:45");
+    expect(document.querySelector(".calendar-move-overlay")?.textContent).toContain("Early shoot");
   } finally {
     await mouse(document, "mouseup", x, 223);
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
@@ -275,12 +276,17 @@ it.each([false, true])("previews and saves the new Week time, including a diagon
 });
 
 it.each([
-  ["Day", "start", false, "08:30–11:00", 510, "160px"],
-  ["Week", "end", false, "09:00–10:30", 630, "96px"],
-  ["Week", "end", true, "09:00–10:30", 630, "96px"],
-] as const)("resizes one edge without moving the booking (%s, %s, leaves column=%s)", async (mode, edge, leavesColumn, previewTime, minute, height) => {
+  ["Day", "start", "save", "08:30–11:00", 510, "157px"],
+  ["Week", "end", "save", "09:00–10:30", 630, "93px"],
+  ["Week", "end", "cancel", "09:00–10:30", 630, "93px"],
+  ["Day", "end", "reject", "09:00–10:30", 630, "93px"],
+] as const)("resizes the booking in place (%s, %s, %s)", async (mode, edge, outcome, previewTime, minute, height) => {
   const date = "2026-11-10", updatedAt = "2026-11-12T00:00:00Z";
-  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: date, end_date: date, updated_at: updatedAt } });
+  const response = outcome === "reject"
+    ? { ok: false, error: "This event changed. Refresh the calendar." } as const
+    : { ok: true, dates: { start_date: date, end_date: date, updated_at: updatedAt } } as const;
+  let completeSave!: (value: typeof response) => void;
+  const onMoveEvent = vi.fn(() => new Promise<typeof response>(resolve => { completeSave = resolve; }));
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today={date} marketing={mode === "Week"} onMoveEvent={onMoveEvent} {...callbacks} />));
   await chooseMode(mode);
   expect(container.querySelectorAll("[data-calendar-resizable]")).toHaveLength(1);
@@ -289,6 +295,8 @@ it.each([
   const columns = [...container.querySelectorAll<HTMLElement>(".timetable-day-column")];
   const activeColumn = columns[mode === "Day" ? 0 : 1];
   const handle = activeColumn.querySelector<HTMLElement>(`[data-calendar-resize-edge="${edge}"]`)!;
+  const booking = handle.closest<HTMLButtonElement>("button")!;
+  const { top: originalTop, height: originalHeight, left, width } = booking.style;
   const box = (left: number, top: number, width: number, height: number) => ({
     x: left, y: top, left, right: left + width, top, bottom: top + height, width, height, toJSON: () => ({}),
   });
@@ -298,28 +306,45 @@ it.each([
   async function mouse(target: EventTarget, type: string, clientX: number, clientY: number) {
     await act(async () => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 })));
   }
-  const endX = leavesColumn ? x + 100 : x;
+  const endX = outcome === "cancel" ? x + 100 : x;
   await mouse(handle, "mousedown", x, y);
   try {
     await mouse(document, "mousemove", x, y - 9);
     await mouse(document, "mousemove", x, y - 32);
     const preview = activeColumn.querySelector<HTMLElement>("[data-calendar-resize-preview]");
-    expect(preview?.textContent).toBe(previewTime);
-    expect(preview?.style.height).toBe(height);
+    expect(preview).toBe(booking);
+    expect(booking.querySelector("small")?.textContent).toBe(previewTime);
+    expect(booking.style.height).toBe(height);
+    expect(booking.style.left).toBe(left);
+    expect(booking.style.width).toBe(width);
+    if (edge === "start") expect(parseFloat(booking.style.top) + parseFloat(booking.style.height)).toBe(parseFloat(originalTop) + parseFloat(originalHeight));
+    else expect(booking.style.top).toBe(originalTop);
+    expect(document.querySelector(".calendar-move-overlay")).toBeNull();
     expect(container.querySelector("[data-calendar-time-preview]")).toBeNull();
     expect(container.querySelector("[data-calendar-dragging=true]")).toBeNull();
-    if (leavesColumn) {
+    if (outcome === "cancel") {
       await mouse(document, "mousemove", endX, y - 32);
       expect(container.querySelector("[data-calendar-resize-preview]")).toBeNull();
+      expect(container.querySelector("[data-calendar-drop-over=true]")).toBeNull();
+      expect(booking.style.height).toBe(originalHeight);
     }
   } finally {
     await mouse(document, "mouseup", endX, y - 32);
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
   }
-  if (leavesColumn) expect(onMoveEvent).not.toHaveBeenCalled();
+  if (outcome === "cancel") expect(onMoveEvent).not.toHaveBeenCalled();
   else {
     expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({ id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from: date, to: date, resize: { edge, minute } });
-    expect(container.querySelector(".calendar-move-status")?.textContent).toContain(`Resized “Early shoot” to ${previewTime}`);
+    expect(booking.querySelector("small")?.textContent).toBe(previewTime);
+    expect(booking.style.height).toBe(height);
+    expect(container.querySelector(".calendar-move-status")?.textContent).toBe("Updating event…");
+    await act(async () => completeSave(response));
+    expect(booking.hasAttribute("data-calendar-resize-preview")).toBe(false);
+    expect(container.querySelector(".calendar-move-status")?.textContent).toContain(response.ok ? `Resized “Early shoot” to ${previewTime}` : response.error);
+    if (!response.ok) {
+      expect(booking.style.height).toBe(originalHeight);
+      expect(booking.querySelector("small")?.textContent).toBe("09:00–11:00");
+    }
   }
   expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
 });

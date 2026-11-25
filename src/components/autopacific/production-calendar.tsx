@@ -19,7 +19,7 @@ import { calendarWeekdayOnOrAfter, calendarWorkweek } from "@/lib/calendar-weekd
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
 import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
-import { CalendarDayTimeTools, CalendarDragButton, CalendarDropDay, CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
+import { CalendarDayTimeTools, CalendarDragButton, CalendarDropDay, CalendarEventDrag, timedBookingGeometry, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
 import { assignTeamCalendarColors, calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import {
   productionDayAgenda,
@@ -187,20 +187,16 @@ export function TimedSchedule({
                 source={block.source}
                 dragDay={dates[index]}
                 moveKind={calendarDay ? "time" : calendarWeek ? "date-time" : "date"}
-                resizeLane={hasTimeGrid ? { lane: block.lane, lanes: block.lanes } : undefined}
+                timedBooking={{ time: block.time, compact: block.end - block.start < 45, resizable: hasTimeGrid }}
                 dragId={`timed:${dates[index]}:${block.id}`}
                 type="button"
                 {...calendarTeamAttributes(block.source, calendarMembers)}
-                className={`timetable-booking ${block.end-block.start<45?"is-short":""} ${agendaTone(block.source, today)}`}
+                className={`timetable-booking ${agendaTone(block.source, today)}`}
                 data-calendar-source={isOutlookEvent(block.source) ? "outlook" : undefined}
                 style={
                   {
                     ...calendarTeamAttributes(block.source, calendarMembers).style,
-                    top: ((block.start - firstHour * 60) * DESKTOP_HOUR_HEIGHT) / 60,
-                    height: Math.max(
-                      14,
-                      ((block.end - block.start) * DESKTOP_HOUR_HEIGHT) / 60 - 3,
-                    ),
+                    ...timedBookingGeometry(block.start, block.end, firstHour * 60, DESKTOP_HOUR_HEIGHT),
                     left: `calc(${(block.lane / block.lanes) * 100}% + 2px)`,
                     width: `calc(${100 / block.lanes}% - 4px)`,
                   } as CSSProperties
@@ -209,7 +205,6 @@ export function TimedSchedule({
                 aria-label={`${block.title}, ${block.time}, ${block.detail}`}
                 title={`${block.title} · ${block.time} · ${block.detail}`}
               >
-                <small>{block.time}</small>
                 <strong>{block.title}</strong>
                 {isOutlookEvent(block.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={block.source} />

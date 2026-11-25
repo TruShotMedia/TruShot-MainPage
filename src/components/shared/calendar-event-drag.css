@@ -58,24 +58,18 @@
   background: currentColor;
   opacity: 0;
 }
-.timetable-booking:is(:hover,:focus-visible) .calendar-resize-handle::after { opacity: .68; }
-.timetable-booking:has([data-calendar-resizing="true"]) { opacity: .4; }
-.calendar-resize-preview {
-  position: absolute;
-  z-index: 3;
-  display: block;
-  overflow: hidden;
-  border: 1px dashed var(--workspace-accent, #397fa6);
-  border-radius: 6px;
-  padding-inline: 4px;
-  color: var(--workspace-text, #182e3a);
-  background: color-mix(in srgb, var(--workspace-accent-soft, #eaf3f8) 85%, transparent);
-  font-size: 10px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  pointer-events: none;
+.timetable-booking:is(:hover,:focus-visible) .calendar-resize-handle::after,
+.calendar-resize-handle[data-calendar-resizing="true"]::after { opacity: .68; }
+@media (prefers-reduced-motion: no-preference) {
+  .timetable-booking[data-calendar-resizable] { transition: top 90ms ease-out, height 90ms ease-out; }
 }
+.timetable-booking[data-calendar-resize-preview],
+.timetable-booking:has([data-calendar-resizing="true"]) {
+  z-index: 3;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.timetable-hours:has([data-calendar-resizing="true"]),
+.timetable-booking[data-calendar-movable]:has([data-calendar-resizing="true"]) { cursor: ns-resize !important; }
 .calendar-move-status:not(:empty) {
   padding: 8px 12px;
   border: 1px solid var(--workspace-line, #c7d7e7);

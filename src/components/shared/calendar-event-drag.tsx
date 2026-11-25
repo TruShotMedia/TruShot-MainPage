@@ -14,17 +14,22 @@ import "./calendar-event-drag.css";
 
 export type MoveCalendarEvent = (change: CalendarEventMove) => Promise<CalendarEventMoveResult>;
 type MoveKind = "date" | "time" | "date-time";
-type Lane = { lane: number; lanes: number };
 type DragData = { event: CalendarCustomEvent; days: readonly string[] } & (
-  { kind: MoveKind } | { kind: "resize"; edge: CalendarResizeEdge; lane: Lane }
+  { kind: MoveKind } | { kind: "resize"; edge: CalendarResizeEdge; bookingId: string }
 );
 type ClockGrid = { firstMinute: number; lastMinute: number; hourHeight: number; allowsDateMove?: boolean };
 type DragTarget = { date: string; clockGrid?: ClockGrid };
-type ClockPreview = { date: string; startMinute: number; text: string } & (
-  { kind: "move" } | { kind: "resize"; endMinute: number; resize: NonNullable<CalendarEventMove["resize"]>; lane: Lane }
-);
+type ResizePreview = {
+  kind: "resize"; date: string; text: string; bookingId: string; top: number; height: number; compact: boolean;
+  resize: NonNullable<CalendarEventMove["resize"]>;
+};
+type ClockPreview = ResizePreview | { kind: "move"; date: string; text: string; startMinute: number };
 const MoveAvailability = createContext<"disabled" | "ready" | "saving">("disabled");
 const Preview = createContext<ClockPreview | null>(null);
+
+export function timedBookingGeometry(start: number, end: number, firstMinute: number, hourHeight: number) {
+  return { top: (start - firstMinute) * hourHeight / 60, height: Math.max(14, (end - start) * hourHeight / 60 - 3) };
+}
 
 function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | null {
   const item = active.data.current as DragData | undefined;
@@ -35,9 +40,11 @@ function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | nu
   const minutes = delta.y * 60 / hourHeight;
   if (item.kind === "resize") {
     const drop = calendarResizeDrop(item.event, target.date, item.edge, minutes, firstMinute, lastMinute);
-    return drop ? { kind: "resize", date: target.date, startMinute: drop.startMinute, endMinute: drop.endMinute,
-      text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`,
-      resize: { edge: item.edge, minute: drop.minute }, lane: item.lane } : null;
+    if (!drop) return null;
+    const start = Math.floor(drop.startMinute), end = Math.floor(drop.endMinute);
+    return { kind: "resize", date: target.date, bookingId: item.bookingId, compact: end - start < 45,
+      ...timedBookingGeometry(start, end, firstMinute, hourHeight),
+      text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`, resize: { edge: item.edge, minute: drop.minute } };
   }
   const drop = calendarTimeDrop(item.event, item.days[0], minutes, firstMinute, lastMinute);
   return drop ? { kind: "move", date: target.date, startMinute: drop.startMinute, text: `${drop.start_time.slice(0, 5)}–${drop.end_time.slice(0, 5)}` } : null;
@@ -60,14 +67,15 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
   }
   async function finish(event: DragEndEvent) {
     const { active, activatorEvent, over } = event;
+    const time = clockPreview(event);
     setTitle("");
-    setPreview(null);
+    // Keep the preview on the original booking until the saved time replaces it.
+    setPreview(time?.kind === "resize" && onMove && !saving ? time : null);
     if (!over || !onMove || saving) return;
     const item = active.data.current as DragData | undefined;
     const target = over.data.current as DragTarget | undefined;
     const to = target?.date;
     if (!item || typeof to !== "string") return;
-    const time = clockPreview(event);
     if (item.kind === "time" && (!time || to !== item.days[0])) return;
     if (item.kind === "resize" && time?.kind !== "resize") return;
     if (item.kind === "date" && target?.clockGrid && !target.clockGrid.allowsDateMove) return;
@@ -87,13 +95,18 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
     } catch {
       setNotice({ text: "Couldn’t confirm the change. Refresh the calendar before trying again.", error: true });
     } finally {
+      setPreview(null);
       setSaving(false);
     }
   }
   if (!onMove) return children;
   return <MoveAvailability.Provider value={saving ? "saving" : "ready"}>
     <DndContext id={contextId} sensors={sensors} collisionDetection={pointerWithin}
-      onDragStart={({ active }) => { setNotice(null); setTitle((active.data.current as DragData | undefined)?.event.title ?? ""); }}
+      onDragStart={({ active }) => {
+        const item = active.data.current as DragData | undefined;
+        setNotice(null);
+        setTitle(item?.kind === "resize" ? "" : item?.event.title ?? "");
+      }}
       onDragMove={updatePreview} onDragOver={updatePreview}
       onDragCancel={() => { setTitle(""); setPreview(null); }} onDragEnd={event => void finish(event)}>
       <Preview.Provider value={preview}>{children}</Preview.Provider>
@@ -127,11 +140,11 @@ export function useCalendarEventDrag(source: { entity_type: string }, days: read
   } : {} };
 }
 
-function CalendarResizeHandle({ event, date, dragId, edge, lane }: {
-  event: CalendarCustomEvent; date: string; dragId: string; edge: CalendarResizeEdge; lane: Lane;
+function CalendarResizeHandle({ event, date, dragId, edge }: {
+  event: CalendarCustomEvent; date: string; dragId: string; edge: CalendarResizeEdge;
 }) {
   const { setNodeRef, listeners, isDragging } = useDraggable({
-    id: `${dragId}:resize:${edge}`, data: { event, days: [date], kind: "resize", edge, lane } satisfies DragData,
+    id: `${dragId}:resize:${edge}`, data: { event, days: [date], kind: "resize", edge, bookingId: dragId } satisfies DragData,
   });
   return <span ref={setNodeRef} aria-hidden="true" className="calendar-resize-handle" data-calendar-resize-edge={edge}
     data-calendar-resizing={isDragging || undefined} title={edge === "start" ? "Drag to change start time" : "Drag to change finish time"}
@@ -140,17 +153,24 @@ function CalendarResizeHandle({ event, date, dragId, edge, lane }: {
     onClick={event => event.stopPropagation()} />;
 }
 
-export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", resizeLane, children, ...button }: ComponentPropsWithoutRef<"button"> & {
-  source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind; resizeLane?: Lane;
+export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", timedBooking, children, style, className, ...button }: ComponentPropsWithoutRef<"button"> & {
+  source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind;
+  timedBooking?: { time: string; compact: boolean; resizable: boolean };
 }) {
+  const preview = useContext(Preview);
+  const resize = preview?.kind === "resize" && preview.bookingId === dragId ? preview : null;
   const { canMove, props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
-  const event = canMove && resizeLane && dragDay && source.entity_type === "calendar-event" ? source as CalendarCustomEvent : null;
-  const canResize = Boolean(event && dragDay && sameDayCalendarEventWindow(event, dragDay));
-  return <button {...button} {...props} data-calendar-resizable={canResize || undefined}>
+  const event = canMove && timedBooking?.resizable && dragDay && source.entity_type === "calendar-event" ? source as CalendarCustomEvent : null;
+  const canResize = event && dragDay && sameDayCalendarEventWindow(event, dragDay);
+  return <button {...button} {...props} data-calendar-resizable={Boolean(canResize || resize) || undefined}
+    data-calendar-resize-preview={resize ? "" : undefined}
+    style={resize ? { ...style, top: resize.top, height: resize.height } : style}
+    className={(resize?.compact ?? timedBooking?.compact) ? `${className ?? ""} is-short` : className}>
+    {timedBooking ? <small>{resize?.text ?? timedBooking.time}</small> : null}
     {children}
-    {canResize && event && dragDay && resizeLane ? <>
-      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="start" lane={resizeLane} />
-      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="end" lane={resizeLane} />
+    {canResize && event && dragDay ? <>
+      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="start" />
+      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="end" />
     </> : null}
   </button>;
 }
@@ -163,23 +183,18 @@ type DayProps = { date: string; targetId?: string; clockGrid?: ClockGrid; disabl
 export function CalendarDropDay({ as, date, targetId, clockGrid, disableDrop, children, ...props }: DayProps) {
   const enabled = useContext(MoveAvailability) === "ready" && !disableDrop;
   const preview = useContext(Preview);
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: targetId ?? `day:${date}`, disabled: !enabled, data: { date, clockGrid },
   });
-  const highlight = enabled && isOver && (!clockGrid || (clockGrid.allowsDateMove && preview?.date !== date)) ? "true" : undefined;
+  const moving = (active?.data.current as DragData | undefined)?.kind !== "resize";
+  const highlight = moving && enabled && isOver && (!clockGrid || (clockGrid.allowsDateMove && preview?.date !== date)) ? "true" : undefined;
   const drop = { ref: enabled ? setNodeRef : undefined, "data-calendar-drop-over": highlight };
   return as === "button"
     ? <button {...props as ComponentPropsWithoutRef<"button">} {...drop}>{children}</button>
     : <div {...props as ComponentPropsWithoutRef<"div">} {...drop}>
       {children}
-      {enabled && isOver && clockGrid && preview?.date === date ? preview.kind === "resize"
-        ? <span className="calendar-resize-preview" data-calendar-resize-preview="" aria-hidden="true" style={{
-          top: (preview.startMinute - clockGrid.firstMinute) * clockGrid.hourHeight / 60,
-          height: (preview.endMinute - preview.startMinute) * clockGrid.hourHeight / 60,
-          left: `calc(${preview.lane.lane / preview.lane.lanes * 100}% + 2px)`,
-          width: `calc(${100 / preview.lane.lanes}% - 4px)`,
-        }}>{preview.text}</span>
-        : <span className="calendar-time-drop-preview" data-calendar-time-preview=""
+      {enabled && isOver && clockGrid && preview?.kind === "move" && preview.date === date
+        ? <span className="calendar-time-drop-preview" data-calendar-time-preview=""
           aria-hidden="true" style={{ top: (preview.startMinute - clockGrid.firstMinute) * clockGrid.hourHeight / 60 }}>{preview.text}</span> : null}
     </div>;
 }
