@@ -244,6 +244,36 @@ it.each([true, false])("highlights the hovered Week date and only moves if relea
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
 });
 
+it.each([false, true])("previews and saves the new Week time, including a diagonal drop (cross-day=%s)", async crossDay => {
+  const from = "2026-11-10", to = crossDay ? "2026-11-13" : from;
+  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: to, end_date: to,
+    start_time: "09:45:00", end_time: "11:45:00", updated_at: "2026-11-12T00:00:00Z" } });
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today={from} marketing={crossDay} onMoveEvent={onMoveEvent} {...callbacks} />));
+  const booking = container.querySelector<HTMLElement>(".timetable-booking[data-calendar-movable]")!;
+  const columns = [...container.querySelectorAll<HTMLElement>(".timetable-day-column")];
+  const bounds = (x: number, y: number, width: number, height: number) => ({
+    x, y, left: x, right: x + width, top: y, bottom: y + height, width, height, toJSON: () => ({}),
+  });
+  for (const [index, column] of columns.entries()) column.getBoundingClientRect = () => bounds(index * 100 + 50, 100, 100, 550);
+  booking.getBoundingClientRect = () => bounds(155, 148, 90, 95);
+  async function mouse(target: EventTarget, type: string, x: number, y: number) {
+    await act(async () => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 })));
+  }
+  const x = crossDay ? 485 : 175;
+  await mouse(booking, "mousedown", 175, 175);
+  try {
+    await mouse(document, "mousemove", 175, 185);
+    await mouse(document, "mousemove", x, 223);
+    expect(columns[crossDay ? 4 : 1].querySelector("[data-calendar-time-preview]")?.textContent).toBe("09:45–11:45");
+  } finally {
+    await mouse(document, "mouseup", x, 223);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+  }
+  expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({ id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from, to, startMinute: 585 });
+  expect(container.querySelector(".calendar-move-status")?.textContent).toContain(crossDay ? "Fri 13 Nov, 09:45–11:45" : "09:45–11:45");
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+});
+
 it("moves on a touch hold and drop onto a mobile Week row", async () => {
   const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));

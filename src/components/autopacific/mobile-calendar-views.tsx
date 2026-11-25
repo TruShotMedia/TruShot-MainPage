@@ -52,7 +52,7 @@ function MobileCalendarCard({ date, item, today, onOpen, variant = "row", drag =
   const outlook = isOutlookEvent(source);
   const time = itemTime(item);
   const showDetail = variant === "row" && item.detail !== time;
-  return <CalendarDragButton type="button" source={source} dragDay={drag ? date : undefined} dragTime={variant === "hour"}
+  return <CalendarDragButton type="button" source={source} dragDay={drag ? date : undefined} moveKind={variant === "hour" ? "time" : "date"}
     dragId={`phone:${variant}:${date}:${item.id}`}
     className={`mobile-calendar-card is-${variant} ${mobileScheduleTone(source, today)} ${variant === "hour" ? "mobile-calendar-hour-block" : ""}`}
     {...team} style={{ ...team.style, ...style }} data-kind={source.entity_type} data-calendar-source={outlook ? "outlook" : undefined}

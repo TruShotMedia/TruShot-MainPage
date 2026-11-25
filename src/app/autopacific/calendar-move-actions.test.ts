@@ -103,10 +103,26 @@ describe("calendar move action", () => {
     expect(mocks.sync).not.toHaveBeenCalled();
   });
 
-  it("rejects non-grid times and cross-day time changes before contacting the database", async () => {
+  it("rejects non-grid times before contacting the database", async () => {
     expect((await moveProductionCalendarEvent({ ...retime, startMinute: 616 })).ok).toBe(false);
-    expect((await moveProductionCalendarEvent({ ...retime, to: "2026-11-24" })).ok).toBe(false);
     expect(mocks.getContext).not.toHaveBeenCalled();
+  });
+
+  it("saves a Week drop's new day and time in one guarded update without changing the duration", async () => {
+    const to = "2026-11-24";
+    const changes = { start_date: to, end_date: to, ...newTimes };
+    const result = { ...changes, updated_at: moved.updated_at };
+    const fetch = fixture([timedRow], [result], changes);
+    expect(await moveProductionCalendarEvent({ ...retime, to })).toEqual({ ok: true, dates: result });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.sync).toHaveBeenCalledOnce();
+  });
+
+  it("does not save any fields on a cross-day drop that would run past midnight", async () => {
+    const fetch = fixture([timedRow]);
+    expect((await moveProductionCalendarEvent({ ...retime, to: "2026-11-24", startMinute: 23 * 60 + 45 })).ok).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.sync).not.toHaveBeenCalled();
   });
 
   it("does not sync when another edit wins before the guarded time write", async () => {

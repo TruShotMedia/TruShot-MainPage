@@ -20,7 +20,6 @@ export async function moveProductionCalendarEvent(input: unknown): Promise<Calen
   if (!parsed.success) return { ok: false, error: "Choose a valid day or time for this event." };
   const { id, expectedUpdatedAt, from, to, startMinute } = parsed.data;
   const retiming = startMinute !== undefined;
-  if (retiming && from !== to) return { ok: false, error: "Move an event’s time within the same day." };
   const context = await getProductionContext();
   if (!context || context.membership.workspace_id !== TRUSHOT_WORKSPACE_ID)
     return { ok: false, error: "Sign in again before moving this event." };
@@ -33,20 +32,22 @@ export async function moveProductionCalendarEvent(input: unknown): Promise<Calen
   const stale = { ok: false, error: "This event changed or is no longer available. Refresh the calendar and try again." } as const;
   if (readError) return { ok: false, error: "Couldn’t load this event. Try again." };
   if (!event) return stale;
+  const dates = shiftedCalendarEventDates(event.start_date, event.end_date, from, to);
+  if (!dates) return { ok: false, error: "Choose a day within the event and drag it to a valid date." };
+  const datePatch = from === to ? {} : dates;
   let changes: { start_date?: string; end_date?: string; start_time?: string; end_time?: string };
   if (retiming) {
     const shifted = shiftedCalendarEventTimes(event, from, startMinute);
-    if (!shifted) return { ok: false, error: "Choose a time that keeps this timed event within the same day." };
-    if (shifted.unchanged) {
+    if (!shifted) return { ok: false, error: "Time dragging is only for timed events that fit within one day." };
+    if (shifted.unchanged && from === to) {
       const { start_date, end_date, updated_at, start_time, end_time } = event;
       return { ok: true, dates: { start_date, end_date, updated_at, start_time, end_time } };
     }
-    changes = shifted.times;
+    // Week drops can change both fields together; never save one without the other.
+    changes = { ...datePatch, ...shifted.times };
   } else {
-    const dates = shiftedCalendarEventDates(event.start_date, event.end_date, from, to);
-    if (!dates) return { ok: false, error: "Choose a day within the event and drag it to a new date." };
     if (from === to) return { ok: true, dates: { start_date: event.start_date, end_date: event.end_date, updated_at: event.updated_at } };
-    changes = dates;
+    changes = datePatch;
   }
   // Both reads and writes use the caller’s RLS-bound client. The timestamp
   // guard also prevents overwriting an edit that arrived during this move.

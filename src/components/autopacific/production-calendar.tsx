@@ -66,6 +66,7 @@ export function TimedSchedule({
   onOpen,
   showWorkingHours = false,
   calendarDay = false,
+  calendarWeek = false,
 }: {
   data: ScheduleData;
   dates: string[];
@@ -73,10 +74,12 @@ export function TimedSchedule({
   onOpen: (source: AgendaSource) => void;
   showWorkingHours?: boolean;
   calendarDay?: boolean;
+  calendarWeek?: boolean;
 }) {
   const calendarMembers = useCalendarTeamColors();
   const isDay = dates.length === 1;
   const [fullDay, setFullDay] = useState(false);
+  const hasTimeGrid = calendarDay || calendarWeek;
   const workWindow = showWorkingHours && isDay ? videographerWorkingHours(dates[0]) : null;
   const agendas = dates.map((date) =>
     productionDayAgenda(date, {
@@ -87,8 +90,8 @@ export function TimedSchedule({
     }),
   );
   const blocks = agendas.flatMap((day) => day.timed);
-  const firstHour = calendarDay && fullDay ? 0 : Math.floor(Math.min(workWindow?.start ?? 480, ...blocks.map(block => block.start)) / 60);
-  const lastHour = calendarDay && fullDay ? 24 : Math.min(
+  const firstHour = hasTimeGrid && fullDay ? 0 : Math.floor(Math.min(workWindow?.start ?? 480, ...blocks.map(block => block.start)) / 60);
+  const lastHour = hasTimeGrid && fullDay ? 24 : Math.min(
     24,
     Math.max(
       18,
@@ -116,7 +119,7 @@ export function TimedSchedule({
         ))}
       </div>
       {showWorkingHours && isDay ? <WorkingHoursLegend window={workWindow} /> : null}
-      {calendarDay ? <CalendarDayTimeTools fullDay={fullDay} onToggle={() => setFullDay(value => !value)} /> : null}
+      {hasTimeGrid ? <CalendarDayTimeTools week={calendarWeek} fullDay={fullDay} onToggle={() => setFullDay(value => !value)} /> : null}
       <div
         className="timetable-all-day"
         style={{
@@ -174,7 +177,7 @@ export function TimedSchedule({
             date={dates[index]}
             targetId={`timed:${dates[index]}`}
             className="timetable-day-column"
-            clockGrid={calendarDay ? { firstMinute: firstHour * 60, lastMinute: lastHour * 60, hourHeight: DESKTOP_HOUR_HEIGHT } : undefined}
+            clockGrid={hasTimeGrid ? { firstMinute: firstHour * 60, lastMinute: lastHour * 60, hourHeight: DESKTOP_HOUR_HEIGHT, allowsDateMove: calendarWeek } : undefined}
             style={{ backgroundSize: `100% ${DESKTOP_HOUR_HEIGHT}px` }}
           >
             {workWindow ? <WorkingHoursBand window={workWindow} firstMinute={firstHour * 60} hourHeight={DESKTOP_HOUR_HEIGHT} /> : null}
@@ -183,7 +186,7 @@ export function TimedSchedule({
                 key={block.id}
                 source={block.source}
                 dragDay={dates[index]}
-                dragTime={calendarDay}
+                moveKind={calendarDay ? "time" : calendarWeek ? "date-time" : "date"}
                 dragId={`timed:${dates[index]}:${block.id}`}
                 type="button"
                 {...calendarTeamAttributes(block.source, calendarMembers)}
@@ -359,7 +362,7 @@ export function ProductionCalendar({
         ) : null}
         {!readOnly ? <CalendarCreateMenu key={date} date={date} label="Add" productionTools={productionTools} onCreate={onCreate} /> : null}
       </div>
-      {moveEvent && mode !== "day" ? <p className="calendar-move-help">Drag a calendar event onto another day to move it. Its booked time stays the same.</p> : null}
+      {moveEvent && (mode === "fortnight" || mode === "hybrid") ? <p className="calendar-move-help">Drag a calendar event onto another day to move it. Its booked time stays the same.</p> : null}
       {mode === "fortnight" || mode === "hybrid" ? (
         <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
         <TabletCalendar
@@ -392,7 +395,7 @@ export function ProductionCalendar({
         </div>
       ) : mode === "week" ? (
         <section className={weekStyles.layout} aria-label="Production calendar">
-          <TimedSchedule data={schedule} dates={dates} today={today} onOpen={open} />
+          <TimedSchedule data={schedule} dates={dates} today={today} onOpen={open} calendarWeek />
           <ProductionWeekPanel jobs={data.calendarJobs} tasks={data.calendarTasks} today={today} currentTime={currentTime}
             selected={date} weekDates={dates} location={weatherLocation} onOpenItem={onOpenItem} onSelect={setDate} />
         </section>

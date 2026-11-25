@@ -29,7 +29,7 @@ export type CalendarEventMove = {
   expectedUpdatedAt: string;
   from: string;
   to: string;
-  /** Present for same-day timeline drops; date-only drags leave times unchanged. */
+  /** Present for timeline drops that change the time; date-only drags leave times unchanged. */
   startMinute?: number;
 };
 
