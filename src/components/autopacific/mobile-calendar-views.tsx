@@ -1,10 +1,10 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { CalendarDays, ChevronRight, Clock3 } from "lucide-react";
 import {
-  CalendarDragButton, CalendarDropDay,
+  CalendarDayTimeTools, CalendarDragButton, CalendarDropDay,
 } from "@/components/shared/calendar-event-drag";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { WeatherIcon } from "@/components/shared/calendar-weather";
@@ -52,7 +52,7 @@ function MobileCalendarCard({ date, item, today, onOpen, variant = "row", drag =
   const outlook = isOutlookEvent(source);
   const time = itemTime(item);
   const showDetail = variant === "row" && item.detail !== time;
-  return <CalendarDragButton type="button" source={source} dragDay={drag ? date : undefined}
+  return <CalendarDragButton type="button" source={source} dragDay={drag ? date : undefined} dragTime={variant === "hour"}
     dragId={`phone:${variant}:${date}:${item.id}`}
     className={`mobile-calendar-card is-${variant} ${mobileScheduleTone(source, today)} ${variant === "hour" ? "mobile-calendar-hour-block" : ""}`}
     {...team} style={{ ...team.style, ...style }} data-kind={source.entity_type} data-calendar-source={outlook ? "outlook" : undefined}
@@ -97,24 +97,27 @@ export function MobileCalendarOverview({ mode, dates, agendas, forecasts, today,
 function MobileHourGrid({ agenda, date, today, currentTime, showWorkingHours, onOpen }: {
   agenda: Agenda; date: string; today: string; currentTime?: string; showWorkingHours?: boolean; onOpen: Open;
 }) {
+  const [fullDay, setFullDay] = useState(false);
   const now = date === today && currentTime ? Number(currentTime.slice(0, 2)) * 60 + Number(currentTime.slice(3, 5)) : null;
-  const layout = mobileHourLayout(agenda.timed, now);
+  const layout = mobileHourLayout(agenda.timed, now, fullDay);
   const workWindow = showWorkingHours ? videographerWorkingHours(date) : null;
   const hint = [layout.lanes > 2 ? "Swipe for more" : null, !showWorkingHours ? "Brisbane time" : null].filter(Boolean).join(" · ");
   return <section className="mobile-calendar-hour-section" aria-label="Hourly schedule">
     <div className="mobile-calendar-section-heading"><h3><Clock3 size={14} /> Hourly schedule</h3>{hint ? <span>{hint}</span> : null}</div>
     <div className="mobile-calendar-hour-scroll">
       {showWorkingHours ? <WorkingHoursLegend window={workWindow} /> : null}
+      <CalendarDayTimeTools mobile fullDay={fullDay} onToggle={() => setFullDay(value => !value)} />
       <div className="mobile-calendar-hour-grid" style={{ minWidth: 48 + layout.lanes * 105, height: layout.height + 12 }}>
         {layout.hours.map((hour, index) => <div key={hour} className="mobile-calendar-hour-line" style={{ top: index * 60 }} aria-hidden="true">
           <span>{hour % 12 || 12}{hour < 12 ? " AM" : " PM"}</span>
         </div>)}
-        <div className="mobile-calendar-hour-events">
+        <CalendarDropDay date={date} targetId={`phone-timed:${date}`} className="mobile-calendar-hour-events"
+          clockGrid={{ firstMinute: layout.firstMinute, lastMinute: layout.lastMinute, hourHeight: 60 }}>
           {workWindow ? <WorkingHoursBand window={workWindow} firstMinute={layout.firstMinute} hourHeight={60} /> : null}
-          {layout.blocks.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} variant="hour" drag={false}
+          {layout.blocks.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} variant="hour"
             style={{ top: item.start - layout.firstMinute, height: item.end - item.start - 3,
               left: `calc(${item.lane / item.lanes * 100}% + 2px)`, width: `calc(${100 / item.lanes}% - 4px)` }} />)}
-        </div>
+        </CalendarDropDay>
         {now !== null ? <div className="mobile-calendar-current-time" style={{ top: now - layout.firstMinute }}>
           <time aria-label={`Current time in Brisbane: ${currentTime}`}>{currentTime}</time>
         </div> : null}
@@ -129,7 +132,7 @@ export function MobileSelectedAgenda({ agenda, date, today, currentTime, hourly,
   return <>
     {agenda.allDay.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="All-day items">
       <h3><CalendarDays size={14} /> All day & deadlines</h3>
-      {agenda.allDay.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} />)}
+      {agenda.allDay.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} drag={!hourly} />)}
     </section> : null}
     {hourly ? <MobileHourGrid agenda={agenda} date={date} today={today} currentTime={currentTime} showWorkingHours={showWorkingHours} onOpen={onOpen} />
       : <section className="apg-mobile-timeline mobile-calendar-group" aria-label="Timed bookings">

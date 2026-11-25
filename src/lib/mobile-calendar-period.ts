@@ -42,15 +42,16 @@ export function mobileCalendarPeriodTitle(dates: readonly string[], anchor: stri
 
 /** A one-pixel-per-minute phone grid. Reserve tappable height in the lane
  * calculation so adjacent short events never overlap each other's buttons. */
-export function mobileHourLayout(bookings: readonly TimedBlock[], now: number | null) {
+export function mobileHourLayout(bookings: readonly TimedBlock[], now: number | null, fullDay = false) {
   const blocks = layoutTimedBlocks(bookings.map(block => ({
     ...block, end: Math.max(block.end, block.start + 47),
   })));
-  const first = Math.max(0, Math.min(7, ...blocks.map(block => Math.floor(block.start / 60)), now === null ? 7 : Math.floor(now / 60)));
-  const last = Math.min(24, Math.max(19, ...blocks.map(block => Math.ceil(block.end / 60)), now === null ? 19 : Math.ceil((now + 1) / 60)));
+  const first = fullDay ? 0 : Math.max(0, Math.min(7, ...blocks.map(block => Math.floor(block.start / 60)), now === null ? 7 : Math.floor(now / 60)));
+  const last = fullDay ? 24 : Math.min(24, Math.max(19, ...blocks.map(block => Math.ceil(block.end / 60)), now === null ? 19 : Math.ceil((now + 1) / 60)));
   return {
     blocks,
     firstMinute: first * 60,
+    lastMinute: last * 60,
     height: Math.max(last * 60, ...blocks.map(block => block.end)) - first * 60,
     hours: Array.from({ length: last - first }, (_, index) => first + index),
     lanes: Math.max(1, ...blocks.map(block => block.lanes)),

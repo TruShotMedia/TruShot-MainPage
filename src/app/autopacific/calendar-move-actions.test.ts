@@ -16,8 +16,12 @@ const updatedAt = "2026-11-21T08:00:01.234567+00:00";
 const input = { id, from: "2026-11-22", to: "2026-11-26", expectedUpdatedAt: updatedAt };
 const oldRow = { start_date: "2026-11-21", end_date: "2026-11-23", updated_at: updatedAt };
 const moved = { start_date: "2026-11-25", end_date: "2026-11-27", updated_at: "2026-11-24T10:00:00+00:00" };
+const timedRow = { ...oldRow, start_date: input.from, end_date: input.from, start_time: "09:15:00", end_time: "10:05:30.25", is_all_day: false };
+const retime = { ...input, to: input.from, startMinute: 10 * 60 + 15 };
+const newTimes = { start_time: "10:15:00", end_time: "11:05:30.250000" };
+const retimed = { start_date: input.from, end_date: input.from, ...newTimes, updated_at: moved.updated_at };
 
-function fixture(read: unknown = [oldRow], write: unknown = [moved]) {
+function fixture(read: unknown = [oldRow], write: unknown = [moved], changes: Record<string, string> = { start_date: moved.start_date, end_date: moved.end_date }) {
   const fetch = vi.fn(async (value: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(value));
     expect(url.pathname).toBe("/rest/v1/website-calendar-events");
@@ -25,9 +29,7 @@ function fixture(read: unknown = [oldRow], write: unknown = [moved]) {
     expect(url.searchParams.get("workspace_id")).toBe(`eq.${TRUSHOT_WORKSPACE_ID}`);
     expect(url.searchParams.get("updated_at")).toBe(`eq.${updatedAt}`);
     if (init?.method === "PATCH") {
-      expect(JSON.parse(String(init.body))).toEqual({
-        start_date: moved.start_date, end_date: moved.end_date, updated_by: userId,
-      });
+      expect(JSON.parse(String(init.body))).toEqual({ ...changes, updated_by: userId });
       return Response.json(write);
     }
     return Response.json(read);
@@ -71,6 +73,46 @@ describe("calendar move action", () => {
     const fetch = fixture();
     expect(await moveProductionCalendarEvent({ ...input, to: input.from })).toEqual({ ok: true, dates: oldRow });
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+
+  it("only writes the new start/end times and retains the original duration and date", async () => {
+    const fetch = fixture([timedRow], [retimed], newTimes);
+    expect(await moveProductionCalendarEvent(retime)).toEqual({ ok: true, dates: retimed });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.revalidate).toHaveBeenCalledWith("/autopacific/mobile");
+    expect(mocks.sync).toHaveBeenCalledOnce();
+  });
+
+  it("does not write when a valid drop leaves the starting time unchanged", async () => {
+    const fetch = fixture([timedRow]);
+    const result = await moveProductionCalendarEvent({ ...retime, startMinute: 9 * 60 + 15 });
+    expect(result).toMatchObject({ ok: true, dates: { start_time: "09:15:00", updated_at: updatedAt } });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ ...timedRow, is_all_day: true, start_time: null, end_time: null }, 615],
+    [{ ...timedRow, end_date: "2026-11-23" }, 615],
+    [timedRow, 23 * 60 + 45],
+  ])("rejects non-timed, overnight, or midnight-crossing drops without writing", async (row, startMinute) => {
+    const fetch = fixture([row]);
+    expect(await moveProductionCalendarEvent({ ...retime, startMinute })).toMatchObject({ ok: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-grid times and cross-day time changes before contacting the database", async () => {
+    expect((await moveProductionCalendarEvent({ ...retime, startMinute: 616 })).ok).toBe(false);
+    expect((await moveProductionCalendarEvent({ ...retime, to: "2026-11-24" })).ok).toBe(false);
+    expect(mocks.getContext).not.toHaveBeenCalled();
+  });
+
+  it("does not sync when another edit wins before the guarded time write", async () => {
+    const fetch = fixture([timedRow], [], newTimes);
+    expect(await moveProductionCalendarEvent(retime)).toMatchObject({ ok: false, error: expect.stringContaining("changed") });
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(mocks.sync).not.toHaveBeenCalled();
   });
 });

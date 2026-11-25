@@ -72,9 +72,9 @@ export function ProductionMobileSchedule({
     rememberView({ mode: "day", anchor: date, date });
     scrollToTop();
   }
-  const moveEvent: MoveCalendarEvent | undefined = !todayOnly && mode !== "day" && onMoveEvent ? async change => {
+  const moveEvent: MoveCalendarEvent | undefined = !todayOnly && onMoveEvent ? async change => {
     const result = await onMoveEvent(change);
-    if (result.ok) rememberView({ date: change.to });
+    if (result.ok && change.startMinute === undefined) rememberView({ date: change.to });
     return result;
   } : undefined;
 

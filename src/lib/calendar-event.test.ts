@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarEventFormEntries, calendarEventWindowError, grabbedCalendarDay, shiftedCalendarEventDates } from "@/lib/calendar-event";
+import { calendarEventFormEntries, calendarEventWindowError, calendarTimeDrop, grabbedCalendarDay, shiftedCalendarEventDates, shiftedCalendarEventTimes } from "@/lib/calendar-event";
 
 describe("calendar event windows", () => {
   it("normalizes the hidden time fields for an all-day event", () => {
@@ -69,5 +69,27 @@ describe("moving a calendar event by whole days", () => {
     const days = ["2026-11-24", "2026-11-25", "2026-11-26"];
     expect(grabbedCalendarDay(days, 40, 300, 156)).toBe(days[1]);
     expect(grabbedCalendarDay(days, 40, 300, 340)).toBe(days[2]);
+  });
+});
+
+describe("moving a timed calendar event on its day", () => {
+  const date = "2026-11-24";
+  const event = { start_date: date, end_date: date, start_time: "09:07:20", end_time: "09:37:20.012345", is_all_day: false };
+  it("snaps the beginning and preserves duration down to the stored precision", () => {
+    expect(calendarTimeDrop(event, date, 19, 420, 1140)).toEqual({
+      startMinute: 570, start_time: "09:30:00", end_time: "10:00:00.012345",
+    });
+    expect(calendarTimeDrop(event, date, -32, 420, 1140)?.start_time).toBe("08:30:00");
+  });
+  it("keeps the whole event inside the grid and before midnight", () => {
+    expect(calendarTimeDrop(event, date, 900, 420, 1140)?.start_time).toBe("18:15:00");
+    expect(calendarTimeDrop(event, date, -500, 420, 1140)?.start_time).toBe("07:00:00");
+    expect(calendarTimeDrop(event, date, 900, 0, 1440)?.start_time).toBe("23:15:00");
+    expect(shiftedCalendarEventTimes(event, date, 23 * 60 + 45)).toBeNull();
+  });
+  it("ignores horizontal/tiny motions, malformed clocks and drops on other dates", () => {
+    expect(calendarTimeDrop(event, date, 3, 420, 1140)).toBeNull();
+    expect(calendarTimeDrop(event, "2026-11-25", 30, 420, 1140)).toBeNull();
+    expect(calendarTimeDrop({ ...event, start_time: "09:60" }, date, 30, 420, 1140)).toBeNull();
   });
 });

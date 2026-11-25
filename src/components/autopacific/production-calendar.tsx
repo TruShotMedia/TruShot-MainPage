@@ -16,7 +16,7 @@ import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
 import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
-import { CalendarDragButton, CalendarDropDay, CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
+import { CalendarDayTimeTools, CalendarDragButton, CalendarDropDay, CalendarEventDrag, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
 import { assignTeamCalendarColors, calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import {
   productionDayAgenda,
@@ -59,15 +59,18 @@ export function TimedSchedule({
   today,
   onOpen,
   showWorkingHours = false,
+  calendarDay = false,
 }: {
   data: ScheduleData;
   dates: string[];
   today: string;
   onOpen: (source: AgendaSource) => void;
   showWorkingHours?: boolean;
+  calendarDay?: boolean;
 }) {
   const calendarMembers = useCalendarTeamColors();
   const isDay = dates.length === 1;
+  const [fullDay, setFullDay] = useState(false);
   const workWindow = showWorkingHours && isDay ? videographerWorkingHours(dates[0]) : null;
   const agendas = dates.map((date) =>
     productionDayAgenda(date, {
@@ -78,8 +81,8 @@ export function TimedSchedule({
     }),
   );
   const blocks = agendas.flatMap((day) => day.timed);
-  const firstHour = Math.floor(Math.min(workWindow?.start ?? 480, ...blocks.map(block => block.start)) / 60);
-  const lastHour = Math.min(
+  const firstHour = calendarDay && fullDay ? 0 : Math.floor(Math.min(workWindow?.start ?? 480, ...blocks.map(block => block.start)) / 60);
+  const lastHour = calendarDay && fullDay ? 24 : Math.min(
     24,
     Math.max(
       18,
@@ -107,6 +110,7 @@ export function TimedSchedule({
         ))}
       </div>
       {showWorkingHours && isDay ? <WorkingHoursLegend window={workWindow} /> : null}
+      {calendarDay ? <CalendarDayTimeTools fullDay={fullDay} onToggle={() => setFullDay(value => !value)} /> : null}
       <div
         className="timetable-all-day"
         style={{
@@ -118,13 +122,13 @@ export function TimedSchedule({
           <br />& due
         </small>
         {agendas.map((agenda, index) => (
-          <CalendarDropDay key={dates[index]} date={dates[index]} targetId={`all-day:${dates[index]}`}>
+          <CalendarDropDay key={dates[index]} date={dates[index]} targetId={`all-day:${dates[index]}`} disableDrop={calendarDay}>
             {agenda.allDay.map((item) => (
               <CalendarDragButton
                 type="button"
                 key={item.id}
                 source={item.source}
-                dragDay={dates[index]}
+                dragDay={calendarDay ? undefined : dates[index]}
                 dragId={`all-day:${dates[index]}:${item.id}`}
                 {...calendarTeamAttributes(item.source, calendarMembers)}
                 className={agendaTone(item.source, today)}
@@ -164,6 +168,7 @@ export function TimedSchedule({
             date={dates[index]}
             targetId={`timed:${dates[index]}`}
             className="timetable-day-column"
+            clockGrid={calendarDay ? { firstMinute: firstHour * 60, lastMinute: lastHour * 60, hourHeight: DESKTOP_HOUR_HEIGHT } : undefined}
             style={{ backgroundSize: `100% ${DESKTOP_HOUR_HEIGHT}px` }}
           >
             {workWindow ? <WorkingHoursBand window={workWindow} firstMinute={firstHour * 60} hourHeight={DESKTOP_HOUR_HEIGHT} /> : null}
@@ -172,6 +177,7 @@ export function TimedSchedule({
                 key={block.id}
                 source={block.source}
                 dragDay={dates[index]}
+                dragTime={calendarDay}
                 dragId={`timed:${dates[index]}:${block.id}`}
                 type="button"
                 {...calendarTeamAttributes(block.source, calendarMembers)}
@@ -294,7 +300,7 @@ export function ProductionCalendar({
   return (
     <CalendarTeamColorsProvider value={calendarMembers}>
     <div className="production-calendar-workspace">
-      <CalendarEventDrag onMove={mode === "day" ? undefined : moveEvent}>
+      <CalendarEventDrag onMove={moveEvent}>
       <div className="production-calendar-views">
         {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
         <div className="apg-view-pills" aria-label="Schedule view">
@@ -393,6 +399,7 @@ export function ProductionCalendar({
           dates={dates}
           today={today}
           showWorkingHours={showWorkingHours}
+          calendarDay={mode === "day" && !todayOnly}
           onOpen={open}
         />
       )}

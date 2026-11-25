@@ -75,6 +75,73 @@ const moveFixture = { ...data, calendarEvents: [
   { ...data.calendarEvents[0], updated_at: "2026-11-09T00:42:00Z", external_source: "outlook" as const },
 ] };
 
+it.each([
+  [false, true], [true, true], [false, false], [true, false],
+])("previews a Day time drop and only saves inside the time grid (mobile=%s, inside=%s)", async (mobile, inside) => {
+  const day = "2026-11-10";
+  const updatedAt = "2026-11-10T00:42:00Z";
+  const fixture = { ...moveFixture, calendarEvents: [...moveFixture.calendarEvents,
+    { ...event("Multi-day", "15:00", "09:00"), updated_at: updatedAt, end_date: "2026-11-11" },
+    { ...event("All-day reminder", "09:00", "10:00"), updated_at: updatedAt, is_all_day: true, start_time: null, end_time: null },
+  ] };
+  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: day, end_date: day, updated_at: updatedAt, start_time: "09:45:00", end_time: "11:45:00" } });
+  await act(async () => root.render(<ProductionCalendar data={fixture} today={day} marketing={mobile} mobile={mobile} personalTools onMoveEvent={onMoveEvent} {...callbacks} />));
+  await chooseMode("Day");
+  const grid = container.querySelector<HTMLElement>(mobile ? ".mobile-calendar-hour-events" : ".timetable-day-column")!;
+  const movable = [...container.querySelectorAll<HTMLElement>("[data-calendar-movable]")];
+  expect(movable).toHaveLength(1);
+  const booking = movable[0];
+  expect(booking.textContent).toContain("Early shoot");
+  const rect = (left: number, top: number, width: number, height: number) => ({
+    x: left, y: top, left, right: left + width, top, bottom: top + height, width, height, toJSON: () => ({}),
+  });
+  grid.getBoundingClientRect = () => rect(50, 100, 375, 560);
+  booking.getBoundingClientRect = () => rect(55, 150, 180, 100);
+  const dispatchPointer = async (target: EventTarget, phase: "start" | "move" | "end", clientX: number, clientY: number) => {
+    const point = { clientX, clientY } as Touch;
+    const event = mobile
+      ? new TouchEvent({ start: "touchstart", move: "touchmove", end: "touchend" }[phase], { bubbles: true, cancelable: true, touches: phase === "end" ? [] : [point], changedTouches: [point] })
+      : new MouseEvent({ start: "mousedown", move: "mousemove", end: "mouseup" }[phase], { bubbles: true, cancelable: true, clientX, clientY, button: 0 });
+    // Browsers keep touch events targeted at the original element throughout the gesture.
+    await act(async () => (mobile ? booking : target).dispatchEvent(event));
+  };
+  const y = 175 + (mobile ? 45 : 48);
+  const x = inside ? 120 : 460;
+  await dispatchPointer(booking, "start", 120, 175);
+  try {
+    if (mobile) await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
+    else await dispatchPointer(document, "move", 120, 185);
+    await dispatchPointer(document, "move", 120, y);
+    expect(container.querySelector("[data-calendar-time-preview]")?.textContent).toBe("09:45–11:45");
+    if (!inside) {
+      await dispatchPointer(document, "move", x, y);
+      expect(container.querySelector("[data-calendar-time-preview]")).toBeNull();
+    }
+  } finally {
+    await dispatchPointer(document, "end", x, y);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+  }
+  if (inside) {
+    expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({
+      id: "Early shoot", expectedUpdatedAt: fixture.calendarEvents[0].updated_at, from: day, to: day, startMinute: 585,
+    });
+    expect(container.querySelector(".calendar-move-status")?.textContent).toContain("09:45–11:45");
+  } else expect(onMoveEvent).not.toHaveBeenCalled();
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+});
+
+it.each([false, true])("shows all 24 hours on request and never permits a team read-only drop (mobile=%s)", async mobile => {
+  const onMoveEvent = vi.fn();
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile={mobile} readOnly onMoveEvent={onMoveEvent} {...callbacks} />));
+  await chooseMode("Day");
+  const toggle = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Show all 24 hours")!;
+  await act(async () => toggle.click());
+  expect(container.querySelectorAll(mobile ? ".mobile-calendar-hour-line" : ".timetable-time-labels time")).toHaveLength(24);
+  expect(toggle.textContent).toBe("Show fewer hours");
+  expect(container.querySelector("[data-calendar-movable]")).toBeNull();
+  expect(onMoveEvent).not.toHaveBeenCalled();
+});
+
 it.each([["Fortnight", false], ["Week", false], ["Hybrid", false], ["Week", true], ["Fortnight", true]])(
   "makes CRM events draggable, without making Outlook events movable (%s, mobile %s)",
   async (mode, mobile) => {

@@ -23,6 +23,20 @@
 }
 .calendar-move-overlay svg { flex: none; }
 .calendar-move-overlay span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-move-overlay time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.calendar-time-drop-preview {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  padding-inline: 8px;
+  border-top: 2px solid var(--workspace-accent, #397fa6);
+  color: var(--workspace-text, #182e3a);
+  background: color-mix(in srgb, var(--workspace-accent-soft, #eaf3f8) 88%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 .calendar-move-status:not(:empty) {
   padding: 8px 12px;
   border: 1px solid var(--workspace-line, #c7d7e7);
@@ -31,3 +45,25 @@
   font-size: 13px;
 }
 .calendar-move-help { margin: 0; color: var(--workspace-muted, #4b6278); font-size: 12px; }
+.calendar-day-time-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  border-block-end: 1px solid var(--workspace-line);
+}
+.calendar-day-time-tools > button {
+  margin-inline-start: auto;
+  border: 1px solid var(--workspace-line);
+  border-radius: 7px;
+  padding-inline: 8px;
+  min-height: 34px;
+  color: var(--workspace-text);
+  background: var(--workspace-panel);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.apg-mobile-schedule .calendar-day-time-tools > button { min-height: 44px; }
