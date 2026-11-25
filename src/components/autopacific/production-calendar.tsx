@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
@@ -11,7 +11,7 @@ import { ProductionDayPane } from "./production-day-pane";
 import { ProductionWeekPanel } from "./production-week-panel";
 import { CalendarCreateMenu } from "./calendar-create-menu";
 import { WorkingHoursBand, WorkingHoursLegend } from "./calendar-working-hours";
-import { videographerWorkingHours } from "@/lib/calendar-working-hours";
+import { videographerWorkingHours, workingHoursTime } from "@/lib/calendar-working-hours";
 import styles from "./production-hybrid.module.css";
 import weekStyles from "./production-week-panel.module.css";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
@@ -45,6 +45,23 @@ const DESKTOP_HOUR_HEIGHT = 64;
 const brisbaneClock = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
 });
+const subscribeToClient = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+function WeekCurrentTime({ time, firstHour, lastHour }: { time: string; firstHour: number; lastHour: number }) {
+  // The request and browser may render on different minutes or sides of the visible range.
+  const hydrated = useSyncExternalStore(subscribeToClient, clientSnapshot, serverSnapshot);
+  const [hour, minute] = time.split(":").map(Number);
+  if (!hydrated || hour < firstHour || hour >= lastHour) return null;
+  const label = workingHoursTime(hour * 60 + minute);
+  const top = ((hour - firstHour) * 60 + minute) * DESKTOP_HOUR_HEIGHT / 60;
+  return <div className="timetable-current-time" style={{ top }}>
+    <time dateTime={time} aria-label={`Current time in Brisbane: ${label}`}>{label}</time>
+    <span className="timetable-current-time-line" aria-hidden="true" />
+  </div>;
+}
+
 function agendaTone(source: AgendaSource, today: string) {
   const related =
     (source.client_name ?? "").toLowerCase() === "autopacific group";
@@ -67,6 +84,7 @@ export function TimedSchedule({
   showWorkingHours = false,
   calendarDay = false,
   calendarWeek = false,
+  currentTime,
 }: {
   data: ScheduleData;
   dates: string[];
@@ -75,6 +93,7 @@ export function TimedSchedule({
   showWorkingHours?: boolean;
   calendarDay?: boolean;
   calendarWeek?: boolean;
+  currentTime?: string;
 }) {
   const calendarMembers = useCalendarTeamColors();
   const isDay = dates.length === 1;
@@ -215,6 +234,9 @@ export function TimedSchedule({
             ))}
           </CalendarDropDay>
         ))}
+        {calendarWeek && currentTime && dates.includes(today)
+          ? <WeekCurrentTime time={currentTime} firstHour={firstHour} lastHour={lastHour} />
+          : null}
       </div>
     </section>
   );
@@ -391,7 +413,7 @@ export function ProductionCalendar({
         </div>
       ) : mode === "week" ? (
         <section className={weekStyles.layout} aria-label="Production calendar">
-          <TimedSchedule data={schedule} dates={dates} today={today} onOpen={open} calendarWeek />
+          <TimedSchedule data={schedule} dates={dates} today={today} onOpen={open} calendarWeek currentTime={currentTime} />
           <ProductionWeekPanel jobs={data.calendarJobs} tasks={data.calendarTasks} today={today} currentTime={currentTime}
             selected={date} weekDates={dates} location={weatherLocation} onOpenItem={onOpenItem} onSelect={setDate} />
         </section>

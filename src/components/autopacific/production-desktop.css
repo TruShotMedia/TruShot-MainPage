@@ -900,7 +900,49 @@ html.apg-desktop-active body {
   padding: 7px;
 }
 .timetable-hours {
+  position: relative;
   display: grid;
+}
+.timetable-current-time {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  block-size: 0;
+  pointer-events: none;
+}
+.timetable-current-time > time {
+  box-sizing: border-box;
+  flex: 0 0 44px;
+  margin-inline: 2px;
+  padding: 2px 3px;
+  border: 1px solid var(--workspace-accent);
+  border-radius: 5px;
+  background: var(--workspace-surface);
+  color: var(--workspace-text);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+.timetable-current-time-line {
+  position: relative;
+  flex: 1;
+  border-block-start: 1px dotted color-mix(in srgb, var(--workspace-accent) 80%, transparent);
+}
+.timetable-current-time-line::before {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: -1px;
+  transform: translate(-50%, -50%);
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: 50%;
+  background: var(--workspace-accent);
+  content: "";
 }
 .timetable-time-labels {
   position: relative;

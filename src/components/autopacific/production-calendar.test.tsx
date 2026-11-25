@@ -80,6 +80,57 @@ it("opens the next workweek on desktop when today is Saturday but keeps the pane
   await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-14" marketing={false} {...callbacks} />));
   expect(container.querySelector(".timetable-day-labels strong")?.textContent).toBe("Mon 16 Nov");
   expect(container.querySelector('[aria-label="Today at a glance"]')?.textContent).toContain("Today · Sat 14 Nov");
+  expect(container.querySelector(".timetable-current-time")).toBeNull();
+});
+
+it.each([false, true])("tracks the Brisbane minute within the current Week grid (marketing=%s)", async marketing => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-10T04:20:00Z"));
+  try {
+    await render(marketing, marketing);
+    const marker = () => container.querySelector<HTMLElement>(".timetable-hours > .timetable-current-time");
+    expect(marker()?.querySelector("time")?.textContent).toBe("2:20 PM");
+    expect(marker()?.querySelector("time")?.getAttribute("datetime")).toBe("14:20");
+    expect(parseFloat(marker()!.style.top)).toBeCloseTo(380 * 64 / 60);
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(marker()?.textContent).toBe("2:21 PM");
+    expect(parseFloat(marker()!.style.top)).toBeCloseTo(381 * 64 / 60);
+    await click('[aria-label="Next schedule period"]');
+    expect(marker()).toBeNull();
+    await click('[aria-label="Previous schedule period"]');
+    expect(marker()?.textContent).toBe("2:21 PM");
+    await chooseMode("Day");
+    expect(marker()).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it("shows the marker outside the standard grid only when all hours are visible", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-10T12:30:00Z"));
+  try {
+    await render(true, true);
+    expect(container.querySelector(".timetable-current-time")).toBeNull();
+    const toggle = [...container.querySelectorAll("button")].find(button => button.textContent === "Show all 24 hours")!;
+    await act(async () => toggle.click());
+    expect(container.querySelector(".timetable-current-time")?.textContent).toBe("10:30 PM");
+  } finally { vi.useRealTimers(); }
+});
+
+it("hydrates the Week grid without a mismatch when the clock crosses into the visible hours", async () => {
+  vi.useFakeTimers();
+  try {
+    const calendar = <ProductionCalendar data={data} today="2026-11-10" marketing={false} {...callbacks} />;
+    vi.setSystemTime(new Date("2026-11-09T21:59:00Z"));
+    const html = renderToString(calendar);
+    expect(html).not.toContain("timetable-current-time");
+    await act(async () => root.unmount());
+    container.innerHTML = html;
+    vi.setSystemTime(new Date("2026-11-09T22:00:00Z"));
+    const errors: unknown[] = [];
+    await act(async () => { root = hydrateRoot(container, calendar, { onRecoverableError: error => errors.push(error) }); });
+    expect(errors).toEqual([]);
+    expect(container.querySelector(".timetable-current-time")?.textContent).toBe("8:00 AM");
+  } finally { vi.useRealTimers(); }
 });
 
 it.each([[false, false], [false, true], [true, false], [true, true]])(
