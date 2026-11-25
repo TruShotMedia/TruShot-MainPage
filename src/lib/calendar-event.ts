@@ -31,7 +31,10 @@ export type CalendarEventMove = {
   to: string;
   /** Present for timeline drops that change the time; date-only drags leave times unchanged. */
   startMinute?: number;
+  resize?: { edge: CalendarResizeEdge; minute: number };
 };
+
+export type CalendarResizeEdge = "start" | "end";
 
 export type CalendarEventMoveResult =
   | { ok: true; dates: { start_date: string; end_date: string; updated_at: string; start_time?: string | null; end_time?: string | null } }
@@ -110,4 +113,34 @@ export function calendarTimeDrop(event: TimedCalendarEvent, date: string, deltaM
   const startMinute = Math.min(last, Math.max(first, snapped));
   const shifted = shiftedCalendarEventTimes(event, date, startMinute);
   return shifted && !shifted.unchanged ? { startMinute, ...shifted.times } : null;
+}
+
+export function resizedCalendarEventTime(event: TimedCalendarEvent, date: string, edge: CalendarResizeEdge, minute: number) {
+  const window = sameDayCalendarEventWindow(event, date);
+  if (!window || !Number.isInteger(minute) || minute < 0 || minute >= CALENDAR_DAY_MINUTES || minute % CALENDAR_TIME_STEP) return null;
+  const value = minute * MINUTE_MICROS;
+  const start = edge === "start" ? value : window.start;
+  const end = edge === "end" ? value : window.start + window.duration;
+  if (end - start < CALENDAR_TIME_STEP * MINUTE_MICROS) return null;
+  return {
+    startMinute: start / MINUTE_MICROS, endMinute: end / MINUTE_MICROS,
+    startTime: fromClockMicros(start), endTime: fromClockMicros(end),
+    unchanged: value === (edge === "start" ? window.start : window.start + window.duration),
+  };
+}
+
+/** Drag only the grabbed edge, snapping it to a quarter-hour without crossing the other edge. */
+export function calendarResizeDrop(event: TimedCalendarEvent, date: string, edge: CalendarResizeEdge, deltaMinutes: number, firstMinute: number, lastMinute: number) {
+  const window = sameDayCalendarEventWindow(event, date);
+  if (!window || !Number.isFinite(deltaMinutes) || Math.abs(deltaMinutes) < 5) return null;
+  const start = window.start / MINUTE_MICROS, end = (window.start + window.duration) / MINUTE_MICROS;
+  const current = edge === "start" ? start : end;
+  const first = Math.ceil((edge === "start" ? firstMinute : start + CALENDAR_TIME_STEP) / CALENDAR_TIME_STEP) * CALENDAR_TIME_STEP;
+  const last = Math.floor((edge === "start" ? end - CALENDAR_TIME_STEP : Math.min(lastMinute, CALENDAR_DAY_MINUTES - 1)) / CALENDAR_TIME_STEP) * CALENDAR_TIME_STEP;
+  if (last < first) return null;
+  const snapped = Math.round((current + deltaMinutes) / CALENDAR_TIME_STEP) * CALENDAR_TIME_STEP;
+  const minute = Math.min(last, Math.max(first, snapped));
+  if ((minute - current) * deltaMinutes <= 0) return null;
+  const resized = resizedCalendarEventTime(event, date, edge, minute);
+  return resized ? { ...resized, minute } : null;
 }

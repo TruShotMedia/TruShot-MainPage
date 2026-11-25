@@ -274,6 +274,62 @@ it.each([false, true])("previews and saves the new Week time, including a diagon
   expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
 });
 
+it.each([
+  ["Day", "start", false, "08:30–11:00", 510, "160px"],
+  ["Week", "end", false, "09:00–10:30", 630, "96px"],
+  ["Week", "end", true, "09:00–10:30", 630, "96px"],
+] as const)("resizes one edge without moving the booking (%s, %s, leaves column=%s)", async (mode, edge, leavesColumn, previewTime, minute, height) => {
+  const date = "2026-11-10", updatedAt = "2026-11-12T00:00:00Z";
+  const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: date, end_date: date, updated_at: updatedAt } });
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today={date} marketing={mode === "Week"} onMoveEvent={onMoveEvent} {...callbacks} />));
+  await chooseMode(mode);
+  expect(container.querySelectorAll("[data-calendar-resizable]")).toHaveLength(1);
+  expect(container.querySelectorAll("[data-calendar-resize-edge]")).toHaveLength(2);
+  expect(container.querySelector('[data-calendar-source="outlook"] [data-calendar-resize-edge]')).toBeNull();
+  const columns = [...container.querySelectorAll<HTMLElement>(".timetable-day-column")];
+  const activeColumn = columns[mode === "Day" ? 0 : 1];
+  const handle = activeColumn.querySelector<HTMLElement>(`[data-calendar-resize-edge="${edge}"]`)!;
+  const box = (left: number, top: number, width: number, height: number) => ({
+    x: left, y: top, left, right: left + width, top, bottom: top + height, width, height, toJSON: () => ({}),
+  });
+  for (const [index, column] of columns.entries()) column.getBoundingClientRect = () => box(index * 100 + 50, 100, 100, 540);
+  const x = mode === "Day" ? 85 : 185, y = edge === "start" ? 164 : 290;
+  handle.getBoundingClientRect = () => box(x - 20, y - 2, 70, 5);
+  async function mouse(target: EventTarget, type: string, clientX: number, clientY: number) {
+    await act(async () => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 })));
+  }
+  const endX = leavesColumn ? x + 100 : x;
+  await mouse(handle, "mousedown", x, y);
+  try {
+    await mouse(document, "mousemove", x, y - 9);
+    await mouse(document, "mousemove", x, y - 32);
+    const preview = activeColumn.querySelector<HTMLElement>("[data-calendar-resize-preview]");
+    expect(preview?.textContent).toBe(previewTime);
+    expect(preview?.style.height).toBe(height);
+    expect(container.querySelector("[data-calendar-time-preview]")).toBeNull();
+    expect(container.querySelector("[data-calendar-dragging=true]")).toBeNull();
+    if (leavesColumn) {
+      await mouse(document, "mousemove", endX, y - 32);
+      expect(container.querySelector("[data-calendar-resize-preview]")).toBeNull();
+    }
+  } finally {
+    await mouse(document, "mouseup", endX, y - 32);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+  }
+  if (leavesColumn) expect(onMoveEvent).not.toHaveBeenCalled();
+  else {
+    expect(onMoveEvent).toHaveBeenCalledExactlyOnceWith({ id: "Early shoot", expectedUpdatedAt: moveFixture.calendarEvents[0].updated_at, from: date, to: date, resize: { edge, minute } });
+    expect(container.querySelector(".calendar-move-status")?.textContent).toContain(`Resized “Early shoot” to ${previewTime}`);
+  }
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+});
+
+it.each([[true, false], [false, true]])("does not show resize handles on mobile or in read-only calendars (mobile=%s, read-only=%s)", async (mobile, readOnly) => {
+  await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile={mobile} readOnly={readOnly} onMoveEvent={vi.fn()} {...callbacks} />));
+  await chooseMode("Day");
+  expect(container.querySelector("[data-calendar-resize-edge]")).toBeNull();
+});
+
 it("moves on a touch hold and drop onto a mobile Week row", async () => {
   const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));

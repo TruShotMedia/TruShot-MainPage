@@ -131,4 +131,33 @@ describe("calendar move action", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(mocks.sync).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["start", 540, { start_time: "09:00:00" }],
+    ["end", 630, { end_time: "10:30:00" }],
+  ] as const)("writes only the resized %s boundary", async (edge, minute, changes) => {
+    const to = input.from;
+    const result = { start_date: to, end_date: to, start_time: timedRow.start_time, end_time: timedRow.end_time, ...changes, updated_at: moved.updated_at };
+    const fetch = fixture([timedRow], [result], changes);
+    expect(await moveProductionCalendarEvent({ ...input, to, resize: { edge, minute } })).toEqual({ ok: true, dates: result });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.sync).toHaveBeenCalledOnce();
+  });
+
+  it("rejects resize across dates or combined with a move before reading any row", async () => {
+    const resize = { edge: "end", minute: 630 };
+    expect(await moveProductionCalendarEvent({ ...input, resize })).toMatchObject({ ok: false });
+    expect(await moveProductionCalendarEvent({ ...retime, resize })).toMatchObject({ ok: false });
+    expect(mocks.getContext).not.toHaveBeenCalled();
+  });
+
+  it("does not write too short a booking or overwrite a concurrent resize", async () => {
+    const to = input.from;
+    const fetch = fixture([timedRow], [], { start_time: "09:00:00" });
+    expect(await moveProductionCalendarEvent({ ...input, to, resize: { edge: "end", minute: 555 } })).toMatchObject({ ok: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(await moveProductionCalendarEvent({ ...input, to, resize: { edge: "start", minute: 540 } })).toMatchObject({ ok: false, error: expect.stringContaining("changed") });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
 });

@@ -37,6 +37,45 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+.timetable-booking .calendar-resize-handle {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  height: min(8px, 32%);
+  cursor: ns-resize;
+}
+.calendar-resize-handle[data-calendar-resize-edge="start"] { inset-block-start: 0; }
+.calendar-resize-handle[data-calendar-resize-edge="end"] { inset-block-end: 0; }
+.calendar-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  width: min(24px, 35%);
+  height: 2px;
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0;
+}
+.timetable-booking:is(:hover,:focus-visible) .calendar-resize-handle::after { opacity: .68; }
+.timetable-booking:has([data-calendar-resizing="true"]) { opacity: .4; }
+.calendar-resize-preview {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  overflow: hidden;
+  border: 1px dashed var(--workspace-accent, #397fa6);
+  border-radius: 6px;
+  padding-inline: 4px;
+  color: var(--workspace-text, #182e3a);
+  background: color-mix(in srgb, var(--workspace-accent-soft, #eaf3f8) 85%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .calendar-move-status:not(:empty) {
   padding: 8px 12px;
   border: 1px solid var(--workspace-line, #c7d7e7);

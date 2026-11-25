@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarEventFormEntries, calendarEventWindowError, calendarTimeDrop, grabbedCalendarDay, shiftedCalendarEventDates, shiftedCalendarEventTimes } from "@/lib/calendar-event";
+import { calendarEventFormEntries, calendarEventWindowError, calendarResizeDrop, calendarTimeDrop, grabbedCalendarDay, resizedCalendarEventTime, shiftedCalendarEventDates, shiftedCalendarEventTimes } from "@/lib/calendar-event";
 
 describe("calendar event windows", () => {
   it("normalizes the hidden time fields for an all-day event", () => {
@@ -91,5 +91,27 @@ describe("moving a timed calendar event on its day", () => {
     expect(calendarTimeDrop(event, date, 3, 420, 1140)).toBeNull();
     expect(calendarTimeDrop(event, "2026-11-25", 30, 420, 1140)).toBeNull();
     expect(calendarTimeDrop({ ...event, start_time: "09:60" }, date, 30, 420, 1140)).toBeNull();
+  });
+});
+
+describe("resizing one edge of a timed calendar event", () => {
+  const date = "2026-11-24";
+  const event = { start_date: date, end_date: date, start_time: "09:00:00.125", end_time: "11:00:00.25", is_all_day: false };
+  it("snaps the moved boundary and leaves the other boundary exact", () => {
+    expect(calendarResizeDrop(event, date, "start", -28, 480, 1080)).toMatchObject({ minute: 510, startTime: "08:30:00", endTime: "11:00:00.250000" });
+    expect(calendarResizeDrop(event, date, "end", 31, 480, 1080)).toMatchObject({ minute: 690, startTime: "09:00:00.125000", endTime: "11:30:00" });
+  });
+  it("clamps contraction to at least 15 minutes and stops before midnight", () => {
+    const exact = { ...event, start_time: "09:00:00", end_time: "11:00:00" };
+    expect(calendarResizeDrop(exact, date, "start", 180, 480, 1080)?.startTime).toBe("10:45:00");
+    expect(calendarResizeDrop(exact, date, "end", -180, 480, 1080)?.endTime).toBe("09:15:00");
+    expect(calendarResizeDrop(exact, date, "end", 960, 0, 1440)?.endTime).toBe("23:45:00");
+    expect(resizedCalendarEventTime(exact, date, "end", 1440)).toBeNull();
+    expect(resizedCalendarEventTime(exact, date, "start", 660)).toBeNull();
+  });
+  it("ignores small movements, foreign dates and contractions of already short events", () => {
+    expect(calendarResizeDrop(event, date, "end", 3, 480, 1080)).toBeNull();
+    expect(calendarResizeDrop(event, "2026-11-25", "end", 30, 480, 1080)).toBeNull();
+    expect(calendarResizeDrop({ ...event, start_time: "10:55:00" }, date, "start", 30, 480, 1080)).toBeNull();
   });
 });

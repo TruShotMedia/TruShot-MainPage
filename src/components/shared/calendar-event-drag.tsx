@@ -8,26 +8,39 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { CalendarClock } from "lucide-react";
-import { calendarTimeDrop, grabbedCalendarDay, sameDayCalendarEventWindow, type CalendarEventMove, type CalendarEventMoveResult } from "@/lib/calendar-event";
+import { calendarResizeDrop, calendarTimeDrop, grabbedCalendarDay, sameDayCalendarEventWindow, type CalendarEventMove, type CalendarEventMoveResult, type CalendarResizeEdge } from "@/lib/calendar-event";
 import type { CalendarCustomEvent } from "@/lib/types";
 import "./calendar-event-drag.css";
 
 export type MoveCalendarEvent = (change: CalendarEventMove) => Promise<CalendarEventMoveResult>;
 type MoveKind = "date" | "time" | "date-time";
-type DragData = { event: CalendarCustomEvent; days: readonly string[]; kind: MoveKind };
+type Lane = { lane: number; lanes: number };
+type DragData = { event: CalendarCustomEvent; days: readonly string[] } & (
+  { kind: MoveKind } | { kind: "resize"; edge: CalendarResizeEdge; lane: Lane }
+);
 type ClockGrid = { firstMinute: number; lastMinute: number; hourHeight: number; allowsDateMove?: boolean };
 type DragTarget = { date: string; clockGrid?: ClockGrid };
-type ClockPreview = { date: string; startMinute: number; text: string };
+type ClockPreview = { date: string; startMinute: number; text: string } & (
+  { kind: "move" } | { kind: "resize"; endMinute: number; resize: NonNullable<CalendarEventMove["resize"]>; lane: Lane }
+);
 const MoveAvailability = createContext<"disabled" | "ready" | "saving">("disabled");
 const Preview = createContext<ClockPreview | null>(null);
 
 function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | null {
   const item = active.data.current as DragData | undefined;
   const target = over?.data.current as DragTarget | undefined;
-  if (!item || item.kind === "date" || !target?.clockGrid || (target.date !== item.days[0] && !target.clockGrid.allowsDateMove)) return null;
+  if (!item || item.kind === "date" || !target?.clockGrid) return null;
+  if (target.date !== item.days[0] && (item.kind !== "date-time" || !target.clockGrid.allowsDateMove)) return null;
   const { hourHeight, firstMinute, lastMinute } = target.clockGrid;
-  const drop = calendarTimeDrop(item.event, item.days[0], delta.y * 60 / hourHeight, firstMinute, lastMinute);
-  return drop ? { date: target.date, startMinute: drop.startMinute, text: `${drop.start_time.slice(0, 5)}–${drop.end_time.slice(0, 5)}` } : null;
+  const minutes = delta.y * 60 / hourHeight;
+  if (item.kind === "resize") {
+    const drop = calendarResizeDrop(item.event, target.date, item.edge, minutes, firstMinute, lastMinute);
+    return drop ? { kind: "resize", date: target.date, startMinute: drop.startMinute, endMinute: drop.endMinute,
+      text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`,
+      resize: { edge: item.edge, minute: drop.minute }, lane: item.lane } : null;
+  }
+  const drop = calendarTimeDrop(item.event, item.days[0], minutes, firstMinute, lastMinute);
+  return drop ? { kind: "move", date: target.date, startMinute: drop.startMinute, text: `${drop.start_time.slice(0, 5)}–${drop.end_time.slice(0, 5)}` } : null;
 }
 
 export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarEvent; children: ReactNode }) {
@@ -43,7 +56,7 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
   function updatePreview(event: DragMoveEvent) {
     if ((event.active.data.current as DragData | undefined)?.kind === "date") return;
     const next = clockPreview(event);
-    setPreview(previous => previous?.date === next?.date && previous?.startMinute === next?.startMinute ? previous : next);
+    setPreview(previous => previous?.date === next?.date && previous?.text === next?.text ? previous : next);
   }
   async function finish(event: DragEndEvent) {
     const { active, activatorEvent, over } = event;
@@ -56,6 +69,7 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
     if (!item || typeof to !== "string") return;
     const time = clockPreview(event);
     if (item.kind === "time" && (!time || to !== item.days[0])) return;
+    if (item.kind === "resize" && time?.kind !== "resize") return;
     if (item.kind === "date" && target?.clockGrid && !target.clockGrid.allowsDateMove) return;
     const rect = active.rect.current.initial;
     const x = "clientX" in activatorEvent ? (activatorEvent as MouseEvent).clientX
@@ -65,12 +79,13 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
     setSaving(true);
     setNotice(null);
     try {
-      const result = await onMove({ id: item.event.id, expectedUpdatedAt: item.event.updated_at, from, to, ...(time ? { startMinute: time.startMinute } : {}) });
+      const adjustment = time?.kind === "resize" ? { resize: time.resize } : time ? { startMinute: time.startMinute } : {};
+      const result = await onMove({ id: item.event.id, expectedUpdatedAt: item.event.updated_at, from, to, ...adjustment });
       setNotice(result.ok
-        ? { text: `Moved “${item.event.title}” to ${[(!time || from !== to) && format(parseISO(result.dates.start_date), "EEE d MMM"), time?.text].filter(Boolean).join(", ")}.` }
+        ? { text: `${time?.kind === "resize" ? "Resized" : "Moved"} “${item.event.title}” to ${[(!time || from !== to) && format(parseISO(result.dates.start_date), "EEE d MMM"), time?.text].filter(Boolean).join(", ")}.` }
         : { text: result.error, error: true });
     } catch {
-      setNotice({ text: "Couldn’t confirm the move. Refresh the calendar before trying again.", error: true });
+      setNotice({ text: "Couldn’t confirm the change. Refresh the calendar before trying again.", error: true });
     } finally {
       setSaving(false);
     }
@@ -83,7 +98,7 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
       onDragCancel={() => { setTitle(""); setPreview(null); }} onDragEnd={event => void finish(event)}>
       <Preview.Provider value={preview}>{children}</Preview.Provider>
       <div className="calendar-move-status" role={notice?.error ? "alert" : "status"}>
-        {saving ? "Moving event…" : notice?.text ?? ""}
+        {saving ? "Updating event…" : notice?.text ?? ""}
       </div>
       {typeof document !== "undefined" ? createPortal(
         <DragOverlay dropAnimation={null} adjustScale={false}>
@@ -112,11 +127,32 @@ export function useCalendarEventDrag(source: { entity_type: string }, days: read
   } : {} };
 }
 
-export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", ...button }: ComponentPropsWithoutRef<"button"> & {
-  source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind;
+function CalendarResizeHandle({ event, date, dragId, edge, lane }: {
+  event: CalendarCustomEvent; date: string; dragId: string; edge: CalendarResizeEdge; lane: Lane;
 }) {
-  const { props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
-  return <button {...button} {...props} />;
+  const { setNodeRef, listeners, isDragging } = useDraggable({
+    id: `${dragId}:resize:${edge}`, data: { event, days: [date], kind: "resize", edge, lane } satisfies DragData,
+  });
+  return <span ref={setNodeRef} aria-hidden="true" className="calendar-resize-handle" data-calendar-resize-edge={edge}
+    data-calendar-resizing={isDragging || undefined} title={edge === "start" ? "Drag to change start time" : "Drag to change finish time"}
+    onMouseDown={event => { event.stopPropagation(); listeners?.onMouseDown?.(event); }}
+    onTouchStart={event => { event.stopPropagation(); listeners?.onTouchStart?.(event); }}
+    onClick={event => event.stopPropagation()} />;
+}
+
+export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", resizeLane, children, ...button }: ComponentPropsWithoutRef<"button"> & {
+  source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind; resizeLane?: Lane;
+}) {
+  const { canMove, props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
+  const event = canMove && resizeLane && dragDay && source.entity_type === "calendar-event" ? source as CalendarCustomEvent : null;
+  const canResize = Boolean(event && dragDay && sameDayCalendarEventWindow(event, dragDay));
+  return <button {...button} {...props} data-calendar-resizable={canResize || undefined}>
+    {children}
+    {canResize && event && dragDay && resizeLane ? <>
+      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="start" lane={resizeLane} />
+      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="end" lane={resizeLane} />
+    </> : null}
+  </button>;
 }
 
 type DayProps = { date: string; targetId?: string; clockGrid?: ClockGrid; disableDrop?: boolean } & (
@@ -136,8 +172,15 @@ export function CalendarDropDay({ as, date, targetId, clockGrid, disableDrop, ch
     ? <button {...props as ComponentPropsWithoutRef<"button">} {...drop}>{children}</button>
     : <div {...props as ComponentPropsWithoutRef<"div">} {...drop}>
       {children}
-      {enabled && isOver && clockGrid && preview?.date === date ? <span className="calendar-time-drop-preview" data-calendar-time-preview=""
-        aria-hidden="true" style={{ top: (preview.startMinute - clockGrid.firstMinute) * clockGrid.hourHeight / 60 }}>{preview.text}</span> : null}
+      {enabled && isOver && clockGrid && preview?.date === date ? preview.kind === "resize"
+        ? <span className="calendar-resize-preview" data-calendar-resize-preview="" aria-hidden="true" style={{
+          top: (preview.startMinute - clockGrid.firstMinute) * clockGrid.hourHeight / 60,
+          height: (preview.endMinute - preview.startMinute) * clockGrid.hourHeight / 60,
+          left: `calc(${preview.lane.lane / preview.lane.lanes * 100}% + 2px)`,
+          width: `calc(${100 / preview.lane.lanes}% - 4px)`,
+        }}>{preview.text}</span>
+        : <span className="calendar-time-drop-preview" data-calendar-time-preview=""
+          aria-hidden="true" style={{ top: (preview.startMinute - clockGrid.firstMinute) * clockGrid.hourHeight / 60 }}>{preview.text}</span> : null}
     </div>;
 }
 
@@ -145,8 +188,8 @@ export function CalendarDayTimeTools({ mobile, week, fullDay, onToggle }: { mobi
   const showDragHelp = useContext(MoveAvailability) !== "disabled";
   return <div className="calendar-day-time-tools">
     {showDragHelp ? <p className="calendar-move-help">{week
-      ? "Drag a timed event up or down for a new time, or across columns for a new day."
-      : mobile ? "Touch and hold a timed event, then drag it to a new time." : "Drag a timed event up or down to change its time."}</p> : null}
+      ? "Drag an event to move it. Drag its top or bottom edge to resize."
+      : mobile ? "Touch and hold a timed event, then drag it to a new time." : "Drag an event up or down to move it, or drag an edge to resize."}</p> : null}
     <button type="button" onClick={onToggle}>{fullDay ? "Show fewer hours" : "Show all 24 hours"}</button>
   </div>;
 }

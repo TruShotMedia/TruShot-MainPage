@@ -187,6 +187,7 @@ export function TimedSchedule({
                 source={block.source}
                 dragDay={dates[index]}
                 moveKind={calendarDay ? "time" : calendarWeek ? "date-time" : "date"}
+                resizeLane={hasTimeGrid ? { lane: block.lane, lanes: block.lanes } : undefined}
                 dragId={`timed:${dates[index]}:${block.id}`}
                 type="button"
                 {...calendarTeamAttributes(block.source, calendarMembers)}
