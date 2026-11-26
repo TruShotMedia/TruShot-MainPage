@@ -19,35 +19,45 @@ export type TimedBlock = {
   source: AgendaSource;
   lane: number;
   lanes: number;
+  span: number;
 };
 const minutes = (time: string) => {
-  const [hours, mins] = time.slice(0, 5).split(":").map(Number);
-  return hours * 60 + mins;
+  const [hours, mins, seconds = 0] = time.split(":").map(Number);
+  return hours * 60 + mins + seconds / 60;
 };
+const bookingEnd = (start: number, end: number) => Math.min(1440, end > start ? end : start + 15);
+
 export function layoutTimedBlocks(
-  items: Omit<TimedBlock, "lane" | "lanes">[],
+  items: Omit<TimedBlock, "lane" | "lanes" | "span">[],
 ): TimedBlock[] {
   const sorted = [...items].sort(
     (a, b) => a.start - b.start || b.end - a.end || a.id.localeCompare(b.id),
   );
   const result: TimedBlock[] = [];
-  let group: TimedBlock[] = [],
-    ends: number[] = [],
-    groupEnd = -1;
+  let group: TimedBlock[][] = [], groupEnd = -1;
   const finish = () => {
-    for (const block of group) block.lanes = ends.length;
+    for (const lane of group) {
+      for (const block of lane) {
+        block.lanes = group.length;
+        // Reclaim empty space on the right unless something actually occupies it
+        // during this booking. A shared start/end boundary is not an overlap.
+        while (block.lane + block.span < group.length &&
+          !group[block.lane + block.span].some(other => other.start < block.end && block.start < other.end)) {
+          block.span++;
+        }
+      }
+    }
     group = [];
-    ends = [];
+    groupEnd = -1;
   };
   for (const item of sorted) {
     if (item.start >= groupEnd) finish();
-    let lane = ends.findIndex((end) => end <= item.start);
-    if (lane < 0) lane = ends.length;
-    ends[lane] = item.end;
-    const block = { ...item, lane, lanes: 1 };
-    group.push(block);
+    let lane = group.findIndex(bookings => bookings[bookings.length - 1].end <= item.start);
+    if (lane < 0) lane = group.push([]) - 1;
+    const block = { ...item, lane, lanes: 1, span: 1 };
+    group[lane].push(block);
     result.push(block);
-    groupEnd = Math.max(item.end, group.length === 1 ? item.end : groupEnd);
+    groupEnd = Math.max(item.end, groupEnd);
   }
   finish();
   return result;
@@ -67,7 +77,7 @@ export function productionDayAgenda(
       detail: string;
       source: AgendaSource;
     }> = [],
-    timed: Omit<TimedBlock, "lane" | "lanes">[] = [];
+    timed: Omit<TimedBlock, "lane" | "lanes" | "span">[] = [];
   for (const job of input.jobs) {
     if (job.shoot_date === date) {
       if (job.shoot_time) {
@@ -79,7 +89,7 @@ export function productionDayAgenda(
           id: `shoot:${job.id}`,
           title: job.title,
           start,
-          end: Math.max(end, start + 15),
+          end: bookingEnd(start, end),
           time: `${job.shoot_time.slice(0, 5)}${job.shoot_end_time ? `–${job.shoot_end_time.slice(0, 5)}` : ""}`,
           detail: job.shoot_end_time
             ? "Shoot booking"
@@ -126,11 +136,12 @@ export function productionDayAgenda(
         event.end_date === date && event.end_time
           ? minutes(event.end_time)
           : 1440;
+    if (end === 0 && event.start_date < date) continue; // A booking ending at midnight occupies none of this day.
     timed.push({
       id: event.id,
       title: event.title,
       start,
-      end: Math.min(1440, Math.max(start + 15, end)),
+      end: bookingEnd(start, end),
       time: `${event.start_date === date ? event.start_time.slice(0, 5) : "Continues"}${event.end_date === date && event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}`,
       detail: event.location ?? "Calendar event",
       source: event,
@@ -141,11 +152,12 @@ export function productionDayAgenda(
     const start =
         flight.departure_date === date ? minutes(flight.departure_time) : 0,
       end = flight.arrival_date === date ? minutes(flight.arrival_time) : 1440;
+    if (end === 0 && flight.departure_date < date) continue;
     timed.push({
       id: `flight:${flight.id}`,
       title: flight.title,
       start,
-      end: Math.min(1440, Math.max(start + 15, end)),
+      end: bookingEnd(start, end),
       time: `${flight.departure_date === date ? flight.departure_time.slice(0, 5) : "Continues"}${flight.arrival_date === date ? `–${flight.arrival_time.slice(0, 5)}` : ""}`,
       detail: `${flight.origin_location} → ${flight.destination_location}`,
       source: flight,

@@ -27,7 +27,7 @@ export function createProductionDayProjection(data: ProductionScheduleData) {
         if (asset.start_time) {
           const [hour, minute] = asset.start_time.split(":").map(Number);
           const start = hour * 60 + minute;
-          agenda.timed.push({ id: `campaign-start:${asset.id}`, title: asset.title, start, end: Math.min(1440, start + 30), time: asset.start_time.slice(0, 5), detail: `Campaign · ${asset.campaign_title}`, source: asset, lane: 0, lanes: 1 });
+          agenda.timed.push({ id: `campaign-start:${asset.id}`, title: asset.title, start, end: Math.min(1440, start + 30), time: asset.start_time.slice(0, 5), detail: `Campaign · ${asset.campaign_title}`, source: asset, lane: 0, lanes: 1, span: 1 });
         } else agenda.allDay.push({ id: `campaign-start:${asset.id}`, title: asset.title, detail: `Campaign · ${asset.campaign_title}`, source: asset });
       }
       if (asset.due_date === date) agenda.allDay.push({ id: `campaign-due:${asset.id}`, title: asset.title, detail: `Campaign deadline${asset.due_time ? ` · ${asset.due_time.slice(0, 5)}` : ""}`, source: asset });

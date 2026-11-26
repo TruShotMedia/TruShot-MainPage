@@ -28,6 +28,22 @@ const chooseMode = async (mode: string) => {
   await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Schedule view"] button')].find(button => button.textContent === mode)!.click());
 };
 
+it.each(["Day", "Week"])("only places actually overlapping desktop %s bookings side by side", async mode => {
+  const fixture = { ...data, calendarEvents: [
+    event("Shoot", "09:00", "13:20"),
+    { ...event("Outlook catch-up", "09:30", "10:00"), external_source: "outlook" as const },
+    event("Short handover", "13:20", "13:30"),
+    { ...event("Outlook planning", "13:30", "15:00"), external_source: "outlook" as const },
+  ] };
+  await act(async () => root.render(<ProductionCalendar data={fixture} today="2026-11-10" marketing={mode === "Week"} readOnly={mode === "Week"} {...callbacks} />));
+  await chooseMode(mode);
+  const cards = [...container.querySelectorAll<HTMLButtonElement>(".timetable-booking")];
+  expect(cards.map(card => card.style.width)).toEqual(["calc(50% - 4px)", "calc(50% - 4px)", "calc(100% - 4px)", "calc(100% - 4px)"]);
+  expect(cards[0].style.left).not.toBe(cards[1].style.left);
+  expect(cards[2].style.left).toBe(cards[3].style.left);
+  expect(parseFloat(cards[2].style.top) + parseFloat(cards[2].style.height)).toBeCloseTo(parseFloat(cards[3].style.top));
+});
+
 it.each([false, true])("defaults desktop to a five-day Week with today's scoped forecast and deadlines (marketing=%s)", async marketing => {
   const today = "2026-11-10";
   const location = marketing ? "melbourne-city" : "brisbane-city";

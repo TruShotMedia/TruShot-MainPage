@@ -30,6 +30,10 @@
   padding-right: 30px;
   pointer-events: auto;
 }
+/* Timed cards are placed against the clock grid, not the normal document flow. */
+.apg-desktop .production-timetable .timetable-booking[data-calendar-source="outlook"] {
+  position: absolute;
+}
 .apg-desktop [data-calendar-source="outlook"] strong,
 .apg-desktop [data-calendar-source="outlook"] em,
 .tablet-kiosk [data-calendar-source="outlook"] strong,

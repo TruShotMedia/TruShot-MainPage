@@ -15,10 +15,20 @@ import type { PipelineTask, TaskStatus } from "@/lib/types";
 type PipelineVariant = "admin" | "tablet";
 const EMPTY_STATUS_ALIASES: Record<string, string> = {};
 
-function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, canComplete, onComplete, onDuplicate, onEdit, onView, variant }: { task: PipelineTask; editable: boolean; workflowEnabled: boolean; approvalOnly: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; onDuplicate?: (task: PipelineTask) => void; onEdit?: (task: PipelineTask) => void; onView?: (task: PipelineTask) => void; variant: PipelineVariant }) {
+function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, canComplete, onComplete, onDuplicate, onEdit, onView, variant, compact }: { task: PipelineTask; editable: boolean; workflowEnabled: boolean; approvalOnly: boolean; isSaving: boolean; canComplete: boolean; onComplete: () => void; onDuplicate?: (task: PipelineTask) => void; onEdit?: (task: PipelineTask) => void; onView?: (task: PipelineTask) => void; variant: PipelineVariant; compact: boolean }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: task.id, disabled: isSaving || !workflowEnabled });
+  const priorityClass = `tablet-task-priority priority-${task.priority}`;
+  const due = formatDate(task.due_date);
+  const metadata = <span className="task-meta">
+    {compact ? <span className={priorityClass}>{task.priority}</span> : null}
+    <span><Clock3 size={13} aria-hidden="true" /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
+    <span title={task.due_date ? `Due ${due}` : "Due date unset"}>
+      <CalendarDays size={13} aria-hidden="true" />
+      {task.due_date ? <time dateTime={task.due_date}>{due}</time> : due}
+    </span>
+  </span>;
   return (
-    <article ref={setNodeRef} style={{ "--pipeline-control-count": Number(workflowEnabled) + Number(editable && Boolean(onEdit)) + Number(editable && Boolean(onDuplicate)) + Number((workflowEnabled || approvalOnly) && canComplete) } as CSSProperties} className={`pipeline-task pipeline-task-${variant} ${isDragging ? "is-dragging" : ""} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
+    <article ref={setNodeRef} style={{ "--pipeline-control-count": Number(workflowEnabled) + Number(editable && Boolean(onEdit)) + Number(editable && Boolean(onDuplicate)) + Number((workflowEnabled || approvalOnly) && canComplete) } as CSSProperties} className={`pipeline-task pipeline-task-${variant} ${compact ? "is-compact-review" : ""} ${isDragging ? "is-dragging" : ""} ${isSaving ? "is-saving" : ""} ${editable ? "is-editable" : "is-read-only"}`} aria-busy={isSaving}>
       {workflowEnabled || (approvalOnly && canComplete) || (editable && (onEdit || onDuplicate)) ? <div className="pipeline-task-controls">
         {workflowEnabled ? <button ref={setActivatorNodeRef} type="button" className="drag-handle" {...listeners} {...attributes} aria-label={`Move ${task.title}`} disabled={isSaving}><GripVertical size={15} /></button> : null}
         {editable && onEdit ? <button type="button" className="tablet-card-edit-button" aria-label={`Edit ${task.title}`} title="Edit asset" onClick={() => onEdit(task)} disabled={isSaving}><Pencil size={13} /></button> : null}
@@ -28,25 +38,19 @@ function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, can
       <div className="pipeline-card-content">
       {onView ? (
         <button type="button" className="tablet-task-card-primary" aria-label={`View details for ${task.title}`} onClick={() => onView(task)}>
-          <span className="task-client">{task.job?.client?.name ?? "No client"}</span>
+          {!compact ? <span className="task-client">{task.job?.client?.name ?? "No client"}</span> : null}
           <strong>{task.title}</strong>
           <small>{task.job?.title ?? "Unlinked job"}</small>
-          {variant === "tablet" ? <em className={`tablet-task-priority priority-${task.priority}`}>{task.priority}</em> : null}
-          <span className="task-meta">
-            <span><Clock3 size={13} /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
-            <span><CalendarDays size={13} /> {formatDate(task.due_date)}</span>
-          </span>
+          {variant === "tablet" && !compact ? <em className={priorityClass}>{task.priority}</em> : null}
+          {metadata}
         </button>
       ) : (
         <>
-          <div className="task-client">{task.job?.client?.name ?? "No client"}</div>
+          {!compact ? <div className="task-client">{task.job?.client?.name ?? "No client"}</div> : null}
           <h3>{task.title}</h3>
           <p>{task.job?.title ?? "Unlinked job"}</p>
-          {variant === "tablet" ? <span className={`tablet-task-priority priority-${task.priority}`}>{task.priority}</span> : null}
-          <div className="task-meta">
-            <span><Clock3 size={13} /> {task.hours == null ? "Hours unset" : `${task.hours}h`}</span>
-            <span><CalendarDays size={13} /> {formatDate(task.due_date)}</span>
-          </div>
+          {variant === "tablet" && !compact ? <span className={priorityClass}>{task.priority}</span> : null}
+          {metadata}
         </>
       )}
       </div>
@@ -54,13 +58,14 @@ function TaskCard({ task, editable, workflowEnabled, approvalOnly, isSaving, can
   );
 }
 
-function Column({ status, tasks, editable, workflowEnabled, approvalOnly, savingId, onComplete, onDuplicateTask, onEditTask, onViewTask, variant, completionStatusKey }: { status: TaskStatus; tasks: PipelineTask[]; editable: boolean; workflowEnabled: boolean; approvalOnly: boolean; savingId: string | null; onComplete: (task: PipelineTask) => void; onDuplicateTask?: (task: PipelineTask) => void; onEditTask?: (task: PipelineTask) => void; onViewTask?: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string }) {
+function Column({ status, tasks, editable, workflowEnabled, approvalOnly, savingId, onComplete, onDuplicateTask, onEditTask, onViewTask, variant, completionStatusKey, compactReviewCards }: { status: TaskStatus; tasks: PipelineTask[]; editable: boolean; workflowEnabled: boolean; approvalOnly: boolean; savingId: string | null; onComplete: (task: PipelineTask) => void; onDuplicateTask?: (task: PipelineTask) => void; onEditTask?: (task: PipelineTask) => void; onViewTask?: (task: PipelineTask) => void; variant: PipelineVariant; completionStatusKey: string; compactReviewCards: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: `status-${status.id}`, disabled: !workflowEnabled });
+  const compact = compactReviewCards && (status.key === "ready_for_revision" || status.key === "final_draft_notes");
   return (
     <section ref={setNodeRef} className={`pipeline-column pipeline-column-${variant} ${isOver ? "is-over" : ""}`} style={{ "--pipeline-status-color": status.color } as CSSProperties}>
       <header><span style={{ background: status.color }} /><h2>{status.label}</h2><b>{tasks.length}</b>{isOver ? <em className="pipeline-drop-hint">Drop here</em> : null}</header>
       <div className="pipeline-stack">
-        {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} workflowEnabled={workflowEnabled} approvalOnly={approvalOnly} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} onDuplicate={onDuplicateTask} onEdit={onEditTask} onView={onViewTask} variant={variant} />)}
+        {tasks.map((task) => <TaskCard key={task.id} task={task} editable={editable} workflowEnabled={workflowEnabled} approvalOnly={approvalOnly} isSaving={savingId === task.id} canComplete={status.key === completionStatusKey} onComplete={() => onComplete(task)} onDuplicate={onDuplicateTask} onEdit={onEditTask} onView={onViewTask} variant={variant} compact={compact} />)}
         {!tasks.length && <div className="pipeline-empty">{workflowEnabled ? "Drop an asset here" : "No assets"}</div>}
       </div>
     </section>
@@ -84,6 +89,7 @@ export function PipelineBoard({
   variant = "admin",
   visibleStatusKeys,
   workflowEnabled,
+  compactReviewCards = false,
 }: {
   editable?: boolean;
   approvalOnly?: boolean;
@@ -101,6 +107,7 @@ export function PipelineBoard({
   variant?: PipelineVariant;
   visibleStatusKeys?: string[];
   workflowEnabled?: boolean;
+  compactReviewCards?: boolean;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [message, setMessage] = useState("");
@@ -202,7 +209,7 @@ export function PipelineBoard({
       {variant === "admin" ? <div className="pipeline-toolbar pipeline-toolbar-admin"><p>Drag assets between active stages. Use the checkmark in Ready To Post to complete an asset.</p>{message ? <span role="status">{message}</span> : null}</div> : message ? <span className="pipeline-status-toast" role="status">{message}</span> : null}
       <DndContext sensors={canUpdateWorkflow ? sensors : []} collisionDetection={pipelineColumnCollision} onDragStart={({active}) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
         <div className={`pipeline-board pipeline-board-${variant}`} style={{ "--pipeline-columns": visibleStatuses.length } as CSSProperties}>
-          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} approvalOnly={approvalOnly} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} onViewTask={onViewTask} variant={variant} completionStatusKey={completionStatusKey} />)}
+          {visibleStatuses.map((status) => <Column key={status.id} status={status} tasks={byStatus.get(status.id) ?? []} editable={editable} workflowEnabled={canUpdateWorkflow} approvalOnly={approvalOnly} savingId={savingId} onComplete={completeTask} onDuplicateTask={onDuplicateTask} onEditTask={onEditTask} onViewTask={onViewTask} variant={variant} completionStatusKey={completionStatusKey} compactReviewCards={compactReviewCards} />)}
         </div>
         <PipelineDragPreview title={tasks.find(task => task.id === activeId)?.title} />
       </DndContext>

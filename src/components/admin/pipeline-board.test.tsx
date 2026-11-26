@@ -52,8 +52,9 @@ describe("PipelineBoard tablet variant", () => {
   let root: Root;
 
   it("allows Marketing review approval without drag, edit or duplicate controls",async()=>{
-    await act(async()=>root.render(<PipelineBoard initialStatuses={statuses} initialTasks={[readyTask]} editable={false} workflowEnabled={false} approvalOnly completionStatusKey="final_draft_notes" statusAliases={{ready_to_post:"final_draft_notes"}} visibleStatusKeys={["not_started","in_progress","final_draft_notes"]} onViewTask={vi.fn()} variant="tablet"/>));
+    await act(async()=>root.render(<PipelineBoard initialStatuses={statuses} initialTasks={[readyTask]} editable={false} workflowEnabled={false} approvalOnly completionStatusKey="final_draft_notes" statusAliases={{ready_to_post:"final_draft_notes"}} visibleStatusKeys={["not_started","in_progress","final_draft_notes"]} onViewTask={vi.fn()} variant="tablet" compactReviewCards/>));
     expect(container.querySelector('.drag-handle,.tablet-card-edit-button,.tablet-card-duplicate-button')).toBeNull();
+    expect(container.querySelector(".is-compact-review .task-meta .priority-high")?.textContent).toBe("high");
     const tick=container.querySelector<HTMLButtonElement>('[aria-label="Approve and complete Launch reel"]')!;
     expect(tick).not.toBeNull();await act(async()=>tick.click());
     expect(actionMocks.approveProductionTask).toHaveBeenCalledWith(readyTask.id);
@@ -72,6 +73,33 @@ describe("PipelineBoard tablet variant", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+  });
+
+  it("condenses only the review columns and keeps their permitted actions", async () => {
+    const tasks = [
+      { ...readyTask, id: "progress", status_id: statuses[1].id, title: "In progress asset" },
+      { ...readyTask, id: "revision", status_id: statuses[2].id, title: "Revision asset", hours: null },
+      { ...readyTask, status_id: statuses[3].id },
+    ];
+    const onViewTask = vi.fn();
+    await act(async () => root.render(<PipelineBoard initialTasks={tasks} initialStatuses={statuses} variant="tablet"
+      completionStatusKey="final_draft_notes" compactReviewCards onViewTask={onViewTask} onEditTask={vi.fn()} onDuplicateTask={vi.fn()} />));
+    const cards = [...container.querySelectorAll(".pipeline-task")];
+    expect(cards.map(card => card.classList.contains("is-compact-review"))).toEqual([false, true, true]);
+    for (const [i, card] of cards.entries()) {
+      expect(card.querySelector("strong")?.textContent).toBe(tasks[i].title);
+      expect(card.querySelector("small")?.textContent).toBe("Launch campaign");
+      expect(card.querySelectorAll(".drag-handle,.tablet-card-edit-button,.tablet-card-duplicate-button,.pipeline-complete-button")).toHaveLength(i === 2 ? 4 : 3);
+      if (!i) {
+        expect(card.querySelector(".tablet-task-priority")?.closest(".task-meta")).toBeNull();
+        continue;
+      }
+      const cells = [...card.querySelectorAll(".task-meta > span")];
+      expect(cells.map(cell => cell.textContent?.trim())).toEqual(["high", i === 1 ? "Hours unset" : "2h", "26 Aug 2026"]);
+      expect(cells[2].querySelector("time")?.dateTime).toBe("2026-08-26");
+    }
+    await act(async () => cards[1].querySelector<HTMLButtonElement>(".tablet-task-card-primary")!.click());
+    expect(onViewTask).toHaveBeenCalledWith(tasks[1]);
   });
 
   it("shows four kiosk stages, folds Ready To Post into Final Draft, and completes from there", async () => {

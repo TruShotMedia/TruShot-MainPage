@@ -217,7 +217,7 @@ export function TimedSchedule({
                     ...calendarTeamAttributes(block.source, calendarMembers).style,
                     ...timedBookingGeometry(block.start, block.end, firstHour * 60, DESKTOP_HOUR_HEIGHT),
                     left: `calc(${(block.lane / block.lanes) * 100}% + 2px)`,
-                    width: `calc(${100 / block.lanes}% - 4px)`,
+                    width: `calc(${(block.span / block.lanes) * 100}% - 4px)`,
                   } as CSSProperties
                 }
                 onClick={() => onOpen(block.source)}

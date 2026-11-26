@@ -28,7 +28,8 @@ const MoveAvailability = createContext<"disabled" | "ready" | "saving">("disable
 const Preview = createContext<ClockPreview | null>(null);
 
 export function timedBookingGeometry(start: number, end: number, firstMinute: number, hourHeight: number) {
-  return { top: (start - firstMinute) * hourHeight / 60, height: Math.max(14, (end - start) * hourHeight / 60 - 3) };
+  const duration = (end - start) * hourHeight / 60;
+  return { top: (start - firstMinute) * hourHeight / 60, height: Math.min(duration, Math.max(14, duration - 3)) };
 }
 
 function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | null {
@@ -41,7 +42,7 @@ function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | nu
   if (item.kind === "resize") {
     const drop = calendarResizeDrop(item.event, target.date, item.edge, minutes, firstMinute, lastMinute);
     if (!drop) return null;
-    const start = Math.floor(drop.startMinute), end = Math.floor(drop.endMinute);
+    const { startMinute: start, endMinute: end } = drop;
     return { kind: "resize", date: target.date, bookingId: item.bookingId, compact: end - start < 45,
       ...timedBookingGeometry(start, end, firstMinute, hourHeight),
       text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`, resize: { edge: item.edge, minute: drop.minute } };

@@ -985,6 +985,7 @@ export function ProductionDesktop({
               workflowEnabled={!reviewOnly}
               approvalOnly={reviewOnly}
               completionStatusKey="final_draft_notes"
+              compactReviewCards={!isMobileLayout}
               visibleStatusKeys={
                 reviewOnly
                   ? ["in_progress", "final_draft_notes"]
