@@ -562,6 +562,15 @@ it("shows an all-day post in the desktop Week all-day row", async () => {
   expect(mark?.closest("strong")?.textContent).toBe(post.title);
   expect(container.querySelector(".timetable-hours .calendar-post-mark")).toBeNull();
 });
+it.each([false, true])("does not open an editor for a post in a read-only calendar (mobile=%s)", async mobile => {
+  const post = { ...event("Launch day", "", ""), is_all_day: true, start_time: null, end_time: null, event_kind: "post" as const };
+  await act(async () => root.render(<ProductionCalendar data={{ ...data, calendarEvents: [post] }} today="2026-11-10" marketing readOnly mobile={mobile} {...callbacks} />));
+  await chooseMode("Day");
+  const entry = container.querySelector(".calendar-post-mark")?.closest("button");
+  expect(entry).not.toBeNull();
+  await act(async () => entry?.click());
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+});
 it.each([[false, "Week"], [false, "Day"], [false, "Hybrid"], [true, "Week"], [true, "Day"], [true, "List"], [true, "Month"]] as const)(
   "shows an independent post checkbox in %s %s",
   async (mobile, mode) => {

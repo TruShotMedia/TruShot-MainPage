@@ -304,8 +304,11 @@ export function ProductionCalendar({
     return () => clearInterval(timer);
   }, []);
   const currentTime = brisbaneClock.format(now);
+  function openEvent(event: CalendarCustomEvent) {
+    if (!readOnly || !isCalendarPost(event)) onOpenEvent(event);
+  }
   function open(source: AgendaSource) {
-    if (source.entity_type === "calendar-event") onOpenEvent(source);
+    if (source.entity_type === "calendar-event") openEvent(source);
     else if (source.entity_type === "flight-event") onOpenFlight(source);
     else onOpenItem(source);
   }
@@ -410,7 +413,7 @@ export function ProductionCalendar({
           onCreateEvent={(date) => onCreate("event", date)}
           renderCreateButton={value => <CalendarCreateMenu date={value} productionTools={productionTools} className="tablet-calendar-day-add" onCreate={onCreate} />}
           onEditItem={onOpenItem}
-          onEditEvent={onOpenEvent}
+          onEditEvent={openEvent}
           onEditFlight={onOpenFlight}
           today={today}
         />

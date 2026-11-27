@@ -56,9 +56,25 @@ describe("production team scope", () => {
     const mine = scopeProductionSpace(data, [colleague]);
     expect(mine.pipelineJobs).toEqual([]); expect(mine.pipelineTasks.map(item => item.id)).toEqual(["colleague"]);
     expect(mine.calendarEvents).toEqual([]); expect(mine.flightEvents.map(item => item.id)).toEqual(["colleague"]);
-    const all = scopeProductionSpace(data, [john, colleague], true);
+    const all = scopeProductionSpace(data, [john, colleague], "team");
     expect(all.calendarJobs).toHaveLength(1); expect(all.calendarTasks).toHaveLength(1);
     expect(all.calendarEvents).toEqual([]); expect(all.flightEvents).toEqual([]);
+  });
+  it("shows only native scheduled posts matching Marketing's selected people", () => {
+    const post = { id: "post", entity_type: "calendar-event", event_kind: "post", assignee_ids: [john, colleague] };
+    const data = { pipelineJobs: [], pipelineTasks: [], calendarJobs: [], calendarTasks: [], calendarCampaignAssets: [],
+      calendarEvents: [
+        post,
+        { ...post, id: "colleague-only", assignee_ids: [colleague] },
+        { ...post, id: "ordinary", event_kind: "event" },
+        { ...post, id: "outlook", external_source: "outlook" },
+      ], flightEvents: [{ id: "flight", assignee_ids: [john] }],
+    } as unknown as TabletKioskData;
+    const selected = scopeProductionSpace(data, [john], "marketing-team");
+    expect(selected.calendarEvents).toEqual([post]);
+    expect(selected.flightEvents).toEqual([]);
+    expect(scopeProductionSpace(data, [], "marketing-team").calendarEvents).toEqual([]);
+    expect(scopeProductionSpace(data, [john], "team").calendarEvents).toEqual([]);
   });
   it("uses actual completed task counts, not delayed or closed tasks", () => {
     expect(jobProgress({ total_tasks: 4, completed_tasks: 1, open_tasks: 2 })).toEqual({ completed: 1, total: 4, percent: 25 });

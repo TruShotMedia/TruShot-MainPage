@@ -1,6 +1,7 @@
 import type { JobStatus, TabletKioskData } from "@/lib/types";
 import { findTeamMentions } from "./production-mentions";
 import { calculateJobProgress } from "./job-progress";
+import { isCalendarPost } from "./calendar-event";
 import type { JobDeliverable, JobLinkedTask } from "./job-deliverable-model";
 
 export type TeamRole = "manager" | "videographer" | "marketing";
@@ -19,15 +20,16 @@ export function assignedTo(record: AssignedRecord, ids: readonly string[]) {
 }
 
 /** Filtering is a view preference, never a replacement for database permission. */
-export function scopeProductionSpace(data: TabletKioskData, ids: readonly string[], teamOnly = false): TabletKioskData {
+export function scopeProductionSpace(data: TabletKioskData, ids: readonly string[], calendarScope: "assigned" | "team" | "marketing-team" = "assigned"): TabletKioskData {
   const pipelineJobs = data.pipelineJobs.filter(item => assignedTo(item, ids));
   const pipelineTasks = data.pipelineTasks.filter(item => assignedTo(item, ids));
   return { ...data, pipelineJobs, pipelineTasks,
     calendarJobs: data.calendarJobs.filter(item => assignedTo(item, ids)),
     calendarTasks: data.calendarTasks.filter(item => assignedTo(item, ids)),
     calendarCampaignAssets: data.calendarCampaignAssets.filter(item => assignedTo(item, ids)),
-    calendarEvents: teamOnly ? [] : data.calendarEvents.filter(item => assignedTo(item, ids)),
-    flightEvents: teamOnly ? [] : data.flightEvents.filter(item => assignedTo(item, ids)),
+    calendarEvents: calendarScope === "team" ? [] : data.calendarEvents.filter(item =>
+      assignedTo(item, ids) && (calendarScope === "assigned" || (isCalendarPost(item) && !item.external_source))),
+    flightEvents: calendarScope === "assigned" ? data.flightEvents.filter(item => assignedTo(item, ids)) : [],
     // Keep the authorised job directory so a personal task can link to a shared brief.
     jobOptions: data.jobOptions,
   };

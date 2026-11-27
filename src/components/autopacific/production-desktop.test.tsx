@@ -35,7 +35,19 @@ describe("shared desktop workspace",()=>{
    { user_id: "john", display_name: "John", username: "john", role: "manager", is_active: true, avatar_color: "#579", is_primary_videographer: true },
    { user_id: "colleague", display_name: "Colleague", username: "colleague", role: "marketing", is_active: true, avatar_color: "#579" },
   ] };
-  const fixture = { ...data, calendarJobs: [
+  const scheduledPost: CalendarCustomEvent = {
+   id: "john-post", entity_type: "calendar-event", event_kind: "post", title: "John launch post",
+   assignee_ids: ["john"], client_id: "apg", client_name: "Autopacific Group", description: null, location: null,
+   start_date: "2026-11-10", end_date: "2026-11-10", start_time: null, end_time: null, is_all_day: true,
+   color: "#1f5e41", reminder_offsets_minutes: [], created_at: job.updated_at, updated_at: job.updated_at,
+  };
+  const fixture = { ...data, calendarEvents: [
+   scheduledPost,
+   { ...scheduledPost, id: "team-post", title: "Colleague launch post", assignee_ids: ["colleague"], post_completed_at: job.updated_at },
+   { ...scheduledPost, id: "ordinary", title: "Ordinary meeting", event_kind: "event" as const },
+   { ...scheduledPost, id: "private", title: "Private Outlook event", external_source: "outlook" as const },
+   { ...scheduledPost, id: "ingreign", title: "INGREIGN private post" },
+  ], calendarJobs: [
    { ...data.calendarJobs[0], id: "john-shoot", title: "John shoot", assignee_ids: ["john"] },
    { ...data.calendarJobs[0], id: "team-shoot", title: "Colleague shoot", assignee_ids: ["colleague"] },
   ] };
@@ -48,6 +60,11 @@ describe("shared desktop workspace",()=>{
    expect(picker.value).toBe("team");
    expect(container.querySelector("h1")?.textContent).toBe("Team calendar");
    expect(container.textContent).toContain("John shoot"); expect(container.textContent).toContain("Colleague shoot");
+   expect(container.textContent).toContain("John launch post");
+   expect(container.textContent).toContain("Colleague launch post");
+   for (const hidden of ["Ordinary meeting", "Private Outlook event", "INGREIGN private post"]) expect(container.textContent).not.toContain(hidden);
+   expect(container.querySelector('.calendar-post-mark[aria-label="Scheduled post completed"]')?.closest("strong")?.textContent).toBe("Colleague launch post");
+   expect(container.querySelector('.calendar-post-check, [aria-label^="Mark John launch post"]')).toBeNull();
    const key = container.querySelector('[aria-label="Team calendar colour key"]')!;
    const swatches = [...key.querySelectorAll<HTMLElement>("i[data-member-id]")];
    expect(new Set(swatches.map(swatch => swatch.style.background)).size).toBe(2);
@@ -56,6 +73,7 @@ describe("shared desktop workspace",()=>{
    const johnFilter = key.querySelector<HTMLInputElement>('label input')!;
    await act(async () => johnFilter.click());
    expect(container.textContent).not.toContain("John shoot"); expect(container.textContent).toContain("Colleague shoot");
+   expect(container.textContent).not.toContain("John launch post"); expect(container.textContent).toContain("Colleague launch post");
    expect(key.querySelector<HTMLElement>('i[data-member-id="colleague"]')!.style.background).toBe(colleagueColor);
    await act(async () => { picker.value = "mine"; picker.dispatchEvent(new Event("change", { bubbles: true })); });
    expect(picker.value).toBe("mine");

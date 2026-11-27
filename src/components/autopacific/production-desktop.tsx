@@ -379,7 +379,11 @@ export function ProductionDesktop({
       pipelineTasks: sourceData.pipelineTasks.map(task => { const move = field.queue.find(item => item.entity === "task" && item.recordId === task.id); return move ? { ...task, status_id: move.statusId } : task; }),
     };
   }, [field.online, field.queue, sourceData]);
-  const live = useMemo(() => team ? scopeProductionSpace(allLive, space === "mine" ? [team.userId] : space === "team" ? teamSelection ?? team.members.map(member => member.user_id) : [team.videographerId], space === "team") : allLive, [allLive, space, team, teamSelection]);
+  const live = useMemo(() => {
+    if (!team) return allLive;
+    if (space === "team") return scopeProductionSpace(allLive, teamSelection ?? team.members.map(member => member.user_id), marketing ? "marketing-team" : "team");
+    return scopeProductionSpace(allLive, [space === "mine" ? team.userId : team.videographerId]);
+  }, [allLive, marketing, space, team, teamSelection]);
   const [view, setView] = useState<TabletView>(
     workspaceInitialView(initialView === "planning" ? "jobs" : parseTabletView(initialView), mode, true, true, true),
   );
