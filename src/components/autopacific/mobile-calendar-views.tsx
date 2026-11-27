@@ -10,6 +10,7 @@ import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/c
 import { WeatherIcon } from "@/components/shared/calendar-weather";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
+import { isCalendarPost } from "@/lib/calendar-event";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import { mobileScheduleTone } from "@/lib/mobile-fortnight-calendar";
@@ -44,26 +45,28 @@ function itemTime(item: Item) {
   return "All day";
 }
 
-function MobileCalendarCard({ date, item, today, onOpen, variant = "row", drag = true, style, togglePostOnPress }: {
-  date: string; item: Item; today: string; onOpen: Open; variant?: "row" | "tile" | "hour"; drag?: boolean; style?: CSSProperties; togglePostOnPress?: boolean;
+function MobileCalendarCard({ date, item, today, onOpen, variant = "row", drag = true, style }: {
+  date: string; item: Item; today: string; onOpen: Open; variant?: "row" | "tile" | "hour"; drag?: boolean; style?: CSSProperties;
 }) {
   const members = useCalendarTeamColors();
   const source = item.source;
   const team = calendarTeamAttributes(source, members);
   const outlook = isOutlookEvent(source);
   const time = itemTime(item);
-  const showDetail = variant === "row" && item.detail !== time;
+  const post = isCalendarPost(source);
+  const hideTime = post && time === "All day";
+  const showDetail = !post && variant === "row" && item.detail !== time;
   return <CalendarDragButton type="button" source={source} dragDay={drag ? date : undefined} moveKind={variant === "hour" ? "time" : "date"}
-    postControl={togglePostOnPress ? "entry" : variant === "hour" ? "mobile-hour" : variant === "tile" ? "mobile-tile" : "checkbox"}
+    postControl={variant === "hour" ? "mobile-hour" : variant === "tile" ? "mobile-tile" : "checkbox"}
     dragId={`phone:${variant}:${date}:${item.id}`}
-    className={`mobile-calendar-card is-${variant} ${mobileScheduleTone(source, today)} ${variant === "hour" ? "mobile-calendar-hour-block" : ""}`}
+    className={`mobile-calendar-card is-${variant} ${mobileScheduleTone(source, today)} ${hideTime ? "is-untimed-post" : ""} ${variant === "hour" ? "mobile-calendar-hour-block" : ""}`}
     {...team} style={{ ...team.style, ...style }} data-kind={source.entity_type} data-calendar-source={outlook ? "outlook" : undefined}
-    aria-label={`${item.title}, ${time}, ${item.detail}${outlook ? ", Outlook, read only" : ""}`}
+    aria-label={`${item.title}, ${time}, ${post ? source.post_completed_at ? "completed post" : "scheduled post" : item.detail}${outlook ? ", Outlook, read only" : ""}`}
     onClick={() => onOpen(source)}>
-    <span className="mobile-calendar-card-time">{time}</span>
+    {!hideTime ? <span className="mobile-calendar-card-time">{time}</span> : null}
     <span className="mobile-calendar-card-copy"><strong><CalendarPostMark item={source} size={variant === "row" ? 13 : 10} />{item.title}</strong>{showDetail ? <small>{item.detail}</small> : null}</span>
     <CalendarTeamMarker record={source} />
-    {outlook ? <OutlookEventMark /> : variant === "row" ? <ChevronRight className="mobile-calendar-card-arrow" size={15} aria-hidden="true" /> : null}
+    {outlook ? <OutlookEventMark /> : !post && variant === "row" ? <ChevronRight className="mobile-calendar-card-arrow" size={15} aria-hidden="true" /> : null}
   </CalendarDragButton>;
 }
 
@@ -128,18 +131,18 @@ function MobileHourGrid({ agenda, date, today, currentTime, showWorkingHours, on
   </section>;
 }
 
-export function MobileSelectedAgenda({ agenda, date, today, currentTime, hourly, showWorkingHours, onOpen, togglePostOnPress }: {
-  agenda: Agenda; date: string; today: string; currentTime?: string; hourly: boolean; showWorkingHours?: boolean; onOpen: Open; togglePostOnPress?: boolean;
+export function MobileSelectedAgenda({ agenda, date, today, currentTime, hourly, showWorkingHours, onOpen }: {
+  agenda: Agenda; date: string; today: string; currentTime?: string; hourly: boolean; showWorkingHours?: boolean; onOpen: Open;
 }) {
   return <>
     {agenda.allDay.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="All-day items">
       <h3><CalendarDays size={14} /> All day & deadlines</h3>
-      {agenda.allDay.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} drag={!hourly} togglePostOnPress={togglePostOnPress} />)}
+      {agenda.allDay.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} drag={!hourly} />)}
     </section> : null}
     {hourly ? <MobileHourGrid agenda={agenda} date={date} today={today} currentTime={currentTime} showWorkingHours={showWorkingHours} onOpen={onOpen} />
       : <section className="apg-mobile-timeline mobile-calendar-group" aria-label="Timed bookings">
         <h3><Clock3 size={14} /> Booked times</h3>
-        {agenda.timed.length ? agenda.timed.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} togglePostOnPress={togglePostOnPress} />)
+        {agenda.timed.length ? agenda.timed.map(item => <MobileCalendarCard key={item.id} date={date} today={today} item={item} onOpen={onOpen} />)
           : <p className="mobile-calendar-free">{agenda.allDay.length ? "No timed bookings" : "Nothing booked for this day"}</p>}
       </section>}
   </>;

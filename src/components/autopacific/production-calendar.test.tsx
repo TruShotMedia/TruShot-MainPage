@@ -549,7 +549,7 @@ it.each([
   await chooseMode(mode);
   const marks = [...container.querySelectorAll(".calendar-post-mark")];
   expect(marks.length).toBeGreaterThan(0);
-  expect(marks.every(mark => mark.closest("strong")?.textContent === post.title)).toBe(true);
+  expect(marks.every(mark => (mark.closest("strong") ?? mark.closest(".apg-fortnight-range")?.querySelector("strong"))?.textContent === post.title)).toBe(true);
   if (mode === "Day" || mode === "Week" && !mobile) {
     await act(async () => marks[0].closest("button")?.click());
     expect(callbacks.onOpenEvent).toHaveBeenCalledWith(post);
@@ -560,6 +560,7 @@ it("shows an all-day post in the desktop Week all-day row", async () => {
   await act(async () => root.render(<ProductionCalendar data={{ ...data, calendarEvents: [post] }} today="2026-11-10" marketing {...callbacks} />));
   const mark = container.querySelector(".timetable-all-day .calendar-post-mark");
   expect(mark?.closest("strong")?.textContent).toBe(post.title);
+  expect(mark?.closest("button")?.textContent).toBe(post.title);
   expect(container.querySelector(".timetable-hours .calendar-post-mark")).toBeNull();
 });
 it.each([false, true])("does not open an editor for a post in a read-only calendar (mobile=%s)", async mobile => {
@@ -575,23 +576,23 @@ it.each([[false, "Week"], [false, "Day"], [false, "Hybrid"], [true, "Week"], [tr
   "shows an independent post checkbox in %s %s",
   async (mobile, mode) => {
     const post = { ...event("Launch day", "11:00", "11:15"), event_kind: "post" as const };
-    const fixture = { ...data, calendarEvents: [post, ...data.calendarEvents] };
+    const fixture = { ...data, calendarEvents: mode === "Month" ? [post] : [post, ...data.calendarEvents] };
     const toggle = vi.fn();
     await act(async () => root.render(<CalendarPostCompletion.Provider value={{ pendingId: null, toggle }}>
       <ProductionCalendar data={fixture} today="2026-11-10" marketing mobile={mobile} {...callbacks} />
     </CalendarPostCompletion.Provider>));
     await chooseMode(mode);
     const boxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-    expect(boxes).toHaveLength(1);
+    expect(boxes).toHaveLength(mode === "Hybrid" || mode === "Month" ? 2 : 1);
     expect(boxes[0].checked).toBe(false);
     await act(async () => boxes[0].click());
     expect(toggle).toHaveBeenCalledExactlyOnceWith(post);
     expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
-    await act(async () => boxes[0].closest(".calendar-post-control")?.querySelector("button")?.click());
+    await act(async () => boxes[0].closest(".calendar-post-control")?.querySelector<HTMLElement>('button, [role="button"]')?.click());
     expect(callbacks.onOpenEvent).toHaveBeenCalledExactlyOnceWith(post);
   },
 );
-it.each([false, true])("toggles the post itself in Fortnight without checkboxes (mobile=%s)", async mobile => {
+it.each([false, true])("shows clean, independent checkboxes in Fortnight (mobile=%s)", async mobile => {
   const post = { ...event("Launch day", "", ""), event_kind: "post" as const, is_all_day: true, start_time: null, end_time: null };
   const toggle = vi.fn();
   const renderPost = async (completed: boolean, readOnly = false) => {
@@ -603,12 +604,18 @@ it.each([false, true])("toggles the post itself in Fortnight without checkboxes 
   };
   const open = await renderPost(false);
   await chooseMode("Fortnight");
-  expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+  if (mobile) await click('[aria-label="Tuesday 10 November"]');
+  expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(mobile ? 2 : 1);
+  const chip = () => container.querySelector<HTMLElement>(
+    mobile ? ".apg-mobile-post-range .apg-fortnight-range" : ".calendar-post-control .tablet-calendar-job-range",
+  )!;
+  expect(chip().textContent).toBe(post.title);
+  if (mobile) expect(container.querySelector(".apg-mobile-all-day .is-untimed-post")?.textContent).toBe(post.title);
   expect(container.querySelector('[data-calendar-post-complete="true"]')).toBeNull();
   const press = async (label: string) => {
-    const chip = container.querySelector<HTMLElement>(`${mobile ? ".apg-fortnight-range" : ".tablet-calendar-job-range"}[aria-label="${label}"]`)!;
-    expect(chip).not.toBeNull();
-    await act(async () => chip.click());
+    const box = chip().parentElement!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    expect(box).not.toBeNull();
+    await act(async () => box.click());
   };
   await press("Mark Launch day complete");
   expect(toggle).toHaveBeenLastCalledWith(open);
@@ -617,8 +624,9 @@ it.each([false, true])("toggles the post itself in Fortnight without checkboxes 
   expect(container.querySelector('[aria-label="Scheduled post completed"]')).not.toBeNull();
   await press("Mark Launch day not complete");
   expect(toggle).toHaveBeenLastCalledWith(completed);
+  await act(async () => chip().click());
+  expect(callbacks.onOpenEvent).toHaveBeenCalledExactlyOnceWith(completed);
   await renderPost(true, true);
-  expect(container.querySelector('[aria-pressed="true"][aria-label^="Mark Launch day"]')).toBeNull();
   expect(container.querySelector('input[type="checkbox"]')).toBeNull();
 });
 it("shows ongoing weekday work and native/Outlook themes without hiding completed work", async () => {

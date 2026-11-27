@@ -140,6 +140,8 @@
   display: grid; grid-template-columns: minmax(49px,.27fr) minmax(0,1fr) auto; align-items: center;
   gap: 6px; width: 100%; padding: 7px 8px;
 }
+.mobile-calendar-card.is-row.is-untimed-post { grid-template-columns: minmax(0,1fr); }
+.mobile-calendar-card.is-tile.is-untimed-post { justify-content: center; }
 .mobile-calendar-card-arrow { color: var(--cal-muted); }
 .mobile-calendar-card.is-tile {
   display: flex; flex: 0 0 clamp(104px,34vw,145px); flex-direction: column-reverse; justify-content: space-between;
@@ -196,10 +198,12 @@
 .mobile-calendar-footer .calendar-weather-credit { margin: 0; }
 
 .is-month-grid .apg-fortnight-day.is-outside-month { color: var(--cal-muted); background: var(--cal-panel); }
-.apg-mobile-schedule .is-month-grid .apg-fortnight-day { min-height: calc(53px + var(--fortnight-range-rows,0) * 17px); padding-bottom: 2px; }
+.is-month-grid .apg-fortnight-week { --month-range-height: 15px; }
+.is-month-grid .apg-fortnight-week:has(.apg-fortnight-range.is-post) { --month-range-height: 25px; }
+.apg-mobile-schedule .is-month-grid .apg-fortnight-day { min-height: calc(53px + var(--fortnight-range-rows,0) * (var(--month-range-height) + 2px)); padding-bottom: 2px; }
 .is-month-grid .apg-fortnight-date { height: 25px; }
-.is-month-grid .apg-fortnight-ranges { inset-block-start: 25px; grid-auto-rows: 15px; }
-.is-month-grid .apg-fortnight-entries { margin-top: calc(var(--fortnight-range-rows,0) * 17px); gap: 1px; }
+.is-month-grid .apg-fortnight-ranges { inset-block-start: 25px; grid-auto-rows: var(--month-range-height); }
+.is-month-grid .apg-fortnight-entries { margin-top: calc(var(--fortnight-range-rows,0) * (var(--month-range-height) + 2px)); gap: 1px; }
 .is-month-grid :is(.apg-fortnight-range-time,.apg-fortnight-entry-time,.apg-fortnight-free) { display: none; }
 .is-month-grid .apg-fortnight-range .outlook-event-mark { inset-block-start: 2px; }
 .apg-mobile-schedule .apg-fortnight-day.is-today > .apg-fortnight-date time { background: var(--cal-focus); color: var(--cal-surface); }

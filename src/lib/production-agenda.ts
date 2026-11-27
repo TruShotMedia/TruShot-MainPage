@@ -128,7 +128,7 @@ export function productionDayAgenda(
       allDay.push({
         id: event.id,
         title: event.title,
-        detail: post ? "Scheduled post · All day" : "All day",
+        detail: "All day",
         source: event,
       });
       continue;

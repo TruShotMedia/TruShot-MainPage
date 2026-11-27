@@ -97,7 +97,7 @@ export function ProductionMobileSchedule({
           </div>
         </div>
       </div> : null}
-      {mode === "month" || mode === "fortnight" ? <MobileFortnightCalendar mode={mode} data={data} anchor={anchor} selected={selected} today={today} weather={weather.days} onSelectDate={selectDay} /> : null}
+      {mode === "month" || mode === "fortnight" ? <MobileFortnightCalendar mode={mode} data={data} anchor={anchor} selected={selected} today={today} weather={weather.days} onSelectDate={selectDay} onOpen={openRecord} /> : null}
       {mode === "week" || mode === "list" ? <MobileCalendarOverview mode={mode} dates={dates} agendas={agendas} forecasts={forecasts} today={today} selected={selected}
         onSelect={openDay} onOpen={openRecord} onWeather={setWeatherDay} /> : <>
         <header className="apg-mobile-agenda-heading" ref={agendaHeading}>
@@ -105,7 +105,7 @@ export function ProductionMobileSchedule({
           <MobileForecast forecast={forecasts.get(selected)} onOpen={setWeatherDay} />
           {todayOnly ? create : null}
         </header>
-        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} showWorkingHours={showWorkingHours} onOpen={openRecord} togglePostOnPress={mode === "fortnight"} />
+        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} showWorkingHours={showWorkingHours} onOpen={openRecord} />
       </>}
       {overdue.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="Overdue work">
         <h3>Still needs attention</h3>{overdue.map(item => <button key={`${item.entity_type}:${item.id}`} type="button" className="mobile-calendar-card is-row is-overdue" {...calendarTeamAttributes(item, calendarMembers)} onClick={() => openRecord(item)}>

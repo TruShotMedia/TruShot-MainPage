@@ -8,7 +8,7 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { CalendarClock } from "lucide-react";
-import { useCalendarPostControl } from "./calendar-post-completion";
+import { CalendarPostCheckbox, useCalendarPostControl } from "./calendar-post-completion";
 import { calendarResizeDrop, calendarTimeDrop, grabbedCalendarDay, sameDayCalendarEventWindow, type CalendarEventMove, type CalendarEventMoveResult, type CalendarResizeEdge } from "@/lib/calendar-event";
 import type { CalendarCustomEvent } from "@/lib/types";
 import "./calendar-event-drag.css";
@@ -158,11 +158,10 @@ function CalendarResizeHandle({ event, date, dragId, edge }: {
 export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", timedBooking, postControl, children, style, className, ...button }: ComponentPropsWithoutRef<"button"> & {
   source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind;
   timedBooking?: { time: string; compact: boolean; resizable: boolean };
-  postControl?: "checkbox" | "entry" | "mobile-hour" | "mobile-tile";
+  postControl?: "checkbox" | "mobile-hour" | "mobile-tile";
 }) {
   const controls = useCalendarPostControl(source);
-  const toggleEntry = postControl === "entry" && controls;
-  const showCheck = postControl && postControl !== "entry" && controls;
+  const showCheck = postControl && controls;
   const preview = useContext(Preview);
   const resize = preview?.kind === "resize" && preview.bookingId === dragId ? preview : null;
   const { canMove, props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
@@ -174,11 +173,6 @@ export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date",
   const entry = <button {...button} {...props} data-calendar-resizable={Boolean(canResize || resize) || undefined}
     data-calendar-resize-preview={resize ? "" : undefined}
     data-calendar-post-complete={complete || undefined}
-    aria-label={toggleEntry ? toggleEntry.label : button["aria-label"]}
-    aria-pressed={toggleEntry ? toggleEntry.completed : button["aria-pressed"]}
-    aria-busy={toggleEntry ? toggleEntry.pending || undefined : button["aria-busy"]}
-    aria-disabled={toggleEntry ? toggleEntry.disabled || undefined : button["aria-disabled"]}
-    onClick={toggleEntry ? () => { if (!toggleEntry.disabled) toggleEntry.toggle(); } : button.onClick}
     style={positioned ? { ...style, top: 0, left: 0, width: "100%", height: "100%", paddingInlineEnd: 30 } : showCheck ? { ...geometry, paddingInlineEnd: 29 } : geometry}
     className={(resize?.compact ?? timedBooking?.compact) ? `${className ?? ""} is-short` : className}>
     {timedBooking ? <small>{resize?.text ?? timedBooking.time}</small> : null}
@@ -192,10 +186,7 @@ export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date",
   return <div className={`calendar-post-control${positioned ? " is-positioned" : ""}${postControl !== "checkbox" ? ` is-${postControl}` : ""}`}
     style={positioned ? geometry : undefined}>
     {entry}
-    <label className="calendar-post-check">
-      <input type="checkbox" aria-label={showCheck.label} aria-busy={showCheck.pending || undefined}
-        checked={showCheck.completed} disabled={showCheck.disabled} onChange={showCheck.toggle} />
-    </label>
+    <CalendarPostCheckbox control={showCheck} />
   </div>;
 }
 

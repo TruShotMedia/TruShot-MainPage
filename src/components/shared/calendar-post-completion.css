@@ -8,6 +8,9 @@
 .calendar-post-control.is-mobile-hour { min-height: 44px; }
 .calendar-post-control.is-mobile-tile { flex: 0 0 clamp(104px,34vw,145px); }
 .calendar-post-control.is-mobile-tile > button { height: 100%; }
+.calendar-post-control.is-compact-range { display: grid; }
+.calendar-post-control.is-compact-range > :first-child { grid-area: 1 / 1; min-width: 0; width: auto; padding-inline-end: 20px; }
+.calendar-post-control.is-compact-range > .calendar-post-check { inset-inline-end: 1px; width: 19px; }
 .calendar-post-check {
   position: absolute; z-index: 2; inset-inline-end: 2px; top: 50%; transform: translateY(-50%);
   display: grid; place-items: center; width: 24px; height: min(100%, 34px); cursor: pointer;
@@ -19,6 +22,7 @@
   accent-color: var(--workspace-action, #327da3);
   cursor: inherit;
 }
+.calendar-post-control.is-compact-range .calendar-post-check input { width: 12px; height: 12px; }
 .calendar-post-check:has(input:focus-visible) {
   outline: 2px solid var(--workspace-accent, #327da3); outline-offset: -1px; border-radius: 4px;
 }

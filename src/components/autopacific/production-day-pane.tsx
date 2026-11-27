@@ -37,7 +37,7 @@ function DayPaneCard({ item, date, today, currentTime, onOpen, calendarMembers }
     {"time" in item ? <time>{item.time}</time> : null}
     <strong><CalendarPostMark item={source} />{item.title}</strong>
     <CalendarTeamMarker record={source} />
-    <small>{item.detail}</small>
+    {!isCalendarPost(source) ? <small>{item.detail}</small> : null}
     {outlook ? <OutlookEventMark /> : null}
   </CalendarDragButton>;
 }

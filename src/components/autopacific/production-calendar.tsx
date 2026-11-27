@@ -167,7 +167,7 @@ export function TimedSchedule({
                 onClick={() => onOpen(item.source)}
               >
                 <strong><CalendarPostMark item={item.source} />{item.title}</strong>
-                <small>{item.detail}</small>
+                {!isCalendarPost(item.source) ? <small>{item.detail}</small> : null}
                 {isOutlookEvent(item.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={item.source} />
               </CalendarDragButton>
@@ -231,7 +231,7 @@ export function TimedSchedule({
                 <strong><CalendarPostMark item={block.source} />{block.title}</strong>
                 {isOutlookEvent(block.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={block.source} />
-                {block.end - block.start >= 60 ? (
+                {!isCalendarPost(block.source) && block.end - block.start >= 60 ? (
                   <span>{block.detail}</span>
                 ) : null}
               </CalendarDragButton>
@@ -409,7 +409,6 @@ export function ProductionCalendar({
           customEvents={data.calendarEvents}
           flightEvents={data.flightEvents}
           editable={!readOnly}
-          togglePostsOnPress={mode === "fortnight"}
           onCreateEvent={(date) => onCreate("event", date)}
           renderCreateButton={value => <CalendarCreateMenu date={value} productionTools={productionTools} className="tablet-calendar-day-add" onCreate={onCreate} />}
           onEditItem={onOpenItem}

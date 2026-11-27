@@ -22,3 +22,10 @@ export function useCalendarPostControl(source: { entity_type: string }) {
     toggle: () => completion.toggle(post),
   };
 }
+
+export function CalendarPostCheckbox({ control }: { control: NonNullable<ReturnType<typeof useCalendarPostControl>> }) {
+  return <label className="calendar-post-check">
+    <input type="checkbox" aria-label={control.label} aria-busy={control.pending || undefined}
+      checked={control.completed} disabled={control.disabled} onChange={control.toggle} />
+  </label>;
+}

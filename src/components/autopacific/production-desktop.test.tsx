@@ -63,7 +63,8 @@ describe("shared desktop workspace",()=>{
    expect(container.textContent).toContain("John launch post");
    expect(container.textContent).toContain("Colleague launch post");
    for (const hidden of ["Ordinary meeting", "Private Outlook event", "INGREIGN private post"]) expect(container.textContent).not.toContain(hidden);
-   expect(container.querySelector('.calendar-post-mark[aria-label="Scheduled post completed"]')?.closest("strong")?.textContent).toBe("Colleague launch post");
+   const completed = container.querySelector('.calendar-post-mark[aria-label="Scheduled post completed"]');
+   expect((completed?.closest("strong") ?? completed?.closest(".apg-fortnight-range")?.querySelector("strong"))?.textContent).toBe("Colleague launch post");
    expect(container.querySelector('.calendar-post-check, [aria-label^="Mark John launch post"]')).toBeNull();
    const key = container.querySelector('[aria-label="Team calendar colour key"]')!;
    const swatches = [...key.querySelectorAll<HTMLElement>("i[data-member-id]")];
