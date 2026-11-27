@@ -243,6 +243,7 @@ export type PipelineTask = {
 export type CalendarJob = {
   assignee_ids?: string[];
   shoot_end_time?: string | null;
+  updated_at?: string;
   id: string;
   entity_type: "job";
   title: string;

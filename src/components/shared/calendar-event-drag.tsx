@@ -10,14 +10,20 @@ import { format, parseISO } from "date-fns";
 import { CalendarClock } from "lucide-react";
 import { CalendarPostCheckbox, useCalendarPostControl } from "./calendar-post-completion";
 import { calendarResizeDrop, calendarTimeDrop, grabbedCalendarDay, sameDayCalendarEventWindow, type CalendarEventMove, type CalendarEventMoveResult, type CalendarResizeEdge } from "@/lib/calendar-event";
-import type { CalendarCustomEvent } from "@/lib/types";
+import { canResizeCalendarJob, jobShootResizeWindow, resizedCalendarJobDates, type CalendarJobResize, type CalendarJobResizeResult } from "@/lib/calendar-job-resize";
+import type { CalendarCustomEvent, CalendarJob } from "@/lib/types";
 import "./calendar-event-drag.css";
 
 export type MoveCalendarEvent = (change: CalendarEventMove) => Promise<CalendarEventMoveResult>;
+export type ResizeCalendarJob = (change: CalendarJobResize) => Promise<CalendarJobResizeResult>;
 type MoveKind = "date" | "time" | "date-time";
-type DragData = { event: CalendarCustomEvent; days: readonly string[] } & (
+type EventDragData = { event: CalendarCustomEvent; days: readonly string[] } & (
   { kind: MoveKind } | { kind: "resize"; edge: CalendarResizeEdge; bookingId: string }
 );
+type JobDragData =
+  | { kind: "job-time-resize"; job: CalendarJob; date: string; edge: CalendarResizeEdge; bookingId: string }
+  | { kind: "job-date-resize"; job: CalendarJob; date: string; edge: CalendarResizeEdge };
+type DragData = EventDragData | JobDragData;
 type ClockGrid = { firstMinute: number; lastMinute: number; hourHeight: number; allowsDateMove?: boolean };
 type DragTarget = { date: string; clockGrid?: ClockGrid };
 type ResizePreview = {
@@ -25,56 +31,113 @@ type ResizePreview = {
   resize: NonNullable<CalendarEventMove["resize"]>;
 };
 type ClockPreview = ResizePreview | { kind: "move"; date: string; text: string; startMinute: number };
+type JobDatePreview = { kind: "job-date"; job: CalendarJob; date: string; edge: CalendarResizeEdge; text: string };
+type DragPreview = ClockPreview | JobDatePreview;
 const MoveAvailability = createContext<"disabled" | "ready" | "saving">("disabled");
-const Preview = createContext<ClockPreview | null>(null);
+const JobResizeAvailability = createContext<"disabled" | "ready" | "saving">("disabled");
+const Preview = createContext<DragPreview | null>(null);
+
+export function useJobCalendarResizeAvailability() {
+  return useContext(JobResizeAvailability);
+}
+
+export function useJobCalendarDatePreview() {
+  const preview = useContext(Preview);
+  return preview?.kind === "job-date" ? preview : null;
+}
 
 export function timedBookingGeometry(start: number, end: number, firstMinute: number, hourHeight: number) {
   const duration = (end - start) * hourHeight / 60;
   return { top: (start - firstMinute) * hourHeight / 60, height: Math.min(duration, Math.max(14, duration - 3)) };
 }
 
-function clockPreview({ active, over, delta }: DragMoveEvent): ClockPreview | null {
+function dragPreview({ active, over, delta }: DragMoveEvent): DragPreview | null {
   const item = active.data.current as DragData | undefined;
   const target = over?.data.current as DragTarget | undefined;
-  if (!item || item.kind === "date" || !target?.clockGrid) return null;
+  if (!item || !target) return null;
+  if (item.kind === "job-date-resize") {
+    if (target.clockGrid || target.date === item.date) return null;
+    const adjusted = resizedCalendarJobDates(item.job, item.edge, target.date);
+    return adjusted && !adjusted.unchanged ? {
+      kind: "job-date", job: { ...item.job, shoot_date: adjusted.shoot_date, due_date: adjusted.due_date },
+      date: target.date, edge: item.edge, text: format(parseISO(target.date), "EEE d MMM"),
+    } : null;
+  }
+  if (item.kind === "date" || !target.clockGrid) return null;
+  if (item.kind === "job-time-resize") {
+    if (target.date !== item.date) return null;
+    const { hourHeight, firstMinute, lastMinute } = target.clockGrid;
+    const window = jobShootResizeWindow(item.job, item.date);
+    const drop = window && calendarResizeDrop(window, item.date, item.edge, delta.y * 60 / hourHeight, firstMinute, lastMinute);
+    return drop ? resizePreview(item, target.date, drop, firstMinute, hourHeight) : null;
+  }
   if (target.date !== item.days[0] && (item.kind !== "date-time" || !target.clockGrid.allowsDateMove)) return null;
   const { hourHeight, firstMinute, lastMinute } = target.clockGrid;
   const minutes = delta.y * 60 / hourHeight;
   if (item.kind === "resize") {
     const drop = calendarResizeDrop(item.event, target.date, item.edge, minutes, firstMinute, lastMinute);
     if (!drop) return null;
-    const { startMinute: start, endMinute: end } = drop;
-    return { kind: "resize", date: target.date, bookingId: item.bookingId, compact: end - start < 45,
-      ...timedBookingGeometry(start, end, firstMinute, hourHeight),
-      text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`, resize: { edge: item.edge, minute: drop.minute } };
+    return resizePreview(item, target.date, drop, firstMinute, hourHeight);
   }
   const drop = calendarTimeDrop(item.event, item.days[0], minutes, firstMinute, lastMinute);
   return drop ? { kind: "move", date: target.date, startMinute: drop.startMinute, text: `${drop.start_time.slice(0, 5)}–${drop.end_time.slice(0, 5)}` } : null;
 }
 
-export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarEvent; children: ReactNode }) {
+function resizePreview(item: { edge: CalendarResizeEdge; bookingId: string }, date: string,
+  drop: NonNullable<ReturnType<typeof calendarResizeDrop>>, firstMinute: number, hourHeight: number): ResizePreview {
+  const { startMinute: start, endMinute: end } = drop;
+  return { kind: "resize", date, bookingId: item.bookingId, compact: end - start < 45,
+    ...timedBookingGeometry(start, end, firstMinute, hourHeight),
+    text: `${drop.startTime.slice(0, 5)}–${drop.endTime.slice(0, 5)}`, resize: { edge: item.edge, minute: drop.minute } };
+}
+
+export function CalendarEventDrag({ onMove, onResizeJob, children }: { onMove?: MoveCalendarEvent; onResizeJob?: ResizeCalendarJob; children: ReactNode }) {
   const contextId = useId();
   const [title, setTitle] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<"job" | "event" | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
-  const [preview, setPreview] = useState<ClockPreview | null>(null);
+  const [preview, setPreview] = useState<DragPreview | null>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 240, tolerance: 8 } }),
   );
   function updatePreview(event: DragMoveEvent) {
     if ((event.active.data.current as DragData | undefined)?.kind === "date") return;
-    const next = clockPreview(event);
-    setPreview(previous => previous?.date === next?.date && previous?.text === next?.text ? previous : next);
+    const next = dragPreview(event);
+    setPreview(previous => previous?.kind === next?.kind && previous?.date === next?.date && previous?.text === next?.text ? previous : next);
   }
   async function finish(event: DragEndEvent) {
     const { active, activatorEvent, over } = event;
-    const time = clockPreview(event);
+    const next = dragPreview(event);
     setTitle("");
+    const item = active.data.current as DragData | undefined;
+    if (!item || !over || saving) { setPreview(null); return; }
+    if (item.kind === "job-time-resize" || item.kind === "job-date-resize") {
+      const common = { id: item.job.id, expectedUpdatedAt: item.job.updated_at ?? "", edge: item.edge, date: next?.date ?? item.date };
+      const change = next?.kind === "resize" && item.kind === "job-time-resize"
+        ? { ...common, axis: "time" as const, minute: next.resize.minute }
+        : next?.kind === "job-date" && item.kind === "job-date-resize" ? { ...common, axis: "date" as const } : null;
+      if (!onResizeJob || !change || !next) { setPreview(null); return; }
+      setPreview(next);
+      setSaving("job");
+      setNotice(null);
+      try {
+        const result = await onResizeJob(change);
+        setNotice(result.ok
+          ? { text: change.axis === "time" ? `Resized “${item.job.title}” to ${next.text}.` : `“${item.job.title}” ${change.edge === "start" ? "shoot date" : "deadline"} updated to ${next.text}.` }
+          : { text: result.error, error: true });
+      } catch {
+        setNotice({ text: "Couldn’t confirm the job resize. Refresh the calendar before trying again.", error: true });
+      } finally {
+        setPreview(null);
+        setSaving(null);
+      }
+      return;
+    }
+    const time = next?.kind === "job-date" ? null : next;
     // Keep the preview on the original booking until the saved time replaces it.
     setPreview(time?.kind === "resize" && onMove && !saving ? time : null);
-    if (!over || !onMove || saving) return;
-    const item = active.data.current as DragData | undefined;
+    if (!onMove) return;
     const target = over.data.current as DragTarget | undefined;
     const to = target?.date;
     if (!item || typeof to !== "string") return;
@@ -86,7 +149,7 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
       : "touches" in activatorEvent ? (activatorEvent as TouchEvent).touches[0]?.clientX : undefined;
     const from = rect && x !== undefined ? grabbedCalendarDay(item.days, rect.left, rect.width, x) : item.days[0];
     if (!from || (!time && from === to)) return;
-    setSaving(true);
+    setSaving("event");
     setNotice(null);
     try {
       const adjustment = time?.kind === "resize" ? { resize: time.resize } : time ? { startMinute: time.startMinute } : {};
@@ -98,22 +161,23 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
       setNotice({ text: "Couldn’t confirm the change. Refresh the calendar before trying again.", error: true });
     } finally {
       setPreview(null);
-      setSaving(false);
+      setSaving(null);
     }
   }
-  if (!onMove) return children;
-  return <MoveAvailability.Provider value={saving ? "saving" : "ready"}>
+  if (!onMove && !onResizeJob) return children;
+  return <MoveAvailability.Provider value={!onMove ? "disabled" : saving ? "saving" : "ready"}>
+    <JobResizeAvailability.Provider value={!onResizeJob ? "disabled" : saving ? "saving" : "ready"}>
     <DndContext id={contextId} sensors={sensors} collisionDetection={pointerWithin}
       onDragStart={({ active }) => {
         const item = active.data.current as DragData | undefined;
         setNotice(null);
-        setTitle(item?.kind === "resize" ? "" : item?.event.title ?? "");
+        setTitle(item && "event" in item && item.kind !== "resize" ? item.event.title : "");
       }}
       onDragMove={updatePreview} onDragOver={updatePreview}
       onDragCancel={() => { setTitle(""); setPreview(null); }} onDragEnd={event => void finish(event)}>
       <Preview.Provider value={preview}>{children}</Preview.Provider>
       <div className="calendar-move-status" role={notice?.error ? "alert" : "status"}>
-        {saving ? "Updating event…" : notice?.text ?? ""}
+        {saving === "job" ? "Updating job schedule…" : saving === "event" ? "Updating event…" : notice?.text ?? ""}
       </div>
       {typeof document !== "undefined" ? createPortal(
         <DragOverlay dropAnimation={null} adjustScale={false}>
@@ -121,6 +185,7 @@ export function CalendarEventDrag({ onMove, children }: { onMove?: MoveCalendarE
         </DragOverlay>, document.body,
       ) : null}
     </DndContext>
+    </JobResizeAvailability.Provider>
   </MoveAvailability.Provider>;
 }
 
@@ -132,7 +197,7 @@ export function useCalendarEventDrag(source: { entity_type: string }, days: read
   const canMove = enabled && Boolean(event?.updated_at && !event.external_source && days.length
     && (kind !== "time" || timed));
   const { setNodeRef, listeners, isDragging } = useDraggable({
-    id, disabled: !canMove, data: event ? { event, days, kind } satisfies DragData : undefined,
+    id, disabled: !canMove, data: event ? { event, days, kind } satisfies EventDragData : undefined,
   });
   return { canMove, props: canMove ? {
     ...listeners,
@@ -142,14 +207,15 @@ export function useCalendarEventDrag(source: { entity_type: string }, days: read
   } : {} };
 }
 
-function CalendarResizeHandle({ event, date, dragId, edge }: {
-  event: CalendarCustomEvent; date: string; dragId: string; edge: CalendarResizeEdge;
-}) {
+export function CalendarResizeHandle({ payload, dragId, label }: { payload: Extract<DragData, { kind: "resize" | "job-time-resize" | "job-date-resize" }>; dragId: string; label: string }) {
+  const horizontal = payload.kind === "job-date-resize";
+  const jobAvailability = useJobCalendarResizeAvailability();
   const { setNodeRef, listeners, isDragging } = useDraggable({
-    id: `${dragId}:resize:${edge}`, data: { event, days: [date], kind: "resize", edge, bookingId: dragId } satisfies DragData,
+    id: `${dragId}:resize:${payload.edge}`, data: payload, disabled: payload.kind !== "resize" && jobAvailability !== "ready",
   });
-  return <span ref={setNodeRef} aria-hidden="true" className="calendar-resize-handle" data-calendar-resize-edge={edge}
-    data-calendar-resizing={isDragging || undefined} title={edge === "start" ? "Drag to change start time" : "Drag to change finish time"}
+  return <span ref={setNodeRef} aria-hidden="true" className="calendar-resize-handle" data-calendar-resize-edge={payload.edge}
+    data-calendar-resize-axis={horizontal ? "date" : undefined}
+    data-calendar-resizing={isDragging || undefined} title={label}
     onMouseDown={event => { event.stopPropagation(); listeners?.onMouseDown?.(event); }}
     onTouchStart={event => { event.stopPropagation(); listeners?.onTouchStart?.(event); }}
     onClick={event => event.stopPropagation()} />;
@@ -165,8 +231,11 @@ export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date",
   const preview = useContext(Preview);
   const resize = preview?.kind === "resize" && preview.bookingId === dragId ? preview : null;
   const { canMove, props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
+  const jobResize = useJobCalendarResizeAvailability();
   const event = canMove && timedBooking?.resizable && dragDay && source.entity_type === "calendar-event" ? source as CalendarCustomEvent : null;
-  const canResize = event && dragDay && sameDayCalendarEventWindow(event, dragDay);
+  const job = jobResize !== "disabled" && timedBooking?.resizable && source.entity_type === "job" ? source as CalendarJob : null;
+  const jobWindow = job && dragDay && canResizeCalendarJob(job) ? jobShootResizeWindow(job, dragDay) : null;
+  const canResize = dragDay && (event ? sameDayCalendarEventWindow(event, dragDay) : jobWindow && sameDayCalendarEventWindow(jobWindow, dragDay));
   const geometry = resize ? { ...style, top: resize.top, height: resize.height } : style;
   const positioned = showCheck && (timedBooking || postControl === "mobile-hour");
   const complete = source.entity_type === "calendar-event" && Boolean((source as CalendarCustomEvent).post_completed_at);
@@ -177,10 +246,12 @@ export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date",
     className={(resize?.compact ?? timedBooking?.compact) ? `${className ?? ""} is-short` : className}>
     {timedBooking ? <small>{resize?.text ?? timedBooking.time}</small> : null}
     {children}
-    {canResize && event && dragDay ? <>
-      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="start" />
-      <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="end" />
-    </> : null}
+    {canResize && dragDay ? (["start", "end"] as const).map(edge => {
+      const payload = event ? { kind: "resize" as const, event, days: [dragDay], edge, bookingId: dragId }
+        : job ? { kind: "job-time-resize" as const, job, date: dragDay, edge, bookingId: dragId } : null;
+      return payload ? <CalendarResizeHandle key={edge} dragId={dragId} payload={payload}
+        label={`Drag to change ${job ? "shoot " : ""}${edge === "start" ? "start" : "finish"} time`} /> : null;
+    }) : null}
   </button>;
   if (!showCheck) return entry;
   return <div className={`calendar-post-control${positioned ? " is-positioned" : ""}${postControl !== "checkbox" ? ` is-${postControl}` : ""}`}
@@ -196,12 +267,15 @@ type DayProps = { date: string; targetId?: string; clockGrid?: ClockGrid; disabl
 );
 
 export function CalendarDropDay({ as, date, targetId, clockGrid, disableDrop, children, ...props }: DayProps) {
-  const enabled = useContext(MoveAvailability) === "ready" && !disableDrop;
+  const availability = useContext(MoveAvailability);
+  const jobResize = useJobCalendarResizeAvailability();
+  const enabled = (availability === "ready" || jobResize === "ready") && !disableDrop;
   const preview = useContext(Preview);
   const { setNodeRef, isOver, active } = useDroppable({
     id: targetId ?? `day:${date}`, disabled: !enabled, data: { date, clockGrid },
   });
-  const moving = (active?.data.current as DragData | undefined)?.kind !== "resize";
+  const kind = (active?.data.current as DragData | undefined)?.kind;
+  const moving = kind !== "resize" && kind !== "job-time-resize";
   const highlight = moving && enabled && isOver && (!clockGrid || (clockGrid.allowsDateMove && preview?.date !== date)) ? "true" : undefined;
   const drop = { ref: enabled ? setNodeRef : undefined, "data-calendar-drop-over": highlight };
   return as === "button"
@@ -216,10 +290,12 @@ export function CalendarDropDay({ as, date, targetId, clockGrid, disableDrop, ch
 
 export function CalendarDayTimeTools({ mobile, week, fullDay, onToggle }: { mobile?: boolean; week?: boolean; fullDay: boolean; onToggle: () => void }) {
   const showDragHelp = useContext(MoveAvailability) !== "disabled";
+  const showJobHelp = useJobCalendarResizeAvailability() !== "disabled";
   return <div className="calendar-day-time-tools">
     {showDragHelp ? <p className="calendar-move-help">{week
       ? "Drag an event to move it. Drag its top or bottom edge to resize."
-      : mobile ? "Touch and hold a timed event, then drag it to a new time." : "Drag an event up or down to move it, or drag an edge to resize."}</p> : null}
+      : mobile ? "Touch and hold a timed event, then drag it to a new time." : "Drag an event up or down to move it, or drag an edge to resize."}{showJobHelp ? " Drag a shoot’s top or bottom edge to adjust its hours." : ""}</p>
+      : showJobHelp ? <p className="calendar-move-help">Drag a shoot’s top or bottom edge to adjust its hours.</p> : null}
     <button type="button" onClick={onToggle}>{fullDay ? "Show fewer hours" : "Show all 24 hours"}</button>
   </div>;
 }

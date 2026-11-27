@@ -77,6 +77,8 @@ import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import { moveProductionCalendarEvent } from "@/app/autopacific/calendar-move-actions";
+import { resizeProductionCalendarJob } from "@/app/autopacific/calendar-job-resize-actions";
+import type { CalendarJobResize } from "@/lib/calendar-job-resize";
 import { setScheduledPostCompletion } from "@/app/autopacific/calendar-post-actions";
 import { CalendarPostCompletion } from "@/components/shared/calendar-post-completion";
 import type { CalendarEventKind, CalendarEventMove } from "@/lib/calendar-event";
@@ -627,6 +629,23 @@ export function ProductionDesktop({
     }
     return result;
   }
+  async function resizeJob(change: CalendarJobResize) {
+    if (!navigator.onLine) return { ok: false, error: "Reconnect to resize this job." } as const;
+    const result = await resizeProductionCalendarJob(change);
+    if (result.ok) {
+      setSnapshot(current => {
+        const previous = current.source === data ? current.data : data;
+        const refreshJob = <T extends { id: string; updated_at?: string }>(record: T): T =>
+          record.id === change.id && record.updated_at === change.expectedUpdatedAt ? { ...record, ...result.job } : record;
+        return { source: data, data: {
+          ...previous, calendarJobs: previous.calendarJobs.map(refreshJob), pipelineJobs: previous.pipelineJobs.map(refreshJob),
+        } };
+      });
+      // A deadline resize may update inherited task deadlines in the database.
+      if (change.axis === "date" && change.edge === "end") void refresh("calendar");
+    }
+    return result;
+  }
   async function togglePost(post: Data["calendarEvents"][number]) {
     if (space === "team" || pendingPost.current) return;
     if (!navigator.onLine) { setNotice("Reconnect to update this scheduled post."); return; }
@@ -1075,6 +1094,7 @@ export function ProductionDesktop({
               }}
               onCreate={start}
               onMoveEvent={field.online ? moveEvent : undefined}
+              onResizeJob={field.online && !reviewOnly ? resizeJob : undefined}
             />
             </CalendarPostCompletion.Provider>
           )}

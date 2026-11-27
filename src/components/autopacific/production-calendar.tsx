@@ -21,7 +21,7 @@ import { calendarWeekdayOnOrAfter, calendarWorkweek } from "@/lib/calendar-weekd
 import { useCalendarViewMemory } from "@/components/shared/use-calendar-view-memory";
 import { useProductionTeam } from "./team-context";
 import { CalendarTeamColorsProvider, CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
-import { CalendarDayTimeTools, CalendarDragButton, CalendarDropDay, CalendarEventDrag, timedBookingGeometry, type MoveCalendarEvent } from "@/components/shared/calendar-event-drag";
+import { CalendarDayTimeTools, CalendarDragButton, CalendarDropDay, CalendarEventDrag, timedBookingGeometry, type MoveCalendarEvent, type ResizeCalendarJob } from "@/components/shared/calendar-event-drag";
 import { assignTeamCalendarColors, calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import {
   productionDayAgenda,
@@ -258,6 +258,7 @@ export function ProductionCalendar({
   onOpenFlight,
   onCreate,
   onMoveEvent,
+  onResizeJob,
 }: {
   data: ScheduleData;
   today: string;
@@ -271,6 +272,7 @@ export function ProductionCalendar({
   onOpenFlight: (flight: CalendarFlightEvent) => void;
   onCreate: (kind: ProductionCalendarCreateKind, date?: string) => void;
   onMoveEvent?: MoveCalendarEvent;
+  onResizeJob?: ResizeCalendarJob;
 }) {
   const team = useProductionTeam();
   const showWorkingHours = !todayOnly && Boolean(team?.videographerId && team.userId === team.videographerId);
@@ -320,12 +322,13 @@ export function ProductionCalendar({
   const schedule = { ...data, calendarJobs: range };
   const productionTools = !marketing || personalTools;
   const moveEvent = !todayOnly && !readOnly ? onMoveEvent : undefined;
+  const resizeJob = !todayOnly && !readOnly ? onResizeJob : undefined;
   if (mobile) return <CalendarTeamColorsProvider value={calendarMembers}><ProductionMobileSchedule memoryKey={memoryKey} data={schedule} today={today} todayOnly={todayOnly} marketing={marketing} onOpen={open} onMoveEvent={moveEvent} currentTime={currentTime} showWorkingHours={showWorkingHours}
     renderCreateButton={readOnly ? undefined : value => <CalendarCreateMenu key={value} date={value} productionTools={productionTools} onCreate={onCreate} />} /></CalendarTeamColorsProvider>;
   return (
     <CalendarTeamColorsProvider value={calendarMembers}>
     <div className="production-calendar-workspace">
-      <CalendarEventDrag onMove={moveEvent}>
+      <CalendarEventDrag onMove={moveEvent} onResizeJob={resizeJob}>
       <div className="production-calendar-views">
         {!marketing && !todayOnly ? <OutlookCalendarConnection /> : null}
         <div className="apg-view-pills" aria-label="Schedule view">
@@ -387,7 +390,9 @@ export function ProductionCalendar({
         ) : null}
         {!readOnly ? <CalendarCreateMenu key={date} date={date} label="Add" productionTools={productionTools} onCreate={onCreate} /> : null}
       </div>
-      {moveEvent && (mode === "fortnight" || mode === "hybrid") ? <p className="calendar-move-help">Drag a calendar event onto another day to move it. Its booked time stays the same.</p> : null}
+      {(moveEvent || resizeJob) && (mode === "fortnight" || mode === "hybrid") ? <p className="calendar-move-help">
+        {moveEvent ? "Drag an event to move it to another day. " : ""}{resizeJob ? "Drag a job’s left edge to change its shoot date or its right edge to change its deadline." : ""}
+      </p> : null}
       {mode === "fortnight" || mode === "hybrid" ? (
         <div className={mode === "hybrid" ? styles.layout : styles.body} aria-label={mode === "hybrid" ? "Hybrid calendar" : undefined}>
         <TabletCalendar

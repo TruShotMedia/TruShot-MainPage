@@ -427,6 +427,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       client_name: job.client_id ? clientsById.get(job.client_id)?.name ?? null : null,
       shoot_date: job.shoot_date,
       shoot_end_time: job.shoot_end_time,
+      updated_at: job.updated_at,
       shoot_time: job.shoot_time,
       due_date: job.due_date,
       due_time: job.due_time,

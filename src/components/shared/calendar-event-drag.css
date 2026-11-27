@@ -60,6 +60,39 @@
 }
 .timetable-booking:is(:hover,:focus-visible) .calendar-resize-handle::after,
 .calendar-resize-handle[data-calendar-resizing="true"]::after { opacity: .68; }
+.tablet-calendar-job-range[data-calendar-job-range] {
+  position: relative;
+  padding-inline: 12px;
+}
+.tablet-calendar-job-range [data-calendar-resize-axis="date"] {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  width: 9px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.tablet-calendar-job-range [data-calendar-resize-edge="start"] { inset-inline-start: 0; }
+.tablet-calendar-job-range [data-calendar-resize-edge="end"] { inset-inline-end: 0; }
+.tablet-calendar-job-range [data-calendar-resize-axis="date"]::after {
+  width: 2px;
+  height: 58%;
+}
+.tablet-calendar-job-range:is(:hover, :focus-visible) [data-calendar-resize-axis="date"]::after { opacity: .78; }
+[data-calendar-job-resize-original],
+.tablet-calendar-job-range[data-calendar-job-resize-original]:hover {
+  opacity: 0;
+  pointer-events: none;
+}
+.tablet-calendar-range-layer .calendar-job-date-preview {
+  position: relative;
+  z-index: 6;
+  pointer-events: none;
+  background: var(--workspace-accent-soft, #e8f4fa);
+  color: var(--workspace-text, #132e3b);
+  border: 1px solid var(--workspace-accent, #3b86aa);
+}
+.tablet-calendar-week:has(.calendar-job-date-preview) .tablet-calendar-range-layer { cursor: ew-resize; }
 @media (prefers-reduced-motion: no-preference) {
   .timetable-booking[data-calendar-resizable] { transition: top 90ms ease-out, height 90ms ease-out; }
 }

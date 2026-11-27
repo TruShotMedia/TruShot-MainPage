@@ -1,4 +1,5 @@
 import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, CalendarItem, CalendarJob } from "@/lib/types";
+import { canResizeCalendarJob } from "./calendar-job-resize";
 
 export type CalendarRangeItem = CalendarJob | CalendarCampaignAsset;
 export type CalendarScheduleRangeItem = CalendarRangeItem | CalendarCustomEvent | CalendarFlightEvent;
@@ -67,7 +68,7 @@ export function getCalendarJobRanges(jobs: CalendarJob[]) {
   return getCalendarScheduleRanges(jobs);
 }
 
-export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(items: T[]): CalendarJobRange<T>[] {
+export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(items: T[], includeOpenJobWindows = false): CalendarJobRange<T>[] {
   return items
     .flatMap((item): CalendarJobRange<T>[] => {
       const start = item.entity_type === "job"
@@ -79,7 +80,7 @@ export function getCalendarScheduleRanges<T extends CalendarScheduleRangeItem>(i
         ? item.end_date
         : item.entity_type === "flight-event"
           ? item.arrival_date
-          : item.due_date;
+        : item.due_date ?? (item.entity_type === "job" && includeOpenJobWindows && canResizeCalendarJob(item) ? item.shoot_date : null);
       if (!start || !end || start > end) return [];
       const weekdaysOnly = isAutopacificWork(item);
       return [{

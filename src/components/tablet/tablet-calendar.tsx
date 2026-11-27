@@ -30,7 +30,8 @@ import type { CalendarCampaignAsset, CalendarCustomEvent, CalendarFlightEvent, C
 
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
-import { CalendarDropDay, useCalendarEventDrag } from "@/components/shared/calendar-event-drag";
+import { CalendarDropDay, CalendarResizeHandle, useCalendarEventDrag, useJobCalendarDatePreview, useJobCalendarResizeAvailability } from "@/components/shared/calendar-event-drag";
+import { canResizeCalendarJob, jobVisibleResizeEdge } from "@/lib/calendar-job-resize";
 
 type TabletCalendarEvent = {
   id: string;
@@ -332,11 +333,14 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
   );
 }
 
-function JobRange({ currentTime, editable, onOpen, palette, segment, today, weekDays }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string; weekDays: readonly string[] }) {
+function JobRange({ currentTime, editable, onOpen, palette, segment, today, weekDays, resizePreview }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string; weekDays: readonly string[]; resizePreview?: boolean }) {
   const calendarMembers = useCalendarTeamColors();
   const controls = useCalendarPostControl(segment.item);
   const check = editable ? controls : null;
-  const drag = useCalendarEventDrag(segment.item, weekDays.slice(segment.startColumn, segment.startColumn + segment.span), `range:${segment.id}:${weekDays[0]}`);
+  const dragId = `range:${segment.id}:${weekDays[0]}`;
+  const drag = useCalendarEventDrag(segment.item, weekDays.slice(segment.startColumn, segment.startColumn + segment.span), dragId);
+  const jobResizeAvailable = useJobCalendarResizeAvailability();
+  const resizeJob = editable && jobResizeAvailable !== "disabled" && segment.item.entity_type === "job" && canResizeCalendarJob(segment.item) ? segment.item : null;
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const outlook = isOutlookEvent(segment.item);
   const isCalendarEvent = segment.item.entity_type === "calendar-event";
@@ -360,6 +364,8 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today, week
       data-calendar-source={outlook ? "outlook" : undefined}
       {...drag.props}
       {...calendarTeamAttributes(segment.item, calendarMembers)}
+      data-calendar-job-range={resizeJob ? resizeJob.id : undefined}
+      data-calendar-job-resize-original={resizePreview || undefined}
       data-calendar-post-complete={post && isComplete || undefined}
       aria-label={`${segment.item.title}, ${post ? "post scheduled" : "scheduled"} ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
       className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
@@ -383,7 +389,14 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today, week
       <strong><CalendarPostMark item={segment.item} size={10} />{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
       {outlook ? <OutlookEventMark /> : null}
       {!isCalendarEvent ? <em>{context}</em> : null}
-      {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
+      {!isCalendarEvent ? <span>{segment.item.entity_type === "job" && !segment.item.due_date ? "No deadline" : segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
+      {resizeJob ? (["start", "end"] as const).map(edge => {
+        const date = jobVisibleResizeEdge(edge === "start" ? segment.start : segment.end, edge);
+        const endpoint = edge === "start" ? weekDays[segment.startColumn] : weekDays[segment.startColumn + segment.span - 1];
+        return date === endpoint ? <CalendarResizeHandle key={edge} dragId={dragId}
+          payload={{ kind: "job-date-resize", job: resizeJob, date, edge }}
+          label={edge === "start" ? "Drag to change the shoot date" : "Drag to change the job deadline"} /> : null;
+      }) : null}
     </article>
   );
   return check ? <div className="calendar-post-control is-compact-range" style={placement}>
@@ -407,16 +420,24 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
   const selectedMobileDate = mobileSelection.viewedOn === today ? mobileSelection.date : today;
   function setSelectedMobileDate(date: string) { setMobileSelection({ viewedOn: today, date }); }
   const isCapacityCalendar = density === "capacity";
+  const jobResizeAvailable = useJobCalendarResizeAvailability() !== "disabled" && editable;
+  const jobResizePreview = useJobCalendarDatePreview();
   const capacityWindowDays = isCapacityCalendar
     ? isCompactViewport ? capacityMobileWindowDays : capacityDesktopWindowDays
     : undefined;
   const palette = useMemo(() => ({ accentClientName, accentColor, accentKeywords, completedColor, mutedColor, overdueColor }), [accentClientName, accentColor, accentKeywords, completedColor, mutedColor, overdueColor]);
   const calendarFlights = useMemo(() => buildFlightCalendarItineraries(flightEvents), [flightEvents]);
-  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...calendarFlights]), [calendarFlights, campaignAssets, customEvents, jobs]);
+  const scheduleRanges = useMemo(() => getCalendarScheduleRanges([...jobs, ...campaignAssets, ...customEvents, ...calendarFlights], jobResizeAvailable), [calendarFlights, campaignAssets, customEvents, jobResizeAvailable, jobs]);
   const rangedItemKeys = useMemo(() => new Set(scheduleRanges.map((range) => `${range.item.entity_type}:${range.item.id}`)), [scheduleRanges]);
   const calendarWindow = useMemo(() => getCalendarWindow(currentMonth, todayDate, capacityWindowDays), [capacityWindowDays, currentMonth, todayDate]);
   const calendarDays = useMemo(() => eachDayOfInterval(calendarWindow), [calendarWindow]);
   const calendarWeeks = useMemo(() => buildCalendarRangeWeeks(calendarDays.map((day) => format(day, "yyyy-MM-dd")), scheduleRanges), [calendarDays, scheduleRanges]);
+  const previewWeeks = useMemo(() => {
+    if (!jobResizePreview) return null;
+    return buildCalendarRangeWeeks(
+      calendarDays.map(day => format(day, "yyyy-MM-dd")), getCalendarScheduleRanges([jobResizePreview.job], true),
+    );
+  }, [calendarDays, jobResizePreview]);
   const firstCalendarDay = format(calendarWindow.start, "yyyy-MM-dd");
   const lastCalendarDay = format(calendarWindow.end, "yyyy-MM-dd");
   const weather = useCalendarWeather(firstCalendarDay, lastCalendarDay, weatherLocationKey);
@@ -593,11 +614,14 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
       ) : <div className="tablet-calendar-scroll">
         <div className="tablet-calendar-weekdays" aria-hidden="true">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
         <div className="tablet-calendar-grid" style={{ "--tablet-calendar-week-count": calendarWeeks.length } as CSSProperties}>
-          {calendarWeeks.map((week) => {
+          {calendarWeeks.map((week, weekIndex) => {
             const displayedRangeLanes = isCapacityCalendar ? week.laneCount : Math.min(week.laneCount, visibleRangeLanes);
             const displayedSegments = isCapacityCalendar
               ? week.segments
               : week.segments.filter((segment) => segment.lane + segment.laneSpan <= visibleRangeLanes);
+            const previews = previewWeeks?.[weekIndex]?.segments ?? [];
+            const previewLane = displayedSegments.find(segment => segment.item.entity_type === "job" && segment.item.id === jobResizePreview?.job.id)?.lane
+              ?? Math.max(0, displayedRangeLanes - 1);
             const displayedEventLimit = isCapacityCalendar
               ? Math.max(1, ...week.dayKeys.map((dateKey) => eventsByDay.get(dateKey)?.length ?? 0))
               : Math.max(1, 3 - displayedRangeLanes);
@@ -648,9 +672,17 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                     );
                   })}
                 </div>
-                {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
+                {displayedSegments.length || previews.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange currentTime={currentTime} editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} weekDays={week.dayKeys} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} weekDays={week.dayKeys} today={today} key={`${segment.id}-${week.dayKeys[0]}`}
+                    resizePreview={segment.item.entity_type === "job" && segment.item.id === jobResizePreview?.job.id} />)}
+                  {previews.map(segment => <div aria-hidden="true" key={segment.id} data-calendar-job-date-preview=""
+                    className="tablet-calendar-job-range calendar-job-date-preview"
+                    style={{ gridColumn: `${segment.startColumn + 1} / span ${segment.span}`, gridRow: previewLane + 1 }}>
+                    <strong>{segment.item.title}</strong>
+                    <span>{jobResizePreview?.edge === "start" ? "Shoot" : "Due"} {jobResizePreview?.text}</span>
+                  </div>)}
+                </div> : null}
               </section>
             );
           })}

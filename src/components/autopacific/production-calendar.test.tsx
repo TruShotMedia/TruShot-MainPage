@@ -423,6 +423,81 @@ it.each([[true, false], [false, true]])("does not show resize handles on mobile 
   expect(container.querySelector("[data-calendar-resize-edge]")).toBeNull();
 });
 
+const jobResizeFixture: CalendarJob = {
+  id: "shoot-job", entity_type: "job", title: "Product shoot", client_name: "AutoPacific Group", status_label: "Scheduled", status_color: "#579",
+  is_complete: false, shoot_date: "2026-11-10", shoot_time: "09:00", shoot_end_time: "11:00", due_date: "2026-11-11",
+  due_time: null, updated_at: "2026-11-08T04:00:00Z",
+};
+const resizeJobData = { ...data, calendarJobs: [jobResizeFixture], calendarEvents: [] };
+const jobRect = (x: number, y: number, width: number, height: number) =>
+  ({ x, y, left: x, right: x + width, top: y, bottom: y + height, width, height, toJSON: () => ({}) });
+async function jobMouse(target: EventTarget, type: string, x: number, y: number) {
+  await act(async () => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 })));
+}
+
+it.each([["Day", "start", 510, "08:30–11:00"], ["Week", "end", 630, "09:00–10:30"]] as const)(
+  "reactively resizes the %s job's %s time without moving the deadline",
+  async (mode, edge, minute, label) => {
+    const onResizeJob = vi.fn().mockResolvedValue({ ok: true, job: jobResizeFixture });
+    await act(async () => root.render(<ProductionCalendar data={resizeJobData} today="2026-11-10" marketing onResizeJob={onResizeJob} {...callbacks} />));
+    await chooseMode(mode);
+    const columns = [...container.querySelectorAll<HTMLElement>(".timetable-day-column")];
+    columns.forEach((column, index) => column.getBoundingClientRect = () => jobRect(index * 100, 100, 100, 600));
+    const handle = container.querySelector<HTMLElement>(`[data-calendar-resize-edge="${edge}"]`)!;
+    const x = mode === "Day" ? 50 : 150;
+    const y = edge === "start" ? 165 : 288;
+    handle.getBoundingClientRect = () => jobRect(x - 15, y - 2, 40, 5);
+    await jobMouse(handle, "mousedown", x, y);
+    await jobMouse(document, "mousemove", x, y - 10);
+    await jobMouse(document, "mousemove", x, y - 32);
+    expect(container.querySelector("[data-calendar-resize-preview]")?.querySelector("small")?.textContent).toBe(label);
+    expect(document.querySelector(".calendar-move-overlay")).toBeNull();
+    await jobMouse(document, "mouseup", x, y - 32);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+    expect(onResizeJob).toHaveBeenCalledExactlyOnceWith({ id: jobResizeFixture.id, expectedUpdatedAt: jobResizeFixture.updated_at, edge, axis: "time", minute, date: jobResizeFixture.shoot_date });
+    expect(callbacks.onOpenItem).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["Fortnight", "Hybrid"])("previews the extended %s job across both weeks before saving the deadline", async mode => {
+  const onResizeJob = vi.fn().mockResolvedValue({ ok: true, job: jobResizeFixture });
+  await act(async () => root.render(<ProductionCalendar data={resizeJobData} today="2026-11-10" marketing onResizeJob={onResizeJob} {...callbacks} />));
+  await chooseMode(mode);
+  const weeks = [...container.querySelectorAll<HTMLElement>(".tablet-calendar-week")];
+  weeks.forEach((week, row) => [...week.querySelectorAll<HTMLElement>(".tablet-calendar-day")].forEach((day, col) => {
+    day.getBoundingClientRect = () => jobRect(col * 100, 100 + row * 200, 100, 200);
+  }));
+  const handle = container.querySelector<HTMLElement>('[data-calendar-resize-axis="date"][data-calendar-resize-edge="end"]')!;
+  expect(handle).not.toBeNull();
+  handle.getBoundingClientRect = () => jobRect(289, 119, 9, 15);
+  await jobMouse(handle, "mousedown", 293, 126);
+  await jobMouse(document, "mousemove", 302, 150);
+  await jobMouse(document, "mousemove", 52, 340);
+  const previews = [...container.querySelectorAll<HTMLElement>("[data-calendar-job-date-preview]")];
+  expect(previews).toHaveLength(2);
+  expect(previews[0].style.gridColumn).toBe("2 / span 4");
+  expect(previews[1].style.gridColumn).toBe("1 / span 1");
+  expect(previews[1].textContent).toContain("Due Mon 16 Nov");
+  expect(document.querySelector(".calendar-move-overlay")).toBeNull();
+  await jobMouse(document, "mouseup", 52, 340);
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)); });
+  expect(onResizeJob).toHaveBeenCalledExactlyOnceWith({ id: jobResizeFixture.id, expectedUpdatedAt: jobResizeFixture.updated_at, edge: "end", axis: "date", date: "2026-11-16" });
+  expect(callbacks.onOpenItem).not.toHaveBeenCalled();
+});
+
+it("offers horizontal handles on an open shoot-only job but not in a read-only workspace", async () => {
+  const fixture = { ...resizeJobData, calendarJobs: [{ ...jobResizeFixture, due_date: null }] };
+  const renderJob = (readOnly = false) => act(async () => root.render(<ProductionCalendar data={fixture}
+    today="2026-11-10" marketing readOnly={readOnly} onResizeJob={vi.fn()} {...callbacks} />));
+  await renderJob();
+  await chooseMode("Fortnight");
+  expect(container.querySelectorAll('[data-calendar-resize-axis="date"]')).toHaveLength(2);
+  expect(container.querySelector("[data-calendar-job-range]")?.textContent).toContain("No deadline");
+  await renderJob(true);
+  await chooseMode("Fortnight");
+  expect(container.querySelector("[data-calendar-resize-axis]")).toBeNull();
+});
+
 it("moves on a touch hold and drop onto a mobile Week row", async () => {
   const onMoveEvent = vi.fn().mockResolvedValue({ ok: true, dates: { start_date: "2026-11-13", end_date: "2026-11-13", updated_at: "2026-11-10T00:42:00Z" } });
   await act(async () => root.render(<ProductionCalendar data={moveFixture} today="2026-11-10" marketing mobile personalTools onMoveEvent={onMoveEvent} {...callbacks} />));
