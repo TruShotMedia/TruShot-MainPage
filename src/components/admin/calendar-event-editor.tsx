@@ -5,9 +5,10 @@ import { LinkAwareTextarea } from "@/components/shared/linked-text";
 import { TeamAssignmentField } from "@/components/autopacific/team-context";
 
 import { useState, type CSSProperties, type FormEvent } from "react";
-import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Trash2, X } from "lucide-react";
+import { addDays, format, parseISO } from "date-fns";
+import { BellRing, CalendarPlus2, LoaderCircle, MapPin, Send, Trash2, X } from "lucide-react";
 import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "@/app/admin/actions";
-import { calendarEventWindowError } from "@/lib/calendar-event";
+import { CALENDAR_DAY_MINUTES, CALENDAR_TIME_STEP, calendarEventWindowError, type CalendarEventKind } from "@/lib/calendar-event";
 import { WorkspaceDialog } from "@/components/shared/workspace-dialog";
 import { OutlookEventDetails } from "@/components/shared/outlook-event-details";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
@@ -27,6 +28,7 @@ const eventColors = ["#1f5e41", "#3975ad", "#9b5d39", "#74558f", "#b54d45", "#68
 type CalendarEventEditorProps = {
   clientOptions?: SelectOption[];
   defaultClientId?: string | null;
+  defaultKind?: CalendarEventKind;
   event: CalendarCustomEvent | null;
   defaultDate: string;
   onClose: () => void;
@@ -38,18 +40,32 @@ export function CalendarEventEditor(props: CalendarEventEditorProps) {
   return props.event && isOutlookEvent(props.event) ? <OutlookEventDetails event={props.event} onClose={props.onClose} /> : <EditableCalendarEvent {...props} />;
 }
 
-function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
-  const [allDay, setAllDay] = useState(event?.is_all_day ?? false);
+function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, defaultKind = "event", event, defaultDate, onClose, onDeleted, onSaved }: CalendarEventEditorProps) {
+  const kind = event ? event.event_kind ?? "event" : defaultKind;
+  const post = kind === "post";
+  const Icon = post ? Send : CalendarPlus2;
+  const [allDay, setAllDay] = useState(event?.is_all_day ?? post);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const defaultStartTime = event?.start_time?.slice(0, 5) ?? "09:00";
-  const defaultEndTime = event?.end_time?.slice(0, 5) ?? "10:00";
+  const defaultEndTime = event?.end_time?.slice(0, 5) ?? (post ? "09:15" : "10:00");
   const [startDate, setStartDate] = useState(event?.start_date ?? defaultDate);
   const [endDate, setEndDate] = useState(event?.end_date ?? defaultDate);
   const [startTime, setStartTime] = useState(defaultStartTime);
   const [endTime, setEndTime] = useState(defaultEndTime);
+  const [customEnd, setCustomEnd] = useState(false);
   const fixedClientId = defaultClientId ? (event ? event.client_id : defaultClientId) : null;
+
+  function suggestPostEnd(date: string, time: string) {
+    if (!post || event || customEnd || !date || !time) return false;
+    const [hour, minute] = time.split(":").map(Number);
+    const finish = hour * 60 + minute + CALENDAR_TIME_STEP;
+    const end = finish % CALENDAR_DAY_MINUTES;
+    setEndDate(finish >= CALENDAR_DAY_MINUTES ? format(addDays(parseISO(date), 1), "yyyy-MM-dd") : date);
+    setEndTime(`${String(Math.floor(end / 60)).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`);
+    return true;
+  }
 
   async function save(submitEvent: FormEvent<HTMLFormElement>) {
     submitEvent.preventDefault();
@@ -98,40 +114,41 @@ function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, eve
   return (
       <WorkspaceDialog className="calendar-event-editor" onSubmit={save} busy={saving || deleting} titleId="calendar-event-editor-title" onClose={onClose} header={<>
           <div>
-            <span><CalendarPlus2 size={13} /> {event ? "Edit calendar event" : "New calendar event"}</span>
-            <h2 id="calendar-event-editor-title">{event?.title ?? "Add something to your schedule"}</h2>
-            <p>Set an exact window and choose when native push reminders should arrive.</p>
+            <span><Icon size={13} aria-hidden="true" /> {post ? "Scheduled post" : event ? "Edit calendar event" : "New calendar event"}</span>
+            <h2 id="calendar-event-editor-title">{event?.title ?? (post ? "Schedule a post" : "Add something to your schedule")}</h2>
+            <p>{post ? "Plan when the post should go live. This adds it to the calendar; it won’t publish automatically." : "Set an exact window and choose when native push reminders should arrive."}</p>
           </div>
           <button type="button" onClick={onClose} disabled={saving || deleting} aria-label="Close event editor"><X size={17} /></button>
         </>} footer={<>
           {event ? <button className="calendar-event-delete" type="button" onClick={remove} disabled={saving || deleting}>{deleting ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />} Delete</button> : null}
           <span />
           <button type="button" onClick={onClose} disabled={saving || deleting}>Cancel</button>
-          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : event ? "Save event" : "Create event"}</button>
+          <button className="admin-primary-button" type="submit" disabled={saving || deleting}>{saving ? <><LoaderCircle className="spin" size={14} /> Saving…</> : post ? event ? "Save post" : "Schedule post" : event ? "Save event" : "Create event"}</button>
         </>}>
 
         {event ? <input type="hidden" name="id" value={event.id} /> : null}
+        <input type="hidden" name="event_kind" value={kind} />
         {defaultClientId ? <input type="hidden" name="client_id" value={fixedClientId ?? ""} /> : null}
         <div className="calendar-event-editor-fields">
           <TeamAssignmentField initialIds={event?.assignee_ids} />
-          <label className="calendar-event-title-field">Event title<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder="e.g. Campaign planning session" /></label>
+          <label className="calendar-event-title-field">{post ? "Post title" : "Event title"}<input name="title" required minLength={2} maxLength={180} defaultValue={event?.title ?? ""} placeholder={post ? "e.g. Product launch reel" : "e.g. Campaign planning session"} /></label>
           <label><span><MapPin size={13} /> Location</span><input name="location" maxLength={300} defaultValue={event?.location ?? ""} placeholder="Studio, address or video call" /></label>
           {!defaultClientId && clientOptions.length ? <label>Client / workspace<select name="client_id" defaultValue={event?.client_id ?? ""}><option value="">General calendar event</option>{clientOptions.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><small>AutoPacific events are mirrored into ClickUp automatically.</small></label> : null}
-          <label className="calendar-event-notes-field">Notes<LinkAwareTextarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder="People, preparation, links or anything useful…" /></label>
+          <label className="calendar-event-notes-field">Notes<LinkAwareTextarea name="description" maxLength={4000} defaultValue={event?.description ?? ""} placeholder={post ? "Add the channel, draft link or publishing notes…" : "People, preparation, links or anything useful…"} /></label>
         </div>
 
         <section className="calendar-event-time-panel">
-          <label className="calendar-event-all-day"><span><strong>All-day event</strong><small>Hide times and reserve whole days.</small></span><input type="checkbox" name="is_all_day" checked={allDay} onChange={(changeEvent) => setAllDay(changeEvent.target.checked)} /></label>
+          <label className="calendar-event-all-day"><span><strong>{post ? "All-day post" : "All-day event"}</strong><small>{post ? "Use a due date without a set publish time." : "Hide times and reserve whole days."}</small></span><input type="checkbox" name="is_all_day" checked={allDay} onChange={(changeEvent) => setAllDay(changeEvent.target.checked)} /></label>
           <div>
-            <label>Starts<input type="date" name="start_date" required value={startDate} onChange={(changeEvent) => {
+            <label>{post ? allDay ? "Due date" : "Publish date" : "Starts"}<input type="date" name="start_date" required value={startDate} onChange={(changeEvent) => {
               const nextStartDate = changeEvent.target.value;
               setStartDate(nextStartDate);
-              if (endDate < nextStartDate) setEndDate(nextStartDate);
+              if (!suggestPostEnd(nextStartDate, startTime) && endDate < nextStartDate) setEndDate(nextStartDate);
               setErrorMessage("");
             }} /></label>
-            {!allDay ? <label>Start time<input type="time" name="start_time" required value={startTime} onChange={(changeEvent) => { setStartTime(changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
-            <label>Finishes<input type="date" name="end_date" required min={startDate} value={endDate} onChange={(changeEvent) => { setEndDate(changeEvent.target.value); setErrorMessage(""); }} /></label>
-            {!allDay ? <label>Finish time<input type="time" name="end_time" required value={endTime} onChange={(changeEvent) => { setEndTime(changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
+            {!allDay ? <label>{post ? "Publish time" : "Start time"}<input type="time" name="start_time" required value={startTime} onChange={(changeEvent) => { setStartTime(changeEvent.target.value); suggestPostEnd(startDate, changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
+            <label>{post ? "Calendar block ends" : "Finishes"}<input type="date" name="end_date" required min={startDate} value={endDate} onChange={(changeEvent) => { setCustomEnd(true); setEndDate(changeEvent.target.value); setErrorMessage(""); }} /></label>
+            {!allDay ? <label>{post ? "Block end time" : "Finish time"}<input type="time" name="end_time" required value={endTime} onChange={(changeEvent) => { setCustomEnd(true); setEndTime(changeEvent.target.value); setErrorMessage(""); }} /></label> : null}
           </div>
         </section>
 
@@ -142,7 +159,7 @@ function EditableCalendarEvent({ clientOptions = [], defaultClientId = null, eve
           </fieldset>
           <fieldset className="calendar-event-reminders">
             <legend><BellRing size={13} /> Push reminders</legend>
-            <div>{reminderOptions.map((option) => <label key={option.value}><input type="checkbox" name="reminder_offsets_minutes" value={option.value} defaultChecked={event ? event.reminder_offsets_minutes.includes(option.value) : [60, 0].includes(option.value)} /><span>{option.label}</span></label>)}</div>
+            <div>{reminderOptions.map((option) => <label key={option.value}><input type="checkbox" name="reminder_offsets_minutes" value={option.value} defaultChecked={event ? event.reminder_offsets_minutes.includes(option.value) : [60, 0].includes(option.value)} /><span>{post && option.value === 0 ? allDay ? "On the due date" : "At publish time" : option.label}</span></label>)}</div>
             <small>Alerts go to devices that have notifications enabled in CRM Settings.</small>
           </fieldset>
         </section>

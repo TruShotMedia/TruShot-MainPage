@@ -5,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { Plane } from "lucide-react";
 import { WeatherIcon } from "@/components/shared/calendar-weather";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
+import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { CalendarDropDay } from "@/components/shared/calendar-event-drag";
@@ -60,7 +61,7 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
             style={{ ...calendarTeamAttributes(source, members).style,
               gridColumn: `${segment.startColumn + 1} / span ${segment.span}`, gridRow: segment.lane + 1 } as CSSProperties}>
             <span className="apg-fortnight-range-time">{source.entity_type === "flight-event" ? <Plane size={9} /> : null}{time || (segment.start < week.dayKeys[segment.startColumn] ? "Continues" : "All day")}</span>
-            <strong>{source.title}</strong><CalendarTeamMarker record={source} />{isOutlookEvent(source) ? <OutlookEventMark inline /> : null}
+            <strong><CalendarPostMark item={source} size={9} />{source.title}</strong><CalendarTeamMarker record={source} />{isOutlookEvent(source) ? <OutlookEventMark inline /> : null}
           </div>;
         })}
       </div>

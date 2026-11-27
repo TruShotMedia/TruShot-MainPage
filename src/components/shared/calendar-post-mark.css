@@ -1,0 +1,7 @@
+.calendar-post-mark {
+  display: inline-block;
+  flex: none;
+  margin-inline-end: .35em;
+  vertical-align: -.13em;
+  color: currentColor;
+}

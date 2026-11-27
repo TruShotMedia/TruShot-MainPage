@@ -12,17 +12,16 @@ async function render(productionTools = true) { await act(async () => root.rende
 async function show() { await act(async () => host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!.click()); }
 const items = () => [...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
 describe("calendar creation menu", () => {
-  it.each([true, false])("offers only existing permitted creation options (%s)", async productionTools => {
+  it.each([true, false])("offers only permitted creation options (%s)", async productionTools => {
     await render(productionTools); await show();
-    expect(items().map(button => button.textContent)).toEqual(productionTools ? ["Job brief", "Calendar event", "Task / asset", "Flight plan"] : ["Job brief", "Calendar event"]);
+    expect(items().map(button => button.textContent)).toEqual(productionTools ? ["Job brief", "Calendar event", "Scheduled post", "Task / asset", "Flight plan"] : ["Job brief", "Calendar event", "Scheduled post"]);
     expect(create).not.toHaveBeenCalled();
     expect(host.querySelector('[aria-expanded="true"]')).not.toBeNull();
     expect(host.querySelector('[role="menu"]')?.parentElement).toBe(host);
   });
-  it.each(["job", "event", "task", "flight"])("passes the selected date to %s and closes before opening its editor", async kind => {
+  it.each([["job", "Job brief"], ["event", "Calendar event"], ["post", "Scheduled post"], ["task", "Task / asset"], ["flight", "Flight plan"]])("passes the selected date to %s and closes before opening its editor", async (kind, label) => {
     await render(); await show();
-    const index = ["job", "event", "task", "flight"].indexOf(kind);
-    await act(async () => items()[index].click());
+    await act(async () => items().find(button => button.textContent === label)!.click());
     expect(create).toHaveBeenCalledWith(kind, "2026-11-12");
     expect(host.querySelector('[role="menu"]')).toBeNull();
   });

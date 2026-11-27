@@ -5,6 +5,7 @@ import type {
   CalendarJob,
   CalendarTask,
 } from "@/lib/types";
+import { isCalendarPost } from "./calendar-event";
 export type AgendaSource =
   | CalendarItem
   | CalendarCustomEvent
@@ -122,11 +123,12 @@ export function productionDayAgenda(
       });
   for (const event of input.events) {
     if (event.start_date > date || event.end_date < date) continue;
+    const post = isCalendarPost(event);
     if (event.is_all_day || !event.start_time) {
       allDay.push({
         id: event.id,
         title: event.title,
-        detail: "All day",
+        detail: post ? "Scheduled post · All day" : "All day",
         source: event,
       });
       continue;
@@ -143,7 +145,7 @@ export function productionDayAgenda(
       start,
       end: bookingEnd(start, end),
       time: `${event.start_date === date ? event.start_time.slice(0, 5) : "Continues"}${event.end_date === date && event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}`,
-      detail: event.location ?? "Calendar event",
+      detail: post ? (event.location ? `Scheduled post · ${event.location}` : "Scheduled post") : event.location ?? "Calendar event",
       source: event,
     });
   }

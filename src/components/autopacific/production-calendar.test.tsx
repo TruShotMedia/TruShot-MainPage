@@ -525,18 +525,41 @@ it.each([false, true])("day plus opens choices rather than creating an event imm
   await click('[aria-label="Add to calendar on 12 November 2026"]');
   expect(callbacks.onCreate).not.toHaveBeenCalled();
   const choices = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
-  expect(choices.map(button => button.textContent)).toEqual(marketing ? ["Job brief", "Calendar event"] : ["Job brief", "Calendar event", "Task / asset", "Flight plan"]);
-  await act(async () => choices[0].click());
-  expect(callbacks.onCreate).toHaveBeenCalledWith("job", "2026-11-12");
+  expect(choices.map(button => button.textContent)).toEqual(marketing ? ["Job brief", "Calendar event", "Scheduled post"] : ["Job brief", "Calendar event", "Scheduled post", "Task / asset", "Flight plan"]);
+  await act(async () => choices[2].click());
+  expect(callbacks.onCreate).toHaveBeenCalledWith("post", "2026-11-12");
 });
 it("retains personal production tools for Marketing My Space and uses its selected mobile day", async () => {
   await act(async () => root.render(<ProductionCalendar data={data} today="2026-11-10" marketing mobile personalTools {...callbacks} />));
   await click('[aria-label="Thursday 12 November"]');
   await click('[aria-label="Add to calendar on 12 November 2026"]');
   const choices = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
-  expect(choices.map(button => button.textContent)).toEqual(["Job brief", "Calendar event", "Task / asset", "Flight plan"]);
-  await act(async () => choices[3].click());
+  expect(choices.map(button => button.textContent)).toEqual(["Job brief", "Calendar event", "Scheduled post", "Task / asset", "Flight plan"]);
+  await act(async () => choices[4].click());
   expect(callbacks.onCreate).toHaveBeenCalledWith("flight", "2026-11-12");
+});
+it.each([
+  [false, "Week"], [false, "Day"], [false, "Fortnight"], [false, "Hybrid"],
+  [true, "List"], [true, "Day"], [true, "Week"], [true, "Fortnight"], [true, "Month"],
+] as const)("distinguishes posts from normal calendar entries (mobile=%s, %s)", async (mobile, mode) => {
+  const post = { ...event("Launch reel goes live", "11:00", "11:15"), event_kind: "post" as const };
+  const fixture = { ...data, calendarEvents: [...data.calendarEvents, post] };
+  await act(async () => root.render(<ProductionCalendar data={fixture} today="2026-11-10" marketing mobile={mobile} {...callbacks} />));
+  await chooseMode(mode);
+  const marks = [...container.querySelectorAll(".calendar-post-mark")];
+  expect(marks.length).toBeGreaterThan(0);
+  expect(marks.every(mark => mark.closest("strong")?.textContent === post.title)).toBe(true);
+  if (mode === "Day" || mode === "Week" && !mobile) {
+    await act(async () => marks[0].closest("button")?.click());
+    expect(callbacks.onOpenEvent).toHaveBeenCalledWith(post);
+  }
+});
+it("shows an all-day post in the desktop Week all-day row", async () => {
+  const post = { ...event("Launch day", "", ""), is_all_day: true, start_time: null, end_time: null, event_kind: "post" as const };
+  await act(async () => root.render(<ProductionCalendar data={{ ...data, calendarEvents: [post] }} today="2026-11-10" marketing {...callbacks} />));
+  const mark = container.querySelector(".timetable-all-day .calendar-post-mark");
+  expect(mark?.closest("strong")?.textContent).toBe(post.title);
+  expect(container.querySelector(".timetable-hours .calendar-post-mark")).toBeNull();
 });
 it("shows ongoing weekday work and native/Outlook themes without hiding completed work", async () => {
   const job: CalendarJob = { id: "ongoing", entity_type: "job", title: "Ongoing capture", client_name: "Autopacific Group", shoot_date: "2026-11-09", shoot_time: null, due_date: "2026-11-13", due_time: null, status_label: "Production", status_color: "#579", is_complete: false };

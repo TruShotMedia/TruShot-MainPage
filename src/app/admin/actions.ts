@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { safeAuthenticatedPath } from "@/lib/auth-redirect";
-import { calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
+import { CALENDAR_EVENT_KINDS, calendarEventFormEntries, calendarEventWindowError } from "@/lib/calendar-event";
 import { scheduleClickUpCalendarEventSync } from "@/lib/clickup/calendar-event-sync";
 import { scheduleClickUpJobSync } from "@/lib/clickup/job-sync";
 import { TRUSHOT_WORKSPACE_ID } from "@/lib/config";
@@ -1019,6 +1019,7 @@ export async function updateCalendarItem(formData: FormData) {
 
 function parseCalendarEvent(formData: FormData) {
   const parsedInput = z.object({
+    event_kind: z.enum(CALENDAR_EVENT_KINDS).optional(),
     client_id: z.string().uuid().or(z.literal("")),
     title: z.string().trim().min(2).max(180),
     description: z.string().trim().max(4_000),
@@ -1050,6 +1051,7 @@ function parseCalendarEvent(formData: FormData) {
   return {
     ok: true as const,
     data: {
+      ...(input.event_kind !== undefined ? { event_kind: input.event_kind } : {}),
       client_id: input.client_id || null,
       title: input.title,
       description: input.description || null,
@@ -1083,13 +1085,14 @@ export async function createCalendarEvent(formData: FormData): Promise<CalendarE
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
-    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be created. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
   revalidatePath("/autopacific");
   revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
   scheduleClickUpCalendarEventSync();
   return { ok: true, event: { ...data, client_name: client?.data?.name ?? null, entity_type: "calendar-event" as const } };
 }
@@ -1110,13 +1113,14 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
     .update({ ...parsed.data, ...assignmentValues(formData), updated_by: context.claims.sub })
     .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be updated. Please try again." };
   revalidatePath("/admin/calendar");
   revalidatePath("/tablet");
   revalidatePath("/autopacific");
   revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
   scheduleClickUpCalendarEventSync();
   return { ok: true, event: { ...data, client_name: client?.data?.name ?? null, entity_type: "calendar-event" as const } };
 }
@@ -1138,6 +1142,7 @@ export async function deleteCalendarEvent(formData: FormData): Promise<CalendarE
   revalidatePath("/tablet");
   revalidatePath("/autopacific");
   revalidatePath("/autopacific/mobile");
+  revalidatePath("/marketing");
   scheduleClickUpCalendarEventSync();
   return { ok: true };
 }

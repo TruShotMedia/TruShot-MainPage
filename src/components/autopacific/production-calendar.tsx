@@ -5,11 +5,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TabletCalendar } from "@/components/tablet/tablet-calendar";
 import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-connection";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
+import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
 import { ProductionWeekPanel } from "./production-week-panel";
-import { CalendarCreateMenu } from "./calendar-create-menu";
+import { CalendarCreateMenu, type ProductionCalendarCreateKind } from "./calendar-create-menu";
 import { WorkingHoursBand, WorkingHoursLegend } from "./calendar-working-hours";
 import { videographerWorkingHours, workingHoursTime } from "@/lib/calendar-working-hours";
 import styles from "./production-hybrid.module.css";
@@ -33,7 +34,6 @@ import type {
   CalendarJob,
   CalendarTask,
 } from "@/lib/types";
-import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 type ScheduleData = {
   calendarJobs: CalendarJob[];
   calendarTasks: CalendarTask[];
@@ -163,7 +163,7 @@ export function TimedSchedule({
                 data-calendar-source={isOutlookEvent(item.source) ? "outlook" : undefined}
                 onClick={() => onOpen(item.source)}
               >
-                <strong>{item.title}</strong>
+                <strong><CalendarPostMark item={item.source} />{item.title}</strong>
                 <small>{item.detail}</small>
                 {isOutlookEvent(item.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={item.source} />
@@ -224,7 +224,7 @@ export function TimedSchedule({
                 aria-label={`${block.title}, ${block.time}, ${block.detail}`}
                 title={`${block.title} · ${block.time} · ${block.detail}`}
               >
-                <strong>{block.title}</strong>
+                <strong><CalendarPostMark item={block.source} />{block.title}</strong>
                 {isOutlookEvent(block.source) ? <OutlookEventMark /> : null}
                 <CalendarTeamMarker record={block.source} />
                 {block.end - block.start >= 60 ? (
@@ -265,7 +265,7 @@ export function ProductionCalendar({
   onOpenItem: (item: CalendarItem) => void;
   onOpenEvent: (event: CalendarCustomEvent) => void;
   onOpenFlight: (flight: CalendarFlightEvent) => void;
-  onCreate: (kind: TabletCreateKind, date?: string) => void;
+  onCreate: (kind: ProductionCalendarCreateKind, date?: string) => void;
   onMoveEvent?: MoveCalendarEvent;
 }) {
   const team = useProductionTeam();

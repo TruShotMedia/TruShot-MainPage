@@ -1,3 +1,5 @@
+import type { CalendarEventKind } from "./calendar-event";
+
 export type PricingItem = {
   id: string;
   kind: "inclusion" | "exclusion" | "ideal_for" | "note";
@@ -297,6 +299,7 @@ export type CalendarCustomEvent = {
   assignee_ids?: string[];
   id: string;
   entity_type: "calendar-event";
+  event_kind?: CalendarEventKind;
   client_id: string | null;
   client_name: string | null;
   title: string;

@@ -9,6 +9,7 @@ import {
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { WeatherIcon } from "@/components/shared/calendar-weather";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
+import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import { mobileScheduleTone } from "@/lib/mobile-fortnight-calendar";
@@ -59,7 +60,7 @@ function MobileCalendarCard({ date, item, today, onOpen, variant = "row", drag =
     aria-label={`${item.title}, ${time}, ${item.detail}${outlook ? ", Outlook, read only" : ""}`}
     onClick={() => onOpen(source)}>
     <span className="mobile-calendar-card-time">{time}</span>
-    <span className="mobile-calendar-card-copy"><strong>{item.title}</strong>{showDetail ? <small>{item.detail}</small> : null}</span>
+    <span className="mobile-calendar-card-copy"><strong><CalendarPostMark item={source} size={variant === "row" ? 13 : 10} />{item.title}</strong>{showDetail ? <small>{item.detail}</small> : null}</span>
     <CalendarTeamMarker record={source} />
     {outlook ? <OutlookEventMark /> : variant === "row" ? <ChevronRight className="mobile-calendar-card-arrow" size={15} aria-hidden="true" /> : null}
   </CalendarDragButton>;

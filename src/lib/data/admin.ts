@@ -301,7 +301,7 @@ export async function getTabletKioskData(options: { clientName?: string; include
       .is("archived_at", null),
     supabase
       .from("website-calendar-events")
-      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),
@@ -930,7 +930,7 @@ export async function getCalendarData() {
       .is("archived_at", null),
     context.supabase
       .from("website-calendar-events")
-      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids")
+      .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
       .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
       .order("start_date")
       .order("start_time"),

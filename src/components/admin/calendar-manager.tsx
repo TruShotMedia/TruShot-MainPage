@@ -19,6 +19,8 @@ import { AlertTriangle, BriefcaseBusiness, CalendarCheck2, CalendarPlus2, Chevro
 import { updateCalendarItem } from "@/app/admin/actions";
 import { DelayHistoryBanner } from "@/components/admin/delay-history-banner";
 import { CalendarEventEditor } from "@/components/admin/calendar-event-editor";
+import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
+import { isCalendarPost } from "@/lib/calendar-event";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather } from "@/components/shared/calendar-weather";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import { buildCalendarRangeWeeks, getCalendarScheduleRanges, type CalendarJobRange, type CalendarRangeSegment } from "@/lib/calendar-layout";
@@ -127,7 +129,7 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
   return (
     <button
       type="button"
-      aria-label={`${segment.item.title}, scheduled ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
+      aria-label={`${segment.item.title}, ${isCalendarPost(segment.item) ? "post scheduled" : "scheduled"} ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}`}
       className={`calendar-job-range ${segment.item.entity_type === "campaign-asset" ? "is-campaign" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       onClick={() => onOpen(segment.item)}
       title={`${segment.item.title} · ${windowLabel} · ${segment.durationDays} days${delay.reason ? ` · Delayed: ${delay.reason}` : ""}${isComplete ? " · completed" : ""}`}
@@ -137,7 +139,7 @@ function CalendarJobRangeButton({ segment, onOpen }: { segment: CalendarRangeSeg
         gridRow: segment.lane + 1,
       } as CSSProperties}
     >
-      <strong>{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
+      <strong><CalendarPostMark item={segment.item} />{delay.isRescheduled ? <RotateCcw size={10} aria-label="Rescheduled" /> : null}{segment.item.title}</strong>
       {!isCalendarEvent ? <em>{contextLabel}</em> : null}
       {!isCalendarEvent ? <span>{segment.endsAfterWeek ? "Continues" : `Due ${format(parseISO(segment.end), "d MMM")}`}</span> : null}
     </button>
@@ -151,11 +153,11 @@ function MobileJobRangeButton({ range, onOpen }: { range: CalendarJobRange<Admin
   const delay = delayState(range.item);
   const rangeColor = calendarItemColor(range.item);
   return (
-    <button type="button" aria-label={`${range.item.title}, scheduled ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
+    <button type="button" aria-label={`${range.item.title}, ${isCalendarPost(range.item) ? "post scheduled" : "scheduled"} ${windowLabel}, ${range.durationDays} ${range.durationDays === 1 ? "day" : "days"}`} className={`calendar-mobile-job-range ${isCalendarEvent ? "is-calendar-event" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${isComplete ? "is-complete" : ""}`} onClick={() => onOpen(range.item)}>
       <span style={{ background: rangeColor }} />
       {!isCalendarEvent ? <strong>{delay.isRescheduled ? <RotateCcw size={11} aria-label="Rescheduled" /> : null}{delay.isRescheduled ? "Rescheduled" : range.item.entity_type === "campaign-asset" ? "Campaign asset" : "Job window"}</strong> : null}
       <div>
-        <em>{range.item.title}</em>
+        <em><CalendarPostMark item={range.item} />{range.item.title}</em>
         {!isCalendarEvent ? <small>{windowLabel} · {range.durationDays} {range.durationDays === 1 ? "day" : "days"}</small> : null}
       </div>
     </button>

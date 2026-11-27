@@ -2,27 +2,30 @@
 
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { BriefcaseBusiness, CalendarPlus2, ListTodo, Plane, Plus } from "lucide-react";
+import { BriefcaseBusiness, CalendarPlus2, ListTodo, Plane, Plus, Send } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { TabletCreateKind } from "@/components/tablet/tablet-workspace-editors";
 import styles from "./calendar-create-menu.module.css";
 
+export type ProductionCalendarCreateKind = TabletCreateKind | "post";
+
 const options = [
   { kind: "job", label: "Job brief", icon: BriefcaseBusiness },
   { kind: "event", label: "Calendar event", icon: CalendarPlus2 },
+  { kind: "post", label: "Scheduled post", icon: Send },
   { kind: "task", label: "Task / asset", icon: ListTodo },
   { kind: "flight", label: "Flight plan", icon: Plane },
 ] as const;
 
 export function CalendarCreateMenu({ date, productionTools, onCreate, className = "", label }: {
-  date: string; productionTools: boolean; onCreate: (kind: TabletCreateKind, date: string) => void;
+  date: string; productionTools: boolean; onCreate: (kind: ProductionCalendarCreateKind, date: string) => void;
   className?: string; label?: string;
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState<Element | null>(null);
   const [position, setPosition] = useState<CSSProperties>({});
-  const items = options.filter(item => productionTools || item.kind === "job" || item.kind === "event");
+  const items = options.filter(item => productionTools || item.kind === "job" || item.kind === "event" || item.kind === "post");
   const day = format(parseISO(date), "d MMMM yyyy");
 
   function close(restoreFocus = false) {

@@ -56,7 +56,6 @@ import {
   TabletScheduleEditor,
   RecordNotesPanel,
   JobBriefReadout,
-  type TabletCreateKind,
 } from "@/components/tablet/tablet-workspace-editors";
 import { JobFiles } from "@/components/autopacific/job-supporting-data";
 import { CreateDeliverableTasksButton } from "@/components/autopacific/create-deliverable-tasks-button";
@@ -69,6 +68,7 @@ import { AutopacificSignOutButton } from "@/components/autopacific/autopacific-s
 import { TabletNotificationControl } from "@/components/tablet/tablet-notification-control";
 import { NotionAutoSync } from "@/components/admin/notion-auto-sync";
 import { ProductionCalendar } from "./production-calendar";
+import type { ProductionCalendarCreateKind } from "./calendar-create-menu";
 import { useWorkspaceTabTitle } from "./use-workspace-tab-title";
 import { ProductionTaskList } from "./production-task-list";
 import { useProductionFieldMode } from "./use-production-field-mode";
@@ -77,7 +77,7 @@ import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import { moveProductionCalendarEvent } from "@/app/autopacific/calendar-move-actions";
-import type { CalendarEventMove } from "@/lib/calendar-event";
+import type { CalendarEventKind, CalendarEventMove } from "@/lib/calendar-event";
 import "./production-desktop.css";
 import "./production-mobile.css";
 import "./production-team.css";
@@ -410,6 +410,7 @@ export function ProductionDesktop({
   } | null>(null);
   const [eventDate, setEventDate] = useState<string | null>(null),
     [event, setEvent] = useState<Data["calendarEvents"][number] | null>(null);
+  const [newEventKind, setNewEventKind] = useState<CalendarEventKind>("event");
   const [flightDate, setFlightDate] = useState<string | null>(null),
     [flight, setFlight] = useState<CalendarFlightEvent | null>(null),
     [readFlight, setReadFlight] = useState<CalendarFlightEvent | null>(null);
@@ -635,11 +636,12 @@ export function ProductionDesktop({
       setNotice(reason instanceof Error ? reason.message : "This job could not be scheduled. Please retry.");
     } finally { setScheduling(false); }
   }
-  function start(kind: TabletCreateKind, date?: string) {
+  function start(kind: ProductionCalendarCreateKind, date?: string) {
     if (reviewOnly && (kind === "task" || kind === "flight")) return;
     if (newMenu.current) newMenu.current.open = false;
-    if (kind === "event") {
+    if (kind === "event" || kind === "post") {
       setEvent(null);
+      setNewEventKind(kind);
       setEventDate(date ?? today);
     } else if (kind === "flight") {
       setFlight(null);
@@ -808,6 +810,9 @@ export function ProductionDesktop({
                 </button>
                 {space !== "team" ? <button type="button" onClick={() => start("event")}>
                   Calendar event
+                </button> : null}
+                {space !== "team" ? <button type="button" onClick={() => start("post")}>
+                  Scheduled post
                 </button> : null}
                 {!reviewOnly ? (
                   <>
@@ -1127,7 +1132,9 @@ export function ProductionDesktop({
       ) : null}
       {eventDate ? (
         <CalendarEventEditor
+          key={event?.id ?? `${newEventKind}:${eventDate}`}
           event={event}
+          defaultKind={newEventKind}
           defaultDate={eventDate}
           defaultClientId={live.clientOptions[0]?.id}
           onClose={() => setEventDate(null)}

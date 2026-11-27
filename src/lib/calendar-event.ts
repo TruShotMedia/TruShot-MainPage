@@ -1,3 +1,10 @@
+export const CALENDAR_EVENT_KINDS = ["event", "post"] as const;
+export type CalendarEventKind = typeof CALENDAR_EVENT_KINDS[number];
+
+export function isCalendarPost(item: { entity_type: string; event_kind?: CalendarEventKind }) {
+  return item.entity_type === "calendar-event" && item.event_kind === "post";
+}
+
 export type CalendarEventWindow = {
   startDate: string;
   startTime: string;
