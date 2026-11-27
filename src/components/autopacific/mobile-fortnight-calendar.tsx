@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, type CSSProperties } from "react";
+import { useContext, useId, useMemo, type CSSProperties } from "react";
 import { format, parseISO } from "date-fns";
 import { Plane } from "lucide-react";
 import { WeatherIcon } from "@/components/shared/calendar-weather";
@@ -9,13 +9,41 @@ import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarTeamMarker, useCalendarTeamColors } from "@/components/shared/calendar-team-colors";
 import { CalendarDropDay } from "@/components/shared/calendar-event-drag";
+import { CalendarPostCompletion, useCalendarPostControl } from "@/components/shared/calendar-post-completion";
+import { isCalendarPost } from "@/lib/calendar-event";
 import { calendarTeamAttributes } from "@/lib/team-calendar-colors";
 import { buildMobileCalendarGrid, mobileRangeTime, mobileScheduleTone } from "@/lib/mobile-fortnight-calendar";
 import type { SavedCalendarWeather } from "@/lib/calendar-weather";
 import type { ProductionScheduleData } from "@/lib/production-selected-day";
+import type { buildMobileFortnight } from "@/lib/mobile-fortnight-calendar";
 import "./mobile-fortnight-calendar.css";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+type Segment = ReturnType<typeof buildMobileFortnight>[number]["visibleSegments"][number];
+
+function MobileRange({ segment, firstVisibleDay, today, mode }: { segment: Segment; firstVisibleDay: string; today: string; mode: "fortnight" | "month" }) {
+  const source = segment.item;
+  const controls = useCalendarPostControl(source);
+  const toggle = mode === "fortnight" ? controls : null;
+  const members = useCalendarTeamColors();
+  const team = calendarTeamAttributes(source, members);
+  const time = mobileRangeTime(segment, firstVisibleDay);
+  const attributes = {
+    ...team,
+    className: `apg-fortnight-range ${mobileScheduleTone(source, today)} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""}`,
+    "data-calendar-source": isOutlookEvent(source) ? "outlook" : undefined,
+    "data-calendar-post-complete": isCalendarPost(source) && Boolean(source.post_completed_at) || undefined,
+    style: { ...team.style, gridColumn: `${segment.startColumn + 1} / span ${segment.span}`, gridRow: segment.lane + 1 },
+  };
+  const content = <>
+    <span className="apg-fortnight-range-time">{source.entity_type === "flight-event" ? <Plane size={9} /> : null}{time || (segment.start < firstVisibleDay ? "Continues" : "All day")}</span>
+    <strong><CalendarPostMark item={source} size={9} />{source.title}</strong><CalendarTeamMarker record={source} />{isOutlookEvent(source) ? <OutlookEventMark inline /> : null}
+  </>;
+  return toggle
+    ? <button {...attributes} type="button" aria-label={toggle.label} aria-pressed={toggle.completed} aria-busy={toggle.pending || undefined} aria-disabled={toggle.disabled || undefined} onClick={() => { if (!toggle.disabled) toggle.toggle(); }}>{content}</button>
+    : <div {...attributes} aria-hidden="true">{content}</div>;
+}
 
 export function MobileFortnightCalendar({ data, anchor, selected, today, weather, onSelectDate, mode = "fortnight" }: {
   data: ProductionScheduleData; anchor: string; selected: string; today: string;
@@ -23,6 +51,7 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
   mode?: "fortnight" | "month";
 }) {
   const descriptionId = useId();
+  const canCompletePosts = useContext(CalendarPostCompletion) !== null;
   const weeks = useMemo(() => buildMobileCalendarGrid(anchor, data, mode), [anchor, data, mode]);
   const forecasts = useMemo(() => new Map(weather.map(day => [day.date, day])), [weather]);
   const members = useCalendarTeamColors();
@@ -51,21 +80,10 @@ export function MobileFortnightCalendar({ data, anchor, selected, today, weather
           </CalendarDropDay>;
         })}
       </div>
-      <div className="apg-fortnight-ranges" aria-hidden="true">
-        {week.visibleSegments.map(segment => {
-          const source = segment.item;
-          const time = mobileRangeTime(segment, week.dayKeys[segment.startColumn]);
-          return <div key={`${segment.id}:${segment.startColumn}`} className={`apg-fortnight-range ${mobileScheduleTone(source, today)} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""}`}
-            {...calendarTeamAttributes(source, members)}
-            data-calendar-source={isOutlookEvent(source) ? "outlook" : undefined}
-            style={{ ...calendarTeamAttributes(source, members).style,
-              gridColumn: `${segment.startColumn + 1} / span ${segment.span}`, gridRow: segment.lane + 1 } as CSSProperties}>
-            <span className="apg-fortnight-range-time">{source.entity_type === "flight-event" ? <Plane size={9} /> : null}{time || (segment.start < week.dayKeys[segment.startColumn] ? "Continues" : "All day")}</span>
-            <strong><CalendarPostMark item={source} size={9} />{source.title}</strong><CalendarTeamMarker record={source} />{isOutlookEvent(source) ? <OutlookEventMark inline /> : null}
-          </div>;
-        })}
+      <div className="apg-fortnight-ranges">
+        {week.visibleSegments.map(segment => <MobileRange key={`${segment.id}:${segment.startColumn}`} segment={segment} firstVisibleDay={week.dayKeys[segment.startColumn]} today={today} mode={mode} />)}
       </div>
     </div>)}
-    <p className="apg-fortnight-help">Tap a day for its full schedule.{members.length ? " Shared work keeps each person’s colour." : ""}</p>
+    <p className="apg-fortnight-help">Tap a day for its full schedule.{mode === "fortnight" && canCompletePosts && data.calendarEvents.some(isCalendarPost) ? " Tap a post to mark or unmark it as complete." : ""}{members.length ? " Shared work keeps each person’s colour." : ""}</p>
   </section>;
 }

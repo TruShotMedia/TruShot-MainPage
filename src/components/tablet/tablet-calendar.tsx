@@ -19,6 +19,7 @@ import { BriefcaseBusiness, CalendarClock, CheckCircle2, ChevronLeft, ChevronRig
 import { AirlineLogo } from "@/components/tablet/airline-logo";
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
+import { useCalendarPostControl } from "@/components/shared/calendar-post-completion";
 import { isCalendarPost } from "@/lib/calendar-event";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
 import { CalendarWeatherBadge, CalendarWeatherCredit, CalendarWeatherDetails, useCalendarWeather, WeatherIcon } from "@/components/shared/calendar-weather";
@@ -75,6 +76,7 @@ function itemBelongsToAccentClient(item: CalendarDisplayItem, palette: CalendarP
 
 function isCalendarItemComplete(item: CalendarDisplayItem, today: string, currentTime: string) {
   if (item.entity_type === "calendar-event") {
+    if (isCalendarPost(item)) return Boolean(item.post_completed_at);
     if (item.end_date < today) return true;
     if (item.end_date > today || item.is_all_day) return false;
     return Boolean(item.end_time && item.end_time.slice(0, 5) <= currentTime);
@@ -330,8 +332,10 @@ function FlightRange({ currentTime, editable, onOpen, palette, segment, today }:
   );
 }
 
-function JobRange({ currentTime, editable, onOpen, palette, segment, today, weekDays }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string; weekDays: readonly string[] }) {
+function JobRange({ currentTime, editable, onOpen, palette, segment, today, weekDays, togglePostsOnPress }: { currentTime: string; editable: boolean; onOpen: (item: CalendarScheduleRangeItem) => void; palette: CalendarPalette; segment: CalendarRangeSegment<CalendarStandardRangeItem>; today: string; weekDays: readonly string[]; togglePostsOnPress?: boolean }) {
   const calendarMembers = useCalendarTeamColors();
+  const controls = useCalendarPostControl(segment.item);
+  const toggle = togglePostsOnPress && editable ? controls : null;
   const drag = useCalendarEventDrag(segment.item, weekDays.slice(segment.startColumn, segment.startColumn + segment.span), `range:${segment.id}:${weekDays[0]}`);
   const windowLabel = dateWindowLabel(segment.start, segment.end);
   const outlook = isOutlookEvent(segment.item);
@@ -347,23 +351,31 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today, week
       : segment.item.client_name ?? "No client";
   const post = isCalendarPost(segment.item);
   const statusLabel = segment.item.entity_type === "calendar-event" ? outlook ? "Outlook · Read only" : post ? "Scheduled post" : "Calendar event" : segment.item.status_label;
+  function activate() {
+    if (!toggle) onOpen(segment.item);
+    else if (!toggle.disabled) toggle.toggle();
+  }
   return (
     <article
       data-calendar-source={outlook ? "outlook" : undefined}
       {...drag.props}
       {...calendarTeamAttributes(segment.item, calendarMembers)}
-      aria-label={`${segment.item.title}, ${post ? "post scheduled" : "scheduled"} ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete && !post ? ", completed" : ""}`}
+      data-calendar-post-complete={post && isComplete || undefined}
+      aria-label={toggle?.label ?? `${segment.item.title}, ${post ? "post scheduled" : "scheduled"} ${windowLabel}, ${segment.durationDays} ${segment.durationDays === 1 ? "day" : "days"}${isOverdue ? ", overdue" : ""}${isComplete ? ", completed" : ""}`}
+      aria-pressed={toggle?.completed}
+      aria-busy={toggle?.pending || undefined}
+      aria-disabled={toggle?.disabled || undefined}
       className={`tablet-calendar-job-range ${editable ? "is-editable" : ""} ${isCalendarEvent ? "is-calendar-event" : ""} ${isOverdue ? "is-overdue" : ""} ${delay.isDelayedSource ? "is-delayed-source" : ""} ${delay.isRescheduled ? "is-rescheduled" : ""} ${segment.startsBeforeWeek ? "continues-before" : ""} ${segment.endsAfterWeek ? "continues-after" : ""} ${isComplete ? "is-complete" : ""}`}
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
-      onClick={editable ? () => onOpen(segment.item) : undefined}
+      onClick={editable ? activate : undefined}
       onKeyDown={editable ? (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onOpen(segment.item);
+          activate();
         }
       } : undefined}
-      title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}${delay.reason ? ` · Delayed: ${delay.reason}` : ""}`}
+      title={`${segment.item.title} · ${windowLabel}${context ? ` · ${context}` : ""} · ${statusLabel}${toggle ? ` · ${toggle.label}` : ""}${delay.reason ? ` · Delayed: ${delay.reason}` : ""}`}
       style={{
         "--tablet-calendar-color": rangeColor,
         ...calendarTeamAttributes(segment.item, calendarMembers).style,
@@ -380,7 +392,7 @@ function JobRange({ currentTime, editable, onOpen, palette, segment, today, week
   );
 }
 
-export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, renderCreateButton, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city", anchorDate, onAnchorDateChange, selectedDate, onSelectDate }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey; anchorDate?: string; onAnchorDateChange?: (date: string) => void; selectedDate?: string; onSelectDate?: (date: string) => void }) {
+export function TabletCalendar({ accentColor, accentClientName, accentKeywords, completedColor, currentTime = "00:00", mutedColor, overdueColor, jobs, tasks, campaignAssets = [], customEvents = [], flightEvents = [], density = "standard", editable = false, onCreateEvent, renderCreateButton, onEditEvent, onEditFlight, onEditItem, today, weatherLocationKey = "brisbane-city", anchorDate, onAnchorDateChange, selectedDate, onSelectDate, togglePostsOnPress }: CalendarPalette & { jobs: CalendarJob[]; tasks: CalendarTask[]; campaignAssets?: CalendarCampaignAsset[]; customEvents?: CalendarCustomEvent[]; currentTime?: string; flightEvents?: CalendarFlightEvent[]; density?: "standard" | "capacity"; editable?: boolean; onCreateEvent?: (date: string) => void; renderCreateButton?: (date: string) => ReactNode; onEditEvent?: (event: CalendarCustomEvent) => void; onEditFlight?: (event: CalendarFlightEvent) => void; onEditItem?: (item: CalendarItem) => void; today: string; weatherLocationKey?: WeatherLocationKey; anchorDate?: string; onAnchorDateChange?: (date: string) => void; selectedDate?: string; onSelectDate?: (date: string) => void; togglePostsOnPress?: boolean }) {
   const calendarMembers = useCalendarTeamColors();
   const todayDate = useMemo(() => parseISO(today), [today]);
   const [internalView, setInternalView] = useState(() => ({ viewedOn: today, month: density === "capacity" ? todayDate : startOfMonth(todayDate) }));
@@ -639,7 +651,7 @@ export function TabletCalendar({ accentColor, accentClientName, accentKeywords, 
                 </div>
                 {displayedSegments.length ? <div className="tablet-calendar-range-layer">{displayedSegments.map((segment) => segment.item.entity_type === "flight-event"
                   ? <FlightRange currentTime={currentTime} editable={editable} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarFlightEvent>} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />
-                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} weekDays={week.dayKeys} today={today} key={`${segment.id}-${week.dayKeys[0]}`} />)}</div> : null}
+                  : <JobRange currentTime={currentTime} editable={editable || (segment.item.entity_type === "calendar-event" && segment.item.external_source === "outlook")} onOpen={openRangeItem} palette={palette} segment={segment as CalendarRangeSegment<CalendarStandardRangeItem>} weekDays={week.dayKeys} today={today} key={`${segment.id}-${week.dayKeys[0]}`} togglePostsOnPress={togglePostsOnPress} />)}</div> : null}
               </section>
             );
           })}

@@ -105,7 +105,7 @@ export function ProductionMobileSchedule({
           <MobileForecast forecast={forecasts.get(selected)} onOpen={setWeatherDay} />
           {todayOnly ? create : null}
         </header>
-        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} showWorkingHours={showWorkingHours} onOpen={openRecord} />
+        <MobileSelectedAgenda agenda={agendas.get(selected)!} date={selected} today={today} currentTime={currentTime} hourly={mode === "day" && !todayOnly} showWorkingHours={showWorkingHours} onOpen={openRecord} togglePostOnPress={mode === "fortnight"} />
       </>}
       {overdue.length ? <section className="apg-mobile-all-day mobile-calendar-group" aria-label="Overdue work">
         <h3>Still needs attention</h3>{overdue.map(item => <button key={`${item.entity_type}:${item.id}`} type="button" className="mobile-calendar-card is-row is-overdue" {...calendarTeamAttributes(item, calendarMembers)} onClick={() => openRecord(item)}>

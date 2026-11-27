@@ -1,0 +1,25 @@
+[data-calendar-post-complete="true"] strong {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.calendar-post-control { position: relative; min-width: 0; }
+.calendar-post-control > button { width: 100%; padding-inline-end: 29px; }
+.calendar-post-control.is-positioned { position: absolute; }
+.calendar-post-control.is-mobile-hour { min-height: 44px; }
+.calendar-post-control.is-mobile-tile { flex: 0 0 clamp(104px,34vw,145px); }
+.calendar-post-control.is-mobile-tile > button { height: 100%; }
+.calendar-post-check {
+  position: absolute; z-index: 2; inset-inline-end: 2px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 24px; height: min(100%, 34px); cursor: pointer;
+}
+.calendar-post-control.is-mobile-hour .calendar-post-check,
+.calendar-post-control.is-mobile-tile .calendar-post-check { width: 28px; }
+.calendar-post-check input {
+  appearance: auto; margin: 0; width: 13px; height: 13px;
+  accent-color: var(--workspace-action, #327da3);
+  cursor: inherit;
+}
+.calendar-post-check:has(input:focus-visible) {
+  outline: 2px solid var(--workspace-accent, #327da3); outline-offset: -1px; border-radius: 4px;
+}
+.calendar-post-check:has(input:disabled) { cursor: wait; }

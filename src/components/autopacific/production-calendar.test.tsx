@@ -10,6 +10,7 @@ vi.mock("@/components/shared/calendar-weather", () => ({ useCalendarWeather: wea
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { ProductionCalendar } from "./production-calendar";
 import { ProductionDayPane } from "./production-day-pane";
+import { CalendarPostCompletion } from "@/components/shared/calendar-post-completion";
 import type { CalendarCustomEvent, CalendarJob } from "@/lib/types";
 import { calendarViewStorageKey } from "@/lib/calendar-view-memory";
 import { ProductionTeamProvider } from "./team-context";
@@ -560,6 +561,56 @@ it("shows an all-day post in the desktop Week all-day row", async () => {
   const mark = container.querySelector(".timetable-all-day .calendar-post-mark");
   expect(mark?.closest("strong")?.textContent).toBe(post.title);
   expect(container.querySelector(".timetable-hours .calendar-post-mark")).toBeNull();
+});
+it.each([[false, "Week"], [false, "Day"], [false, "Hybrid"], [true, "Week"], [true, "Day"], [true, "List"], [true, "Month"]] as const)(
+  "shows an independent post checkbox in %s %s",
+  async (mobile, mode) => {
+    const post = { ...event("Launch day", "11:00", "11:15"), event_kind: "post" as const };
+    const fixture = { ...data, calendarEvents: [post, ...data.calendarEvents] };
+    const toggle = vi.fn();
+    await act(async () => root.render(<CalendarPostCompletion.Provider value={{ pendingId: null, toggle }}>
+      <ProductionCalendar data={fixture} today="2026-11-10" marketing mobile={mobile} {...callbacks} />
+    </CalendarPostCompletion.Provider>));
+    await chooseMode(mode);
+    const boxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].checked).toBe(false);
+    await act(async () => boxes[0].click());
+    expect(toggle).toHaveBeenCalledExactlyOnceWith(post);
+    expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+    await act(async () => boxes[0].closest(".calendar-post-control")?.querySelector("button")?.click());
+    expect(callbacks.onOpenEvent).toHaveBeenCalledExactlyOnceWith(post);
+  },
+);
+it.each([false, true])("toggles the post itself in Fortnight without checkboxes (mobile=%s)", async mobile => {
+  const post = { ...event("Launch day", "", ""), event_kind: "post" as const, is_all_day: true, start_time: null, end_time: null };
+  const toggle = vi.fn();
+  const renderPost = async (completed: boolean, readOnly = false) => {
+    const next = { ...post, post_completed_at: completed ? "2026-11-11T01:00:00Z" : null };
+    await act(async () => root.render(<CalendarPostCompletion.Provider value={readOnly ? null : { pendingId: null, toggle }}>
+      <ProductionCalendar data={{ ...data, calendarEvents: [next] }} today="2026-11-11" marketing mobile={mobile} readOnly={readOnly} {...callbacks} />
+    </CalendarPostCompletion.Provider>));
+    return next;
+  };
+  const open = await renderPost(false);
+  await chooseMode("Fortnight");
+  expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(container.querySelector('[data-calendar-post-complete="true"]')).toBeNull();
+  const press = async (label: string) => {
+    const chip = container.querySelector<HTMLElement>(`${mobile ? ".apg-fortnight-range" : ".tablet-calendar-job-range"}[aria-label="${label}"]`)!;
+    expect(chip).not.toBeNull();
+    await act(async () => chip.click());
+  };
+  await press("Mark Launch day complete");
+  expect(toggle).toHaveBeenLastCalledWith(open);
+  expect(callbacks.onOpenEvent).not.toHaveBeenCalled();
+  const completed = await renderPost(true);
+  expect(container.querySelector('[aria-label="Scheduled post completed"]')).not.toBeNull();
+  await press("Mark Launch day not complete");
+  expect(toggle).toHaveBeenLastCalledWith(completed);
+  await renderPost(true, true);
+  expect(container.querySelector('[aria-pressed="true"][aria-label^="Mark Launch day"]')).toBeNull();
+  expect(container.querySelector('input[type="checkbox"]')).toBeNull();
 });
 it("shows ongoing weekday work and native/Outlook themes without hiding completed work", async () => {
   const job: CalendarJob = { id: "ongoing", entity_type: "job", title: "Ongoing capture", client_name: "Autopacific Group", shoot_date: "2026-11-09", shoot_time: null, due_date: "2026-11-13", due_time: null, status_label: "Production", status_color: "#579", is_complete: false };

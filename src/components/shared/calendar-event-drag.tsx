@@ -8,6 +8,7 @@ import {
 } from "@dnd-kit/core";
 import { format, parseISO } from "date-fns";
 import { CalendarClock } from "lucide-react";
+import { useCalendarPostControl } from "./calendar-post-completion";
 import { calendarResizeDrop, calendarTimeDrop, grabbedCalendarDay, sameDayCalendarEventWindow, type CalendarEventMove, type CalendarEventMoveResult, type CalendarResizeEdge } from "@/lib/calendar-event";
 import type { CalendarCustomEvent } from "@/lib/types";
 import "./calendar-event-drag.css";
@@ -154,18 +155,31 @@ function CalendarResizeHandle({ event, date, dragId, edge }: {
     onClick={event => event.stopPropagation()} />;
 }
 
-export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", timedBooking, children, style, className, ...button }: ComponentPropsWithoutRef<"button"> & {
+export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date", timedBooking, postControl, children, style, className, ...button }: ComponentPropsWithoutRef<"button"> & {
   source: { entity_type: string }; dragDay?: string; dragId: string; moveKind?: MoveKind;
   timedBooking?: { time: string; compact: boolean; resizable: boolean };
+  postControl?: "checkbox" | "entry" | "mobile-hour" | "mobile-tile";
 }) {
+  const controls = useCalendarPostControl(source);
+  const toggleEntry = postControl === "entry" && controls;
+  const showCheck = postControl && postControl !== "entry" && controls;
   const preview = useContext(Preview);
   const resize = preview?.kind === "resize" && preview.bookingId === dragId ? preview : null;
   const { canMove, props } = useCalendarEventDrag(source, dragDay ? [dragDay] : [], dragId, moveKind);
   const event = canMove && timedBooking?.resizable && dragDay && source.entity_type === "calendar-event" ? source as CalendarCustomEvent : null;
   const canResize = event && dragDay && sameDayCalendarEventWindow(event, dragDay);
-  return <button {...button} {...props} data-calendar-resizable={Boolean(canResize || resize) || undefined}
+  const geometry = resize ? { ...style, top: resize.top, height: resize.height } : style;
+  const positioned = showCheck && (timedBooking || postControl === "mobile-hour");
+  const complete = source.entity_type === "calendar-event" && Boolean((source as CalendarCustomEvent).post_completed_at);
+  const entry = <button {...button} {...props} data-calendar-resizable={Boolean(canResize || resize) || undefined}
     data-calendar-resize-preview={resize ? "" : undefined}
-    style={resize ? { ...style, top: resize.top, height: resize.height } : style}
+    data-calendar-post-complete={complete || undefined}
+    aria-label={toggleEntry ? toggleEntry.label : button["aria-label"]}
+    aria-pressed={toggleEntry ? toggleEntry.completed : button["aria-pressed"]}
+    aria-busy={toggleEntry ? toggleEntry.pending || undefined : button["aria-busy"]}
+    aria-disabled={toggleEntry ? toggleEntry.disabled || undefined : button["aria-disabled"]}
+    onClick={toggleEntry ? () => { if (!toggleEntry.disabled) toggleEntry.toggle(); } : button.onClick}
+    style={positioned ? { ...style, top: 0, left: 0, width: "100%", height: "100%", paddingInlineEnd: 30 } : showCheck ? { ...geometry, paddingInlineEnd: 29 } : geometry}
     className={(resize?.compact ?? timedBooking?.compact) ? `${className ?? ""} is-short` : className}>
     {timedBooking ? <small>{resize?.text ?? timedBooking.time}</small> : null}
     {children}
@@ -174,6 +188,15 @@ export function CalendarDragButton({ source, dragDay, dragId, moveKind = "date",
       <CalendarResizeHandle event={event} date={dragDay} dragId={dragId} edge="end" />
     </> : null}
   </button>;
+  if (!showCheck) return entry;
+  return <div className={`calendar-post-control${positioned ? " is-positioned" : ""}${postControl !== "checkbox" ? ` is-${postControl}` : ""}`}
+    style={positioned ? geometry : undefined}>
+    {entry}
+    <label className="calendar-post-check">
+      <input type="checkbox" aria-label={showCheck.label} aria-busy={showCheck.pending || undefined}
+        checked={showCheck.completed} disabled={showCheck.disabled} onChange={showCheck.toggle} />
+    </label>
+  </div>;
 }
 
 type DayProps = { date: string; targetId?: string; clockGrid?: ClockGrid; disableDrop?: boolean } & (

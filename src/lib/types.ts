@@ -300,6 +300,7 @@ export type CalendarCustomEvent = {
   id: string;
   entity_type: "calendar-event";
   event_kind?: CalendarEventKind;
+  post_completed_at?: string | null;
   client_id: string | null;
   client_name: string | null;
   title: string;

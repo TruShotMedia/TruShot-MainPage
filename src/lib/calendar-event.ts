@@ -1,7 +1,7 @@
 export const CALENDAR_EVENT_KINDS = ["event", "post"] as const;
 export type CalendarEventKind = typeof CALENDAR_EVENT_KINDS[number];
 
-export function isCalendarPost(item: { entity_type: string; event_kind?: CalendarEventKind }) {
+export function isCalendarPost<T extends { entity_type: string; event_kind?: CalendarEventKind }>(item: T): item is T & { entity_type: "calendar-event"; event_kind: "post" } {
   return item.entity_type === "calendar-event" && item.event_kind === "post";
 }
 

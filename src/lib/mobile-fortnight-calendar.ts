@@ -1,4 +1,5 @@
 import { buildCalendarRangeWeeks, calendarBookingTime, getCalendarScheduleRanges } from "./calendar-layout";
+import { isCalendarPost } from "./calendar-event";
 import { buildFlightCalendarItineraries } from "./flight-itineraries";
 import { MOBILE_CALENDAR_COLUMNS, mobileCalendarDates } from "./mobile-calendar-period";
 import type { AgendaSource } from "./production-agenda";
@@ -9,6 +10,7 @@ export const MOBILE_FORTNIGHT_DAY_LIMIT = 2;
 export type MobileCalendarEntry = { id: string; date: string; title: string; time: string; label: string; source: AgendaSource };
 
 export function mobileScheduleTone(item: AgendaSource, today: string) {
+  if (isCalendarPost(item)) return item.post_completed_at ? "is-complete" : "is-autopacific";
   if ((item.client_name ?? "").toLowerCase() !== "autopacific group") return "is-unrelated";
   if ("delay_info" in item && (item.delay_info?.delayed_from || item.delay_info?.delayed_to)) return "is-delayed";
   if ("is_complete" in item && item.is_complete) return "is-complete";

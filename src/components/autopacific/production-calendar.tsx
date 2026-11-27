@@ -7,6 +7,7 @@ import { OutlookCalendarConnection } from "@/components/shared/outlook-calendar-
 import { OutlookEventMark } from "@/components/shared/outlook-event-mark";
 import { CalendarPostMark } from "@/components/shared/calendar-post-mark";
 import { isOutlookEvent } from "@/lib/outlook-calendar/model";
+import { isCalendarPost } from "@/lib/calendar-event";
 import { ProductionMobileSchedule } from "./production-mobile-schedule";
 import { ProductionDayPane } from "./production-day-pane";
 import { ProductionWeekPanel } from "./production-week-panel";
@@ -63,6 +64,7 @@ function WeekCurrentTime({ time, firstHour, lastHour }: { time: string; firstHou
 }
 
 function agendaTone(source: AgendaSource, today: string) {
+  if (isCalendarPost(source)) return source.post_completed_at ? "is-complete" : "is-autopacific";
   const related =
     (source.client_name ?? "").toLowerCase() === "autopacific group";
   if (!related) return "is-unrelated";
@@ -156,6 +158,7 @@ export function TimedSchedule({
                 type="button"
                 key={item.id}
                 source={item.source}
+                postControl="checkbox"
                 dragDay={calendarDay ? undefined : dates[index]}
                 dragId={`all-day:${dates[index]}:${item.id}`}
                 {...calendarTeamAttributes(item.source, calendarMembers)}
@@ -204,6 +207,7 @@ export function TimedSchedule({
               <CalendarDragButton
                 key={block.id}
                 source={block.source}
+                postControl="checkbox"
                 dragDay={dates[index]}
                 moveKind={calendarDay ? "time" : calendarWeek ? "date-time" : "date"}
                 timedBooking={{ time: block.time, compact: block.end - block.start < 45, resizable: hasTimeGrid }}
@@ -402,6 +406,7 @@ export function ProductionCalendar({
           customEvents={data.calendarEvents}
           flightEvents={data.flightEvents}
           editable={!readOnly}
+          togglePostsOnPress={mode === "fortnight"}
           onCreateEvent={(date) => onCreate("event", date)}
           renderCreateButton={value => <CalendarCreateMenu date={value} productionTools={productionTools} className="tablet-calendar-day-add" onCreate={onCreate} />}
           onEditItem={onOpenItem}

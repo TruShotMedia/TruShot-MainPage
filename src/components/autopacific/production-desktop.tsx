@@ -77,6 +77,8 @@ import { scopeCalendarForWorkspace } from "@/lib/marketing-calendar-scope";
 import { readAutopacificOfflineQueue, readAutopacificOfflineSnapshot, writeAutopacificOfflineSnapshot } from "@/lib/autopacific-offline";
 import { bulkUpdateJobStatus, movePipelineTask } from "@/app/admin/actions";
 import { moveProductionCalendarEvent } from "@/app/autopacific/calendar-move-actions";
+import { setScheduledPostCompletion } from "@/app/autopacific/calendar-post-actions";
+import { CalendarPostCompletion } from "@/components/shared/calendar-post-completion";
 import type { CalendarEventKind, CalendarEventMove } from "@/lib/calendar-event";
 import "./production-desktop.css";
 import "./production-mobile.css";
@@ -411,6 +413,8 @@ export function ProductionDesktop({
   const [eventDate, setEventDate] = useState<string | null>(null),
     [event, setEvent] = useState<Data["calendarEvents"][number] | null>(null);
   const [newEventKind, setNewEventKind] = useState<CalendarEventKind>("event");
+  const [pendingPostId, setPendingPostId] = useState<string | null>(null);
+  const pendingPost = useRef(false);
   const [flightDate, setFlightDate] = useState<string | null>(null),
     [flight, setFlight] = useState<CalendarFlightEvent | null>(null),
     [readFlight, setReadFlight] = useState<CalendarFlightEvent | null>(null);
@@ -618,6 +622,28 @@ export function ProductionDesktop({
       });
     }
     return result;
+  }
+  async function togglePost(post: Data["calendarEvents"][number]) {
+    if (space === "team" || pendingPost.current) return;
+    if (!navigator.onLine) { setNotice("Reconnect to update this scheduled post."); return; }
+    pendingPost.current = true;
+    setPendingPostId(post.id);
+    setNotice("");
+    try {
+      const result = await setScheduledPostCompletion({ id: post.id, completed: !post.post_completed_at });
+      if (!result.ok) { setNotice(result.error); return; }
+      setSnapshot(current => {
+        const previous = current.source === data ? current.data : data;
+        return { source: data, data: { ...previous, calendarEvents: previous.calendarEvents.map(record =>
+          record.id === post.id && record.updated_at <= result.post.updated_at ? { ...record, ...result.post } : record,
+        ) } };
+      });
+    } catch {
+      setNotice("Couldn’t update this scheduled post. Try again.");
+    } finally {
+      pendingPost.current = false;
+      setPendingPostId(null);
+    }
   }
   async function schedulePlanningJob(job: TabletJobRecord) {
     const scheduled = live.jobStatuses.find(status => status.key === "scheduled");
@@ -1021,6 +1047,7 @@ export function ProductionDesktop({
               onMoveSaved={() => void refresh("pipeline")}
             />
           ) : (
+            <CalendarPostCompletion.Provider value={space === "team" ? null : { pendingId: pendingPostId, toggle: togglePost }}>
             <ProductionCalendar
               key={view}
               data={live}
@@ -1045,6 +1072,7 @@ export function ProductionDesktop({
               onCreate={start}
               onMoveEvent={field.online ? moveEvent : undefined}
             />
+            </CalendarPostCompletion.Provider>
           )}
         </section>
       </div>

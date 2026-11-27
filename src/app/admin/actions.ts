@@ -1085,7 +1085,7 @@ export async function createCalendarEvent(formData: FormData): Promise<CalendarE
       created_by: context.claims.sub,
       updated_by: context.claims.sub,
     })
-    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind,post_completed_at")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be created. Please try again." };
   revalidatePath("/admin/calendar");
@@ -1113,7 +1113,7 @@ export async function updateCalendarEvent(formData: FormData): Promise<CalendarE
     .update({ ...parsed.data, ...assignmentValues(formData), updated_by: context.claims.sub })
     .eq("id", parsedId.data)
     .eq("workspace_id", TRUSHOT_WORKSPACE_ID)
-    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind")
+    .select("id,client_id,title,description,location,start_date,start_time,end_date,end_time,is_all_day,color,reminder_offsets_minutes,created_at,updated_at,assignee_ids,event_kind,post_completed_at")
     .single();
   if (error || !data) return { ok: false, error: "The calendar event could not be updated. Please try again." };
   revalidatePath("/admin/calendar");
